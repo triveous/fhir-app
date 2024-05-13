@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,16 +44,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import org.smartregister.fhircore.engine.R
+import org.smartregister.fhircore.engine.configuration.navigation.ICON_TYPE_LOCAL
+import org.smartregister.fhircore.engine.configuration.navigation.ImageConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
+import org.smartregister.fhircore.engine.ui.theme.DarkColors
 import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.event.ToolbarClickEvent
+import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 
 const val DRAWER_MENU = "Drawer Menu"
 const val SEARCH = "Search"
@@ -78,22 +88,26 @@ fun TopScreenSection(
   toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
   onSearchTextChanged: (String) -> Unit,
   isFilterIconEnabled: Boolean = false,
+  onSync: (AppMainEvent) -> Unit,
   onClick: (ToolbarClickEvent) -> Unit,
 ) {
   Column(
-    modifier = modifier.fillMaxWidth().background(MaterialTheme.colors.primary),
+    modifier = modifier
+      .fillMaxWidth()
+      .background(DarkColors.primary),
   ) {
     Row(
       modifier =
-        modifier
-          .fillMaxWidth()
-          .padding(horizontal = 16.dp, vertical = 16.dp)
-          .testTag(
-            TITLE_ROW_TEST_TAG,
-          ),
+      modifier
+        .fillMaxWidth()
+        .height(64.dp)
+        .padding(horizontal = 16.dp, vertical = 16.dp)
+        .testTag(
+          TITLE_ROW_TEST_TAG,
+        ),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      Icon(
+      /*Icon(
         when (toolBarHomeNavigation) {
           ToolBarHomeNavigation.OPEN_DRAWER -> Icons.Filled.Menu
           ToolBarHomeNavigation.NAVIGATE_BACK -> Icons.Filled.ArrowBack
@@ -101,15 +115,33 @@ fun TopScreenSection(
         contentDescription = DRAWER_MENU,
         tint = Color.White,
         modifier =
-          modifier.clickable { onClick(ToolbarClickEvent.Navigate) }.testTag(TOP_ROW_ICON_TEST_TAG),
-      )
+        modifier
+          .clickable { onClick(ToolbarClickEvent.Navigate) }
+          .testTag(TOP_ROW_ICON_TEST_TAG),
+      )*/
       Text(
-        text = title,
-        fontSize = 20.sp,
+        text = stringResource(id = R.string.appname),
+        fontSize = 24.sp,
         color = Color.White,
-        modifier = modifier.padding(start = 8.dp).weight(1f).testTag(TOP_ROW_TEXT_TEST_TAG),
+        fontWeight = FontWeight.Bold,
+        modifier = modifier
+          .padding(start = 8.dp)
+          .weight(1f)
+          .testTag(TOP_ROW_TEXT_TEST_TAG),
       )
-      if (isFilterIconEnabled) {
+      val context = LocalContext.current
+
+      Icon(
+        painter = painterResource(id = R.drawable.ic_sync),
+        contentDescription = FILTER,
+        tint = Color.White,
+        modifier =
+        modifier
+          .clickable { onSync(AppMainEvent.SyncData(context))}
+          .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
+      )
+
+      /*if (false) {
         BadgedBox(
           modifier = Modifier.padding(end = 8.dp),
           badge = {
@@ -134,10 +166,10 @@ fun TopScreenSection(
                 .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
           )
         }
-      }
+      }*/
     }
 
-    OutlinedTextField(
+    /*OutlinedTextField(
       colors = TextFieldDefaults.outlinedTextFieldColors(textColor = Color.DarkGray),
       value = searchText,
       onValueChange = { onSearchTextChanged(it) },
@@ -179,7 +211,7 @@ fun TopScreenSection(
           }
         }
       },
-    )
+    )*/
   }
 }
 
@@ -193,6 +225,7 @@ fun TopScreenSectionWithFilterItemOverNinetyNinePreview() {
     onSearchTextChanged = {},
     toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
     isFilterIconEnabled = true,
+    onSync = {},
     onClick = {},
   )
 }
@@ -207,6 +240,7 @@ fun TopScreenSectionWithFilterCountNinetyNinePreview() {
     onSearchTextChanged = {},
     toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
     isFilterIconEnabled = true,
+    onSync = {},
     onClick = {},
   )
 }
@@ -220,6 +254,7 @@ fun TopScreenSectionNoFilterIconPreview() {
     onSearchTextChanged = {},
     toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
     isFilterIconEnabled = false,
+    onSync = {},
     onClick = {},
   )
 }
