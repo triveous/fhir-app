@@ -130,8 +130,8 @@ constructor(
   }
 
   fun forgotPin() {
-    secureSharedPreference.deleteSessionPin()
-    _navigateToLogin.value = true
+    // TODO use valid supervisor (Practitioner) telephone number
+    _launchDialPad.value = "tel:####"
   }
 
   fun pinLogin(enteredPin: CharArray, callback: (Boolean) -> Unit) {
