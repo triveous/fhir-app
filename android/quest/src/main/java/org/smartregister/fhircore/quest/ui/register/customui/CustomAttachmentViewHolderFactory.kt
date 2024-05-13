@@ -5,7 +5,6 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.view.View
 import android.widget.Button
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.DrawableRes
@@ -43,7 +42,6 @@ import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
@@ -71,7 +69,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
       private lateinit var photoThumbnail: ImageView
       private lateinit var photoTitle: TextView
       private lateinit var photoDeleteButton: Button
-      private lateinit var photoDeleteButton2: ImageView
       private lateinit var filePreview: ConstraintLayout
       private lateinit var fileIcon: ImageView
       private lateinit var fileTitle: TextView
@@ -94,7 +91,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         photoThumbnail = itemView.findViewById(R.id.photo_thumbnail)
         photoTitle = itemView.findViewById(R.id.photo_title)
         photoDeleteButton = itemView.findViewById(R.id.photo_delete)
-        photoDeleteButton2 = itemView.findViewById(R.id.photo_delete2)
         filePreview = itemView.findViewById(R.id.file_preview)
         fileIcon = itemView.findViewById(R.id.file_icon)
         fileTitle = itemView.findViewById(R.id.file_title)
@@ -119,11 +115,8 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         uploadDocumentButton.setOnClickListener { view -> onUploadClicked(view, questionnaireItem) }
         uploadFileButton.setOnClickListener { view -> onUploadClicked(view, questionnaireItem) }
         photoDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
-        photoDeleteButton2.setOnClickListener { view -> onDeleteClicked(view) }
         fileDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
         displayValidationResult(questionnaireViewItem.validationResult)
-
-        displayAttachmentPreview(questionnaireViewItem)
       }
 
       private fun displayValidationResult(validationResult: ValidationResult) {
@@ -197,48 +190,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
             uploadFileButton.visibility = View.VISIBLE
           }
         }
-      }
-
-      private fun displayAttachmentPreview(questionnaireViewItem: QuestionnaireViewItem) {
-        // Check if the answer contains an attachment
-        val answer = questionnaireViewItem.answers.firstOrNull()
-        answer?.valueAttachment?.let { attachment ->
-          // Determine the attachment type and display preview accordingly
-          when (getMimeType(attachment.contentType)) {
-            MimeType.IMAGE.value -> {
-              // If it's an image attachment, display the preview
-              displayImagePreview(attachment)
-            }
-            // Handle other attachment types if needed
-            else -> {
-              // Clear any existing preview for non-image attachments
-              clearAttachmentPreview()
-            }
-          }
-        } ?: run {
-          // If there's no attachment, clear any existing preview
-          clearAttachmentPreview()
-        }
-      }
-
-      private fun displayImagePreview(attachment: Attachment) {
-        // Display image preview logic
-        val attachmentTitle = attachment.title ?: ""
-        val attachmentUri = getFileUri(attachment.title ?: "")
-        loadPhotoPreview(attachmentUri, attachmentTitle)
-      }
-
-      fun getFileUri(imageFileName : String): Uri{
-        imageFileName.isNotEmpty().let {
-          return Uri.parse(IMAGE_CACHE_BASE_URI + imageFileName)
-        }
-      }
-
-      private fun clearAttachmentPreview() {
-        // Clear attachment preview logic
-        photoPreview.visibility = View.GONE
-        Glide.with(context).clear(photoThumbnail)
-        photoTitle.text = ""
       }
 
       private fun onTakePhotoClicked(view: View, questionnaireItem: Questionnaire.QuestionnaireItemComponent) {
@@ -517,7 +468,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
       }
     }
 
-
   private fun createDocumentReference(attachmentUri: Uri, mimeType: String): DocumentReference {
     val doc = DocumentReference().apply {
       id = UUID.randomUUID().toString()
@@ -532,7 +482,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
     return doc
   }
 
-  private val IMAGE_CACHE_BASE_URI: String = "content://org.smartregister.opensrp.fileprovider/cache/"
   val EXTRA_MIME_TYPE_KEY = "mime_type"
   val EXTRA_SAVED_PHOTO_URI_KEY = "saved_photo_uri"
 
@@ -579,4 +528,4 @@ private fun Questionnaire.QuestionnaireItemComponent.isGivenSizeOverLimit(
 }
 
 private val DocumentReference.url
-  get() = "${BuildConfig.FHIR_BASE_URL}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
+  get() = "${BuildConfig.FHIR_BASE_URL}/DocumentReference/${logicalId}/\$binary-access-write?path=DocumentReference.content.attachment"

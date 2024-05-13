@@ -12,10 +12,5 @@
         <!-- Status bar color. -->
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
-
-
-
-        <item name="questionnaire_theme">@style/Theme.MyQuestionnaire2</item>
-
     </style>
 </resources>

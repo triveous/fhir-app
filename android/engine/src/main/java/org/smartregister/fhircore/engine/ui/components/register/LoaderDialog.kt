@@ -70,7 +70,7 @@ fun LoaderDialog(
           horizontalAlignment = Alignment.CenterHorizontally,
         ) {
           Surface(
-            color = Color.White,
+            color = Color.Black.copy(alpha = 0.56f),
             modifier = modifier.fillMaxSize(),
             shape = RoundedCornerShape(8),
           ) {
@@ -79,7 +79,7 @@ fun LoaderDialog(
               horizontalAlignment = Alignment.CenterHorizontally,
             ) {
               CircularProgressIndicator(
-                color = Color.Blue,
+                color = Color.White,
                 strokeWidth = 3.dp,
                 modifier = modifier.testTag(LOADER_DIALOG_PROGRESS_BAR_TAG).size(40.dp),
               )
@@ -89,7 +89,7 @@ fun LoaderDialog(
               ) {
                 Text(
                   fontSize = 16.sp,
-                  color = Color.DarkGray,
+                  color = Color.White,
                   text = dialogMessage,
                   modifier =
                     modifier.testTag(LOADER_DIALOG_PROGRESS_MSG_TAG).padding(vertical = 16.dp),
@@ -98,7 +98,7 @@ fun LoaderDialog(
                 if (showPercentageProgress) {
                   Text(
                     fontSize = 15.sp,
-                    color = Color.DarkGray,
+                    color = Color.White,
                     text = stringResource(id = R.string.percentage_progress, currentPercentage),
                     modifier = modifier.padding(horizontal = 3.dp, vertical = 16.dp),
                   )
