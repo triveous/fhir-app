@@ -28,12 +28,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -66,6 +68,7 @@ import org.smartregister.fhircore.engine.ui.theme.SideMenuTopItemDarkColor
 import org.smartregister.fhircore.engine.ui.theme.SubtitleTextColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.appVersion
+import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainUiState
 import org.smartregister.fhircore.quest.ui.main.appMainUiStateOf
@@ -102,7 +105,7 @@ fun AppDrawer(
     topBar = {
       Column(modifier = modifier.background(SideMenuDarkColor)) {
         // Display the app name and version
-        NavTopSection(modifier, appUiState, versionCode, versionName, onSideMenuClick, openDrawer)
+        NavTopSection(modifier, appUiState, versionCode, versionName)
 
         // Display menu action button
         MenuActionButton(
@@ -115,13 +118,13 @@ fun AppDrawer(
       }
     },
     bottomBar = { // Display bottom section of the nav (sync)
-      //NavBottomSection(modifier, appUiState, onSideMenuClick, openDrawer)
+      NavBottomSection(modifier, appUiState, onSideMenuClick, openDrawer)
     },
     backgroundColor = SideMenuDarkColor,
   ) { innerPadding ->
     Box(modifier = modifier.padding(innerPadding)) {
       LazyColumn(modifier = modifier.padding(horizontal = 16.dp)) {
-        /*item {
+        item {
           Column(modifier = modifier.background(SideMenuDarkColor)) {
             if (navigationConfiguration.clientRegisters.isNotEmpty()) {
               Text(
@@ -132,10 +135,10 @@ fun AppDrawer(
               )
             }
           }
-        }*/
+        }
 
         // Display list of configurable client registers
-        /*items(navigationConfiguration.clientRegisters, { it.id }) { navigationMenu ->
+        items(navigationConfiguration.clientRegisters, { it.id }) { navigationMenu ->
           SideMenuItem(
             imageConfig = navigationMenu.menuIconConfig,
             title = navigationMenu.display,
@@ -147,9 +150,9 @@ fun AppDrawer(
               AppMainEvent.TriggerWorkflow(navController = navController, navMenu = navigationMenu),
             )
           }
-        }*/
+        }
 
-        /*item {
+        item {
           if (navigationConfiguration.bottomSheetRegisters?.registers?.isNotEmpty() == true) {
             Column {
               OtherPatientsItem(
@@ -161,10 +164,10 @@ fun AppDrawer(
               if (navigationConfiguration.staticMenu.isNotEmpty()) Divider(color = DividerColor)
             }
           }
-        }*/
+        }
 
         // Display list of configurable static menu
-        /*items(navigationConfiguration.staticMenu, { it.id }) { navigationMenu ->
+        items(navigationConfiguration.staticMenu, { it.id }) { navigationMenu ->
           SideMenuItem(
             imageConfig = navigationMenu.menuIconConfig,
             title = navigationMenu.display,
@@ -176,7 +179,7 @@ fun AppDrawer(
               AppMainEvent.TriggerWorkflow(navController = navController, navMenu = navigationMenu),
             )
           }
-        }*/
+        }
       }
     }
   }
@@ -252,8 +255,6 @@ private fun NavTopSection(
   appUiState: AppMainUiState,
   versionCode: Int,
   versionName: String?,
-  onSideMenuClick: (AppMainEvent) -> Unit,
-  openDrawer: (Boolean) -> Unit,
 ) {
   Row(
     horizontalArrangement = Arrangement.SpaceBetween,
@@ -280,27 +281,6 @@ private fun NavTopSection(
       maxLines = 1,
       overflow = TextOverflow.Ellipsis,
     )
-  }
-
-  val context = LocalContext.current
-  Box(
-    modifier =
-    modifier
-      .testTag(NAV_BOTTOM_SECTION_MAIN_BOX_TEST_TAG)
-      .background(SideMenuBottomItemDarkColor)
-      .padding(horizontal = 16.dp, vertical = 4.dp),
-  ) {
-    SideMenuItem(
-      modifier.testTag(NAV_BOTTOM_SECTION_SIDE_MENU_ITEM_TEST_TAG),
-      imageConfig = ImageConfig(type = ICON_TYPE_LOCAL, "ic_sync"),
-      title = stringResource(org.smartregister.fhircore.engine.R.string.sync),
-      endText = appUiState.lastSyncTime,
-      showEndText = true,
-      endTextColor = SubtitleTextColor,
-    ) {
-      openDrawer(false)
-      onSideMenuClick(AppMainEvent.SyncData(context))
-    }
   }
 }
 
@@ -329,21 +309,21 @@ private fun MenuActionButton(
         modifier.background(MenuActionButtonTextColor).size(16.dp).clip(RoundedCornerShape(2.dp)),
         contentAlignment = Alignment.Center,
       ) {
-        /*Icon(
+        Icon(
           imageVector = Icons.Filled.Add,
           modifier = modifier.testTag(MENU_BUTTON_ICON_TEST_TAG),
           contentDescription = null,
-        )*/
+        )
       }
       Spacer(modifier.width(16.dp))
-      /*Text(
+      Text(
         modifier = modifier.testTag(MENU_BUTTON_TEXT_TEST_TAG),
         text =
           navigationConfiguration.menuActionButton?.display?.uppercase()
             ?: stringResource(id = org.smartregister.fhircore.engine.R.string.register_new_client),
         color = MenuActionButtonTextColor,
         fontSize = 18.sp,
-      )*/
+      )
     }
   }
 }
