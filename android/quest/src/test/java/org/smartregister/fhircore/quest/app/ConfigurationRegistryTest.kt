@@ -35,7 +35,6 @@ import kotlinx.coroutines.runBlocking
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.Composition
 import org.hl7.fhir.r4.model.Identifier
-import org.hl7.fhir.r4.model.ImplementationGuide
 import org.hl7.fhir.r4.model.ListResource
 import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.StructureMap
@@ -44,7 +43,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.smartregister.fhircore.engine.OpenSrpApplication
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
-import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry.Companion.PAGINATION_NEXT
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceDataSource
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.util.DispatcherProvider
@@ -121,8 +119,7 @@ class ConfigurationRegistryTest : RobolectricTest() {
       }
 
     every { secureSharedPreference.retrieveSessionUsername() } returns "demo"
-    coEvery { configurationRegistry.fetchRemoteCompositionByAppId(any()) } returns composition
-    coEvery { configurationRegistry.fhirResourceDataSource.getResource(any()) } returns bundle
+    coEvery { configurationRegistry.fetchRemoteComposition(any()) } returns composition
     coEvery { configurationRegistry.fhirResourceDataSource.post(any(), any()) } returns bundle
     every { sharedPreferencesHelper.read(SharedPreferenceKey.APP_ID.name, null) } returns "demo"
     coEvery { configurationRegistry.saveSyncSharedPreferences(any()) } just runs
@@ -133,21 +130,6 @@ class ConfigurationRegistryTest : RobolectricTest() {
 
   @Test
   fun testFetchListResourceNonProxy() = runBlocking {
-    val implementationGuide =
-      ImplementationGuide().apply {
-        url = "ImplementationGuide/1"
-        name = "testImplementationGuide"
-        definition =
-          ImplementationGuide.ImplementationGuideDefinitionComponent().apply {
-            resource =
-              mutableListOf(
-                ImplementationGuide.ImplementationGuideDefinitionResourceComponent(
-                  Reference().apply { reference = "Composition" },
-                ),
-              )
-          }
-      }
-
     val composition =
       Composition().apply {
         addSection().apply {
@@ -165,7 +147,8 @@ class ConfigurationRegistryTest : RobolectricTest() {
 
     configurationRegistry.setNonProxy(true)
     every { secureSharedPreference.retrieveSessionUsername() } returns "demo"
-    coEvery { configurationRegistry.fetchRemoteCompositionByAppId(any()) } returns composition
+    coEvery { configurationRegistry.fetchRemoteComposition(any()) } returns composition
+
     coEvery { configurationRegistry.fhirResourceDataSource.getResource(any()) } returns bundle
     every { sharedPreferencesHelper.read(SharedPreferenceKey.APP_ID.name, null) } returns "demo"
     coEvery { configurationRegistry.saveSyncSharedPreferences(any()) } just runs
@@ -194,32 +177,22 @@ class ConfigurationRegistryTest : RobolectricTest() {
         addEntry().apply {
           this.resource = ListResource().apply { ListResource@ this.id = "123456" }
         }
-        link.add(
-          Bundle.BundleLinkComponent().apply { relation = PAGINATION_NEXT },
-        )
       }
 
     every { secureSharedPreference.retrieveSessionUsername() } returns "demo"
-    coEvery { configurationRegistry.fetchRemoteCompositionByAppId(any()) } returns composition
+    coEvery { configurationRegistry.fetchRemoteComposition(any()) } returns composition
     coEvery {
       fhirResourceService.getResourceWithGatewayModeHeader(
         ConfigurationRegistry.FHIR_GATEWAY_MODE_HEADER_VALUE,
-        "List?_id=123456&_page=1&_count=200",
+        "List/123456",
       )
     } returns bundle
     every { sharedPreferencesHelper.read(SharedPreferenceKey.APP_ID.name, null) } returns "demo"
     coEvery { configurationRegistry.saveSyncSharedPreferences(any()) } just runs
-    coEvery { fhirResourceDataSource.getResource("List?_id=123456&_page=1&_count=200") } returns
-      bundle
 
     configurationRegistry.fetchNonWorkflowConfigResources()
 
-    coVerify {
-      fhirResourceService.getResourceWithGatewayModeHeader(
-        ConfigurationRegistry.FHIR_GATEWAY_MODE_HEADER_VALUE,
-        "List?_id=123456&_page=1&_count=200",
-      )
-    }
+    coVerify { fhirResourceService.getResourceWithGatewayModeHeader(any(), any()) }
     coVerify { configurationRegistry.addOrUpdate(any()) }
   }
 }
