@@ -16,37 +16,38 @@
 
 package org.smartregister.fhircore.quest.ui.register
 
+import android.os.Bundle
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Tab
 import androidx.compose.material.TabRow
+import androidx.compose.material.TextButton
+import androidx.compose.material.TextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardElevation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -54,26 +55,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.lifecycleScope
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.paging.compose.LazyPagingItems
+import com.google.android.fhir.datacapture.extensions.asStringValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.hl7.fhir.r4.model.Patient
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
@@ -81,18 +84,22 @@ import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.components.register.RegisterHeader
-import org.smartregister.fhircore.engine.ui.theme.DarkColors
 import org.smartregister.fhircore.engine.ui.theme.LightColors
-import org.smartregister.fhircore.engine.ui.theme.LightGreyBackground
-import org.smartregister.fhircore.engine.ui.theme.MenuItemColor
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
+import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
+import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.quest.event.ToolbarClickEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
+import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
+import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity.Companion.QUESTIONNAIRE_RESPONSE_PREFILL
 import org.smartregister.fhircore.quest.ui.register.components.RegisterCardList
 import org.smartregister.fhircore.quest.ui.shared.components.ExtendedFab
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 const val NO_REGISTER_VIEW_COLUMN_TEST_TAG = "noRegisterViewColumnTestTag"
 const val NO_REGISTER_VIEW_TITLE_TEST_TAG = "noRegisterViewTitleTestTag"
@@ -104,6 +111,13 @@ const val REGISTER_CARD_TEST_TAG = "registerCardListTestTag"
 const val FIRST_TIME_SYNC_DIALOG = "firstTimeSyncTestTag"
 const val FAB_BUTTON_REGISTER_TEST_TAG = "fabTestTag"
 const val TOP_REGISTER_SCREEN_TEST_TAG = "topScreenTestTag"
+
+fun convertToDate(input: Date): String {
+  val outputFormat = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
+
+  // Format the date to the desired output format
+  return outputFormat.format(input)
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -158,8 +172,20 @@ fun RegisterScreen(
         // Only show counter during search
         if (searchText.value.isNotEmpty()) RegisterHeader(resultCount = pagingItems.itemCount)
 
+        registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
 
+          Box {
+            NoRegisterDataView(
+              modifier = modifier,
+              viewModel = viewModel,
+              noResults = noResultConfig
+            ) {
+              noResultConfig.actionButton?.actions?.handleClickEvent(navController)
+            }
+          }
+        }
       }
+
     },
 
     floatingActionButton = {
@@ -204,143 +230,105 @@ fun RegisterScreen(
           showPagination = searchText.value.isEmpty(),
         )
       } else {
+
         registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
-          val tabTitles = listOf("PATIENTS", "IN-PROGRESS")
-          val pagerState = rememberPagerState(pageCount = { 2 }, initialPage = 0)
 
-          /*var patients = remember {
-            listOf<Patient>()
-          }
-          viewModel.patientsListLiveData.observeForever {
-            patients = it
-          }*/
           Box (modifier = modifier
-            .padding(top = 16.dp)
-            .background(SearchHeaderColor)){
-            NoRegisterDataView(
-              modifier = modifier,
-              viewModel = viewModel,
-              noResults = noResultConfig
-            ) {
-              noResultConfig.actionButton?.actions?.handleClickEvent(navController)
-            }
-          }
+            .background(SearchHeaderColor))
+          {
+            val tabTitles = listOf("ALL PATIENTS", "DRAFTS", "UN-SYNCED")
+            val pagerState = rememberPagerState(pageCount = { 3 }, initialPage = 0)
 
-/*          TabRow(
-            selectedTabIndex = pagerState.currentPage,
-            contentColor = Color.Red, // Customize tab text color
-          ) {
-            tabTitles.forEachIndexed { index, title ->
-              Tab(
-                text = { Text(title, color = Color.White, fontSize = 14.sp) },
-                selected = pagerState.currentPage == index,
-                selectedContentColor = DarkColors.error,
-                onClick = {
-                  CoroutineScope(Dispatchers.IO).launch {
-                    pagerState.scrollToPage(index)
-                  }
-                }
-              )
-            }
-          }
-          HorizontalPager(state = pagerState) {
-            // Content for each tab (your fragment content goes here)
-            tabTitles.forEach { title ->
-              if(pagerState.currentPage == 0){
-                Box (modifier = modifier
-                  .padding(top = 48.dp)
-                  .background(SearchHeaderColor)){
-                  NoRegisterDataView(
-                    modifier = modifier,
-                    viewModel = viewModel,
-                    noResults = noResultConfig
-                  ) {
-                    noResultConfig.actionButton?.actions?.handleClickEvent(navController)
-                  }
-                }
-              }else{
-                if (patients.isEmpty()){
-                  Box(modifier = modifier
-                    .padding(vertical = 64.dp)
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .background(SearchHeaderColor)
-                  ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally,) {
-                      Text(
-                        text = "No Patients",
-                        fontSize = 16.sp,
-                        modifier = modifier
-                          .padding(vertical = 8.dp)
-                          .testTag(NO_REGISTER_VIEW_TITLE_TEST_TAG),
-                        fontWeight = FontWeight.Bold,
-                      )
-                      Text(
-                        text = "Sorry, you haven't added any patients.",
-                        modifier =
-                        modifier
-                          .testTag(NO_REGISTER_VIEW_MESSAGE_TEST_TAG),
-                        textAlign = TextAlign.Center,
-                        fontSize = 15.sp,
-                        color = Color.Gray,
-                      )
+            val patients by viewModel.patientsStateFlow.collectAsState()
+            val savedRes by viewModel.savedDraftResponse.collectAsState()
+            val unSynced by viewModel.unSyncedStateFlow.collectAsState()
+            var deleteDraftId by remember { mutableStateOf("") }
+            var showDeleteDialog by remember { mutableStateOf(false) }
+
+
+            TabRow(
+              modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+              backgroundColor = SearchHeaderColor,
+              selectedTabIndex = pagerState.currentPage,
+              contentColor = SearchHeaderColor,
+            ) {
+              tabTitles.forEachIndexed { index, title ->
+                Tab(
+                  text = { Text(title, color = Color.Gray, fontSize = 14.sp) },
+                  selected = pagerState.currentPage == index,
+                  selectedContentColor = SearchHeaderColor,
+                  modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                      if (pagerState.currentPage == index) Color.White else SearchHeaderColor
+                    ),
+                  onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                      pagerState.scrollToPage(index)
                     }
                   }
-                }else{
+                )
+              }
+            }
+            HorizontalPager(state = pagerState) {
+
+
+              // Content for each tab (your fragment content goes here)
+              tabTitles.forEach { title ->
+                if(pagerState.currentPage == 0){
                   Box(modifier = modifier
                     .padding(top = 64.dp, start = 16.dp, end = 16.dp)
                     .fillMaxHeight()
                     .fillMaxWidth()
                     .background(SearchHeaderColor)
                   ) {
+
                     Box(modifier = modifier
                       .fillMaxHeight()
                       .background(SearchHeaderColor)
                       .fillMaxWidth()) {
                       LazyColumn {
                         items(patients) { patient ->
-                          Box(
-                            modifier = modifier
+                          Card(
+                            modifier = Modifier
                               .fillMaxWidth()
-                              .background(Color.White)
+                              .padding(vertical = 4.dp)
+                              .background(Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                           ) {
-                            Card(
-                              modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.White),
-                              elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                            Box(
+                              modifier = modifier
+                                .background(Color.White)
                             ) {
-                              Box(
-                                modifier = modifier
+                              Column(
+                                modifier = Modifier
+                                  .fillMaxWidth()
+                                  .padding(vertical = 8.dp, horizontal = 16.dp)
                                   .background(Color.White)
                               ) {
-                                Column(
-                                  modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp, horizontal = 16.dp)
-                                    .background(Color.White)
-                                ) {
-                                  Row(modifier = modifier.padding(vertical = 4.dp)) {
-                                    Text(
-                                      modifier = Modifier.weight(1f),
-                                      text = patient.name.firstOrNull()?.given?.firstOrNull()?.value ?: "",
-                                      style = MaterialTheme.typography.h6,
-                                      color = LightColors.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text(text = "Sync: ${patient}")
-                                  }
+                                Row(modifier = modifier.padding(vertical = 4.dp)) {
+                                  androidx.compose.material.Icon(
+                                    modifier = Modifier.padding(horizontal = 4.dp),
+                                    painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.patient_icon),
+                                    contentDescription = FILTER,
+                                    tint =  LightColors.primary
+                                  )
+                                  Text(
+                                    modifier = Modifier
+                                      .weight(1f)
+                                      .padding(vertical = 4.dp, horizontal = 4.dp),
+                                    text = patient.name.firstOrNull()?.given?.firstOrNull()?.value ?: "",
+                                    style = MaterialTheme.typography.h6,
+                                    color = LightColors.primary
+                                  )
+                                  Spacer(modifier = Modifier.height(16.dp))
+                                  //Text(text = "Sync: ${patient.}")
+                                }
 
-                                  Row(modifier = modifier.padding(vertical = 4.dp)) {
-                                    Text(text = "Gender: ")
-                                    Text(text = patient.gender.name)
+                                Row(modifier = modifier.padding(vertical = 4.dp)) {
+                                  Box(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+                                    Text(text = "Visited ${convertToDate(patient.meta.lastUpdated)}")
                                   }
-                                  *//*if (patient.dob != null) {
-                                    Row {
-                                      Text(text = "DoB: ")
-                                      Text(text = patient.dob.toString())
-                                    }
-                                  }*//*
                                 }
                               }
                             }
@@ -349,15 +337,357 @@ fun RegisterScreen(
                       }
                     }
                   }
+                }else if(pagerState.currentPage == 1){
+                  if (savedRes.isNotEmpty()){
+                    if (showDeleteDialog){
+                      DeleteRecordDialog(
+                        onDismiss = {
+                          deleteDraftId = ""
+                          showDeleteDialog = false
+                        },
+                        onConfirm = {
+                          viewModel.softDeleteDraft(deleteDraftId)
+                          deleteDraftId = ""
+                          showDeleteDialog = false
+                        },
+                        onCancel = {
+                          deleteDraftId = ""
+                          showDeleteDialog = false
+                        }
+                      )
+                    }
+
+                    Box(modifier = modifier
+                      .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+                      .fillMaxHeight()
+                      .fillMaxWidth()
+                      .background(SearchHeaderColor)
+                    ) {
+                      Box(modifier = modifier
+                        .fillMaxHeight()
+                        .background(SearchHeaderColor)
+                        .fillMaxWidth()) {
+                        LazyColumn {
+                          items(savedRes) { response ->
+                            Box(
+                              modifier = modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .background(Color.White)
+                            ) {
+                              Card(
+                                modifier = Modifier
+                                  .fillMaxWidth()
+                                  .background(Color.White),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                              ) {
+                                Box(
+                                  modifier = modifier
+                                    .background(Color.White)
+                                ) {
+                                  Column(
+                                    modifier = Modifier
+                                      .fillMaxWidth()
+                                      .padding(vertical = 16.dp, horizontal = 16.dp)
+                                      .background(Color.White)
+                                  ) {
+                                    Row(modifier = modifier.padding(vertical = 4.dp)) {
+
+                                      androidx.compose.material.Icon(
+                                        modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
+                                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
+                                        contentDescription = FILTER,
+                                      )
+
+                                      Text(
+                                        modifier = Modifier
+                                          .weight(1f)
+                                          .padding(vertical = 4.dp, horizontal = 8.dp),
+                                        text = response.item[0].item[0].answer[0].value.asStringValue(),
+                                        style = MaterialTheme.typography.h6,
+                                        color = Color.DarkGray
+                                      )
+                                      Spacer(modifier = Modifier.height(16.dp))
+
+                                      Box(
+                                        modifier = Modifier.clickable {
+                                          val json = response.encodeResourceToString()
+                                          registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
+                                            val bundle = Bundle()
+                                            bundle.putString(QUESTIONNAIRE_RESPONSE_PREFILL, json)
+                                            noResultConfig.actionButton?.actions?.handleClickEvent(navController, bundle = bundle)
+                                          }
+                                        }
+                                      ) {
+                                        Icon(
+                                          modifier = Modifier.padding(
+                                            vertical = 4.dp,
+                                            horizontal = 8.dp
+                                          ),
+                                          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
+                                          contentDescription = FILTER,
+                                        )
+                                      }
+                                      Box(
+                                        modifier = Modifier.clickable {
+
+                                          deleteDraftId = response.id.extractLogicalIdUuid()
+                                          showDeleteDialog = true
+
+                                        }
+                                      ) {
+                                        androidx.compose.material.Icon(
+                                          modifier = Modifier.padding(
+                                            vertical = 4.dp,
+                                            horizontal = 8.dp
+                                          ),
+                                          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
+                                          contentDescription = FILTER,
+                                        )
+                                      }
+                                    }
+
+                                    Row(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+                                      Text(text = "Created: ${convertToDate(response.meta.lastUpdated)}")
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }else{
+                    Box(modifier = modifier
+                      .fillMaxHeight()
+                      .background(SearchHeaderColor)
+                      .padding(top = 48.dp)
+                      .fillMaxWidth()) {
+
+                      Box(modifier = modifier.padding(horizontal = 16.dp)) {
+                        Text(text = "No draft patients to show.")
+                      }
+                    }
+                  }
+                }else if(pagerState.currentPage == 2) {
+
+                  if (unSynced.isNotEmpty()) {
+
+                    Box(
+                      modifier = modifier
+                        .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+                        .fillMaxHeight()
+                        .fillMaxWidth()
+                        .background(SearchHeaderColor)
+                    ) {
+                      Box(
+                        modifier = modifier
+                          .background(SearchHeaderColor)
+                          .fillMaxWidth()
+                      ) {
+                        LazyColumn {
+                          items(unSynced) { patient ->
+                            Box(
+                              modifier = modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .background(Color.White)
+                            ) {
+                              Card(
+                                modifier = Modifier
+                                  .fillMaxWidth()
+                                  .background(Color.White),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                              ) {
+                                Box(
+                                  modifier = modifier
+                                    .background(Color.White)
+                                ) {
+                                  Column(
+                                    modifier = Modifier
+                                      .fillMaxWidth()
+                                      .padding(vertical = 16.dp, horizontal = 16.dp)
+                                      .background(Color.White)
+                                  ) {
+                                    Row(modifier = modifier.padding(vertical = 4.dp)) {
+
+                                      androidx.compose.material.Icon(
+                                        modifier = Modifier.padding(
+                                          vertical = 4.dp,
+                                          horizontal = 4.dp
+                                        ),
+                                        painter = painterResource(id = com.google.android.fhir.datacapture.R.drawable.ic_document_file),
+                                        contentDescription = FILTER,
+                                        tint = Color.Black,
+                                      )
+
+                                      Text(
+                                        modifier = Modifier
+                                          .weight(1f)
+                                          .padding(vertical = 4.dp, horizontal = 4.dp),
+                                        text = patient.name,
+                                        style = MaterialTheme.typography.h6,
+                                        color = LightColors.primary
+                                      )
+                                      Spacer(modifier = Modifier.height(16.dp))
+
+                                      Text(text = "Sync: Un-Synced")
+
+                                    }
+
+                                    Row(modifier = modifier.padding(vertical = 4.dp)) {
+                                      Text(text = "Gender: ${patient.gender}")
+                                      //Text(text = patient.gender.name)
+                                    }
+                                    /*if (patient.birthDate != null) {
+                                      Row {
+                                        Text(text = "DoB: ")
+                                        Text(text = patient.birthDate.toString())
+                                      }
+                                    }*/
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                }/*else {
+                    Box(
+                      modifier = modifier
+                        .background(SearchHeaderColor)
+                        .padding(top = 48.dp)
+                        .fillMaxWidth()
+                    ) {
+
+                      Box(modifier = modifier.padding(horizontal = 16.dp)) {
+                        Text(text = "No un-synced patients to show.")
+                      }
+                    }
+                  }*/
+
                 }
               }
             }
-          }*/
+
+          }
+
         }
       }
     }
   }
 }
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CustomTabRow(
+  tabTitles: List<String>,
+  pagerState: PagerState,
+  modifier: Modifier = Modifier,
+  backgroundColor: Color = Color.LightGray,
+  selectedBackgroundColor: Color = MaterialTheme.colors.primary,
+  contentColor: Color = Color.Black,
+  selectedContentColor: Color = Color.White,
+) {
+  TabRow(
+    selectedTabIndex = pagerState.currentPage,
+    contentColor = contentColor,
+    indicator = {
+      // Customize tab indicator (optional)
+      TabIndicator(
+        backgroundColor = selectedBackgroundColor,
+        //modifier = Modifier.tabIndicatorOffset(it.get(0))
+      )
+    },
+    modifier = modifier.background(backgroundColor)
+  ) {
+    tabTitles.forEachIndexed { index, title ->
+      Tab(
+        text = {
+          Text(
+            text = title,
+            color = if (pagerState.currentPage == index) selectedContentColor else contentColor,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+          )
+        },
+        selected = pagerState.currentPage == index,
+        selectedContentColor = selectedContentColor,
+        onClick = {
+          CoroutineScope(Dispatchers.IO).launch {
+            pagerState.scrollToPage(index)
+          }
+        }
+      )
+    }
+  }
+}
+
+@Composable
+private fun TabIndicator(
+  backgroundColor: Color,
+  modifier: Modifier = Modifier,
+) {
+  Box(
+    modifier = modifier
+      .height(4.dp)
+      .fillMaxWidth()
+      .background(backgroundColor)
+  )
+}
+
+/*
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CustomTabRow(
+  pagerState: PagerState, // Replace with your pager state
+  tabTitles: List<String> // Replace with your list of tab titles
+) {
+  val scope = rememberCoroutineScope()
+
+  TabRow(
+    selectedTabIndex = pagerState.currentPage,
+    backgroundColor = Color.LightGray,
+    indicator = { tabPositions ->
+      // Custom indicator to highlight selected tab
+      TabRowDefaults.Indicator(
+        Modifier
+          .customTabIndicatorOffset(tabPositions)
+          .background(Color.Transparent)
+      )
+    }
+  ) {
+    tabTitles.forEachIndexed { index, title ->
+      Tab(
+        text = {
+          Text(
+            text = title,
+            color = if (pagerState.currentPage == index) Color.Black else Color.Gray,
+            fontSize = 14.sp
+          )
+        },
+        selected = pagerState.currentPage == index,
+        selectedContentColor = Color.White,
+        unselectedContentColor = Color.Gray,
+        onClick = {
+          scope.launch {
+            pagerState.scrollToPage(index)
+          }
+        },
+        modifier = Modifier
+          .padding(horizontal = 8.dp, vertical = 4.dp)
+          .background(
+            color = if (pagerState.currentPage == index) Color.White else Color.Transparent,
+            shape = RoundedCornerShape(20.dp)
+          )
+          .padding(horizontal = 16.dp, vertical = 8.dp)
+      )
+    }
+  }
+}*/
 
 
 /*@OptIn(ExperimentalFoundationApi::class)
@@ -409,7 +739,7 @@ fun NoRegisterDataView(
 
   Column(
     modifier = modifier
-      .fillMaxSize()
+      .fillMaxWidth()
       .padding(16.dp)
       .background(SearchHeaderColor)
       .testTag(NO_REGISTER_VIEW_COLUMN_TEST_TAG),
@@ -464,7 +794,7 @@ fun NoRegisterDataView(
       )
     }
 
-    Column(
+    /*Column(
       modifier = modifier
         .fillMaxSize()
         .padding(horizontal = 8.dp, vertical = 8.dp)
@@ -515,19 +845,19 @@ fun NoRegisterDataView(
                   Text(text = "Gender: ")
                     Text(text = patient.gender?.name ?: "")
                   }
-                  /*if (patient.dob != null) {
+                  *//*if (patient.dob != null) {
                     Row {
                       Text(text = "DoB: ")
                       Text(text = patient.dob.toString())
                     }
-                  }*/
+                  }*//*
                 }
               }
             }
           }
         }
       }
-    }
+    }*/
 
   }
 }
@@ -544,4 +874,34 @@ private fun PreviewNoRegistersView() {
         actionButton = NavigationMenuConfig(display = "Button Text", id = "1"),
       ),
   ) {}
+}
+
+
+@Composable
+fun DeleteRecordDialog(
+  onDismiss: () -> Unit,
+  onConfirm: () -> Unit,
+  onCancel: () -> Unit
+) {
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text(text = "Delete record", fontSize = 28.sp, color = Color.Black)
+    },
+    text = {
+      Text(text = "Are you sure you want to delete the record?", color = Color.Gray)
+    },
+    confirmButton = {
+      TextButton(onClick = onConfirm) {
+        Text(text = "Yes", color = LightColors.primary)
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onCancel) {
+        Text(text = "No", color = LightColors.primary)
+      }
+    },
+    properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
+  )
 }
