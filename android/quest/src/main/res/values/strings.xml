@@ -21,6 +21,7 @@
     <string name="upload_audio">Upload Audio</string>
     <string name="upload_document">Upload Document</string>
     <string name="upload_failed">Upload failed</string>
+    <string name="image_capture_failed">Image capture failed</string>
     <string name="upload_file">Upload File</string>
     <string name="upload_photo">Upload Photo</string>
     <string name="upload_video">Upload Video</string>
