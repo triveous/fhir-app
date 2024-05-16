@@ -518,8 +518,6 @@ constructor(
     }
   }
 
-
-  //Here we have to fetch data from the local sync and build our model with name and payload. Payload contains whole reposne payload json
   fun getAllDraftResponses() {
     viewModelScope.launch {
       val responses = fhirEngine.search<QuestionnaireResponse> {
