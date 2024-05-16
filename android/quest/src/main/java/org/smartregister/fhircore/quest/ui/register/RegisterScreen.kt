@@ -33,7 +33,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
@@ -41,10 +40,8 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Tab
 import androidx.compose.material.TabRow
 import androidx.compose.material.TextButton
-import androidx.compose.material.TextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -96,11 +93,12 @@ import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity.C
 import org.smartregister.fhircore.quest.ui.register.components.RegisterCardList
 import org.smartregister.fhircore.quest.ui.shared.components.ExtendedFab
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.text.style.TextOverflow
+import org.hl7.fhir.r4.model.Patient
+import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
+
 
 
 const val NO_REGISTER_VIEW_COLUMN_TEST_TAG = "noRegisterViewColumnTestTag"
@@ -113,6 +111,12 @@ const val REGISTER_CARD_TEST_TAG = "registerCardListTestTag"
 const val FIRST_TIME_SYNC_DIALOG = "firstTimeSyncTestTag"
 const val FAB_BUTTON_REGISTER_TEST_TAG = "fabTestTag"
 const val TOP_REGISTER_SCREEN_TEST_TAG = "topScreenTestTag"
+const val ALL_PATIENTS_TAB = "ALL PATIENTS"
+const val DRAFT_PATIENTS_TAB = "DRAFT"
+const val UNSYNCED_PATIENTS_TAB = "UN-SYNCED"
+const val ALL_PATIENTS = 0
+const val DRAFT_PATIENTS = 1
+const val UNSYNCED_PATIENTS = 2
 
 
 
@@ -233,7 +237,7 @@ fun RegisterScreen(
           Box (modifier = modifier
             .background(SearchHeaderColor))
           {
-            val tabTitles = listOf("ALL PATIENTS", "DRAFTS", "UN-SYNCED")
+            val tabTitles = listOf(ALL_PATIENTS_TAB, DRAFT_PATIENTS_TAB, UNSYNCED_PATIENTS_TAB)
             val pagerState = rememberPagerState(pageCount = { 3 }, initialPage = 0)
 
             val patients by viewModel.patientsStateFlow.collectAsState()
@@ -251,7 +255,7 @@ fun RegisterScreen(
             ) {
               tabTitles.forEachIndexed { index, title ->
                 Tab(
-                  text = { Text(title, color = Color.Gray, fontSize = 14.sp) },
+                  text = { Text(title, color = Color.Gray, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                   selected = pagerState.currentPage == index,
                   selectedContentColor = SearchHeaderColor,
                   modifier = Modifier
@@ -270,478 +274,378 @@ fun RegisterScreen(
             HorizontalPager(state = pagerState) {
               // Content for each tab (your fragment content goes here)
               tabTitles.forEach { title ->
-                if(pagerState.currentPage == 0){
-                  Box(modifier = modifier
-                    .padding(top = 64.dp, start = 16.dp, end = 16.dp)
-                    .fillMaxHeight()
-                    .fillMaxWidth()
-                    .background(SearchHeaderColor)
-                  ) {
-
-                    if(patients.isEmpty()){
-                      Box(modifier = modifier
-                        .fillMaxHeight()
-                        .background(SearchHeaderColor)
-                        .padding(top = 48.dp)
-                        .fillMaxWidth()) {
-
-                        Box(modifier = modifier.padding(horizontal = 16.dp),
-                          contentAlignment = Alignment.Center
-                        ) {
-                          Text(text = "No draft patients to show.")
-                        }
-                      }
-                    }else {
-                      Box(modifier = modifier
-                        .fillMaxHeight()
-                        .padding(top = 8.dp)
-                        .background(SearchHeaderColor)
-                        .fillMaxWidth()) {
-                        LazyColumn {
-                          items(patients) { patient ->
-                            Card(
-                              modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .background(Color.White),
-                              elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                            ) {
-                              Box(
-                                modifier = modifier
-                                  .background(Color.White)
-                              ) {
-                                Column(
-                                  modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp, horizontal = 16.dp)
-                                    .background(Color.White)
-                                ) {
-                                  Row(modifier = modifier.padding(vertical = 4.dp)) {
-                                    androidx.compose.material.Icon(
-                                      modifier = Modifier.padding(horizontal = 4.dp),
-                                      painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.patient_icon),
-                                      contentDescription = FILTER,
-                                      tint =  LightColors.primary
-                                    )
-                                    Text(
-                                      modifier = Modifier
-                                        .weight(1f)
-                                        .padding(vertical = 4.dp, horizontal = 4.dp),
-                                      text = patient.name.firstOrNull()?.given?.firstOrNull()?.value ?: "",
-                                      style = MaterialTheme.typography.h6,
-                                      color = LightColors.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    //Text(text = "Sync: ${patient.}")
-                                  }
-
-                                  Row(modifier = modifier.padding(vertical = 4.dp)) {
-                                    Box(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
-                                      Text(text = "Visited ${convertToDate(patient.meta.lastUpdated)}")
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
+                when (pagerState.currentPage) {
+                    ALL_PATIENTS -> {
+                      ShowAllPatients(modifier, patients)
                     }
-                  }
-                }else if(pagerState.currentPage == 1){
-                    if (showDeleteDialog){
-                      DeleteRecordDialog(
-                        onDismiss = {
-                          deleteDraftId = ""
-                          showDeleteDialog = false
-                        },
-                        onConfirm = {
-                          viewModel.softDeleteDraft(deleteDraftId)
-                          deleteDraftId = ""
-                          showDeleteDialog = false
-                        },
-                        onCancel = {
-                          deleteDraftId = ""
-                          showDeleteDialog = false
-                        }
+                    DRAFT_PATIENTS -> {
+                      if (showDeleteDialog){
+                        DeleteRecordDialog(
+                          onDismiss = {
+                            deleteDraftId = ""
+                            showDeleteDialog = false
+                          },
+                          onConfirm = {
+                            viewModel.softDeleteDraft(deleteDraftId)
+                            deleteDraftId = ""
+                            showDeleteDialog = false
+                          },
+                          onCancel = {
+                            deleteDraftId = ""
+                            showDeleteDialog = false
+                          }
+                        )
+                      }
+
+                      ShowDraftPatients(
+                        modifier,
+                        savedRes,
+                        registerUiState,
+                        navController,
+                        deleteDraftId,
+                        showDeleteDialog
                       )
                     }
-
-                    Box(modifier = modifier
-                      .padding(top = 64.dp, start = 16.dp, end = 16.dp)
-                      .fillMaxHeight()
-                      .fillMaxWidth()
-                      .background(SearchHeaderColor)
-                    ) {
-
-                      if (savedRes.isEmpty()){
-                        Box(modifier = modifier
-                          .fillMaxHeight()
-                          .background(SearchHeaderColor)
-                          .padding(top = 48.dp)
-                          .fillMaxWidth()) {
-
-                          Box(modifier = modifier.padding(horizontal = 16.dp),
-                            contentAlignment = Alignment.Center
-                          ) {
-                            Text(text = "No draft patients to show.")
-                          }
-                        }
-                      }else{
-                        Box(modifier = modifier
-                          .fillMaxHeight()
-                          .background(SearchHeaderColor)
-                          .fillMaxWidth()) {
-                          LazyColumn {
-                            items(savedRes) { response ->
-                              Box(
-                                modifier = modifier
-                                  .fillMaxWidth()
-                                  .padding(vertical = 8.dp)
-                                  .background(Color.White)
-                              ) {
-                                Card(
-                                  modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.White),
-                                  elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                                ) {
-                                  Box(
-                                    modifier = modifier
-                                      .background(Color.White)
-                                  ) {
-                                    Column(
-                                      modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp, horizontal = 16.dp)
-                                        .background(Color.White)
-                                    ) {
-                                      Row(modifier = modifier.padding(vertical = 4.dp)) {
-
-                                        androidx.compose.material.Icon(
-                                          modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
-                                          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
-                                          contentDescription = FILTER,
-                                        )
-
-                                        Text(
-                                          modifier = Modifier
-                                            .weight(1f)
-                                            .padding(vertical = 4.dp, horizontal = 8.dp),
-                                          text = response.item[0].item[0].answer[0].value.asStringValue(),
-                                          style = MaterialTheme.typography.h6,
-                                          color = Color.DarkGray
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-
-                                        Box(
-                                          modifier = Modifier.clickable {
-                                            val json = response.encodeResourceToString()
-                                            registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
-                                              val bundle = Bundle()
-                                              bundle.putString(QUESTIONNAIRE_RESPONSE_PREFILL, json)
-                                              noResultConfig.actionButton?.actions?.handleClickEvent(navController, bundle = bundle)
-                                            }
-                                          }
-                                        ) {
-                                          Icon(
-                                            modifier = Modifier.padding(
-                                              vertical = 4.dp,
-                                              horizontal = 8.dp
-                                            ),
-                                            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
-                                            contentDescription = FILTER,
-                                          )
-                                        }
-                                        Box(
-                                          modifier = Modifier.clickable {
-
-                                            deleteDraftId = response.id.extractLogicalIdUuid()
-                                            showDeleteDialog = true
-
-                                          }
-                                        ) {
-                                          androidx.compose.material.Icon(
-                                            modifier = Modifier.padding(
-                                              vertical = 4.dp,
-                                              horizontal = 8.dp
-                                            ),
-                                            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
-                                            contentDescription = FILTER,
-                                          )
-                                        }
-                                      }
-
-                                      Row(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
-                                        Text(text = "Created: ${convertToDate(response.meta.lastUpdated)}")
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                }else if(pagerState.currentPage == 2) {
-
-                    Box(
-                      modifier = modifier
-                        .padding(top = 64.dp, start = 16.dp, end = 16.dp)
-                        .fillMaxHeight()
-                        .fillMaxWidth()
-                        .background(SearchHeaderColor)
-                    ) {
-
-                      if (unSynced.isEmpty()){
-                        Box(
-                          modifier = modifier
-                            .background(SearchHeaderColor)
-                            .padding(top = 48.dp)
-                            .fillMaxWidth()
-                        ) {
-                          Box(modifier = modifier.padding(horizontal = 16.dp)
-                            .fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                          ) {
-                            Text(text = "No un-synced patients to show.")
-                          }
-                        }
-                      }else{
-                        Box(
-                          modifier = modifier
-                            .background(SearchHeaderColor)
-                            .fillMaxWidth()
-                        ) {
-                          LazyColumn {
-                            items(unSynced) { patient ->
-                              Box(
-                                modifier = modifier
-                                  .fillMaxWidth()
-                                  .padding(vertical = 8.dp)
-                                  .background(Color.White)
-                              ) {
-                                Card(
-                                  modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.White),
-                                  elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                                ) {
-                                  Box(
-                                    modifier = modifier
-                                      .background(Color.White)
-                                  ) {
-                                    Column(
-                                      modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp, horizontal = 16.dp)
-                                        .background(Color.White)
-                                    ) {
-                                      Row(modifier = modifier.padding(vertical = 4.dp)) {
-
-                                        androidx.compose.material.Icon(
-                                          modifier = Modifier.padding(
-                                            vertical = 4.dp,
-                                            horizontal = 4.dp
-                                          ),
-                                          painter = painterResource(id = com.google.android.fhir.datacapture.R.drawable.ic_document_file),
-                                          contentDescription = FILTER,
-                                          tint = Color.Black,
-                                        )
-
-                                        Text(
-                                          modifier = Modifier
-                                            .weight(1f)
-                                            .padding(vertical = 4.dp, horizontal = 4.dp),
-                                          text = patient.name,
-                                          style = MaterialTheme.typography.h6,
-                                          color = LightColors.primary
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-
-                                        Text(text = "Sync: Un-Synced")
-
-                                      }
-
-                                      Row(modifier = modifier.padding(vertical = 4.dp)) {
-                                        Text(text = "Gender: ${patient.gender}")
-                                        //Text(text = patient.gender.name)
-                                      }
-                                      /*if (patient.birthDate != null) {
-                                        Row {
-                                          Text(text = "DoB: ")
-                                          Text(text = patient.birthDate.toString())
-                                        }
-                                      }*/
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
+                    UNSYNCED_PATIENTS -> {
+                      ShowUnSyncedPatients(modifier, unSynced)
                     }
                 }
               }
             }
-
           }
-
         }
       }
     }
   }
 }
 
-
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun CustomTabRow(
-  tabTitles: List<String>,
-  pagerState: PagerState,
-  modifier: Modifier = Modifier,
-  backgroundColor: Color = Color.LightGray,
-  selectedBackgroundColor: Color = MaterialTheme.colors.primary,
-  contentColor: Color = Color.Black,
-  selectedContentColor: Color = Color.White,
-) {
-  TabRow(
-    selectedTabIndex = pagerState.currentPage,
-    contentColor = contentColor,
-    indicator = {
-      // Customize tab indicator (optional)
-      TabIndicator(
-        backgroundColor = selectedBackgroundColor,
-        //modifier = Modifier.tabIndicatorOffset(it.get(0))
-      )
-    },
-    modifier = modifier.background(backgroundColor)
-  ) {
-    tabTitles.forEachIndexed { index, title ->
-      Tab(
-        text = {
-          Text(
-            text = title,
-            color = if (pagerState.currentPage == index) selectedContentColor else contentColor,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp
-          )
-        },
-        selected = pagerState.currentPage == index,
-        selectedContentColor = selectedContentColor,
-        onClick = {
-          CoroutineScope(Dispatchers.IO).launch {
-            pagerState.scrollToPage(index)
-          }
-        }
-      )
-    }
-  }
-}
-
-@Composable
-private fun TabIndicator(
-  backgroundColor: Color,
-  modifier: Modifier = Modifier,
+private fun ShowUnSyncedPatients(
+  modifier: Modifier,
+  unSynced: List<RegisterViewModel.Patient2>
 ) {
   Box(
     modifier = modifier
-      .height(4.dp)
+      .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+      .fillMaxHeight()
       .fillMaxWidth()
-      .background(backgroundColor)
-  )
-}
-
-/*
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun CustomTabRow(
-  pagerState: PagerState, // Replace with your pager state
-  tabTitles: List<String> // Replace with your list of tab titles
-) {
-  val scope = rememberCoroutineScope()
-
-  TabRow(
-    selectedTabIndex = pagerState.currentPage,
-    backgroundColor = Color.LightGray,
-    indicator = { tabPositions ->
-      // Custom indicator to highlight selected tab
-      TabRowDefaults.Indicator(
-        Modifier
-          .customTabIndicatorOffset(tabPositions)
-          .background(Color.Transparent)
-      )
-    }
+      .background(SearchHeaderColor)
   ) {
-    tabTitles.forEachIndexed { index, title ->
-      Tab(
-        text = {
-          Text(
-            text = title,
-            color = if (pagerState.currentPage == index) Color.Black else Color.Gray,
-            fontSize = 14.sp
-          )
-        },
-        selected = pagerState.currentPage == index,
-        selectedContentColor = Color.White,
-        unselectedContentColor = Color.Gray,
-        onClick = {
-          scope.launch {
-            pagerState.scrollToPage(index)
-          }
-        },
-        modifier = Modifier
-          .padding(horizontal = 8.dp, vertical = 4.dp)
-          .background(
-            color = if (pagerState.currentPage == index) Color.White else Color.Transparent,
-            shape = RoundedCornerShape(20.dp)
-          )
-          .padding(horizontal = 16.dp, vertical = 8.dp)
-      )
-    }
-  }
-}*/
 
+    if (unSynced.isEmpty()) {
+      Box(
+        modifier = modifier
+          .background(SearchHeaderColor)
+          .padding(top = 48.dp)
+          .fillMaxWidth()
+      ) {
+        Box(
+          modifier = modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth(),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_unsync_patients))
+        }
+      }
+    } else {
+      Box(
+        modifier = modifier
+          .background(SearchHeaderColor)
+          .fillMaxWidth()
+      ) {
+        LazyColumn {
+          items(unSynced) { patient ->
+            Box(
+              modifier = modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .background(Color.White)
+            ) {
+              Card(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .background(Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+              ) {
+                Box(
+                  modifier = modifier
+                    .background(Color.White)
+                ) {
+                  Column(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(vertical = 16.dp, horizontal = 16.dp)
+                      .background(Color.White)
+                  ) {
+                    Row(modifier = modifier.padding(vertical = 4.dp)) {
 
-/*@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun TabsContent(modifier: Modifier = Modifier,
-                noResults: NoResultsConfig,
-                viewModel : RegisterViewModel,) {
+                      androidx.compose.material.Icon(
+                        modifier = Modifier.padding(
+                          vertical = 4.dp,
+                          horizontal = 4.dp
+                        ),
+                        painter = painterResource(id = com.google.android.fhir.datacapture.R.drawable.ic_document_file),
+                        contentDescription = FILTER,
+                        tint = Color.Black,
+                      )
 
+                      Text(
+                        modifier = Modifier
+                          .weight(1f)
+                          .padding(vertical = 4.dp, horizontal = 4.dp),
+                        text = patient.name,
+                        style = MaterialTheme.typography.h6,
+                        color = LightColors.primary
+                      )
+                      Spacer(modifier = Modifier.height(16.dp))
 
-  Column {
-    TabRow(
-      selectedTabIndex = pagerState.currentPage,
-      contentColor = Color.Black, // Customize tab text color
-    ) {
-      tabTitles.forEachIndexed { index, title ->
-        Tab(
-          text = { androidx.compose.material.Text(title) },
-          selected = pagerState.currentPage == index,
-          onClick = {
-            //val context = LocalContext.current
-            CoroutineScope(Dispatchers.Main).launch {
-              pagerState.scrollToPage(index)
+                      Text(text = "Sync: Un-Synced")
+
+                    }
+
+                    Row(modifier = modifier.padding(vertical = 4.dp)) {
+                      Text(text = "Gender: ${patient.gender}")
+                    }
+                  }
+                }
+              }
             }
           }
-        )
-      }
-    }
-    HorizontalPager(state = pagerState) {
-      // Content for each tab (your fragment content goes here)
-      tabTitles.forEach { title ->
-        //TabPage(title)
-
-        NoRegisterDataView(modifier = modifier, viewModel = viewModel, noResults = noResults) {
-          noResults.actionButton?.actions?.handleClickEvent(navController)
         }
       }
     }
   }
-}*/
+}
+
+@Composable
+private fun ShowDraftPatients(
+  modifier: Modifier,
+  savedRes: List<QuestionnaireResponse>,
+  registerUiState: RegisterUiState,
+  navController: NavController,
+  deleteDraftId: String,
+  showDeleteDialog: Boolean
+) {
+  var deleteDraftId1 = deleteDraftId
+  var showDeleteDialog1 = showDeleteDialog
+  Box(
+    modifier = modifier
+      .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+      .fillMaxHeight()
+      .fillMaxWidth()
+      .background(SearchHeaderColor)
+  ) {
+
+    if (savedRes.isEmpty()) {
+      Box(
+        modifier = modifier
+          .fillMaxHeight()
+          .background(SearchHeaderColor)
+          .padding(top = 48.dp)
+          .fillMaxWidth()
+      ) {
+
+        Box(
+          modifier = modifier.padding(horizontal = 16.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_draft_patients))
+        }
+      }
+    } else {
+      Box(
+        modifier = modifier
+          .fillMaxHeight()
+          .background(SearchHeaderColor)
+          .fillMaxWidth()
+      ) {
+        LazyColumn {
+          items(savedRes) { response ->
+            Box(
+              modifier = modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .background(Color.White)
+            ) {
+              Card(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .background(Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+              ) {
+                Box(
+                  modifier = modifier
+                    .background(Color.White)
+                ) {
+                  Column(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(vertical = 16.dp, horizontal = 16.dp)
+                      .background(Color.White)
+                  ) {
+                    Row(modifier = modifier.padding(vertical = 4.dp)) {
+
+                      androidx.compose.material.Icon(
+                        modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
+                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
+                        contentDescription = FILTER,
+                      )
+
+                      Text(
+                        modifier = Modifier
+                          .weight(1f)
+                          .padding(vertical = 4.dp, horizontal = 8.dp),
+                        text = response.item[0].item[0].answer[0].value.asStringValue(),
+                        style = MaterialTheme.typography.h6,
+                        color = Color.DarkGray
+                      )
+                      Spacer(modifier = Modifier.height(16.dp))
+
+                      Box(
+                        modifier = Modifier.clickable {
+                          val json = response.encodeResourceToString()
+                          registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
+                            val bundle = Bundle()
+                            bundle.putString(QUESTIONNAIRE_RESPONSE_PREFILL, json)
+                            noResultConfig.actionButton?.actions?.handleClickEvent(
+                              navController,
+                              bundle = bundle
+                            )
+                          }
+                        }
+                      ) {
+                        Icon(
+                          modifier = Modifier.padding(
+                            vertical = 4.dp,
+                            horizontal = 8.dp
+                          ),
+                          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
+                          contentDescription = FILTER,
+                        )
+                      }
+                      Box(
+                        modifier = Modifier.clickable {
+
+                          deleteDraftId1 = response.id.extractLogicalIdUuid()
+                          showDeleteDialog1 = true
+
+                        }
+                      ) {
+                        androidx.compose.material.Icon(
+                          modifier = Modifier.padding(
+                            vertical = 4.dp,
+                            horizontal = 8.dp
+                          ),
+                          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
+                          contentDescription = FILTER,
+                        )
+                      }
+                    }
+
+                    Row(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+                      Text(text = "Created: ${convertToDate(response.meta.lastUpdated)}")
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun ShowAllPatients(
+  modifier: Modifier,
+  patients: List<Patient>
+) {
+  Box(
+    modifier = modifier
+      .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+      .fillMaxHeight()
+      .fillMaxWidth()
+      .background(SearchHeaderColor)
+  ) {
+
+    if (patients.isEmpty()) {
+      Box(
+        modifier = modifier
+          .fillMaxHeight()
+          .background(SearchHeaderColor)
+          .padding(top = 48.dp)
+          .fillMaxWidth()
+      ) {
+
+        Box(
+          modifier = modifier.padding(horizontal = 16.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_patients_added))
+        }
+      }
+    } else {
+      Box(
+        modifier = modifier
+          .fillMaxHeight()
+          .padding(top = 8.dp)
+          .background(SearchHeaderColor)
+          .fillMaxWidth()
+      ) {
+        LazyColumn {
+          items(patients) { patient ->
+            Card(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .background(Color.White),
+              elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+              Box(
+                modifier = modifier
+                  .background(Color.White)
+              ) {
+                Column(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp, horizontal = 16.dp)
+                    .background(Color.White)
+                ) {
+                  Row(modifier = modifier.padding(vertical = 4.dp)) {
+                    androidx.compose.material.Icon(
+                      modifier = Modifier.padding(horizontal = 4.dp),
+                      painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.patient_icon),
+                      contentDescription = FILTER,
+                      tint = LightColors.primary
+                    )
+                    Text(
+                      modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 4.dp, horizontal = 4.dp),
+                      text = patient.name.firstOrNull()?.given?.firstOrNull()?.value ?: "",
+                      style = MaterialTheme.typography.h6,
+                      color = LightColors.primary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    //Text(text = "Sync: ${patient.}")
+                  }
+
+                  Row(modifier = modifier.padding(vertical = 4.dp)) {
+                    Box(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+                      Text(text = "Visited ${convertToDate(patient.meta.lastUpdated)}")
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
 @Composable
 fun NoRegisterDataView(
@@ -814,72 +718,6 @@ fun NoRegisterDataView(
         color = Color.Gray,
       )
     }
-
-    /*Column(
-      modifier = modifier
-        .fillMaxSize()
-        .padding(horizontal = 8.dp, vertical = 8.dp)
-        .background(SearchHeaderColor)
-        .testTag(NO_REGISTER_VIEW_COLUMN_TEST_TAG),
-      horizontalAlignment = Alignment.Start,
-    ) {
-      if (patients.isNotEmpty()){
-        Text(
-          text = "RECENTS",
-          fontSize = 16.sp,
-          modifier = modifier
-            .padding(vertical = 8.dp)
-            .testTag(NO_REGISTER_VIEW_TITLE_TEST_TAG),
-          fontWeight = FontWeight.Bold,
-        )
-      }
-      Box(modifier = modifier) {
-        LazyColumn {
-          items(patients) { patient ->
-            Card(
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-                .background(SearchHeaderColor),
-              elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-              Box(modifier = modifier
-                .fillMaxWidth()
-                .background(Color.White)) {
-                Column(
-                  modifier = Modifier
-                    .padding(16.dp)
-                    .background(Color.White)
-                ) {
-                  Row(modifier = modifier.padding(vertical = 4.dp)) {
-                    Text(
-                      modifier = Modifier.weight(1f),
-                      text = patient.name.firstOrNull()?.given?.firstOrNull()?.value ?: "",
-                      style = MaterialTheme.typography.h6,
-                      color = LightColors.primary
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    //Text(text = patient.address)
-                  }
-
-                  Row(modifier = modifier.padding(vertical = 4.dp)) {
-                  Text(text = "Gender: ")
-                    Text(text = patient.gender?.name ?: "")
-                  }
-                  *//*if (patient.dob != null) {
-                    Row {
-                      Text(text = "DoB: ")
-                      Text(text = patient.dob.toString())
-                    }
-                  }*//*
-                }
-              }
-            }
-          }
-        }
-      }
-    }*/
-
   }
 }
 
