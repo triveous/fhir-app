@@ -23,6 +23,10 @@ import com.google.android.fhir.datacapture.contrib.views.locationwidget.Location
 import com.google.android.fhir.datacapture.contrib.views.locationwidget.LocationWidgetViewHolderFactory
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import org.smartregister.fhircore.quest.ui.register.customui.CustomAttachmentViewHolderFactory
+import org.smartregister.fhircore.quest.ui.register.customui.CustomDatePickerViewHolderFactory
+import org.smartregister.fhircore.quest.ui.register.customui.CustomEditTextStringViewHolderFactory
+import org.smartregister.fhircore.quest.ui.register.customui.CustomRadioGroupViewHolderFactory
+import org.smartregister.fhircore.quest.ui.register.customui.CustomTextIntegerItemViewHolderFactory
 
 const val OPENSRP_ITEM_VIEWHOLDER_FACTORY_MATCHERS_PROVIDER =
   "org.smartregister.fhircore.quest.QuestionnaireItemViewHolderFactoryMatchersProvider"
@@ -67,6 +71,22 @@ object QuestionnaireItemViewHolderFactoryMatchersProviderFactoryImpl :
           factory = CustomAttachmentViewHolderFactory,
           matches = CustomAttachmentViewHolderFactory::matcher,
         ),
+        QuestionnaireFragment.QuestionnaireItemViewHolderFactoryMatcher(
+          factory = CustomEditTextStringViewHolderFactory,
+          matches = CustomEditTextStringViewHolderFactory::matcher,
+        ),
+        QuestionnaireFragment.QuestionnaireItemViewHolderFactoryMatcher(
+          factory = CustomTextIntegerItemViewHolderFactory,
+          matches = CustomTextIntegerItemViewHolderFactory::matcher,
+        ),
+        QuestionnaireFragment.QuestionnaireItemViewHolderFactoryMatcher(
+          factory = CustomRadioGroupViewHolderFactory,
+          matches = CustomRadioGroupViewHolderFactory::matcher,
+        ),
+        QuestionnaireFragment.QuestionnaireItemViewHolderFactoryMatcher(
+          factory = CustomDatePickerViewHolderFactory,
+          matches = CustomDatePickerViewHolderFactory::matcher,
+        )
       )
     }
   }
