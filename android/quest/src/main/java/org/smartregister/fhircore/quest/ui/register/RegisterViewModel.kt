@@ -20,6 +20,8 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -27,18 +29,28 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
+import com.google.android.fhir.FhirEngine
+import com.google.android.fhir.LocalChange
+import com.google.android.fhir.search.Order
+import com.google.android.fhir.search.search
+import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 import kotlin.math.ceil
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Enumerations.DataType
+import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
@@ -58,10 +70,12 @@ import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.encodeJson
+import org.smartregister.fhircore.engine.util.extension.extractId
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import timber.log.Timber
+import java.time.LocalDate
 
 @HiltViewModel
 class RegisterViewModel
@@ -72,6 +86,7 @@ constructor(
   val sharedPreferencesHelper: SharedPreferencesHelper,
   val dispatcherProvider: DispatcherProvider,
   val resourceDataRulesExecutor: ResourceDataRulesExecutor,
+  val fhirEngine: FhirEngine,
 ) : ViewModel() {
 
   private val _snackBarStateFlow = MutableSharedFlow<SnackBarMessageConfig>()
@@ -90,6 +105,9 @@ constructor(
   private val _percentageProgress: MutableSharedFlow<Int> = MutableSharedFlow(0)
   private val _isUploadSync: MutableSharedFlow<Boolean> = MutableSharedFlow(0)
 
+
+  private val _patientsStateFlow = MutableStateFlow<List<Patient>>(emptyList())
+  val patientsStateFlow: StateFlow<List<Patient>> = _patientsStateFlow
   /**
    * This function paginates the register data. An optional [clearCache] resets the data in the
    * cache (this is necessary after a questionnaire has been submitted to refresh the register with
@@ -221,15 +239,12 @@ constructor(
         ?.mapValues { it.value.first() }
 
     // Get filter queries from the map. NOTE: filterId MUST be unique for all resources
+    val baseResourceRegisterFilterField = registerDataFilterFieldsMap?.get(baseResource.filterId)
     val newBaseResourceDataQueries =
       createQueriesForRegisterFilter(
-        registerDataFilterFieldsMap?.get(baseResource.filterId)?.dataQueries,
-        qrItemMap,
+        dataQueries = baseResourceRegisterFilterField?.dataQueries,
+        qrItemMap = qrItemMap,
       )
-
-    Timber.i(
-      "New data queries for filtering Base Resources: ${newBaseResourceDataQueries.encodeJson()}",
-    )
 
     val newRelatedResources =
       createFilterRelatedResources(
@@ -238,19 +253,30 @@ constructor(
         qrItemMap = qrItemMap,
       )
 
-    Timber.i(
-      "New configurations for filtering related resource data: ${newRelatedResources.encodeJson()}",
-    )
-
+    val fhirResourceConfig =
+      FhirResourceConfig(
+        baseResource =
+          baseResource.copy(
+            dataQueries = newBaseResourceDataQueries ?: baseResource.dataQueries,
+            nestedSearchResources =
+              baseResourceRegisterFilterField?.nestedSearchResources?.map { nestedSearchConfig ->
+                nestedSearchConfig.copy(
+                  dataQueries =
+                    createQueriesForRegisterFilter(
+                      dataQueries = nestedSearchConfig.dataQueries,
+                      qrItemMap = qrItemMap,
+                    ),
+                )
+              } ?: baseResource.nestedSearchResources,
+          ),
+        relatedResources = newRelatedResources,
+      )
     registerFilterState.value =
       RegisterFilterState(
         questionnaireResponse = questionnaireResponse,
-        fhirResourceConfig =
-          FhirResourceConfig(
-            baseResource = baseResource.copy(dataQueries = newBaseResourceDataQueries),
-            relatedResources = newRelatedResources,
-          ),
+        fhirResourceConfig = fhirResourceConfig,
       )
+    Timber.i("New ResourceConfig for register data filter: ${fhirResourceConfig.encodeJson()}")
   }
 
   private fun createFilterRelatedResources(
@@ -259,20 +285,31 @@ constructor(
     qrItemMap: Map<String, QuestionnaireResponse.QuestionnaireResponseItemComponent>,
   ): List<ResourceConfig> {
     val newRelatedResources =
-      relatedResources.map {
+      relatedResources.map { resourceConfig: ResourceConfig ->
+        val registerFilterField = registerDataFilterFieldsMap?.get(resourceConfig.filterId)
         val newDataQueries =
           createQueriesForRegisterFilter(
-            registerDataFilterFieldsMap?.get(it.filterId)?.dataQueries,
-            qrItemMap,
+            dataQueries = registerFilterField?.dataQueries,
+            qrItemMap = qrItemMap,
           )
-        it.copy(
-          dataQueries = newDataQueries,
+        resourceConfig.copy(
+          dataQueries = newDataQueries ?: resourceConfig.dataQueries,
           relatedResources =
             createFilterRelatedResources(
               registerDataFilterFieldsMap = registerDataFilterFieldsMap,
-              relatedResources = it.relatedResources,
+              relatedResources = resourceConfig.relatedResources,
               qrItemMap = qrItemMap,
             ),
+          nestedSearchResources =
+            registerFilterField?.nestedSearchResources?.map { nestedSearchConfig ->
+              nestedSearchConfig.copy(
+                dataQueries =
+                  createQueriesForRegisterFilter(
+                    dataQueries = nestedSearchConfig.dataQueries,
+                    qrItemMap = qrItemMap,
+                  ),
+              )
+            } ?: resourceConfig.nestedSearchResources,
         )
       }
     return newRelatedResources
@@ -426,7 +463,10 @@ constructor(
             screenTitle = currentRegisterConfiguration.registerTitle ?: screenTitle,
             isFirstTimeSync =
               sharedPreferencesHelper
-                .read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null)
+                .read(
+                  SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name,
+                  null,
+                )
                 .isNullOrEmpty() && _totalRecordsCount.longValue == 0L,
             registerConfiguration = currentRegisterConfiguration,
             registerId = registerId,
@@ -457,4 +497,87 @@ constructor(
     _percentageProgress.emit(progress)
     _isUploadSync.emit(isUploadSync)
   }
+
+  fun getAllPatients() {
+
+    viewModelScope.launch {
+      val patients = fhirEngine.search<Patient> {
+      }.map {
+        it.resource
+      }.sortedByDescending { it.meta.lastUpdated }
+      _patientsStateFlow.value = patients
+
+    }
+  }
+
+
+    /** The Patient's details for display purposes. */
+    data class PatientItem(
+      val id: String,
+      val resourceId: String,
+      val name: String,
+      val gender: String,
+      val dob: LocalDate? = null,
+      val phone: String,
+      val city: String,
+      val country: String,
+      val isActive: Boolean,
+      val html: String,
+      var risk: String? = ""
+    ) {
+      override fun toString(): String = name
+    }
+
+    /** The Observation's details for display purposes. */
+    data class ObservationItem(
+      val id: String,
+      val code: String,
+      val effective: String,
+      val value: String,
+    ) {
+      override fun toString(): String = code
+    }
+
+    data class ConditionItem(
+      val id: String,
+      val code: String,
+      val effective: String,
+      val value: String,
+    ) {
+      override fun toString(): String = code
+    }
+
+    data class Patient2(
+      val name: String,
+      val gender: String,
+      val primaryContact: String?,
+      val age: Int?
+    )
+
+    fun parsePatientJson(json: String): Patient2? {
+      val gson = Gson()
+      try {
+        val patientData = gson.fromJson(json, Map::class.java)
+
+        val nameList = patientData["name"] as List<*>?
+        val name = if (nameList != null && nameList.isNotEmpty()) {
+          val firstName = (nameList[0] as Map<*, *>)["given"] as List<*>?
+          if (firstName != null && firstName.isNotEmpty()) {
+            firstName[0] as String
+          } else {
+            null
+          }
+        } else {
+          null
+        }
+
+        val gender = patientData["gender"] as String?
+        val telecomData = patientData["telecom"] as List<*>?
+
+        return Patient2(name ?: "", gender ?: "", "", 0)
+      } catch (e: Exception) {
+        e.printStackTrace()
+        return null
+      }
+    }
 }
