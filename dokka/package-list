@@ -68,6 +68,7 @@ org.smartregister.fhircore.quest.ui.appsetting
 org.smartregister.fhircore.quest.ui.login
 org.smartregister.fhircore.quest.ui.main
 org.smartregister.fhircore.quest.ui.main.components
+org.smartregister.fhircore.quest.ui.patients
 org.smartregister.fhircore.quest.ui.pin
 org.smartregister.fhircore.quest.ui.profile
 org.smartregister.fhircore.quest.ui.profile.bottomSheet
@@ -76,6 +77,8 @@ org.smartregister.fhircore.quest.ui.profile.model
 org.smartregister.fhircore.quest.ui.questionnaire
 org.smartregister.fhircore.quest.ui.register
 org.smartregister.fhircore.quest.ui.register.components
+org.smartregister.fhircore.quest.ui.register.customui
+org.smartregister.fhircore.quest.ui.register.matcher
 org.smartregister.fhircore.quest.ui.report.measure
 org.smartregister.fhircore.quest.ui.report.measure.components
 org.smartregister.fhircore.quest.ui.report.measure.models
