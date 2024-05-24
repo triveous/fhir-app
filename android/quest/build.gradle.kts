@@ -109,6 +109,7 @@ android {
 
     getByName("release") {
       isMinifyEnabled = false
+      isShrinkResources = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }
@@ -185,135 +186,6 @@ android {
       manifestPlaceholders["appLabel"] = "Aarogya Aarohan"
       isDefault = true
     }
-
-    /*create("ecbis") {
-      dimension = "apps"
-      applicationIdSuffix = ".ecbis"
-      versionNameSuffix = "-ecbis"
-      manifestPlaceholders["appLabel"] = "MOH eCBIS"
-    }
-
-    create("ecbis_preview") {
-      dimension = "apps"
-      applicationIdSuffix = ".ecbis_preview"
-      versionNameSuffix = "-ecbis_preview"
-      manifestPlaceholders["appLabel"] = "MOH eCBIS Preview"
-    }
-
-    create("g6pd") {
-      dimension = "apps"
-      applicationIdSuffix = ".g6pd"
-      versionNameSuffix = "-g6pd"
-      manifestPlaceholders["appLabel"] = "G6PD"
-    }
-
-    create("mwcore") {
-      dimension = "apps"
-      applicationIdSuffix = ".mwcore"
-      versionNameSuffix = "-mwcore"
-      manifestPlaceholders["appLabel"] = "Malawi Core"
-    }
-
-    create("afyayangu") {
-      dimension = "apps"
-      applicationIdSuffix = ".afyayangu"
-      versionNameSuffix = "-afyayangu"
-      manifestPlaceholders["appLabel"] = "Afya Yangu"
-    }
-
-    create("map") {
-      dimension = "apps"
-      applicationIdSuffix = ".map"
-      versionNameSuffix = "-map"
-      manifestPlaceholders["appLabel"] = "Geo Widget"
-    }
-
-    create("echis") {
-      dimension = "apps"
-      applicationIdSuffix = ".echis"
-      versionNameSuffix = "-echis"
-      manifestPlaceholders["appLabel"] = "MOH eCHIS"
-    }
-
-    create("sidBunda") {
-      dimension = "apps"
-      applicationIdSuffix = ".sidBunda"
-      versionNameSuffix = "-sidBunda"
-      manifestPlaceholders["appLabel"] = "BidanKu"
-    }
-
-    create("sidCadre") {
-      dimension = "apps"
-      applicationIdSuffix = ".sidCadre"
-      versionNameSuffix = "-sidCadre"
-      manifestPlaceholders["appLabel"] = "KaderKu"
-    }
-    create("sidEir") {
-      dimension = "apps"
-      applicationIdSuffix = ".sidEir"
-      versionNameSuffix = "-sidEir"
-      manifestPlaceholders["appLabel"] = "VaksinatorKu"
-    }
-
-    create("diabetesCompass") {
-      dimension = "apps"
-      applicationIdSuffix = ".diabetesCompass"
-      versionNameSuffix = "-diabetesCompass"
-      manifestPlaceholders["appLabel"] = "Diabetes Compass"
-    }
-
-    create("diabetesCompassClinic") {
-      dimension = "apps"
-      applicationIdSuffix = ".diabetesCompassClinic"
-      versionNameSuffix = "-diabetesCompassClinic"
-      manifestPlaceholders["appLabel"] = "Diabetes Compass Clinic"
-    }
-
-    create("zeir") {
-      dimension = "apps"
-      applicationIdSuffix = ".zeir"
-      versionNameSuffix = "-zeir"
-      manifestPlaceholders["appLabel"] = "ZEIR"
-    }
-
-    create("gizEir") {
-      dimension = "apps"
-      applicationIdSuffix = ".gizeir"
-      versionNameSuffix = "-gizeir"
-      manifestPlaceholders["appLabel"] = "GIZ EIR"
-    }
-
-    create("engage") {
-      dimension = "apps"
-      applicationIdSuffix = ".engage"
-      versionNameSuffix = "-engage"
-      manifestPlaceholders["appLabel"] = "Engage"
-    }
-
-    create("eir") {
-      dimension = "apps"
-      applicationIdSuffix = ".who_eir"
-      versionNameSuffix = "-who_eir"
-      manifestPlaceholders["appLabel"] = "WHO EIR"
-    }
-    create("psi-eswatini") {
-      dimension = "apps"
-      applicationIdSuffix = ".psi_eswatini"
-      versionNameSuffix = "-psi_eswatini"
-      manifestPlaceholders["appLabel"] = "PSI WFA"
-    }
-    create("eusm") {
-      dimension = "apps"
-      applicationIdSuffix = ".eusm"
-      versionNameSuffix = "-eusm"
-      manifestPlaceholders["appLabel"] = "EUSM"
-    }
-    create("demoEir") {
-      dimension = "apps"
-      applicationIdSuffix = ".demoEir"
-      versionNameSuffix = "-demoEir"
-      manifestPlaceholders["appLabel"] = "OpenSRP EIR"
-    }*/
   }
 
   applicationVariants.all {
@@ -382,13 +254,29 @@ tasks.withType<Test> {
   maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
 }
 
-configurations { all { exclude(group = "xpp3") } }
+configurations {
+  all { exclude(group = "xpp3") }
+  sentry {
+    // Other configurations...
+    autoUploadProguardMapping = false
+  }
+}
 
 dependencies {
   coreLibraryDesugaring(libs.core.desugar)
 
   // Application dependencies
-  implementation(project(":engine"))
+  implementation(project(":engine")){
+    exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.r5")
+    exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.r4b")
+    exclude (group ="ca.uhn.hapi.fhir", module = "hapi-fhir-validation-resources-r5")
+    exclude (group ="ca.uhn.hapi.fhir", module = "hapi-fhir-structures-r5")
+    exclude (group ="ca.uhn.hapi.fhir", module = "hapi-fhir-structures-r4b")
+    exclude (group ="ca.uhn.hapi.fhir", module = "hapi-fhir-validation-resources-dstu3")
+    exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.dstu2")
+    exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.dstu3")
+    exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.dstu2016may")
+  }
   implementation(project(":geowidget")) { isTransitive = true }
   implementation(libs.core.ktx)
   implementation(libs.appcompat)
