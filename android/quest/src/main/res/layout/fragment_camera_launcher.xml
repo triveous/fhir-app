@@ -36,7 +36,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="@+id/previewImage">
 
-
             <LinearLayout
                 android:id="@+id/retake_ll"
                 android:layout_width="0dp"
@@ -50,13 +49,13 @@
                     android:id="@+id/photo_retake"
                     android:layout_width="wrap_content"
                     android:layout_height="48dp"
-                    android:drawableStart="@drawable/ic_retake"
                     android:drawablePadding="@dimen/spacing_8"
                     android:gravity="center"
                     android:text="@string/retake"
                     android:textAlignment="center"
                     android:textColor="@color/white"
-                    android:textSize="18sp" />
+                    android:textSize="18sp"
+                    app:drawableStartCompat="@drawable/ic_retake" />
 
             </LinearLayout>
 
@@ -73,19 +72,17 @@
                     android:id="@+id/photo_select"
                     android:layout_width="wrap_content"
                     android:layout_height="48dp"
-                    android:drawableStart="@drawable/done_check_mark"
                     android:drawablePadding="@dimen/spacing_8"
                     android:gravity="center"
                     android:text="@string/done"
                     android:textAlignment="center"
                     android:textColor="@color/white"
-                    android:textSize="18sp" />
+                    android:textSize="18sp"
+                    app:drawableStartCompat="@drawable/done_check_mark" />
 
             </LinearLayout>
 
-
         </LinearLayout>
-
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -95,7 +92,6 @@
         android:visibility="visible"
         android:gravity="center"
         android:layout_height="match_parent">
-
 
         <org.smartregister.fhircore.quest.camerax.CustomGraphic
             android:id="@+id/cameraGrid"
@@ -116,10 +112,6 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-
-
-
-
     </FrameLayout>
 
 
@@ -127,66 +119,108 @@
         android:id="@+id/closeCameraIB"
         android:layout_width="28dp"
         android:elevation="@dimen/spacing_8"
-        android:layout_gravity="end"
+        android:layout_gravity="start"
         android:background="@null"
         android:layout_margin="@dimen/spacing_16"
         android:src="@drawable/ic_close_vd_white_24"
         android:layout_height="28dp"/>
-
-
 
     <LinearLayout
         android:id="@+id/cameraControlsll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="36dp"
+        android:layout_marginBottom="@dimen/spacing_36"
         android:layout_gravity="bottom">
 
         <LinearLayout
+            android:id="@+id/zoomIndicatorll"
             android:layout_width="match_parent"
-            android:orientation="horizontal"
-            android:layout_marginBottom="36dp"
-            android:gravity="right"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:gravity="center"
+            android:padding="@dimen/spacing_8"
+            android:layout_marginBottom="@dimen/spacing_16"
+            android:background="@color/translucent_background"
             android:layout_height="wrap_content">
 
             <org.smartregister.fhircore.quest.camerax.CustomSeekBar
                 android:id="@+id/zoomSeekBar"
                 android:layout_width="200dp"
                 android:layout_height="36dp"
-                android:layout_gravity="center_vertical"
+                android:elevation="@dimen/spacing_8"
+                android:padding="@dimen/spacing_8"
+                android:layout_gravity="center"
                 app:layout_constraintBottom_toBottomOf="@+id/cameraGrid"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                android:layout_marginEnd="@dimen/spacing_16"
-                app:layout_constraintTop_toBottomOf="@+id/previewView"
-                app:measuringTapeDrawable="@drawable/custom_measuring_tapee" />
-
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/flashButton"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginEnd="48dp"
-                android:background="@null"
-                android:src="@drawable/ic_flash_off_vd_white_24" />
+                app:measuringTapeDrawable="@drawable/zoom_indicator" />
 
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:orientation="horizontal"
+            android:layout_marginBottom="36dp"
+            android:gravity="center"
+            android:weightSum="3"
+            android:layout_marginTop="@dimen/spacing_8"
+            android:layout_height="wrap_content">
 
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_height="match_parent">
+
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/aspectRatio"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="center"
+                    android:background="@null"
+                    android:src="@drawable/aspect_ratio" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_height="match_parent">
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/zoomIv"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@null"
+                    android:src="@drawable/ic_zoom_in" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_height="match_parent">
+
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/flashButton"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="center"
+                    android:background="@null"
+                    android:src="@drawable/flash_on" />
+
+            </LinearLayout>
+
+        </LinearLayout>
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/captureButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/ic_baseline_photo_camera"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="16dp"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@drawable/ic_camera_shutter"
+            android:layout_gravity="center"
             android:elevation="@dimen/spacing_16" />
-
-
     </LinearLayout>
-
-
-
 </FrameLayout>

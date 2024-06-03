@@ -38,6 +38,8 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.bumptech.glide.Glide.*
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.quest.R
 import timber.log.Timber
@@ -50,6 +52,7 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var captureButton: AppCompatImageView
+    private lateinit var zoomIv: AppCompatImageView
     private lateinit var flashButton: AppCompatImageButton
     private lateinit var closeCameraIB: AppCompatImageView
     private lateinit var previewView: PreviewView
@@ -57,6 +60,7 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var cameraPreviewViewLay: FrameLayout
     private lateinit var previewViewImageLay: ConstraintLayout
     private lateinit var retakeButton: LinearLayout
+    private lateinit var zoomIndicatorll: LinearLayout
     private lateinit var selectButton: LinearLayout
     private lateinit var cameraControlsll: LinearLayout
     private lateinit var previewImage: AppCompatImageView
@@ -88,10 +92,12 @@ class CameraxLauncherFragment : DialogFragment() {
         flashButton = view.findViewById(R.id.flashButton)
         closeCameraIB = view.findViewById(R.id.closeCameraIB)
         captureButton = view.findViewById(R.id.captureButton)
+        zoomIv = view.findViewById(R.id.zoomIv)
 
         cameraPreviewViewLay = view.findViewById(R.id.camera_preview_fl)
         previewViewImageLay = view.findViewById(R.id.photo_preview_cl)
         retakeButton = view.findViewById(R.id.retake_ll)
+        zoomIndicatorll = view.findViewById(R.id.zoomIndicatorll)
         selectButton = view.findViewById(R.id.done_ll)
         cameraControlsll = view.findViewById(R.id.cameraControlsll)
         previewImage = view.findViewById(R.id.previewImage)
@@ -104,6 +110,10 @@ class CameraxLauncherFragment : DialogFragment() {
         closeCameraIB.setOnClickListener {
             cameraExecutor?.shutdown()
             dismiss()
+        }
+
+        zoomIv.setOnClickListener {
+            zoomIndicatorll.visibility = if (zoomIndicatorll.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }
 
         retakeButton.setOnClickListener {
@@ -130,6 +140,11 @@ class CameraxLauncherFragment : DialogFragment() {
         }
 
         checkPermissionAndStartCamera()
+    }
+
+
+    private fun setZoomLevel(zoomRatio: Float) {
+        cameraControl.setLinearZoom(zoomRatio) // 0.0f represents 1x zoom level
     }
 
     private fun setupZoomControl() {
@@ -219,9 +234,11 @@ class CameraxLauncherFragment : DialogFragment() {
 
                 cameraControl = camera.cameraControl
                 cameraInfo = camera.cameraInfo
+                cameraControl.enableTorch(cameraInfo.torchState.value == TorchState.OFF)
 
+                setZoomLevel(0.0f) //0.0f represents 1x zoom level
                 setupZoomControl()
-                setupTapToFocus()
+                //setupTapToFocus()
 
                 flashButton.setOnClickListener {
 

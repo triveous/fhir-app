@@ -301,9 +301,7 @@ fun RegisterScreen(
                         modifier,
                         savedRes,
                         registerUiState,
-                        navController,
-                        deleteDraftId,
-                        showDeleteDialog
+                        navController
                       )
                     }
                     UNSYNCED_PATIENTS -> {
@@ -423,12 +421,8 @@ private fun ShowDraftPatients(
   modifier: Modifier,
   savedRes: List<QuestionnaireResponse>,
   registerUiState: RegisterUiState,
-  navController: NavController,
-  deleteDraftId: String,
-  showDeleteDialog: Boolean
+  navController: NavController
 ) {
-  var deleteDraftId1 = deleteDraftId
-  var showDeleteDialog1 = showDeleteDialog
   Box(
     modifier = modifier
       .padding(top = 64.dp, start = 16.dp, end = 16.dp)
@@ -485,13 +479,11 @@ private fun ShowDraftPatients(
                       .background(Color.White)
                   ) {
                     Row(modifier = modifier.padding(vertical = 4.dp)) {
-
                       androidx.compose.material.Icon(
                         modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
                         painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
                         contentDescription = FILTER,
                       )
-
                       Text(
                         modifier = Modifier
                           .weight(1f)
@@ -501,7 +493,6 @@ private fun ShowDraftPatients(
                         color = Color.DarkGray
                       )
                       Spacer(modifier = Modifier.height(16.dp))
-
                       Box(
                         modifier = Modifier.clickable {
                           val json = response.encodeResourceToString()
@@ -524,14 +515,7 @@ private fun ShowDraftPatients(
                           contentDescription = FILTER,
                         )
                       }
-                      Box(
-                        modifier = Modifier.clickable {
-
-                          deleteDraftId1 = response.id.extractLogicalIdUuid()
-                          showDeleteDialog1 = true
-
-                        }
-                      ) {
+                      Box {
                         androidx.compose.material.Icon(
                           modifier = Modifier.padding(
                             vertical = 4.dp,
@@ -578,7 +562,6 @@ private fun ShowAllPatients(
           .padding(top = 48.dp)
           .fillMaxWidth()
       ) {
-
         Box(
           modifier = modifier.padding(horizontal = 16.dp),
           contentAlignment = Alignment.Center
@@ -746,19 +729,19 @@ fun DeleteRecordDialog(
   AlertDialog(
     onDismissRequest = onDismiss,
     title = {
-      Text(text = "Delete record", fontSize = 28.sp, color = Color.Black)
+      Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.delete_draft_title), fontSize = 28.sp, color = Color.Black)
     },
     text = {
-      Text(text = "Are you sure you want to delete the record?", color = Color.Gray)
+      Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.delete_draft_desc), color = Color.Gray)
     },
     confirmButton = {
       TextButton(onClick = onConfirm) {
-        Text(text = "Yes", color = LightColors.primary)
+        Text(text = stringResource(id = R.string.yes), color = LightColors.primary)
       }
     },
     dismissButton = {
       TextButton(onClick = onCancel) {
-        Text(text = "No", color = LightColors.primary)
+        Text(text = stringResource(id = R.string.no), color = LightColors.primary)
       }
     },
     properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
