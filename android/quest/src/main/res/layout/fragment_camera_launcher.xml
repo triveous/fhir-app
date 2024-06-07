@@ -86,35 +86,44 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <FrameLayout
-        android:id="@+id/camera_preview_fl"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:visibility="visible"
-        android:gravity="center"
+        android:layout_gravity="center"
         android:layout_height="match_parent">
 
-        <org.smartregister.fhircore.quest.camerax.CustomGraphic
-            android:id="@+id/cameraGrid"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/grid_height"
-            android:layout_marginTop="@dimen/spacing_4"
-            android:layout_gravity="center"
-            android:elevation="@dimen/spacing_8"
-            app:layout_constraintBottom_toBottomOf="@+id/previewView"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/previewView" />
-
-        <androidx.camera.view.PreviewView
-            android:id="@+id/previewView"
+        <FrameLayout
+            android:id="@+id/camera_preview_fl"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
+            android:background="@color/dark"
+            android:gravity="center"
+            android:visibility="visible"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
-    </FrameLayout>
+            <org.smartregister.fhircore.quest.camerax.CustomGraphic
+                android:id="@+id/cameraGrid"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/grid_height"
+                android:layout_gravity="center"
+                android:elevation="@dimen/spacing_8"
+                app:layout_constraintBottom_toBottomOf="@+id/previewView"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/previewView" />
 
+            <androidx.camera.view.PreviewView
+                android:id="@+id/previewView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
+        </FrameLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
     <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/closeCameraIB"
         android:layout_width="28dp"

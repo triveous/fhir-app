@@ -67,7 +67,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
       private lateinit var uploadDocumentButton: Button
       private lateinit var uploadFileButton: Button
       private lateinit var divider: MaterialDivider
-      private lateinit var labelUploaded: TextView
       private lateinit var photoPreview: ConstraintLayout
       private lateinit var photoThumbnail: ImageView
       private lateinit var photoTitle: TextView
@@ -90,7 +89,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         uploadDocumentButton = itemView.findViewById(R.id.upload_document)
         uploadFileButton = itemView.findViewById(R.id.upload_file)
         divider = itemView.findViewById(R.id.divider)
-        labelUploaded = itemView.findViewById(R.id.label_uploaded)
         photoPreview = itemView.findViewById(R.id.photo_preview)
         photoThumbnail = itemView.findViewById(R.id.photo_thumbnail)
         photoTitle = itemView.findViewById(R.id.photo_title)
@@ -287,8 +285,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
               FhirEngineProvider.getInstance(context.applicationContext).create(doc)
               questionnaireViewItem.setAnswer(answer)
               divider.visibility = View.VISIBLE
-              labelUploaded.visibility = View.VISIBLE
-
               displayPreview(
                 attachmentType = attachmentMimeType,
                 attachmentTitle = capturedFile.name,
@@ -358,7 +354,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
             questionnaireViewItem.setAnswer(answer)
 
             divider.visibility = View.VISIBLE
-            labelUploaded.visibility = View.VISIBLE
             displayPreview(
               attachmentType = attachmentMimeType,
               attachmentTitle = attachmentTitle,
@@ -442,7 +437,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         context.lifecycleScope.launch {
           questionnaireViewItem.clearAnswer()
           divider.visibility = View.GONE
-          labelUploaded.visibility = View.GONE
           clearPhotoPreview()
           clearFilePreview()
           displaySnackbarOnDelete(

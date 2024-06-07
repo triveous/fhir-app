@@ -117,6 +117,8 @@ class CameraxLauncherFragment : DialogFragment() {
         }
 
         retakeButton.setOnClickListener {
+            val flashOfDrawable = context?.getDrawable(R.drawable.flash_off)
+            flashButton.setImageDrawable(flashOfDrawable)
             checkPermissionAndStartCamera()
             previewViewImageLay.visibility = View.GONE
             cameraPreviewViewLay.visibility = View.VISIBLE
@@ -212,7 +214,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            val resolution = Size(1080, 1080)
+            val resolution = Size(760, 760)
 
             val preview = Preview.Builder()
                 .setTargetResolution(resolution)
@@ -234,8 +236,9 @@ class CameraxLauncherFragment : DialogFragment() {
 
                 cameraControl = camera.cameraControl
                 cameraInfo = camera.cameraInfo
-                cameraControl.enableTorch(cameraInfo.torchState.value == TorchState.OFF)
-
+                cameraControl.enableTorch(true)
+                val flashOnDrawable = context?.getDrawable(R.drawable.flash_on)
+                flashButton.setImageDrawable(flashOnDrawable)
                 setZoomLevel(0.0f) //0.0f represents 1x zoom level
                 setupZoomControl()
                 //setupTapToFocus()
@@ -276,13 +279,16 @@ class CameraxLauncherFragment : DialogFragment() {
             imageCapture.takePicture(
                 outputOptions, cameraExecutor, object : ImageCapture.OnImageSavedCallback {
                     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                        cameraExecutor.shutdown()
+                        cameraControl.enableTorch(false)
+                        //cameraExecutor.shutdown()
                         lifecycleScope.launch {
                             cameraPreviewViewLay.visibility = View.GONE
                             cameraControlsll.visibility = View.GONE
                             previewViewImageLay.visibility = View.VISIBLE
                             context?.let { with(it).load(file).into(previewImage) }
                             fileAbsPath = file.absolutePath
+                            val flashOffDrawable = context?.getDrawable(R.drawable.flash_off)
+                            flashButton.setImageDrawable(flashOffDrawable)
                         }
                     }
 

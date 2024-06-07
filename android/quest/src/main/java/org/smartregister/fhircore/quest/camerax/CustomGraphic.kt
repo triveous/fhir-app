@@ -8,8 +8,8 @@ import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.View
 class CustomGraphic @JvmOverloads constructor(
-        context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-    ) : View(context, attrs, defStyleAttr) {
+    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
+) : View(context, attrs, defStyleAttr) {
 
     private val paint = Paint().apply {
         color = Color.LTGRAY
@@ -20,7 +20,7 @@ class CustomGraphic @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val width = width
-        val height = 1080
+        val height = height
         val thirdWidth = width / 3f
         val thirdHeight = height / 3f
 
