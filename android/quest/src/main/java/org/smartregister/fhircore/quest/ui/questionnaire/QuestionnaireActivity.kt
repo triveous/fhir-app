@@ -33,22 +33,28 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import com.google.android.fhir.datacapture.QuestionnaireFragment
+import com.google.android.fhir.logicalId
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.Serializable
+import java.util.LinkedList
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.Resource
+import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.QuestionnaireConfig
 import org.smartregister.fhircore.engine.configuration.app.LocationLogOptions
 import org.smartregister.fhircore.engine.domain.model.ActionParameter
+import org.smartregister.fhircore.engine.domain.model.ActionParameterType
+import org.smartregister.fhircore.engine.domain.model.isEditable
 import org.smartregister.fhircore.engine.domain.model.isReadOnly
 import org.smartregister.fhircore.engine.ui.base.AlertDialogue
 import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.extension.clearText
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.engine.util.extension.parcelable
 import org.smartregister.fhircore.engine.util.extension.parcelableArrayList
@@ -184,10 +190,10 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         onCoarseLocationPermissionGranted = { fetchLocation(false) },
         onLocationPermissionDenied = {
           Toast.makeText(
-              this,
-              getString(R.string.location_permissions_denied),
-              Toast.LENGTH_SHORT,
-            )
+            this,
+            getString(R.string.location_permissions_denied),
+            Toast.LENGTH_SHORT,
+          )
             .show()
           Timber.e("Location permissions denied")
         },
@@ -269,12 +275,12 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     questionnaire: Questionnaire,
   ): QuestionnaireFragment.Builder {
     if (questionnaire.subjectType.isNullOrEmpty()) {
-      val subjectRequiredMessage = getString(R.string.missing_subject_type)
-      showToast(subjectRequiredMessage)
-      Timber.e(subjectRequiredMessage)
+      showToast(getString(R.string.missing_subject_type))
+      Timber.e(
+        "Missing subject type on questionnaire. Provide Questionnaire.subjectType to resolve.",
+      )
       finish()
     }
-
     val questionnaireFragmentBuilder =
       QuestionnaireFragment.builder()
         .setQuestionnaire(questionnaire.json())
@@ -311,38 +317,45 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             viewModel.retrievePopulationResources(
               actionParameters.filterNot {
                 it.paramType == ActionParameterType.QUESTIONNAIRE_RESPONSE_POPULATION_RESOURCE &&
-                  resourceType == it.resourceType &&
-                  resourceIdentifier.equals(it.value, ignoreCase = true)
+                        resourceType == it.resourceType &&
+                        resourceIdentifier.equals(it.value, ignoreCase = true)
               },
             ),
           )
         }
 
-    val (questionnaireResponse, launchContextResources) =
-      viewModel.populateQuestionnaire(questionnaire, questionnaireConfig, actionParameters)
-
-    return QuestionnaireFragment.builder()
-      .setQuestionnaire(questionnaire.json())
-      .setCustomQuestionnaireItemViewHolderFactoryMatchersProvider(
-        OPENSRP_ITEM_VIEWHOLDER_FACTORY_MATCHERS_PROVIDER,
-      )
-      .showAsterisk(questionnaireConfig.showRequiredTextAsterisk)
-      .showRequiredText(questionnaireConfig.showRequiredText)
-      .apply {
-        if (questionnaireResponse != null) {
-          questionnaireResponse
-            .takeIf {
-              viewModel.validateQuestionnaireResponse(questionnaire, it, this@QuestionnaireActivity)
-            }
-            ?.let { setQuestionnaireResponse(it.json()) }
-            ?: showToast(getString(R.string.error_populating_questionnaire))
-        }
-
-        launchContextResources
-          .associate { Pair(it.resourceType.name.lowercase(), it.encodeResourceToString()) }
-          .takeIf { it.isNotEmpty() }
-          ?.let { setQuestionnaireLaunchContextMap(it) }
+      if (launchContextResources.isNotEmpty()) {
+        questionnaireFragmentBuilder.setQuestionnaireLaunchContextMap(
+          launchContextResources.associate {
+            Pair(it.resourceType.name.lowercase(), it.encodeResourceToString())
+          },
+        )
       }
+
+      // Populate questionnaire with latest QuestionnaireResponse
+      if (questionnaireConfig.isEditable()) {
+        val latestQuestionnaireResponse =
+          viewModel.searchLatestQuestionnaireResponse(
+            resourceId = resourceIdentifier,
+            resourceType = resourceType,
+            questionnaireId = questionnaire.logicalId,
+          )
+
+        val questionnaireResponse =
+          QuestionnaireResponse().apply {
+            item = latestQuestionnaireResponse?.item
+            // Clearing the text prompts the SDK to re-process the content, which includes HTML
+            clearText()
+          }
+
+        if (viewModel.validateQuestionnaireResponse(questionnaire, questionnaireResponse, this)) {
+          questionnaireFragmentBuilder.setQuestionnaireResponse(questionnaireResponse.json())
+        } else {
+          showToast(getString(R.string.error_populating_questionnaire))
+        }
+      }
+    }
+    return questionnaireFragmentBuilder
   }
 
   private fun Resource.json(): String = this.encodeResourceToString()
@@ -402,8 +415,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       AlertDialogue.showCancelAlert(
         context = this,
         message =
-          org.smartregister.fhircore.engine.R.string
-            .questionnaire_in_progress_alert_back_pressed_message,
+        org.smartregister.fhircore.engine.R.string
+          .questionnaire_in_progress_alert_back_pressed_message,
         title = org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_title,
         confirmButtonListener = {
           lifecycleScope.launch {
@@ -414,21 +427,21 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           }
         },
         confirmButtonText =
-          org.smartregister.fhircore.engine.R.string
-            .questionnaire_alert_back_pressed_save_draft_button_title,
+        org.smartregister.fhircore.engine.R.string
+          .questionnaire_alert_back_pressed_save_draft_button_title,
         neutralButtonListener = { finish() },
         neutralButtonText =
-          org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
+        org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
       )
     } else {
       AlertDialogue.showConfirmAlert(
         context = this,
         message =
-          org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_message,
+        org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_message,
         title = org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_title,
         confirmButtonListener = { finish() },
         confirmButtonText =
-          org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
+        org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
       )
     }
   }
