@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
         android:name=".QuestApplication"
         android:enableOnBackInvokedCallback="true"
@@ -17,6 +20,10 @@
         android:windowSoftInputMode="adjustResize"
         tools:ignore="UnusedAttribute,LockedOrientationActivity"
         tools:replace="android:theme">
+        <activity
+            android:name=".camerax.CameraXActivity"
+            android:exported="false" />
+
         <profileable
             android:shell="true"
             tools:targetApi="29" />
@@ -41,25 +48,21 @@
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="portrait" />
-
         <activity
             android:name=".ui.pin.PinLoginActivity"
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="portrait" />
-
         <activity
             android:name=".ui.main.AppMainActivity"
             android:clearTaskOnLaunch="true"
             android:launchMode="singleTop"
             android:screenOrientation="portrait" />
-
         <activity
             android:name=".ui.questionnaire.QuestionnaireActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme" />
-
         <activity
             android:name="androidx.compose.ui.tooling.PreviewActivity"
             android:exported="false"
@@ -91,6 +94,4 @@
         </provider>
     </application>
 
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 </manifest>

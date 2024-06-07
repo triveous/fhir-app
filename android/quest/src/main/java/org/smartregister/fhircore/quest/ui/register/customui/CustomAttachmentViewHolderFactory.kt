@@ -5,7 +5,6 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.view.View
 import android.widget.Button
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.DrawableRes
@@ -43,19 +42,21 @@ import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
 import java.io.File
 import java.math.BigDecimal
 import java.util.Date
 import java.util.UUID
 
+
 internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderFactory(R.layout.custom_attachment_view_item) {
 
   override fun getQuestionnaireItemViewHolderDelegate() =
     object : QuestionnaireItemViewHolderDelegate {
+
       override lateinit var questionnaireViewItem: QuestionnaireViewItem
       private lateinit var header: HeaderView
       private lateinit var errorTextView: TextView
@@ -66,7 +67,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
       private lateinit var uploadDocumentButton: Button
       private lateinit var uploadFileButton: Button
       private lateinit var divider: MaterialDivider
-      private lateinit var labelUploaded: TextView
       private lateinit var photoPreview: ConstraintLayout
       private lateinit var photoThumbnail: ImageView
       private lateinit var photoTitle: TextView
@@ -89,7 +89,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         uploadDocumentButton = itemView.findViewById(R.id.upload_document)
         uploadFileButton = itemView.findViewById(R.id.upload_file)
         divider = itemView.findViewById(R.id.divider)
-        labelUploaded = itemView.findViewById(R.id.label_uploaded)
         photoPreview = itemView.findViewById(R.id.photo_preview)
         photoThumbnail = itemView.findViewById(R.id.photo_thumbnail)
         photoTitle = itemView.findViewById(R.id.photo_title)
@@ -242,9 +241,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
       }
 
       private fun onTakePhotoClicked(view: View, questionnaireItem: Questionnaire.QuestionnaireItemComponent) {
-        val file = File.createTempFile("IMG_", ".jpeg", context.cacheDir)
-        val attachmentUri =
-          FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         context.supportFragmentManager.setFragmentResultListener(
           CameraLauncherFragment.CAMERA_RESULT_KEY,
           context,
@@ -252,56 +248,63 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
           val isSaved = result.getBoolean(CameraLauncherFragment.CAMERA_RESULT_KEY)
           if (!isSaved) return@setFragmentResultListener
 
-          if (questionnaireItem.isGivenSizeOverLimit(file.length().toBigDecimal())) {
-            displayError(
-              R.string.max_size_image_above_limit_validation_error_msg,
-              questionnaireItem.maxSizeInMiBs,
-            )
-            displaySnackbar(view, R.string.upload_failed)
-            file.delete()
-            return@setFragmentResultListener
-          }
-
-          val attachmentMimeTypeWithSubType = context.getMimeTypeFromUri(attachmentUri)
-          val attachmentMimeType = getMimeType(attachmentMimeTypeWithSubType)
-          if (!questionnaireItem.hasMimeType(attachmentMimeType)) {
-            displayError(R.string.mime_type_wrong_media_format_validation_error_msg)
-            displaySnackbar(view, R.string.upload_failed)
-            file.delete()
-            return@setFragmentResultListener
-          }
-
-          // Create a document reference to store the file later and use the document ref
-          // permanent link in attachment url
-          val doc = createDocumentReference(attachmentUri, attachmentMimeTypeWithSubType)
-          val answer =
-            QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
-              value =
-                Attachment().apply {
-                  contentType = attachmentMimeTypeWithSubType
-                  url = doc.url
-                  title = file.name
-                  creation = Date()
-                }
+          val fileAbsolutePath = result.getString(CameraxLauncherFragment.CAMERA_RESULT_URI_KEY)
+          if (!fileAbsolutePath.isNullOrEmpty()) {
+            try {
+            val capturedFile = File(fileAbsolutePath)
+            val attachmentUri =
+              FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                capturedFile
+              )
+            val attachmentMimeTypeWithSubType = context.getMimeTypeFromUri(attachmentUri)
+            val attachmentMimeType = getMimeType(attachmentMimeTypeWithSubType)
+            if (!questionnaireItem.hasMimeType(attachmentMimeType)) {
+              displayError(R.string.mime_type_wrong_media_format_validation_error_msg)
+              displaySnackbar(view, R.string.upload_failed)
+              capturedFile.delete()
+              return@setFragmentResultListener
             }
 
-          context.lifecycleScope.launch {
-            FhirEngineProvider.getInstance(context.applicationContext).create(doc)
-            questionnaireViewItem.setAnswer(answer)
-            divider.visibility = View.VISIBLE
-            labelUploaded.visibility = View.VISIBLE
-            displayPreview(
-              attachmentType = attachmentMimeType,
-              attachmentTitle = file.name,
-              attachmentUri = attachmentUri,
-            )
-            displaySnackbarOnUpload(view, attachmentMimeType)
+            // Create a document reference to store the file later and use the document ref
+            // permanent link in attachment url
+            val doc = createDocumentReference(attachmentUri, attachmentMimeTypeWithSubType)
+            val answer =
+              QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+                value =
+                  Attachment().apply {
+                    contentType = attachmentMimeTypeWithSubType
+                    url = doc.url
+                    title = capturedFile.name
+                    creation = Date()
+                  }
+              }
+
+            context.lifecycleScope.launch {
+              FhirEngineProvider.getInstance(context.applicationContext).create(doc)
+              questionnaireViewItem.setAnswer(answer)
+              divider.visibility = View.VISIBLE
+              displayPreview(
+                attachmentType = attachmentMimeType,
+                attachmentTitle = capturedFile.name,
+                attachmentUri = attachmentUri,
+              )
+              displaySnackbarOnUpload(view, attachmentMimeType)
+            }
+            }catch (e:Exception){
+              e.printStackTrace()
+            }
+          }else{
+            displaySnackbar(view, R.string.image_capture_failed)
           }
         }
 
-        CameraLauncherFragment()
-          .apply { arguments = bundleOf(EXTRA_SAVED_PHOTO_URI_KEY to attachmentUri) }
-          .show(context.supportFragmentManager, CustomAttachmentViewHolderFactory::class.java.simpleName)
+        CameraxLauncherFragment.newInstance()
+          .show(
+            context.supportFragmentManager,
+            CustomAttachmentViewHolderFactory::class.java.simpleName
+          )
       }
 
       private fun onUploadClicked(view: View, questionnaireItem: Questionnaire.QuestionnaireItemComponent) {
@@ -351,7 +354,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
             questionnaireViewItem.setAnswer(answer)
 
             divider.visibility = View.VISIBLE
-            labelUploaded.visibility = View.VISIBLE
             displayPreview(
               attachmentType = attachmentMimeType,
               attachmentTitle = attachmentTitle,
@@ -435,7 +437,6 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         context.lifecycleScope.launch {
           questionnaireViewItem.clearAnswer()
           divider.visibility = View.GONE
-          labelUploaded.visibility = View.GONE
           clearPhotoPreview()
           clearFilePreview()
           displaySnackbarOnDelete(

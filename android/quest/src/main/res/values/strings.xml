@@ -21,6 +21,7 @@
     <string name="upload_audio">Upload Audio</string>
     <string name="upload_document">Upload Document</string>
     <string name="upload_failed">Upload failed</string>
+    <string name="image_capture_failed">Image capture failed</string>
     <string name="upload_file">Upload File</string>
     <string name="upload_photo">Upload Photo</string>
     <string name="upload_video">Upload Video</string>
@@ -141,5 +142,12 @@
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="required_text_and_new_line">Please fill the required field</string>
+    <string name="retake">RETAKE</string>
+    <string name="done">DONE</string>
+    <string name="no_unsync_patients">No un-synced patients to show</string>
+    <string name="no_draft_patients">No drafts to show</string>
+    <string name="no_patients_added">No patients added yet</string>
+    <string name="delete_draft_desc">Are you sure you want to delete the record?</string>
+    <string name="delete_draft_title">Delete record</string>
 
 </resources>

@@ -20,8 +20,6 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -30,8 +28,6 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import com.google.android.fhir.FhirEngine
-import com.google.android.fhir.LocalChange
-import com.google.android.fhir.search.Order
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,7 +40,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -52,6 +47,7 @@ import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.register.RegisterConfiguration
@@ -70,7 +66,6 @@ import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.encodeJson
-import org.smartregister.fhircore.engine.util.extension.extractId
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
@@ -108,6 +103,13 @@ constructor(
 
   private val _patientsStateFlow = MutableStateFlow<List<Patient>>(emptyList())
   val patientsStateFlow: StateFlow<List<Patient>> = _patientsStateFlow
+
+  private val _savedDraftResponseStateFlow = MutableStateFlow<List<QuestionnaireResponse>>(emptyList())
+  val savedDraftResponse: StateFlow<List<QuestionnaireResponse>> = _savedDraftResponseStateFlow
+
+  private val _unSyncedStateFlow = MutableStateFlow<List<Patient2>>(emptyList())
+  val unSyncedStateFlow: StateFlow<List<Patient2>> = _unSyncedStateFlow
+
   /**
    * This function paginates the register data. An optional [clearCache] resets the data in the
    * cache (this is necessary after a questionnaire has been submitted to refresh the register with
@@ -499,14 +501,53 @@ constructor(
   }
 
   fun getAllPatients() {
-
     viewModelScope.launch {
       val patients = fhirEngine.search<Patient> {
       }.map {
         it.resource
       }.sortedByDescending { it.meta.lastUpdated }
       _patientsStateFlow.value = patients
+    }
+  }
 
+  fun getAllUnSyncedPatients() {
+    val patients = mutableListOf<Patient2>()
+    viewModelScope.launch {
+      val data = fhirEngine.getUnsyncedLocalChanges()
+      data.forEachIndexed { index, localChange ->
+        val patient = parsePatientJson(localChange.payload)
+        patient?.let {
+          if (patient.name.isNotEmpty()){
+            patients.add(patient)
+          }
+        }
+      }
+      patients.reverse()
+      CoroutineScope(Dispatchers.Main).launch {
+        _unSyncedStateFlow.value = patients
+      }
+    }
+  }
+
+  fun softDeleteDraft(resourceId: String){
+    viewModelScope.launch {
+      registerRepository.delete(
+        resourceType = ResourceType.QuestionnaireResponse,
+        resourceId = resourceId,
+        softDelete = false
+      )
+      getAllDraftResponses()
+    }
+  }
+
+  fun getAllDraftResponses() {
+    viewModelScope.launch {
+      val responses = fhirEngine.search<QuestionnaireResponse> {
+      }.map {
+        it.resource
+      }.filter { it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS }
+        .sortedByDescending { it.meta.lastUpdated }
+      _savedDraftResponseStateFlow.value = responses
     }
   }
 
@@ -554,6 +595,11 @@ constructor(
       val age: Int?
     )
 
+  data class DraftPatient(
+    val name: String,
+    val payloadJson: String
+  )
+
     fun parsePatientJson(json: String): Patient2? {
       val gson = Gson()
       try {
@@ -580,4 +626,33 @@ constructor(
         return null
       }
     }
+
+  fun parseQuestionnaireResponseJson(json: String): DraftPatient? {
+    val gson = Gson()
+    try {
+      val patientData = gson.fromJson(json, Map::class.java)
+
+      val nameList = patientData["name"] as List<*>?
+      val name = if (nameList != null && nameList.isNotEmpty()) {
+        val firstName = (nameList[0] as Map<*, *>)["given"] as List<*>?
+        if (firstName != null && firstName.isNotEmpty()) {
+          firstName[0] as String
+        } else {
+          null
+        }
+      } else {
+        null
+      }
+
+      val gender = patientData["gender"] as String?
+      val telecomData = patientData["telecom"] as List<*>?
+
+      return DraftPatient(name ?: "", gender ?: "")
+    } catch (e: Exception) {
+      e.printStackTrace()
+      return null
+    }
+  }
+
+
 }
