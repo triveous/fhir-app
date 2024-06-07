@@ -59,7 +59,7 @@
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
         <item name="android:textColorSecondary">@color/white</item>
-        <item name="questionnaireSubmitButtonStyle">@style/AppTheme.SubmitButtonStyle</item>
+        <!--<item name="questionnaireSubmitButtonStyle">@style/AppTheme.SubmitButtonStyle</item>-->
     </style>
 
     <style name="AppTheme.SubmitButtonStyle" parent="Questionnaire.SubmitButtonStyle">

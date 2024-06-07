@@ -618,9 +618,7 @@ constructor(
   fun saveDraftQuestionnaire(questionnaireResponse: QuestionnaireResponse) {
     viewModelScope.launch {
       val questionnaireHasAnswer =
-        questionnaireResponse.item.any {
-          it.answer.any { answerComponent -> answerComponent.hasValue() }
-        }
+        questionnaireResponse.item.any{it.item.get(0).hasAnswer()}
       if (questionnaireHasAnswer) {
         questionnaireResponse.status = QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS
         defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)

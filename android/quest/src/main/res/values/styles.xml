@@ -18,6 +18,11 @@
 
     </style>
 
+    <declare-styleable name="CustomSeekBar">
+        <attr name="measuringTapeDrawable" format="reference" />
+    </declare-styleable>
+
+
     <style name="Theme.MyQuestionnaire2" parent="Theme.Questionnaire">
         <item name="questionnaireRadioButtonStyle">
             @style/RadioButtonWithoutBorder

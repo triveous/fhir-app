@@ -21,6 +21,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
@@ -52,6 +53,7 @@ fun List<ActionConfig>.handleClickEvent(
   resourceData: ResourceData? = null,
   navMenu: NavigationMenuConfig? = null,
   context: Context? = null,
+  bundle: Bundle? = null
 ) {
   val onClickAction =
     this.find { it.trigger.isIn(ActionTrigger.ON_CLICK, ActionTrigger.ON_QUESTIONNAIRE_SUBMISSION) }
@@ -73,7 +75,14 @@ fun List<ActionConfig>.handleClickEvent(
           val questionnaireConfigInterpolated = questionnaireConfig.interpolate(computedValuesMap)
 
           // Questionnaire is NOT launched via navigation component. It is started for result.
-          if (navController.context is QuestionnaireHandler) {
+          if (navController.context is QuestionnaireHandler && bundle != null) {
+            (navController.context as QuestionnaireHandler).launchQuestionnaire(
+              context = navController.context,
+              questionnaireConfig = questionnaireConfigInterpolated,
+              actionParams = interpolatedParams,
+              extraIntentBundle = bundle
+            )
+          }else{
             (navController.context as QuestionnaireHandler).launchQuestionnaire(
               context = navController.context,
               questionnaireConfig = questionnaireConfigInterpolated,

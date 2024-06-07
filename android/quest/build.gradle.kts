@@ -263,6 +263,8 @@ configurations {
 }
 
 dependencies {
+  implementation(libs.activity)
+  implementation(libs.constraintlayout)
   coreLibraryDesugaring(libs.core.desugar)
 
   // Application dependencies
@@ -284,6 +286,11 @@ dependencies {
   implementation(libs.dagger.hilt.android)
   implementation(libs.hilt.work)
   implementation(libs.play.services.location)
+
+  implementation(libs.camera.core)
+  implementation(libs.camera.camera2)
+  implementation(libs.camera.lifecycle)
+  implementation(libs.camera.view)
 
   // Annotation processors
   kapt(libs.hilt.compiler)

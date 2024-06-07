@@ -84,8 +84,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
   private val registerViewModel by viewModels<RegisterViewModel>()
 
 
-
-
   override fun onCreateView(
     inflater: LayoutInflater,
     container: ViewGroup?,
@@ -196,6 +194,9 @@ class RegisterFragment : Fragment(), OnSyncListener {
   override fun onResume() {
     super.onResume()
     registerViewModel.getAllPatients()
+    registerViewModel.getAllDraftResponses()
+    registerViewModel.getAllUnSyncedPatients()
+
     syncListenerManager.registerSyncListener(this, lifecycle)
   }
 
@@ -232,6 +233,8 @@ class RegisterFragment : Fragment(), OnSyncListener {
           )
         }
         registerViewModel.getAllPatients()
+        registerViewModel.getAllDraftResponses()
+        registerViewModel.getAllUnSyncedPatients()
       }
       is CurrentSyncJobStatus.Failed -> {
         refreshRegisterData()

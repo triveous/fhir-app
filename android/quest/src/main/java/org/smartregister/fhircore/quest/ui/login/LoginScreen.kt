@@ -253,7 +253,7 @@ fun LoginPage(
               .wrapContentWidth()
               .padding(vertical = 8.dp)
               .clickable {
-
+                showForgotPasswordDialog = !showForgotPasswordDialog
               },
           )
         }
@@ -410,7 +410,7 @@ fun ForgotPasswordDialog(
       )
     },
     text = {
-      Text(text = stringResource(R.string.call_supervisor, "012-3456-789"), fontSize = 16.sp)
+      Text(text = stringResource(R.string.call_supervisor), fontSize = 16.sp)
     },
     buttons = {
       Row(
@@ -427,13 +427,13 @@ fun ForgotPasswordDialog(
         )
         Text(
           color = MaterialTheme.colors.primary,
-          text = stringResource(R.string.dial_number),
+          text = stringResource(R.string.ok),
           modifier =
           modifier
             .padding(horizontal = 10.dp)
             .clickable {
               onDismissDialog()
-              forgotPassword()
+              //forgotPassword()
             },
         )
       }
