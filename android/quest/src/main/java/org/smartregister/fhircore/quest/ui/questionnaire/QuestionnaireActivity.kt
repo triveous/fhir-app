@@ -411,7 +411,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private fun handleBackPress() {
     if (questionnaireConfig.isReadOnly()) {
       finish()
-    } else if (true) {
+    } else if (questionnaireConfig.saveDraft) {
       AlertDialogue.showCancelAlert(
         context = this,
         message =
@@ -421,8 +421,12 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         confirmButtonListener = {
           lifecycleScope.launch {
             retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
+              viewModel.isDraftSaved.observeForever {
+                if (it){
+                  finish()
+                }
+              }
               viewModel.saveDraftQuestionnaire(questionnaireResponse)
-              finish()
             }
           }
         },
