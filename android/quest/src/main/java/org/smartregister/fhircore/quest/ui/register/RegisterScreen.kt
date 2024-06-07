@@ -84,7 +84,6 @@ import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
-import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.quest.event.ToolbarClickEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
@@ -297,12 +296,124 @@ fun RegisterScreen(
                         )
                       }
 
-                      ShowDraftPatients(
-                        modifier,
-                        savedRes,
-                        registerUiState,
-                        navController
-                      )
+                      Box(
+                        modifier = modifier
+                          .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+                          .fillMaxHeight()
+                          .fillMaxWidth()
+                          .background(SearchHeaderColor)
+                      ) {
+
+                        if (savedRes.isEmpty()) {
+                          Box(
+                            modifier = modifier
+                              .fillMaxHeight()
+                              .background(SearchHeaderColor)
+                              .padding(top = 48.dp)
+                              .fillMaxWidth()
+                          ) {
+
+                            Box(
+                              modifier = modifier.padding(horizontal = 16.dp),
+                              contentAlignment = Alignment.Center
+                            ) {
+                              Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_draft_patients))
+                            }
+                          }
+                        } else {
+                          Box(
+                            modifier = modifier
+                              .fillMaxHeight()
+                              .background(SearchHeaderColor)
+                              .fillMaxWidth()
+                          ) {
+                            LazyColumn {
+                              items(savedRes) { response ->
+                                Box(
+                                  modifier = modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                                    .background(Color.White)
+                                ) {
+                                  Card(
+                                    modifier = Modifier
+                                      .fillMaxWidth()
+                                      .background(Color.White),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                  ) {
+                                    Box(
+                                      modifier = modifier
+                                        .background(Color.White)
+                                    ) {
+                                      Column(
+                                        modifier = Modifier
+                                          .fillMaxWidth()
+                                          .padding(vertical = 16.dp, horizontal = 16.dp)
+                                          .background(Color.White)
+                                      ) {
+                                        Row(modifier = modifier.padding(vertical = 4.dp)) {
+                                          androidx.compose.material.Icon(
+                                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
+                                            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
+                                            contentDescription = FILTER,
+                                          )
+                                          Text(
+                                            modifier = Modifier
+                                              .weight(1f)
+                                              .padding(vertical = 4.dp, horizontal = 8.dp),
+                                            text = response.item[0].item[0].answer[0].value.asStringValue(),
+                                            style = MaterialTheme.typography.h6,
+                                            color = Color.DarkGray
+                                          )
+                                          Spacer(modifier = Modifier.height(16.dp))
+                                          Box(
+                                            modifier = Modifier.clickable {
+                                              val json = response.encodeResourceToString()
+                                              registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
+                                                val bundle = Bundle()
+                                                bundle.putString(QUESTIONNAIRE_RESPONSE_PREFILL, json)
+                                                noResultConfig.actionButton?.actions?.handleClickEvent(
+                                                  navController,
+                                                  bundle = bundle
+                                                )
+                                              }
+                                            }
+                                          ) {
+                                            Icon(
+                                              modifier = Modifier.padding(
+                                                vertical = 4.dp,
+                                                horizontal = 8.dp
+                                              ),
+                                              painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
+                                              contentDescription = FILTER,
+                                            )
+                                          }
+                                          Box(modifier = modifier.clickable {
+                                            showDeleteDialog = true
+                                          }) {
+                                            androidx.compose.material.Icon(
+                                              modifier = Modifier.padding(
+                                                vertical = 4.dp,
+                                                horizontal = 8.dp
+                                              ),
+                                              painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
+                                              contentDescription = FILTER,
+                                            )
+                                          }
+                                        }
+
+                                        Row(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+                                          Text(text = "Created: ${convertToDate(response.meta.lastUpdated)}")
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
                     }
                     UNSYNCED_PATIENTS -> {
                       ShowUnSyncedPatients(modifier, unSynced)
@@ -404,131 +515,6 @@ private fun ShowUnSyncedPatients(
 
                     Row(modifier = modifier.padding(vertical = 4.dp)) {
                       Text(text = "Gender: ${patient.gender}")
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-@Composable
-private fun ShowDraftPatients(
-  modifier: Modifier,
-  savedRes: List<QuestionnaireResponse>,
-  registerUiState: RegisterUiState,
-  navController: NavController
-) {
-  Box(
-    modifier = modifier
-      .padding(top = 64.dp, start = 16.dp, end = 16.dp)
-      .fillMaxHeight()
-      .fillMaxWidth()
-      .background(SearchHeaderColor)
-  ) {
-
-    if (savedRes.isEmpty()) {
-      Box(
-        modifier = modifier
-          .fillMaxHeight()
-          .background(SearchHeaderColor)
-          .padding(top = 48.dp)
-          .fillMaxWidth()
-      ) {
-
-        Box(
-          modifier = modifier.padding(horizontal = 16.dp),
-          contentAlignment = Alignment.Center
-        ) {
-          Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_draft_patients))
-        }
-      }
-    } else {
-      Box(
-        modifier = modifier
-          .fillMaxHeight()
-          .background(SearchHeaderColor)
-          .fillMaxWidth()
-      ) {
-        LazyColumn {
-          items(savedRes) { response ->
-            Box(
-              modifier = modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-                .background(Color.White)
-            ) {
-              Card(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .background(Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-              ) {
-                Box(
-                  modifier = modifier
-                    .background(Color.White)
-                ) {
-                  Column(
-                    modifier = Modifier
-                      .fillMaxWidth()
-                      .padding(vertical = 16.dp, horizontal = 16.dp)
-                      .background(Color.White)
-                  ) {
-                    Row(modifier = modifier.padding(vertical = 4.dp)) {
-                      androidx.compose.material.Icon(
-                        modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
-                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
-                        contentDescription = FILTER,
-                      )
-                      Text(
-                        modifier = Modifier
-                          .weight(1f)
-                          .padding(vertical = 4.dp, horizontal = 8.dp),
-                        text = response.item[0].item[0].answer[0].value.asStringValue(),
-                        style = MaterialTheme.typography.h6,
-                        color = Color.DarkGray
-                      )
-                      Spacer(modifier = Modifier.height(16.dp))
-                      Box(
-                        modifier = Modifier.clickable {
-                          val json = response.encodeResourceToString()
-                          registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
-                            val bundle = Bundle()
-                            bundle.putString(QUESTIONNAIRE_RESPONSE_PREFILL, json)
-                            noResultConfig.actionButton?.actions?.handleClickEvent(
-                              navController,
-                              bundle = bundle
-                            )
-                          }
-                        }
-                      ) {
-                        Icon(
-                          modifier = Modifier.padding(
-                            vertical = 4.dp,
-                            horizontal = 8.dp
-                          ),
-                          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
-                          contentDescription = FILTER,
-                        )
-                      }
-                      Box {
-                        androidx.compose.material.Icon(
-                          modifier = Modifier.padding(
-                            vertical = 4.dp,
-                            horizontal = 8.dp
-                          ),
-                          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
-                          contentDescription = FILTER,
-                        )
-                      }
-                    }
-
-                    Row(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
-                      Text(text = "Created: ${convertToDate(response.meta.lastUpdated)}")
                     }
                   }
                 }

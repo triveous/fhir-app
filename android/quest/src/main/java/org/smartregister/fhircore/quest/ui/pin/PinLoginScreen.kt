@@ -306,7 +306,6 @@ fun ForgotPinDialog(
             .padding(horizontal = 10.dp)
             .clickable {
               onDismissDialog()
-              forgotPin()
             },
         )
       }

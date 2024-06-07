@@ -70,26 +70,37 @@ open class LoginActivity : BaseMultiLanguageActivity() {
       val isPinEnabled = pinEnabled()
       val hasActivePin = pinActive()
 
+      // Navigate to PinLogin if needed
       if (isPinEnabled && hasActivePin) {
-        if (
-          (loginActivity.deviceOnline() && loginActivity.isRefreshTokenActive()) ||
-            !loginActivity.deviceOnline()
+        if ((loginActivity.deviceOnline() && loginActivity.isRefreshTokenActive()) ||
+          !loginActivity.deviceOnline()
         ) {
           navigateToPinLogin(launchSetup = false)
+          return
         }
       }
 
+      // Observer to handle navigation to Home
       navigateToHome.observe(loginActivity) { launchHomeScreen ->
         if (launchHomeScreen) {
           downloadNowWorkflowConfigs(isInitialLogin = false)
           if (isPinEnabled && !hasActivePin) {
             navigateToPinLogin(launchSetup = true)
-          } else loginActivity.navigateToHome()
+          } else {
+            loginActivity.navigateToHome()
+          }
         }
       }
-      launchDialPad.observe(loginActivity) { if (!it.isNullOrEmpty()) launchDialPad(it) }
+
+      // Observer to handle launching the dial pad
+      launchDialPad.observe(loginActivity) { dialPadNumber ->
+        if (!dialPadNumber.isNullOrEmpty()) {
+          launchDialPad(dialPadNumber)
+        }
+      }
     }
   }
+
 
   @VisibleForTesting open fun pinEnabled() = loginViewModel.isPinEnabled()
 
