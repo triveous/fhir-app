@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Enumerations.DataType
+import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.ResourceType
@@ -71,6 +72,8 @@ import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSource
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import timber.log.Timber
 import java.time.LocalDate
+import java.util.Date
+import java.util.UUID
 
 @HiltViewModel
 class RegisterViewModel
@@ -101,8 +104,12 @@ constructor(
   private val _isUploadSync: MutableSharedFlow<Boolean> = MutableSharedFlow(0)
 
 
-  private val _patientsStateFlow = MutableStateFlow<List<Patient>>(emptyList())
-  val patientsStateFlow: StateFlow<List<Patient>> = _patientsStateFlow
+  private val _patientsStateFlow = MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
+  val patientsStateFlow: StateFlow<List<AllPatientsResourceData>> = _patientsStateFlow
+
+  private val _isFetching = MutableStateFlow<Boolean>(false)
+  val isFetching: StateFlow<Boolean> = _isFetching
+
 
   private val _savedDraftResponseStateFlow = MutableStateFlow<List<QuestionnaireResponse>>(emptyList())
   val savedDraftResponse: StateFlow<List<QuestionnaireResponse>> = _savedDraftResponseStateFlow
@@ -479,13 +486,54 @@ constructor(
   }
 
   fun getAllPatients() {
-    viewModelScope.launch {
+    /*viewModelScope.launch {
       val patients = fhirEngine.search<Patient> {
       }.map {
         it.resource
       }.sortedByDescending { it.meta.lastUpdated }
       _patientsStateFlow.value = patients
+    }*/
+
+    _isFetching.value = true
+    viewModelScope.launch {
+      // Fetching patients
+      val patients = fhirEngine.search<Patient> {
+      }.map {
+        it.resource.toResourceData()
+      }
+
+      // Fetching drafts
+      val drafts = fhirEngine.search<QuestionnaireResponse> {
+      }.filter { it.resource.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS }
+        .map { response ->
+          response.resource.toResourceData()
+        }
+
+      // Fetching unsynced patients
+      val unsyncedPatients = mutableListOf<AllPatientsResourceData>()
+      val data = fhirEngine.getUnsyncedLocalChanges()
+      data.forEach { localChange ->
+        val patient = parsePatientJson(localChange.payload)
+        patient?.let {
+          patient?.let {
+            if (patient.name.isNotEmpty()){
+              unsyncedPatients.add(it.toResourceData())
+            }
+          }
+        }
+      }
+
+      // Combining and sorting by last updated time
+      val combinedList = (patients + drafts + unsyncedPatients)
+        .sortedByDescending { it.meta.lastUpdated }
+
+
+      // Updating the state flow
+      _patientsStateFlow.value = combinedList
+      _isFetching.value = false
     }
+
+
   }
 
   fun getAllUnSyncedPatients() {
@@ -630,6 +678,53 @@ constructor(
       e.printStackTrace()
       return null
     }
+  }
+
+  // Helper function to convert Patient to ResourceData
+  private fun Patient.toResourceData(): AllPatientsResourceData {
+    return AllPatientsResourceData(
+      id = id,
+      meta = meta,
+      resourceType = AllPatientsResourceType.Patient,
+      patient = this
+    )
+  }
+
+  // Helper function to convert QuestionnaireResponse to ResourceData
+  private fun QuestionnaireResponse.toResourceData(): AllPatientsResourceData {
+    return AllPatientsResourceData(
+      id = id,
+      meta = meta,
+      resourceType = AllPatientsResourceType.QuestionnaireResponse,
+      questionnaireResponse = this
+    )
+  }
+
+  // Helper function to convert Patient2 to ResourceData
+  private fun Patient2.toResourceData(): AllPatientsResourceData {
+    return AllPatientsResourceData(
+      id = UUID.randomUUID().toString(),
+      meta = Meta().apply { lastUpdated = Date() },
+      resourceType = AllPatientsResourceType.Patient2,
+      patient2 = this
+    )
+  }
+
+  // ResourceData class with all three types and meta information
+  data class AllPatientsResourceData(
+    val id: String,
+    val meta: Meta,
+    val resourceType: AllPatientsResourceType,
+    val patient: Patient? = null,
+    val questionnaireResponse: QuestionnaireResponse? = null,
+    val patient2: Patient2? = null
+  )
+
+  // Enumeration for resource types
+  enum class AllPatientsResourceType {
+    Patient,
+    QuestionnaireResponse,
+    Patient2
   }
 
 
