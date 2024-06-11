@@ -96,8 +96,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.text.style.TextOverflow
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
-
+import java.util.Date
 
 
 const val NO_REGISTER_VIEW_COLUMN_TEST_TAG = "noRegisterViewColumnTestTag"
@@ -275,7 +276,8 @@ fun RegisterScreen(
               tabTitles.forEach { title ->
                 when (pagerState.currentPage) {
                     ALL_PATIENTS -> {
-                      ShowAllPatients(modifier, patients)
+
+                      ShowAllPatients(modifier, patients, viewModel)
                     }
                     DRAFT_PATIENTS -> {
                       if (showDeleteDialog){
@@ -307,14 +309,16 @@ fun RegisterScreen(
                         if (savedRes.isEmpty()) {
                           Box(
                             modifier = modifier
-                              .fillMaxHeight()
                               .background(SearchHeaderColor)
                               .padding(top = 48.dp)
-                              .fillMaxWidth()
+                              .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
                           ) {
 
                             Box(
-                              modifier = modifier.padding(horizontal = 16.dp),
+                              modifier = modifier
+                                .padding(horizontal = 16.dp)
+                                .fillMaxWidth(),
                               contentAlignment = Alignment.Center
                             ) {
                               Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_draft_patients))
@@ -389,6 +393,7 @@ fun RegisterScreen(
                                             )
                                           }
                                           Box(modifier = modifier.clickable {
+                                            deleteDraftId = response.id.extractLogicalIdUuid()
                                             showDeleteDialog = true
                                           }) {
                                             androidx.compose.material.Icon(
@@ -446,7 +451,8 @@ private fun ShowUnSyncedPatients(
         modifier = modifier
           .background(SearchHeaderColor)
           .padding(top = 48.dp)
-          .fillMaxWidth()
+          .fillMaxWidth(),
+        contentAlignment = Alignment.Center
       ) {
         Box(
           modifier = modifier
@@ -527,11 +533,144 @@ private fun ShowUnSyncedPatients(
   }
 }
 
+
+@Composable
+fun DraftPatientCard(patientData: QuestionnaireResponse) {
+  Card(
+    modifier = Modifier
+      .fillMaxWidth()
+      .background(Color.White),
+    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+  ) {
+    Box(
+      modifier = Modifier
+        .background(Color.White)
+    ) {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(vertical = 8.dp, horizontal = 16.dp)
+          .background(Color.White)
+      ) {
+        Row(modifier = Modifier.padding(vertical = 4.dp)) {
+          androidx.compose.material.Icon(
+            modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
+            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
+            contentDescription = FILTER,
+          )
+          Text(
+            modifier = Modifier
+              .weight(1f)
+              .padding(vertical = 4.dp, horizontal = 8.dp),
+            text = patientData?.item?.get(0)?.item?.get(0)?.answer?.get(0)?.value?.asStringValue() ?: "No Name",
+            style = MaterialTheme.typography.h6,
+            color = Color.DarkGray
+          )
+          Spacer(modifier = Modifier.height(16.dp))
+          Text(text = "Draft",
+            modifier = Modifier.padding(
+              vertical = 4.dp,
+              horizontal = 8.dp
+            ))
+
+          /*Box(
+          ) {
+            Icon(
+              modifier = Modifier.padding(
+                vertical = 4.dp,
+                horizontal = 8.dp
+              ),
+              painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
+              contentDescription = FILTER,
+            )
+          }
+          Box() {
+            androidx.compose.material.Icon(
+              modifier = Modifier.padding(
+                vertical = 4.dp,
+                horizontal = 8.dp
+              ),
+              painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
+              contentDescription = FILTER,
+            )
+          }*/
+        }
+
+        Row(modifier = Modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+          Text(text = "Created: ${patientData?.meta?.lastUpdated?.let {
+            convertToDate(
+              it
+            )
+          }}")
+        }
+      }
+    }
+  }
+}
+
+@Composable
+fun UnsyncedPatientCard(patient: RegisterViewModel.Patient2, lastUpdated: Date){
+  Card(
+    modifier = Modifier
+      .fillMaxWidth()
+      .background(Color.White),
+    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+  ) {
+    Box(
+      modifier = Modifier
+        .background(Color.White)
+    ) {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(vertical = 8.dp, horizontal = 16.dp)
+          .background(Color.White)
+      ) {
+        Row(modifier = Modifier.padding(vertical = 4.dp)) {
+
+          androidx.compose.material.Icon(
+            modifier = Modifier.padding(
+              vertical = 4.dp,
+              horizontal = 4.dp
+            ),
+            painter = painterResource(id = com.google.android.fhir.datacapture.R.drawable.ic_document_file),
+            contentDescription = FILTER,
+            tint = Color.Black,
+          )
+
+          Text(
+            modifier = Modifier
+              .weight(1f)
+              .padding(vertical = 4.dp, horizontal = 4.dp),
+            text = patient.name,
+            style = MaterialTheme.typography.h6,
+            color = LightColors.primary
+          )
+          Spacer(modifier = Modifier.height(16.dp))
+
+          Text(text = "Un-Synced")
+
+        }
+
+        Row(modifier = Modifier.padding(vertical = 4.dp)) {
+          Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+            Text(text = "Visited ${convertToDate(lastUpdated)}")
+          }
+        }
+      }
+    }
+  }
+}
+
 @Composable
 private fun ShowAllPatients(
   modifier: Modifier,
-  patients: List<Patient>
+  patients: List<RegisterViewModel.AllPatientsResourceData>,
+  viewModel: RegisterViewModel
 ) {
+
+  val isFetchingPatients by viewModel.isFetching.collectAsState()
+
   Box(
     modifier = modifier
       .padding(top = 64.dp, start = 16.dp, end = 16.dp)
@@ -543,16 +682,22 @@ private fun ShowAllPatients(
     if (patients.isEmpty()) {
       Box(
         modifier = modifier
-          .fillMaxHeight()
           .background(SearchHeaderColor)
           .padding(top = 48.dp)
-          .fillMaxWidth()
+          .fillMaxWidth(),
+        contentAlignment = Alignment.Center
       ) {
         Box(
-          modifier = modifier.padding(horizontal = 16.dp),
+          modifier = modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth(),
           contentAlignment = Alignment.Center
         ) {
-          Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_patients_added))
+          if (isFetchingPatients){
+            Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.loading_patients))
+          }else{
+            Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_patients_added))
+          }
         }
       }
     } else {
@@ -565,50 +710,86 @@ private fun ShowAllPatients(
       ) {
         LazyColumn {
           items(patients) { patient ->
-            Card(
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-                .background(Color.White),
-              elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-              Box(
-                modifier = modifier
-                  .background(Color.White)
-              ) {
-                Column(
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 16.dp)
-                    .background(Color.White)
-                ) {
-                  Row(modifier = modifier.padding(vertical = 4.dp)) {
-                    androidx.compose.material.Icon(
-                      modifier = Modifier.padding(horizontal = 4.dp),
-                      painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.patient_icon),
-                      contentDescription = FILTER,
-                      tint = LightColors.primary
-                    )
-                    Text(
-                      modifier = Modifier
-                        .weight(1f)
-                        .padding(vertical = 4.dp, horizontal = 4.dp),
-                      text = patient.name.firstOrNull()?.given?.firstOrNull()?.value ?: "",
-                      style = MaterialTheme.typography.h6,
-                      color = LightColors.primary
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    //Text(text = "Sync: ${patient.}")
-                  }
+            when(patient.resourceType){
+              RegisterViewModel.AllPatientsResourceType.Patient -> {
+                val patientData = patient.patient
+                patientData?.let {
+                  SyncedPatientCard(patientData, patient)
+                }
+              }
 
-                  Row(modifier = modifier.padding(vertical = 4.dp)) {
-                    Box(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
-                      Text(text = "Visited ${convertToDate(patient.meta.lastUpdated)}")
-                    }
+              RegisterViewModel.AllPatientsResourceType.Patient2 -> {
+                val patientData = patient.patient2
+                if (patientData != null) {
+                  Box(modifier = Modifier
+                    .padding(vertical = 4.dp)) {
+                    UnsyncedPatientCard(patientData, patient.meta.lastUpdated)
+                  }
+                }
+              }
+
+              RegisterViewModel.AllPatientsResourceType.QuestionnaireResponse -> {
+                val patientData = patient.questionnaireResponse
+                patientData?.let {
+                  Box(modifier = Modifier
+                    .padding(vertical = 4.dp)) {
+                    DraftPatientCard(patientData)
                   }
                 }
               }
             }
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+fun SyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPatientsResourceData) {
+  Card(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(vertical = 4.dp)
+      .background(Color.White),
+    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+  ) {
+    Box(
+      modifier = Modifier
+        .background(Color.White)
+    ) {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(vertical = 8.dp, horizontal = 16.dp)
+          .background(Color.White)
+      ) {
+        Row(modifier = Modifier.padding(vertical = 4.dp)) {
+          androidx.compose.material.Icon(
+            modifier = Modifier.padding(horizontal = 4.dp),
+            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.patient_icon),
+            contentDescription = FILTER,
+            tint = LightColors.primary
+          )
+          Text(
+            modifier = Modifier
+              .weight(1f)
+              .padding(vertical = 4.dp, horizontal = 4.dp),
+            text = patientData?.name?.firstOrNull()?.given?.firstOrNull()?.value ?: "",
+            style = MaterialTheme.typography.h6,
+            color = LightColors.primary
+          )
+          Spacer(modifier = Modifier.height(16.dp))
+          Text(text = "Synced",
+            modifier = Modifier.padding(
+              vertical = 4.dp,
+              horizontal = 8.dp
+            ))
+        }
+
+        Row(modifier = Modifier.padding(vertical = 4.dp)) {
+          Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+            Text(text = "Visited ${convertToDate(patient.meta.lastUpdated)}")
           }
         }
       }
@@ -624,6 +805,7 @@ fun NoRegisterDataView(
   onClick: () -> Unit,
 ) {
   val patients by viewModel.patientsStateFlow.collectAsState()
+  val isFetchingPatients by viewModel.isFetching.collectAsState()
 
   Column(
     modifier = modifier
@@ -667,26 +849,48 @@ fun NoRegisterDataView(
       }
     }
 
-    if (patients.isEmpty()){
-      Text(
-        text = noResults.title,
-        fontSize = 16.sp,
-        modifier = modifier
-          .padding(vertical = 8.dp)
-          .testTag(NO_REGISTER_VIEW_TITLE_TEST_TAG),
-        fontWeight = FontWeight.Bold,
-      )
-      Text(
-        text = noResults.message,
-        modifier =
-        modifier
-          .padding(start = 32.dp, end = 32.dp)
-          .testTag(NO_REGISTER_VIEW_MESSAGE_TEST_TAG),
-        textAlign = TextAlign.Center,
-        fontSize = 15.sp,
-        color = Color.Gray,
-      )
-    }
+    /*if (patients.isEmpty()){
+      if (isFetchingPatients){
+        Text(
+          text = stringResource(id = org.smartregister.fhircore.quest.R.string.loading_patients),
+          fontSize = 16.sp,
+          modifier = modifier
+            .padding(vertical = 8.dp)
+            .testTag(NO_REGISTER_VIEW_TITLE_TEST_TAG),
+          fontWeight = FontWeight.Bold,
+        )
+        Text(
+          text = stringResource(id = org.smartregister.fhircore.quest.R.string.loading_patients),
+          modifier =
+          modifier
+            .padding(start = 32.dp, end = 32.dp)
+            .testTag(NO_REGISTER_VIEW_MESSAGE_TEST_TAG),
+          textAlign = TextAlign.Center,
+          fontSize = 15.sp,
+          color = Color.Gray,
+        )
+      }else{
+        Text(
+          text = noResults.title,
+          fontSize = 16.sp,
+          modifier = modifier
+            .padding(vertical = 8.dp)
+            .testTag(NO_REGISTER_VIEW_TITLE_TEST_TAG),
+          fontWeight = FontWeight.Bold,
+        )
+        Text(
+          text = noResults.message,
+          modifier =
+          modifier
+            .padding(start = 32.dp, end = 32.dp)
+            .testTag(NO_REGISTER_VIEW_MESSAGE_TEST_TAG),
+          textAlign = TextAlign.Center,
+          fontSize = 15.sp,
+          color = Color.Gray,
+        )
+      }
+
+    }*/
   }
 }
 

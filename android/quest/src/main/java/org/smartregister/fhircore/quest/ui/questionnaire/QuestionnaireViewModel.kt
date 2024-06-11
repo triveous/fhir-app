@@ -148,6 +148,11 @@ constructor(
     configurationRegistry.retrieveConfiguration(ConfigType.Application)
   }
 
+  private val _isDraftSaved = MutableLiveData<Boolean>(false)
+
+  val isDraftSaved: LiveData<Boolean>
+    get() = _isDraftSaved
+
 
 
 
@@ -622,6 +627,9 @@ constructor(
       if (questionnaireHasAnswer) {
         questionnaireResponse.status = QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS
         defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)
+        _isDraftSaved.postValue(true)
+      }else{
+        _isDraftSaved.postValue(true)
       }
     }
   }
