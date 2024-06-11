@@ -96,6 +96,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.text.style.TextOverflow
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
 import java.util.Date
 
@@ -315,7 +316,8 @@ fun RegisterScreen(
                           ) {
 
                             Box(
-                              modifier = modifier.padding(horizontal = 16.dp)
+                              modifier = modifier
+                                .padding(horizontal = 16.dp)
                                 .fillMaxWidth(),
                               contentAlignment = Alignment.Center
                             ) {
@@ -391,6 +393,7 @@ fun RegisterScreen(
                                             )
                                           }
                                           Box(modifier = modifier.clickable {
+                                            deleteDraftId = response.id.extractLogicalIdUuid()
                                             showDeleteDialog = true
                                           }) {
                                             androidx.compose.material.Icon(
@@ -685,7 +688,8 @@ private fun ShowAllPatients(
         contentAlignment = Alignment.Center
       ) {
         Box(
-          modifier = modifier.padding(horizontal = 16.dp)
+          modifier = modifier
+            .padding(horizontal = 16.dp)
             .fillMaxWidth(),
           contentAlignment = Alignment.Center
         ) {
@@ -801,6 +805,7 @@ fun NoRegisterDataView(
   onClick: () -> Unit,
 ) {
   val patients by viewModel.patientsStateFlow.collectAsState()
+  val isFetchingPatients by viewModel.isFetching.collectAsState()
 
   Column(
     modifier = modifier
@@ -844,26 +849,48 @@ fun NoRegisterDataView(
       }
     }
 
-    if (patients.isEmpty()){
-      Text(
-        text = noResults.title,
-        fontSize = 16.sp,
-        modifier = modifier
-          .padding(vertical = 8.dp)
-          .testTag(NO_REGISTER_VIEW_TITLE_TEST_TAG),
-        fontWeight = FontWeight.Bold,
-      )
-      Text(
-        text = noResults.message,
-        modifier =
-        modifier
-          .padding(start = 32.dp, end = 32.dp)
-          .testTag(NO_REGISTER_VIEW_MESSAGE_TEST_TAG),
-        textAlign = TextAlign.Center,
-        fontSize = 15.sp,
-        color = Color.Gray,
-      )
-    }
+    /*if (patients.isEmpty()){
+      if (isFetchingPatients){
+        Text(
+          text = stringResource(id = org.smartregister.fhircore.quest.R.string.loading_patients),
+          fontSize = 16.sp,
+          modifier = modifier
+            .padding(vertical = 8.dp)
+            .testTag(NO_REGISTER_VIEW_TITLE_TEST_TAG),
+          fontWeight = FontWeight.Bold,
+        )
+        Text(
+          text = stringResource(id = org.smartregister.fhircore.quest.R.string.loading_patients),
+          modifier =
+          modifier
+            .padding(start = 32.dp, end = 32.dp)
+            .testTag(NO_REGISTER_VIEW_MESSAGE_TEST_TAG),
+          textAlign = TextAlign.Center,
+          fontSize = 15.sp,
+          color = Color.Gray,
+        )
+      }else{
+        Text(
+          text = noResults.title,
+          fontSize = 16.sp,
+          modifier = modifier
+            .padding(vertical = 8.dp)
+            .testTag(NO_REGISTER_VIEW_TITLE_TEST_TAG),
+          fontWeight = FontWeight.Bold,
+        )
+        Text(
+          text = noResults.message,
+          modifier =
+          modifier
+            .padding(start = 32.dp, end = 32.dp)
+            .testTag(NO_REGISTER_VIEW_MESSAGE_TEST_TAG),
+          textAlign = TextAlign.Center,
+          fontSize = 15.sp,
+          color = Color.Gray,
+        )
+      }
+
+    }*/
   }
 }
 

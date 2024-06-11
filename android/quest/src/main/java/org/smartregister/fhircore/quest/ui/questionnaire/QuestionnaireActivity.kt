@@ -412,7 +412,19 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     if (questionnaireConfig.isReadOnly()) {
       finish()
     } else if (questionnaireConfig.saveDraft) {
-      AlertDialogue.showCancelAlert(
+
+      lifecycleScope.launch {
+        retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
+          viewModel.isDraftSaved.observeForever {
+            if (it){
+              finish()
+            }
+          }
+          viewModel.saveDraftQuestionnaire(questionnaireResponse)
+        }
+      }
+
+/*      AlertDialogue.showCancelAlert(
         context = this,
         message =
           org.smartregister.fhircore.engine.R.string
@@ -436,7 +448,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         neutralButtonListener = { finish() },
         neutralButtonText =
           org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
-      )
+      )*/
     } else {
       AlertDialogue.showConfirmAlert(
         context = this,

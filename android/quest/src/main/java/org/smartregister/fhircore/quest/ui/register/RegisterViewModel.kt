@@ -524,7 +524,8 @@ constructor(
       }
 
       // Combining and sorting by last updated time
-      val combinedList = (patients + drafts + unsyncedPatients)
+      //val combinedList = (patients + drafts + unsyncedPatients)
+      val combinedList = (patients + unsyncedPatients)
         .sortedByDescending { it.meta.lastUpdated }
 
 
@@ -563,6 +564,7 @@ constructor(
         softDelete = false
       )
       getAllDraftResponses()
+      getAllPatients()
     }
   }
 
