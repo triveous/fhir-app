@@ -57,6 +57,7 @@ module:macrobenchmark
 org.smartregister.opensrp.quest.macrobenchmark
 module:quest
 org.smartregister.fhircore.quest
+org.smartregister.fhircore.quest.camerax
 org.smartregister.fhircore.quest.data
 org.smartregister.fhircore.quest.data.register
 org.smartregister.fhircore.quest.data.register.model
