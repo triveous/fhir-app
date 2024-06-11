@@ -43,7 +43,7 @@ data class QuestionnaireConfig(
   val confirmationDialog: ConfirmationDialog? = null,
   val groupResource: GroupResourceConfig? = null,
   val taskId: String? = null,
-  val saveDraft: Boolean = false,
+  val saveDraft: Boolean = true,
   val snackBarMessage: SnackBarMessageConfig? = null,
   val eventWorkflows: List<EventWorkflow> = emptyList(),
   val readOnlyLinkIds: List<String>? = emptyList(),
