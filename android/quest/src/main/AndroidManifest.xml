@@ -21,9 +21,6 @@
         android:windowSoftInputMode="adjustResize"
         tools:ignore="UnusedAttribute,LockedOrientationActivity"
         tools:replace="android:theme">
-        <activity
-            android:name=".camerax.CameraXActivity"
-            android:exported="false" />
 
         <profileable
             android:shell="true"
