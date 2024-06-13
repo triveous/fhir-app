@@ -257,7 +257,7 @@ constructor(
         onFetchUserInfo(Result.success(userInfo))
         try {
           val bundle =
-            fhirResourceService.getResource(url = userInfo.keycloakUuid!!.practitionerEndpointUrl())
+            fhirResourceService.searchResource("PractitionerDetail", mapOf("keycloak-uuid" to userInfo.keycloakUuid!!))
           onFetchPractitioner(Result.success(bundle), userInfo)
         } catch (httpException: HttpException) {
           onFetchPractitioner(Result.failure(httpException), userInfo)
