@@ -51,7 +51,12 @@ class EditTextStringViewHolderDelegate :
   override fun bind(questionnaireViewItem: QuestionnaireViewItem) {
     super.bind(questionnaireViewItem)
     header.visibility = View.GONE
-    textInputLayout.hint = questionnaireViewItem.questionText
+    var isMandatoryQuestion = ""
+    if (questionnaireViewItem.questionnaireItem.required){
+      isMandatoryQuestion = "*"
+    }
+
+    textInputLayout.hint = "${questionnaireViewItem.questionText} ${isMandatoryQuestion}"
     displayValidationResult(questionnaireViewItem.validationResult)
   }
 

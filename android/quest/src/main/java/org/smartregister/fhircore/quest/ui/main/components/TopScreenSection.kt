@@ -81,7 +81,7 @@ const val SEARCH_FIELD_TEST_TAG = "searchFieldTestTag"
 @Composable
 fun TopScreenSection(
   modifier: Modifier = Modifier,
-  title: String,
+  title: String = stringResource(id = R.string.appname),
   searchText: String,
   filteredRecordsCount: Long? = null,
   searchPlaceholder: String? = null,
@@ -107,20 +107,18 @@ fun TopScreenSection(
         ),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      /*Icon(
-        when (toolBarHomeNavigation) {
-          ToolBarHomeNavigation.OPEN_DRAWER -> Icons.Filled.Menu
-          ToolBarHomeNavigation.NAVIGATE_BACK -> Icons.Filled.ArrowBack
-        },
+      if (toolBarHomeNavigation == ToolBarHomeNavigation.NAVIGATE_BACK)
+      Icon(
+        Icons.Filled.ArrowBack,
         contentDescription = DRAWER_MENU,
         tint = Color.White,
         modifier =
         modifier
           .clickable { onClick(ToolbarClickEvent.Navigate) }
           .testTag(TOP_ROW_ICON_TEST_TAG),
-      )*/
+      )
       Text(
-        text = stringResource(id = R.string.appname),
+        text = title,
         fontSize = 24.sp,
         color = Color.White,
         fontWeight = FontWeight.Bold,

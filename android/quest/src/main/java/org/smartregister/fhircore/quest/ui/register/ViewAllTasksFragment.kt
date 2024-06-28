@@ -39,7 +39,6 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -50,8 +49,6 @@ import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.R
@@ -61,9 +58,7 @@ import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
-import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
-import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.ui.main.AppMainUiState
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
@@ -74,15 +69,15 @@ import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
-class RegisterFragment : Fragment(), OnSyncListener {
+class ViewAllTasksFragment : Fragment(), OnSyncListener {
 
   @Inject lateinit var syncListenerManager: SyncListenerManager
 
   @Inject lateinit var eventBus: EventBus
   private val appMainViewModel by activityViewModels<AppMainViewModel>()
-  private val registerFragmentArgs by navArgs<RegisterFragmentArgs>()
+  private val registerFragmentArgs by navArgs<ViewAllTasksFragmentArgs>()
   private val registerViewModel by viewModels<RegisterViewModel>()
-
+  var screenTitle = ""
 
   override fun onCreateView(
     inflater: LayoutInflater,
@@ -92,20 +87,9 @@ class RegisterFragment : Fragment(), OnSyncListener {
     appMainViewModel.retrieveIconsAsBitmap()
 
     with(registerFragmentArgs) {
-      lifecycleScope.launchWhenCreated {
-        registerViewModel.retrieveRegisterUiState(
-          registerId = registerId,
-          screenTitle = screenTitle,
-          params = params,
-          clearCache = false,
-        )
-      }
+      this@ViewAllTasksFragment.screenTitle = screenTitle
     }
 
-
-/*    registerViewModel.patientsListLiveData.observeForever {
-      val data = it
-    }*/
     return ComposeView(requireContext()).apply {
       setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
       setContent {
@@ -172,7 +156,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
               .background(SearchHeaderColor)
               .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
-              RegisterScreen(
+              ViewAllTasksScreen(
                 openDrawer = openDrawer,
                 onEvent = registerViewModel::onEvent,
                 registerUiState = registerViewModel.registerUiState.value,
@@ -181,8 +165,8 @@ class RegisterFragment : Fragment(), OnSyncListener {
                 pagingItems = pagingItems,
                 navController = findNavController(),
                 appMainViewModel = appMainViewModel,
-                toolBarHomeNavigation = registerFragmentArgs.toolBarHomeNavigation,
-                viewModel = registerViewModel
+                viewModel = registerViewModel,
+                screenTitle = screenTitle
               )
             }
           }
@@ -193,11 +177,14 @@ class RegisterFragment : Fragment(), OnSyncListener {
 
   override fun onResume() {
     super.onResume()
-    registerViewModel.getAllPatients()
+    registerViewModel.getAllLatestTasks()
+    registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL)
+
+    /*registerViewModel.getAllPatients()
     registerViewModel.getAllDraftResponses()
     registerViewModel.getAllUnSyncedPatients()
 
-    syncListenerManager.registerSyncListener(this, lifecycle)
+    syncListenerManager.registerSyncListener(this, lifecycle)*/
   }
 
   override fun onStop() {
@@ -257,7 +244,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
   }
 
   fun refreshRegisterData(questionnaireResponse: QuestionnaireResponse? = null) {
-    with(registerFragmentArgs) {
+    /*with(registerFragmentArgs) {
       registerViewModel.run {
         if (questionnaireResponse != null) {
           updateRegisterFilterState(registerId, questionnaireResponse)
@@ -272,11 +259,11 @@ class RegisterFragment : Fragment(), OnSyncListener {
           clearCache = false,
         )
       }
-    }
+    }*/
   }
 
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-    viewLifecycleOwner.lifecycleScope.launch {
+    /*viewLifecycleOwner.lifecycleScope.launch {
       viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.CREATED) {
         // Each register should have unique eventId
         eventBus.events
@@ -288,7 +275,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
           }
           .launchIn(lifecycleScope)
       }
-    }
+    }*/
   }
 
   suspend fun handleQuestionnaireSubmission(questionnaireSubmission: QuestionnaireSubmission) {
@@ -356,7 +343,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
   }
 
   companion object {
-    fun newInstance(bundle: Bundle) = RegisterFragment().apply {
+    fun newInstance(bundle: Bundle) = ViewAllTasksFragment().apply {
       arguments = bundle
     }
 
