@@ -94,6 +94,7 @@ import org.smartregister.fhircore.quest.ui.shared.components.ExtendedFab
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.text.style.TextOverflow
+import com.google.android.fhir.datacapture.extensions.logicalId
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
@@ -111,7 +112,7 @@ const val REGISTER_CARD_TEST_TAG = "registerCardListTestTag"
 const val FIRST_TIME_SYNC_DIALOG = "firstTimeSyncTestTag"
 const val FAB_BUTTON_REGISTER_TEST_TAG = "fabTestTag"
 const val TOP_REGISTER_SCREEN_TEST_TAG = "topScreenTestTag"
-const val ALL_PATIENTS_TAB = "ALL PATIENTS"
+const val ALL_PATIENTS_TAB = "ALL CASES"
 const val DRAFT_PATIENTS_TAB = "DRAFT"
 const val UNSYNCED_PATIENTS_TAB = "UN-SYNCED"
 const val ALL_PATIENTS = 0
@@ -147,7 +148,7 @@ fun RegisterScreen(
         val filterActions = registerUiState.registerConfiguration?.registerFilter?.dataFilterActions
         TopScreenSection(
           modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
-          title = registerUiState.screenTitle,
+          title = stringResource(id = R.string.appname),
           searchText = searchText.value,
           filteredRecordsCount = registerUiState.filteredRecordsCount,
           searchPlaceholder = registerUiState.registerConfiguration?.searchBar?.display,
@@ -273,31 +274,46 @@ fun RegisterScreen(
             }
             HorizontalPager(state = pagerState) {
               // Content for each tab (your fragment content goes here)
+
+              if (showDeleteDialog){
+                DeleteRecordDialog(
+                  onDismiss = {
+                    deleteDraftId = ""
+                    showDeleteDialog = false
+                  },
+                  onConfirm = {
+                    viewModel.softDeleteDraft(deleteDraftId)
+                    deleteDraftId = ""
+                    showDeleteDialog = false
+                  },
+                  onCancel = {
+                    deleteDraftId = ""
+                    showDeleteDialog = false
+                  }
+                )
+              }
+
               tabTitles.forEach { title ->
                 when (pagerState.currentPage) {
                     ALL_PATIENTS -> {
-
-                      ShowAllPatients(modifier, patients, viewModel)
-                    }
-                    DRAFT_PATIENTS -> {
-                      if (showDeleteDialog){
-                        DeleteRecordDialog(
-                          onDismiss = {
-                            deleteDraftId = ""
-                            showDeleteDialog = false
-                          },
-                          onConfirm = {
-                            viewModel.softDeleteDraft(deleteDraftId)
-                            deleteDraftId = ""
-                            showDeleteDialog = false
-                          },
-                          onCancel = {
-                            deleteDraftId = ""
-                            showDeleteDialog = false
+                      ShowAllPatients(modifier, patients, viewModel,
+                        onDeleteResponse = { id, isShowDeleteDialogue ->
+                          deleteDraftId = id
+                          showDeleteDialog = isShowDeleteDialogue
+                      },
+                        onEditResponse = {
+                          registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
+                            val bundle = Bundle()
+                            bundle.putString(QUESTIONNAIRE_RESPONSE_PREFILL, it)
+                            noResultConfig.actionButton?.actions?.handleClickEvent(
+                              navController,
+                              bundle = bundle
+                            )
                           }
-                        )
-                      }
+                      })
+                    }
 
+                    DRAFT_PATIENTS -> {
                       Box(
                         modifier = modifier
                           .padding(top = 64.dp, start = 16.dp, end = 16.dp)
@@ -535,7 +551,7 @@ private fun ShowUnSyncedPatients(
 
 
 @Composable
-fun DraftPatientCard(patientData: QuestionnaireResponse) {
+fun DraftPatientCard(patientData: QuestionnaireResponse, onDeleteResponse : (String, Boolean) -> Unit, onEditResClick : (String) -> Unit) {
   Card(
     modifier = Modifier
       .fillMaxWidth()
@@ -573,7 +589,10 @@ fun DraftPatientCard(patientData: QuestionnaireResponse) {
               horizontal = 8.dp
             ))
 
-          /*Box(
+          Box(modifier = Modifier.clickable {
+            val json = patientData.encodeResourceToString()
+            onEditResClick(json)
+          }
           ) {
             Icon(
               modifier = Modifier.padding(
@@ -584,7 +603,9 @@ fun DraftPatientCard(patientData: QuestionnaireResponse) {
               contentDescription = FILTER,
             )
           }
-          Box() {
+          Box(modifier = Modifier.clickable {
+            onDeleteResponse(patientData.id.extractLogicalIdUuid(), true)
+          }) {
             androidx.compose.material.Icon(
               modifier = Modifier.padding(
                 vertical = 4.dp,
@@ -593,7 +614,7 @@ fun DraftPatientCard(patientData: QuestionnaireResponse) {
               painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
               contentDescription = FILTER,
             )
-          }*/
+          }
         }
 
         Row(modifier = Modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
@@ -666,7 +687,9 @@ fun UnsyncedPatientCard(patient: RegisterViewModel.Patient2, lastUpdated: Date){
 private fun ShowAllPatients(
   modifier: Modifier,
   patients: List<RegisterViewModel.AllPatientsResourceData>,
-  viewModel: RegisterViewModel
+  viewModel: RegisterViewModel,
+  onDeleteResponse : (String, Boolean) -> Unit,
+  onEditResponse : (String) -> Unit,
 ) {
 
   val isFetchingPatients by viewModel.isFetching.collectAsState()
@@ -733,7 +756,11 @@ private fun ShowAllPatients(
                 patientData?.let {
                   Box(modifier = Modifier
                     .padding(vertical = 4.dp)) {
-                    DraftPatientCard(patientData)
+                    DraftPatientCard(patientData, onDeleteResponse = { id, showDeleteDialogue ->
+                      onDeleteResponse(id, showDeleteDialogue)
+                    }, onEditResClick = {
+                      onEditResponse(it)
+                    })
                   }
                 }
               }
@@ -804,8 +831,7 @@ fun NoRegisterDataView(
   viewModel : RegisterViewModel,
   onClick: () -> Unit,
 ) {
-  val patients by viewModel.patientsStateFlow.collectAsState()
-  val isFetchingPatients by viewModel.isFetching.collectAsState()
+
 
   Column(
     modifier = modifier
@@ -840,7 +866,7 @@ fun NoRegisterDataView(
                 .testTag(NO_REGISTER_VIEW_BUTTON_ICON_TEST_TAG),
             )
             Text(
-              text = noResults.actionButton?.display?.uppercase().toString(),
+              text = stringResource(id = org.smartregister.fhircore.quest.R.string.add_patient),
               color = Color.White,
               modifier = modifier.testTag(NO_REGISTER_VIEW_BUTTON_TEXT_TEST_TAG),
             )
