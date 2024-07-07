@@ -14,61 +14,34 @@
  * limitations under the License.
  */
 
-package org.smartregister.fhircore.quest.ui.main.components
+package org.smartregister.fhircore.quest.ui.register.tasks
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Badge
-import androidx.compose.material.BadgedBox
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
-import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.configuration.navigation.ICON_TYPE_LOCAL
-import org.smartregister.fhircore.engine.configuration.navigation.ImageConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.DarkColors
-import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.event.ToolbarClickEvent
-import org.smartregister.fhircore.quest.ui.main.AppMainEvent
-import org.smartregister.fhircore.quest.ui.register.tasks.GenericActivity
-import org.smartregister.fhircore.quest.ui.register.tasks.GenericActivityArg
 
 const val DRAWER_MENU = "Drawer Menu"
 const val SEARCH = "Search"
@@ -84,18 +57,11 @@ const val TRAILING_ICON_BUTTON_TEST_TAG = "trailingIconButtonTestTag"
 const val LEADING_ICON_TEST_TAG = "leadingIconTestTag"
 const val SEARCH_FIELD_TEST_TAG = "searchFieldTestTag"
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun TopScreenSection(
+fun TasksTopScreenSection(
   modifier: Modifier = Modifier,
   title: String = stringResource(id = R.string.appname),
-  searchText: String,
-  filteredRecordsCount: Long? = null,
-  searchPlaceholder: String? = null,
   toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
-  onSearchTextChanged: (String) -> Unit,
-  isFilterIconEnabled: Boolean = false,
-  onSync: (AppMainEvent) -> Unit,
   onClick: (ToolbarClickEvent) -> Unit,
 ) {
   Column(
@@ -127,7 +93,7 @@ fun TopScreenSection(
       }
         Text(
           text = title,
-          fontSize = 24.sp,
+          fontSize = 18.sp,
           color = Color.White,
           fontWeight = FontWeight.Bold,
           modifier = modifier
@@ -139,50 +105,17 @@ fun TopScreenSection(
 
       if (toolBarHomeNavigation == ToolBarHomeNavigation.SYNC) {
 
-        Icon(
-          painter = painterResource(id = R.drawable.ic_profile),
-          contentDescription = FILTER,
-          tint = Color.White,
-          modifier =
-          modifier
-            .clickable {
-              val intent = Intent(context, GenericActivity::class.java).apply {
-                putExtra(GenericActivityArg.ARG_FROM, GenericActivityArg.FROM_PROFILE)
-              }
-              context.startActivity(intent)
-            }
-            .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Icon(
-          painter = painterResource(id = R.drawable.ic_sync),
-          contentDescription = FILTER,
-          tint = Color.White,
-          modifier =
-          modifier
-            .clickable { onSync(AppMainEvent.SyncData(context)) }
-            .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
-        )
       }
-
     }
-
   }
 }
 
 @PreviewWithBackgroundExcludeGenerated
 @Composable
 fun TopScreenSectionWithFilterItemOverNinetyNinePreview() {
-  TopScreenSection(
+  TasksTopScreenSection(
     title = "All Clients",
-    searchText = "Eddy",
-    filteredRecordsCount = 120,
-    onSearchTextChanged = {},
     toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-    isFilterIconEnabled = true,
-    onSync = {},
     onClick = {},
   )
 }
@@ -190,14 +123,9 @@ fun TopScreenSectionWithFilterItemOverNinetyNinePreview() {
 @PreviewWithBackgroundExcludeGenerated
 @Composable
 fun TopScreenSectionWithFilterCountNinetyNinePreview() {
-  TopScreenSection(
+  TasksTopScreenSection(
     title = "All Clients",
-    searchText = "Eddy",
-    filteredRecordsCount = 99,
-    onSearchTextChanged = {},
     toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-    isFilterIconEnabled = true,
-    onSync = {},
     onClick = {},
   )
 }
@@ -205,13 +133,9 @@ fun TopScreenSectionWithFilterCountNinetyNinePreview() {
 @PreviewWithBackgroundExcludeGenerated
 @Composable
 fun TopScreenSectionNoFilterIconPreview() {
-  TopScreenSection(
+  TasksTopScreenSection(
     title = "All Clients",
-    searchText = "Eddy",
-    onSearchTextChanged = {},
     toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-    isFilterIconEnabled = false,
-    onSync = {},
     onClick = {},
   )
 }

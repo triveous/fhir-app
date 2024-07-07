@@ -30,13 +30,13 @@ import org.junit.Test
 import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.util.test.HiltActivityForTest
-import org.smartregister.fhircore.quest.ui.register.NO_REGISTER_VIEW_BUTTON_ICON_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.NO_REGISTER_VIEW_BUTTON_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.NO_REGISTER_VIEW_BUTTON_TEXT_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.NO_REGISTER_VIEW_COLUMN_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.NO_REGISTER_VIEW_MESSAGE_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.NO_REGISTER_VIEW_TITLE_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.NoRegisterDataView
+import org.smartregister.fhircore.quest.ui.register.patients.NO_REGISTER_VIEW_BUTTON_ICON_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.NO_REGISTER_VIEW_BUTTON_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.NO_REGISTER_VIEW_BUTTON_TEXT_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.NO_REGISTER_VIEW_COLUMN_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.NO_REGISTER_VIEW_MESSAGE_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.NO_REGISTER_VIEW_TITLE_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.NoRegisterDataView
 
 @HiltAndroidTest
 class RegisterScreenNoResultViewTest {

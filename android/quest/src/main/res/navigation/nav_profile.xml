@@ -5,7 +5,5 @@
     android:id="@+id/nav_profile"
     app:startDestination="@id/profileFragment">
 
-    <fragment
-        android:id="@+id/profileFragment"
-        android:name="org.smartregister.fhircore.quest.ui.profile.ProfileFragment" />
+
 </navigation>

@@ -54,6 +54,7 @@ import org.smartregister.fhircore.geowidget.screens.GeoWidgetViewModel
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
+import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
@@ -109,7 +110,6 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
       }
 
     val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
-    //bottomNavigationView.setupWithNavController(navHostFragment.navController)
     bottomNavigationView?.setOnNavigationItemSelectedListener { item ->
       val navController = navHostFragment.navController
       when (item.itemId) {
@@ -119,11 +119,6 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
             NavigationArg.SCREEN_TITLE to topMenuConfig.display,
             NavigationArg.REGISTER_ID to topMenuConfigId,
           ))
-          /*fragmentManager.beginTransaction()
-            .replace(R.id.nav_host_fragment, navHostFragment)
-            .setPrimaryNavigationFragment(navHostFragment)
-            .commitNow()*/
-          //navController.navigate(R.id.registerFragment)
           true
         }
         R.id.navigation_tasks -> {
@@ -131,10 +126,28 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
           navController.navigate(R.id.tasksFragment)
           true
         }
-        R.id.navigation_profile -> {
+
+        /*R.id.navigation_profile -> {
           appMainViewModel.appMainUiState.value.username
-          navController.popBackStack(R.id.profileFragment, true)
-          navController.navigate(R.id.profileFragment)
+          navController.popBackStack(R.id.profileSectionFragment, true)
+
+          *//*val args = bundleOf(
+            NavigationArg.PROFILE_ID to "",
+            NavigationArg.RESOURCE_ID to "",
+            NavigationArg.RESOURCE_CONFIG to "",
+          )
+          navController.navigate(MainNavigationScreen.Profile.route, args = args)*//*
+
+          navController.navigate(R.id.profileSectionFragment, bundleOf(
+            NavigationArg.USER_NAME to appMainViewModel.appMainUiState.value.username
+          ))
+          true
+        }*/
+
+        R.id.navigation_dashboard -> {
+          appMainViewModel.appMainUiState.value.username
+          navController.popBackStack(R.id.dashboardFragment, true)
+          navController.navigate(R.id.dashboardFragment)
           true
         }
         else -> false

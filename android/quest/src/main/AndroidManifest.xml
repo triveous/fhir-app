@@ -21,6 +21,15 @@
         android:windowSoftInputMode="adjustResize"
         tools:ignore="UnusedAttribute,LockedOrientationActivity"
         tools:replace="android:theme">
+        <activity
+            android:name=".ui.register.tasks.GenericActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            />
+        <activity
+            android:name=".ui.register.tasks.SeeMoreTasksActivity"
+            android:exported="false" />
 
         <profileable
             android:shell="true"

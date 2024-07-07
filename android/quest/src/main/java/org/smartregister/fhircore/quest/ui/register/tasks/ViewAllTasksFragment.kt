@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package org.smartregister.fhircore.quest.ui.register
+package org.smartregister.fhircore.quest.ui.register.tasks
 
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -41,6 +42,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
@@ -50,8 +52,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.Task.TaskPriority
+import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
+import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
@@ -60,6 +65,7 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.main.AppMainUiState
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
@@ -68,16 +74,19 @@ import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
-class PendingTasksFragment : Fragment(), OnSyncListener {
+class ViewAllTasksFragment : Fragment(), OnSyncListener {
 
   @Inject lateinit var syncListenerManager: SyncListenerManager
 
   @Inject lateinit var eventBus: EventBus
   private val appMainViewModel by activityViewModels<AppMainViewModel>()
-  //private val registerFragmentArgs by navArgs<RegisterFragmentArgs>()
+  //private val registerFragmentArgs by navArgs<ViewAllTasksFragmentArgs>()
   private val registerViewModel by viewModels<RegisterViewModel>()
+  val tasksViewModel by viewModels<TasksViewModel>()
 
-
+  private var taskPriority : TaskPriority = TaskPriority.URGENT
+  var taskStatus : TaskStatus = TaskStatus.REQUESTED
+  var screenTitle = ""
   override fun onCreateView(
     inflater: LayoutInflater,
     container: ViewGroup?,
@@ -85,98 +94,91 @@ class PendingTasksFragment : Fragment(), OnSyncListener {
   ): View {
     appMainViewModel.retrieveIconsAsBitmap()
 
-    /*with(registerFragmentArgs) {
-      lifecycleScope.launchWhenCreated {
-        registerViewModel.retrieveRegisterUiState(
-          registerId = registerId,
-          screenTitle = screenTitle,
-          params = params,
-          clearCache = false,
-        )
+    with(arguments) {
+      val priority = arguments?.getString(GenericActivityArg.TASK_PRIORITY)
+      val status = arguments?.getString(GenericActivityArg.TASK_STATUS)
+      val title = arguments?.getString(GenericActivityArg.SCREEN_TITLE)
+      screenTitle = title.orEmpty()
+      when(priority){
+        "ROUTINE" -> taskPriority = TaskPriority.ROUTINE
+        "URGENT" -> taskPriority = TaskPriority.URGENT
+        "ASAP" -> taskPriority = TaskPriority.ASAP
+        "STAT" -> taskPriority = TaskPriority.STAT
+        "NULL" -> taskPriority = TaskPriority.NULL
       }
-    }*/
 
+      when(status){
+        "REQUESTED" -> taskStatus = TaskStatus.REQUESTED
+        "INPROGRESS" -> taskStatus = TaskStatus.INPROGRESS
+        "COMPLETED" -> taskStatus = TaskStatus.COMPLETED
+        else -> {}
+      }
+    }
 
-/*    registerViewModel.patientsListLiveData.observeForever {
-      val data = it
-    }*/
     return ComposeView(requireContext()).apply {
       setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
       setContent {
-        val appConfig = appMainViewModel.applicationConfiguration
-        val scope = rememberCoroutineScope()
+        //val appConfig = appMainViewModel.applicationConfiguration
+        //val scope = rememberCoroutineScope()
         val scaffoldState = rememberScaffoldState()
-        val uiState: AppMainUiState = appMainViewModel.appMainUiState.value
-        val openDrawer: (Boolean) -> Unit = { open: Boolean ->
+        //val uiState: AppMainUiState = appMainViewModel.appMainUiState.value
+        /*val openDrawer: (Boolean) -> Unit = { open: Boolean ->
           scope.launch {
             if (open) scaffoldState.drawerState.open() else scaffoldState.drawerState.close()
           }
-        }
+        }*/
 
         // Close side menu (drawer) when activity is not in foreground
         val lifecycleEvent = rememberLifecycleEvent()
         LaunchedEffect(lifecycleEvent) {
-          if (lifecycleEvent == Lifecycle.Event.ON_PAUSE) scaffoldState.drawerState.close()
+          //if (lifecycleEvent == Lifecycle.Event.ON_PAUSE) scaffoldState.drawerState.close()
         }
 
         LaunchedEffect(Unit) {
-          registerViewModel.snackBarStateFlow.hookSnackBar(
+          /*registerViewModel.snackBarStateFlow.hookSnackBar(
             scaffoldState = scaffoldState,
             resourceData = null,
             navController = findNavController(),
-          )
+          )*/
         }
 
         AppTheme {
-          val pagingItems =
-            registerViewModel.paginatedRegisterData
-              .collectAsState(emptyFlow())
-              .value
-              .collectAsLazyPagingItems()
+
           // Register screen provides access to the side navigation
           Scaffold(
             modifier = Modifier.background(SearchHeaderColor),
-            drawerGesturesEnabled = scaffoldState.drawerState.isOpen,
+            //drawerGesturesEnabled = scaffoldState.drawerState.isOpen,
             scaffoldState = scaffoldState,
+            topBar = {
+
+            },
             drawerContent = {
-              /*AppDrawer(
-                appUiState = uiState,
-                openDrawer = openDrawer,
-                onSideMenuClick = appMainViewModel::onEvent,
-                navController = findNavController(),
-              )*/
+
             },
             bottomBar = {
-              // TODO Activate bottom nav via view configuration
-              /* BottomScreenSection(
-                navController = navController,
-                mainNavigationScreens = MainNavigationScreen.appScreens
-              )*/
+
             },
             snackbarHost = { snackBarHostState ->
-              SnackBarMessage(
+              /*SnackBarMessage(
                 snackBarHostState = snackBarHostState,
                 backgroundColorHex = appConfig.snackBarTheme.backgroundColor,
                 actionColorHex = appConfig.snackBarTheme.actionTextColor,
                 contentColorHex = appConfig.snackBarTheme.messageTextColor,
-              )
+              )*/
             },
           ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)
               .background(SearchHeaderColor)
               .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
-              PendingTasksScreen(
-                openDrawer = openDrawer,
-                onEvent = registerViewModel::onEvent,
-                registerUiState = registerViewModel.registerUiState.value,
-                searchText = registerViewModel.searchText,
-                currentPage = registerViewModel.currentPage,
-                pagingItems = pagingItems,
-                navController = findNavController(),
-                appMainViewModel = appMainViewModel,
-                viewModel = registerViewModel
-              )
+              ViewAllTasksScreen(
+                viewModel = tasksViewModel,
+                screenTitle = screenTitle,
+                taskStatus = taskStatus,
+                taskPriority = taskPriority
+              ){
+                activity?.finish()
+              }
             }
           }
         }
@@ -186,22 +188,17 @@ class PendingTasksFragment : Fragment(), OnSyncListener {
 
   override fun onResume() {
     super.onResume()
-    registerViewModel.getAllTasks()
-
-    /*registerViewModel.getAllPatients()
-    registerViewModel.getAllDraftResponses()
-    registerViewModel.getAllUnSyncedPatients()
-
-    syncListenerManager.registerSyncListener(this, lifecycle)*/
+    tasksViewModel.getAllLatestTasks()
+    //registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL, taskStatus, taskPriority)
   }
 
   override fun onStop() {
     super.onStop()
-    registerViewModel.searchText.value = "" // Clear the search term
+    //tasksViewModel.searchText.value = "" // Clear the search term
   }
 
   override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
-    when (syncJobStatus) {
+    /*when (syncJobStatus) {
       is CurrentSyncJobStatus.Running ->
         if (syncJobStatus.inProgressSyncJob is SyncJobStatus.Started) {
           lifecycleScope.launch {
@@ -248,7 +245,7 @@ class PendingTasksFragment : Fragment(), OnSyncListener {
       else -> {
         // Do nothing
       }
-    }
+    }*/
   }
 
   fun refreshRegisterData(questionnaireResponse: QuestionnaireResponse? = null) {
@@ -286,6 +283,7 @@ class PendingTasksFragment : Fragment(), OnSyncListener {
     }*/
   }
 
+/*
   suspend fun handleQuestionnaireSubmission(questionnaireSubmission: QuestionnaireSubmission) {
     if (questionnaireSubmission.questionnaireConfig.saveQuestionnaireResponse) {
       appMainViewModel.run {
@@ -306,8 +304,9 @@ class PendingTasksFragment : Fragment(), OnSyncListener {
       refreshRegisterData(questionnaireSubmission.questionnaireResponse)
     }
   }
+*/
 
-  fun emitPercentageProgress(
+/*  fun emitPercentageProgress(
     progressSyncJobStatus: SyncJobStatus.InProgress,
     isUploadSync: Boolean,
   ) {
@@ -348,10 +347,10 @@ class PendingTasksFragment : Fragment(), OnSyncListener {
       }
 
     return getSyncProgress(currentProgress, currentTotalRecords)
-  }
+  }*/
 
   companion object {
-    fun newInstance(bundle: Bundle) = PendingTasksFragment().apply {
+    fun newInstance(bundle: Bundle) = ViewAllTasksFragment().apply {
       arguments = bundle
     }
 

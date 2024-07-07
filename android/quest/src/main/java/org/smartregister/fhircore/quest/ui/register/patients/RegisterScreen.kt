@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package org.smartregister.fhircore.quest.ui.register
+package org.smartregister.fhircore.quest.ui.register.patients
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,13 +34,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Tab
-import androidx.compose.material.TabRow
 import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -56,13 +54,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
@@ -70,16 +65,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.paging.compose.LazyPagingItems
 import com.google.android.fhir.datacapture.extensions.asStringValue
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
-import org.smartregister.fhircore.engine.ui.components.register.RegisterHeader
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
@@ -93,13 +84,21 @@ import org.smartregister.fhircore.quest.ui.register.components.RegisterCardList
 import org.smartregister.fhircore.quest.ui.shared.components.ExtendedFab
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.text.style.TextOverflow
-import com.google.android.fhir.datacapture.extensions.logicalId
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
+import androidx.compose.ui.text.TextStyle
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.smartregister.fhircore.engine.domain.model.ServiceStatus
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
+import org.smartregister.fhircore.quest.ui.register.tasks.GenericActivity
+import org.smartregister.fhircore.quest.ui.register.tasks.GenericActivityArg
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
 import java.util.Date
+import kotlin.reflect.jvm.internal.impl.descriptors.Visibilities.Local
 
 
 const val NO_REGISTER_VIEW_COLUMN_TEST_TAG = "noRegisterViewColumnTestTag"
@@ -119,6 +118,7 @@ const val ALL_PATIENTS = 0
 const val DRAFT_PATIENTS = 1
 const val UNSYNCED_PATIENTS = 2
 
+data class PatientsSection(val title: String, val patients: List<Any>)
 
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -138,13 +138,11 @@ fun RegisterScreen(
 ) {
   val lazyListState: LazyListState = rememberLazyListState()
 
-
   Scaffold(
     modifier = modifier.background(Color.White),
     topBar = {
       Column(modifier = modifier.background(SearchHeaderColor),) {
 
-        // Top section has toolbar and a results counts view
         val filterActions = registerUiState.registerConfiguration?.registerFilter?.dataFilterActions
         TopScreenSection(
           modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
@@ -152,7 +150,7 @@ fun RegisterScreen(
           searchText = searchText.value,
           filteredRecordsCount = registerUiState.filteredRecordsCount,
           searchPlaceholder = registerUiState.registerConfiguration?.searchBar?.display,
-          toolBarHomeNavigation = toolBarHomeNavigation,
+          toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
           onSync = appMainViewModel::onEvent,
           onSearchTextChanged = { searchText ->
             onEvent(RegisterEvent.SearchRegister(searchText = searchText))
@@ -164,6 +162,9 @@ fun RegisterScreen(
               when (toolBarHomeNavigation) {
                 ToolBarHomeNavigation.OPEN_DRAWER -> openDrawer(true)
                 ToolBarHomeNavigation.NAVIGATE_BACK -> navController.popBackStack()
+                ToolBarHomeNavigation.SYNC -> {
+
+                }
               }
             ToolbarClickEvent.FilterData -> {
               onEvent(RegisterEvent.ResetFilterRecordsCount)
@@ -171,8 +172,6 @@ fun RegisterScreen(
             }
           }
         }
-        // Only show counter during search
-        if (searchText.value.isNotEmpty()) RegisterHeader(resultCount = pagingItems.itemCount)
 
         registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
 
@@ -187,7 +186,6 @@ fun RegisterScreen(
           }
         }
       }
-
     },
 
     floatingActionButton = {
@@ -210,15 +208,15 @@ fun RegisterScreen(
           modifier = modifier.testTag(FIRST_TIME_SYNC_DIALOG),
           percentageProgressFlow = registerUiState.progressPercentage,
           dialogMessage =
-            stringResource(
-              id = if (isSyncUpload) R.string.syncing_up else R.string.syncing_down,
-            ),
+          stringResource(
+            id = if (isSyncUpload) R.string.syncing_up else R.string.syncing_down,
+          ),
           showPercentageProgress = true,
         )
       }
       if (
         registerUiState.totalRecordsCount > 0 &&
-          registerUiState.registerConfiguration?.registerCard != null
+        registerUiState.registerConfiguration?.registerCard != null
       ) {
         RegisterCardList(
           modifier = modifier.testTag(REGISTER_CARD_TEST_TAG),
@@ -235,72 +233,78 @@ fun RegisterScreen(
 
         registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
 
+          data class PatientSection(
+            val title: String,
+            val patients: List<RegisterViewModel.AllPatientsResourceData>? = null, // Assuming patients have the same type for now
+            val drafts: List<QuestionnaireResponse>? = null, // Assuming patients have the same type for now
+            val onDeleteResponse: (String, Boolean) -> Unit,
+            val onEditResponse: (String) -> Unit // Update based on your edit action type
+          )
+
           Box (modifier = modifier
             .background(SearchHeaderColor))
           {
             val tabTitles = listOf(ALL_PATIENTS_TAB, DRAFT_PATIENTS_TAB, UNSYNCED_PATIENTS_TAB)
             val pagerState = rememberPagerState(pageCount = { 3 }, initialPage = 0)
 
-            val patients by viewModel.patientsStateFlow.collectAsState()
-            val savedRes by viewModel.savedDraftResponse.collectAsState()
-            val unSynced by viewModel.unSyncedStateFlow.collectAsState()
+            val allSyncedPatients by viewModel.allSyncedPatientsStateFlow.collectAsState()
+            val savedRes by viewModel.allSavedDraftResponse.collectAsState()
+            val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
             var deleteDraftId by remember { mutableStateOf("") }
             var showDeleteDialog by remember { mutableStateOf(false) }
+            val scrollState = rememberScrollState()
+            val nestedScrollState = rememberNestedScrollInteropConnection()
 
 
-            TabRow(
-              modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-              backgroundColor = SearchHeaderColor,
-              selectedTabIndex = pagerState.currentPage,
-              contentColor = SearchHeaderColor,
-            ) {
-              tabTitles.forEachIndexed { index, title ->
-                Tab(
-                  text = { Text(title, color = Color.Gray, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                  selected = pagerState.currentPage == index,
-                  selectedContentColor = SearchHeaderColor,
-                  modifier = Modifier
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(
-                      if (pagerState.currentPage == index) Color.White else SearchHeaderColor
-                    ),
-                  onClick = {
-                    CoroutineScope(Dispatchers.IO).launch {
-                      pagerState.scrollToPage(index)
-                    }
+            val sections = listOf(
+              PatientSection(
+                title = "ALL PATIENTS",
+                patients = allSyncedPatients.take(3),
+                onDeleteResponse = { id, isShowDeleteDialog ->
+                  deleteDraftId = id
+                  showDeleteDialog = isShowDeleteDialog
+                },
+                onEditResponse = {
+
+                }
+              ),
+              PatientSection(
+                title = "DRAFTS",
+                drafts = savedRes.take(3),
+                onDeleteResponse = { id, isShowDeleteDialog ->
+                  deleteDraftId = id
+                  showDeleteDialog = isShowDeleteDialog
+                },
+                onEditResponse = {
+                  registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
+                    val bundle = Bundle()
+                    bundle.putString(QUESTIONNAIRE_RESPONSE_PREFILL, it)
+                    noResultConfig.actionButton?.actions?.handleClickEvent(
+                      navController,
+                      bundle = bundle
+                    )
                   }
-                )
-              }
-            }
-            HorizontalPager(state = pagerState) {
-              // Content for each tab (your fragment content goes here)
+                }
+              )
+            )
 
-              if (showDeleteDialog){
-                DeleteRecordDialog(
-                  onDismiss = {
-                    deleteDraftId = ""
-                    showDeleteDialog = false
-                  },
-                  onConfirm = {
-                    viewModel.softDeleteDraft(deleteDraftId)
-                    deleteDraftId = ""
-                    showDeleteDialog = false
-                  },
-                  onCancel = {
-                    deleteDraftId = ""
-                    showDeleteDialog = false
-                  }
-                )
-              }
+            Box(modifier = Modifier
+              .fillMaxWidth()
+              .fillMaxHeight()
+              .padding(horizontal = 16.dp)){
 
-              tabTitles.forEach { title ->
-                when (pagerState.currentPage) {
-                    ALL_PATIENTS -> {
-                      ShowAllPatients(modifier, patients, viewModel,
+              //val section = PatientsSection("", )
+
+              LazyColumn(modifier.padding(bottom = 32.dp)) {
+
+                sections.forEach { section ->
+                  item {
+                    if (section.patients != null){
+                      ShowAllPatients(modifier, section.patients, viewModel,
                         onDeleteResponse = { id, isShowDeleteDialogue ->
                           deleteDraftId = id
                           showDeleteDialog = isShowDeleteDialogue
-                      },
+                        },
                         onEditResponse = {
                           registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
                             val bundle = Bundle()
@@ -310,139 +314,238 @@ fun RegisterScreen(
                               bundle = bundle
                             )
                           }
-                      })
+                        },
+                        allPatientsSize = allSyncedPatients.size
+                      )
+                    } else if (section.drafts != null) {
+
+                      if (showDeleteDialog) {
+                        DeleteRecordDialog(
+                          onDismiss = {
+                            deleteDraftId = ""
+                            showDeleteDialog = false
+                          },
+                          onConfirm = {
+                            viewModel.softDeleteDraft(deleteDraftId)
+                            deleteDraftId = ""
+                            showDeleteDialog = false
+                          },
+                          onCancel = {
+                            deleteDraftId = ""
+                            showDeleteDialog = false
+                          }
+                        )
+                      }
+
+                      ShowDrafts(modifier, section.drafts, viewModel,
+                        onDeleteResponse = { id, isShowDeleteDialogue ->
+                          deleteDraftId = id
+                          showDeleteDialog = isShowDeleteDialogue
+                        },
+                        onEditResponse = {
+                          registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
+                            val bundle = Bundle()
+                            bundle.putString(QUESTIONNAIRE_RESPONSE_PREFILL, it)
+                            noResultConfig.actionButton?.actions?.handleClickEvent(
+                              navController,
+                              bundle = bundle
+                            )
+                          }
+                        },
+                        allDraftsSize = savedRes.size
+                      )
                     }
+                    Spacer(modifier = Modifier
+                      .height(0.5.dp)
+                      .background(Color.LightGray)
+                      .fillMaxWidth())
+                  }
+                }
+              }
+            }
 
-                    DRAFT_PATIENTS -> {
+          }
+        }
+      }
+    }
+  }
+}
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun ShowDrafts(
+  modifier: Modifier,
+  drafts: List<QuestionnaireResponse>,
+  viewModel: RegisterViewModel,
+  onDeleteResponse: (String, Boolean) -> Unit,
+  onEditResponse: (String) -> Unit?,
+  allDraftsSize: Int
+) {
+  Box(
+    modifier = modifier
+      .padding(top = 8.dp)
+      .fillMaxWidth()
+      .background(SearchHeaderColor)
+  ) {
+
+    if (drafts.isEmpty()) {
+      Column(
+        modifier = modifier
+          .background(SearchHeaderColor)
+          .padding(top = 48.dp)
+          .fillMaxWidth()
+          .height(300.dp),
+      ) {
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.draft))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(modifier = modifier
+          .background(SearchHeaderColor)
+          .fillMaxWidth(),
+          contentAlignment = Alignment.Center
+        ) {
+          Column(
+            modifier = modifier
+              .padding(horizontal = 16.dp)
+              .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+          ) {
+            Icon(
+              modifier = Modifier.padding(
+                vertical = 8.dp,
+                horizontal = 8.dp
+              ),
+              painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
+              contentDescription = FILTER,
+            )
+
+            Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_draft_patients))
+          }
+        }
+      }
+    } else {
+
+      val context = LocalContext.current
+
+
+      Column(
+        modifier = modifier
+          .background(SearchHeaderColor)
+          .fillMaxWidth()
+      ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.draft))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(modifier = Modifier
+          .fillMaxWidth()
+          .height(350.dp)) {
+          items(drafts) { response ->
+            Box(
+              modifier = modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .background(Color.White)
+                .border(
+                  width = 0.dp,
+                  color = Color.White,
+                  shape = RoundedCornerShape(8.dp),
+                ),
+            ) {
+              Card(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .background(Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+              ) {
+                Box(
+                  modifier = modifier
+                    .background(Color.White)
+                ) {
+                  Column(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(vertical = 8.dp, horizontal = 16.dp)
+                      .background(Color.White)
+                  ) {
+                    Row(modifier = modifier.padding(vertical = 4.dp)) {
+                      androidx.compose.material.Icon(
+                        modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
+                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
+                        contentDescription = FILTER,
+                      )
+                      Text(
+                        modifier = Modifier
+                          .weight(1f)
+                          .padding(vertical = 4.dp, horizontal = 8.dp),
+                        text = response.item[0].item[0].answer[0].value.asStringValue(),
+                        style = MaterialTheme.typography.h6,
+                        color = Color.DarkGray
+                      )
+                      Spacer(modifier = Modifier.height(8.dp))
                       Box(
-                        modifier = modifier
-                          .padding(top = 64.dp, start = 16.dp, end = 16.dp)
-                          .fillMaxHeight()
-                          .fillMaxWidth()
-                          .background(SearchHeaderColor)
-                      ) {
-
-                        if (savedRes.isEmpty()) {
-                          Box(
-                            modifier = modifier
-                              .background(SearchHeaderColor)
-                              .padding(top = 48.dp)
-                              .fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                          ) {
-
-                            Box(
-                              modifier = modifier
-                                .padding(horizontal = 16.dp)
-                                .fillMaxWidth(),
-                              contentAlignment = Alignment.Center
-                            ) {
-                              Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_draft_patients))
-                            }
-                          }
-                        } else {
-                          Box(
-                            modifier = modifier
-                              .fillMaxHeight()
-                              .background(SearchHeaderColor)
-                              .fillMaxWidth()
-                          ) {
-                            LazyColumn {
-                              items(savedRes) { response ->
-                                Box(
-                                  modifier = modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
-                                    .background(Color.White)
-                                ) {
-                                  Card(
-                                    modifier = Modifier
-                                      .fillMaxWidth()
-                                      .background(Color.White),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                                  ) {
-                                    Box(
-                                      modifier = modifier
-                                        .background(Color.White)
-                                    ) {
-                                      Column(
-                                        modifier = Modifier
-                                          .fillMaxWidth()
-                                          .padding(vertical = 16.dp, horizontal = 16.dp)
-                                          .background(Color.White)
-                                      ) {
-                                        Row(modifier = modifier.padding(vertical = 4.dp)) {
-                                          androidx.compose.material.Icon(
-                                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
-                                            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
-                                            contentDescription = FILTER,
-                                          )
-                                          Text(
-                                            modifier = Modifier
-                                              .weight(1f)
-                                              .padding(vertical = 4.dp, horizontal = 8.dp),
-                                            text = response.item[0].item[0].answer[0].value.asStringValue(),
-                                            style = MaterialTheme.typography.h6,
-                                            color = Color.DarkGray
-                                          )
-                                          Spacer(modifier = Modifier.height(16.dp))
-                                          Box(
-                                            modifier = Modifier.clickable {
-                                              val json = response.encodeResourceToString()
-                                              registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
-                                                val bundle = Bundle()
-                                                bundle.putString(QUESTIONNAIRE_RESPONSE_PREFILL, json)
-                                                noResultConfig.actionButton?.actions?.handleClickEvent(
-                                                  navController,
-                                                  bundle = bundle
-                                                )
-                                              }
-                                            }
-                                          ) {
-                                            Icon(
-                                              modifier = Modifier.padding(
-                                                vertical = 4.dp,
-                                                horizontal = 8.dp
-                                              ),
-                                              painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
-                                              contentDescription = FILTER,
-                                            )
-                                          }
-                                          Box(modifier = modifier.clickable {
-                                            deleteDraftId = response.id.extractLogicalIdUuid()
-                                            showDeleteDialog = true
-                                          }) {
-                                            androidx.compose.material.Icon(
-                                              modifier = Modifier.padding(
-                                                vertical = 4.dp,
-                                                horizontal = 8.dp
-                                              ),
-                                              painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
-                                              contentDescription = FILTER,
-                                            )
-                                          }
-                                        }
-
-                                        Row(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
-                                          Text(text = "Created: ${convertToDate(response.meta.lastUpdated)}")
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
+                        modifier = Modifier.clickable {
+                          val json = response.encodeResourceToString()
+                          onEditResponse(json)
                         }
+                      ) {
+                        Icon(
+                          modifier = Modifier.padding(
+                            vertical = 4.dp,
+                            horizontal = 8.dp
+                          ),
+                          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
+                          contentDescription = FILTER,
+                        )
+                      }
+                      Box(modifier = modifier.clickable {
+                        onDeleteResponse(response.id.extractLogicalIdUuid(), true)
+                      }) {
+                        androidx.compose.material.Icon(
+                          modifier = Modifier.padding(
+                            vertical = 4.dp,
+                            horizontal = 8.dp
+                          ),
+                          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
+                          contentDescription = FILTER,
+                        )
                       }
                     }
-                    UNSYNCED_PATIENTS -> {
-                      ShowUnSyncedPatients(modifier, unSynced)
+
+                    Row(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+                      Text(text = "Created: ${convertToDate(response.meta.lastUpdated)}")
                     }
+                  }
                 }
               }
             }
           }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        if (allDraftsSize > 3){
+          Row(horizontalArrangement = Arrangement.Center, modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable {
+              val intent = Intent(context, GenericActivity::class.java).apply {
+                putExtra(GenericActivityArg.ARG_FROM, GenericActivityArg.FROM_PATIENTS)
+              }
+
+              context.startActivity(intent)
+            }
+          ) {
+            Text(text = "SEE ${allDraftsSize - 3} MORE", color = LightColors.primary, style = MaterialTheme.typography.body2.copy(
+              fontSize = 14.sp
+            ))
+          }
+          Spacer(modifier = Modifier.height(8.dp))
         }
       }
     }
@@ -683,21 +786,22 @@ fun UnsyncedPatientCard(patient: RegisterViewModel.Patient2, lastUpdated: Date){
   }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 private fun ShowAllPatients(
   modifier: Modifier,
   patients: List<RegisterViewModel.AllPatientsResourceData>,
   viewModel: RegisterViewModel,
-  onDeleteResponse : (String, Boolean) -> Unit,
-  onEditResponse : (String) -> Unit,
+  onDeleteResponse: (String, Boolean) -> Unit,
+  onEditResponse: (String) -> Unit,
+  allPatientsSize: Int,
 ) {
 
   val isFetchingPatients by viewModel.isFetching.collectAsState()
 
   Box(
     modifier = modifier
-      .padding(top = 64.dp, start = 16.dp, end = 16.dp)
-      .fillMaxHeight()
+      .padding(top = 8.dp)
       .fillMaxWidth()
       .background(SearchHeaderColor)
   ) {
@@ -706,66 +810,82 @@ private fun ShowAllPatients(
       Box(
         modifier = modifier
           .background(SearchHeaderColor)
-          .padding(top = 48.dp)
           .fillMaxWidth(),
         contentAlignment = Alignment.Center
       ) {
-        Box(
+
+        Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.recenty_submitted_label))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Column(
           modifier = modifier
             .padding(horizontal = 16.dp)
-            .fillMaxWidth(),
-          contentAlignment = Alignment.Center
+            .fillMaxWidth()
+            .height(300.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
         ) {
           if (isFetchingPatients){
             Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.loading_patients))
           }else{
+            Icon(
+              modifier = Modifier.padding(
+                vertical = 8.dp,
+                horizontal = 8.dp
+              ),
+              tint = Color.White,
+              painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_patient_circle),
+              contentDescription = FILTER,
+            )
             Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_patients_added))
           }
         }
       }
     } else {
-      Box(
+
+      val context = LocalContext.current
+      Column(
         modifier = modifier
-          .fillMaxHeight()
           .padding(top = 8.dp)
           .background(SearchHeaderColor)
           .fillMaxWidth()
       ) {
-        LazyColumn {
+
+        Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.recenty_submitted_label))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(modifier = Modifier
+          .fillMaxWidth()
+          .height(300.dp)) {
           items(patients) { patient ->
-            when(patient.resourceType){
-              RegisterViewModel.AllPatientsResourceType.Patient -> {
-                val patientData = patient.patient
-                patientData?.let {
-                  SyncedPatientCard(patientData, patient)
-                }
-              }
-
-              RegisterViewModel.AllPatientsResourceType.Patient2 -> {
-                val patientData = patient.patient2
-                if (patientData != null) {
-                  Box(modifier = Modifier
-                    .padding(vertical = 4.dp)) {
-                    UnsyncedPatientCard(patientData, patient.meta.lastUpdated)
-                  }
-                }
-              }
-
-              RegisterViewModel.AllPatientsResourceType.QuestionnaireResponse -> {
-                val patientData = patient.questionnaireResponse
-                patientData?.let {
-                  Box(modifier = Modifier
-                    .padding(vertical = 4.dp)) {
-                    DraftPatientCard(patientData, onDeleteResponse = { id, showDeleteDialogue ->
-                      onDeleteResponse(id, showDeleteDialogue)
-                    }, onEditResClick = {
-                      onEditResponse(it)
-                    })
-                  }
-                }
+            if(patient.resourceType == RegisterViewModel.AllPatientsResourceType.Patient) {
+              val patientData = patient.patient
+              patientData?.let {
+                SyncedPatientCard(patientData, patient)
               }
             }
           }
+        }
+
+        if (allPatientsSize > 3) {
+          Spacer(modifier = Modifier.height(8.dp))
+          Row(horizontalArrangement = Arrangement.Center, modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable {
+              val intent = Intent(context, GenericActivity::class.java).apply {
+                putExtra(GenericActivityArg.ARG_FROM, GenericActivityArg.FROM_PATIENTS)
+              }
+
+              context.startActivity(intent)
+            }
+          ) {
+            Text(text = "SEE ${allPatientsSize - 3} MORE", color = LightColors.primary, style = MaterialTheme.typography.body2.copy(
+              fontSize = 14.sp
+            ))
+          }
+          Spacer(modifier = Modifier.height(8.dp))
         }
       }
     }
@@ -815,7 +935,7 @@ fun SyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPatien
         }
 
         Row(modifier = Modifier.padding(vertical = 4.dp)) {
-          Box(modifier = Modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
+          Box(modifier = Modifier.padding(vertical = 4.dp, horizontal = 36.dp)) {
             Text(text = "Visited ${convertToDate(patient.meta.lastUpdated)}")
           }
         }
@@ -926,11 +1046,11 @@ private fun PreviewNoRegistersView() {
   NoRegisterDataView(
     viewModel = viewModel(),
     noResults =
-      NoResultsConfig(
-        title = "Title",
-        message = "This is message",
-        actionButton = NavigationMenuConfig(display = "Button Text", id = "1"),
-      ),
+    NoResultsConfig(
+      title = "Title",
+      message = "This is message",
+      actionButton = NavigationMenuConfig(display = "Button Text", id = "1"),
+    ),
   ) {}
 }
 
