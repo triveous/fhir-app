@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.smartregister.fhircore.quest.ui.register
+package org.smartregister.fhircore.quest.ui.register.patients
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf

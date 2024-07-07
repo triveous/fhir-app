@@ -19,7 +19,7 @@
 
     <fragment
         android:id="@+id/registerFragment"
-        android:name="org.smartregister.fhircore.quest.ui.register.RegisterFragment">
+        android:name="org.smartregister.fhircore.quest.ui.register.patients.RegisterFragment">
         <argument
             android:name="screenTitle"
             android:defaultValue=""
@@ -68,19 +68,55 @@
 
     <fragment
         android:id="@+id/tasksFragment"
-        android:name="org.smartregister.fhircore.quest.ui.register.PendingTasksFragment">
+        android:name="org.smartregister.fhircore.quest.ui.register.tasks.TasksFragment">
         <!-- Add any necessary arguments here -->
     </fragment>
 
     <fragment
         android:id="@+id/viewAllTasksFragment"
-        android:name="org.smartregister.fhircore.quest.ui.register.ViewAllTasksFragment">
+        android:name="org.smartregister.fhircore.quest.ui.register.tasks.ViewAllTasksFragment">
 
         <argument
             android:name="screenTitle"
-            android:defaultValue="All Referrals"
+            android:defaultValue="URGENT"
             app:argType="string"
             app:nullable="false" />
+
+        <argument
+            android:name="priority"
+            android:defaultValue="URGENT"
+            app:argType="string"
+            app:nullable="false" />
+
+        <argument
+            android:name="status"
+            android:defaultValue="REQUESTED"
+            app:argType="string"
+            app:nullable="false" />
+    </fragment>
+
+
+    <fragment
+        android:id="@+id/searchTasksFragment"
+        android:name="org.smartregister.fhircore.quest.ui.register.search.SearchTasksFragment">
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/profileSectionFragment"
+        android:name="org.smartregister.fhircore.quest.ui.register.profile.ProfileSectionFragment">
+        <argument
+            android:name="userName"
+            android:defaultValue="URGENT"
+            app:argType="string"
+            app:nullable="false" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="org.smartregister.fhircore.quest.ui.register.dashboard.DashboardFragment">
+
     </fragment>
 
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.smartregister.fhircore.quest.ui.register
+package org.smartregister.fhircore.quest.ui.register.patients
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -39,6 +39,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -49,6 +50,8 @@ import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.R
@@ -58,7 +61,9 @@ import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
+import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.ui.main.AppMainUiState
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
@@ -69,15 +74,15 @@ import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
-class ViewAllTasksFragment : Fragment(), OnSyncListener {
+class RegisterFragment : Fragment(), OnSyncListener {
 
   @Inject lateinit var syncListenerManager: SyncListenerManager
 
   @Inject lateinit var eventBus: EventBus
   private val appMainViewModel by activityViewModels<AppMainViewModel>()
-  private val registerFragmentArgs by navArgs<ViewAllTasksFragmentArgs>()
+  private val registerFragmentArgs by navArgs<RegisterFragmentArgs>()
   private val registerViewModel by viewModels<RegisterViewModel>()
-  var screenTitle = ""
+
 
   override fun onCreateView(
     inflater: LayoutInflater,
@@ -87,9 +92,20 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
     appMainViewModel.retrieveIconsAsBitmap()
 
     with(registerFragmentArgs) {
-      this@ViewAllTasksFragment.screenTitle = screenTitle
+      lifecycleScope.launchWhenCreated {
+        registerViewModel.retrieveRegisterUiState(
+          registerId = registerId,
+          screenTitle = screenTitle,
+          params = params,
+          clearCache = false,
+        )
+      }
     }
 
+
+/*    registerViewModel.patientsListLiveData.observeForever {
+      val data = it
+    }*/
     return ComposeView(requireContext()).apply {
       setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
       setContent {
@@ -129,19 +145,10 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
             drawerGesturesEnabled = scaffoldState.drawerState.isOpen,
             scaffoldState = scaffoldState,
             drawerContent = {
-              /*AppDrawer(
-                appUiState = uiState,
-                openDrawer = openDrawer,
-                onSideMenuClick = appMainViewModel::onEvent,
-                navController = findNavController(),
-              )*/
+
             },
             bottomBar = {
-              // TODO Activate bottom nav via view configuration
-              /* BottomScreenSection(
-                navController = navController,
-                mainNavigationScreens = MainNavigationScreen.appScreens
-              )*/
+
             },
             snackbarHost = { snackBarHostState ->
               SnackBarMessage(
@@ -156,7 +163,7 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
               .background(SearchHeaderColor)
               .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
-              ViewAllTasksScreen(
+              RegisterScreen(
                 openDrawer = openDrawer,
                 onEvent = registerViewModel::onEvent,
                 registerUiState = registerViewModel.registerUiState.value,
@@ -165,8 +172,8 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
                 pagingItems = pagingItems,
                 navController = findNavController(),
                 appMainViewModel = appMainViewModel,
-                viewModel = registerViewModel,
-                screenTitle = screenTitle
+                toolBarHomeNavigation = registerFragmentArgs.toolBarHomeNavigation,
+                viewModel = registerViewModel
               )
             }
           }
@@ -177,14 +184,13 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
 
   override fun onResume() {
     super.onResume()
-    registerViewModel.getAllLatestTasks()
-    registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL)
-
-    /*registerViewModel.getAllPatients()
+    registerViewModel.getAllPatients()
+    registerViewModel.getAllSyncedPatients()
     registerViewModel.getAllDraftResponses()
     registerViewModel.getAllUnSyncedPatients()
 
-    syncListenerManager.registerSyncListener(this, lifecycle)*/
+
+    syncListenerManager.registerSyncListener(this, lifecycle)
   }
 
   override fun onStop() {
@@ -220,6 +226,7 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
           )
         }
         registerViewModel.getAllPatients()
+        registerViewModel.getAllSyncedPatients()
         registerViewModel.getAllDraftResponses()
         registerViewModel.getAllUnSyncedPatients()
       }
@@ -244,7 +251,7 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
   }
 
   fun refreshRegisterData(questionnaireResponse: QuestionnaireResponse? = null) {
-    /*with(registerFragmentArgs) {
+    with(registerFragmentArgs) {
       registerViewModel.run {
         if (questionnaireResponse != null) {
           updateRegisterFilterState(registerId, questionnaireResponse)
@@ -259,11 +266,11 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
           clearCache = false,
         )
       }
-    }*/
+    }
   }
 
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-    /*viewLifecycleOwner.lifecycleScope.launch {
+    viewLifecycleOwner.lifecycleScope.launch {
       viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.CREATED) {
         // Each register should have unique eventId
         eventBus.events
@@ -275,7 +282,7 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
           }
           .launchIn(lifecycleScope)
       }
-    }*/
+    }
   }
 
   suspend fun handleQuestionnaireSubmission(questionnaireSubmission: QuestionnaireSubmission) {
@@ -288,7 +295,6 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
       val (questionnaireConfig, _) = questionnaireSubmission
 
       refreshRegisterData()
-
       questionnaireConfig.snackBarMessage?.let { snackBarMessageConfig ->
         registerViewModel.emitSnackBarState(snackBarMessageConfig)
       }
@@ -343,7 +349,7 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
   }
 
   companion object {
-    fun newInstance(bundle: Bundle) = ViewAllTasksFragment().apply {
+    fun newInstance(bundle: Bundle) = RegisterFragment().apply {
       arguments = bundle
     }
 

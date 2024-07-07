@@ -29,6 +29,9 @@ object NavigationArg {
   const val PARAMS = "params"
   const val TOOL_BAR_HOME_NAVIGATION = "toolBarHomeNavigation"
 
+  const val USER_NAME = "user_name"
+
+
   /** Create route paths */
   fun routePathsOf(vararg navArg: String): String =
     "?" + navArg.toList().joinToString("&") { "$it={$it}" }

@@ -38,7 +38,7 @@ import org.junit.Test
 import org.smartregister.fhircore.engine.configuration.register.RegisterCardConfig
 import org.smartregister.fhircore.engine.configuration.view.CompoundTextProperties
 import org.smartregister.fhircore.engine.domain.model.ResourceData
-import org.smartregister.fhircore.quest.ui.register.RegisterUiState
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.components.REGISTER_CARD_LIST_TEST_TAG
 import org.smartregister.fhircore.quest.ui.register.components.RegisterCardList
 
