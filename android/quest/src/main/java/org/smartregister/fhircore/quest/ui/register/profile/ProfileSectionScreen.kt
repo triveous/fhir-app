@@ -66,6 +66,9 @@ import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.quest.ui.main.components.DRAWER_MENU
 import org.smartregister.fhircore.quest.ui.main.components.TOP_ROW_ICON_TEST_TAG
@@ -96,15 +99,12 @@ fun ProfileSectionScreen(
 
 
   Scaffold(
-    modifier = modifier.background(Color.White),
+    modifier = modifier.background(SearchHeaderColor).fillMaxSize(),
     topBar = {
       Column(modifier = modifier
         .background(Color.White)
         .fillMaxWidth()) {
 
-        // Top section has toolbar and a results counts view
-        /*val filterActions =
-          registerUiState.registerConfiguration?.registerFilter?.dataFilterActions*/
         TopScreenSection(
           modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
           title = stringResource(id = org.smartregister.fhircore.engine.R.string.profile),
@@ -112,13 +112,13 @@ fun ProfileSectionScreen(
           filteredRecordsCount = registerUiState.filteredRecordsCount,
           searchPlaceholder = registerUiState.registerConfiguration?.searchBar?.display,
           onSync = appMainViewModel::onEvent,
-          toolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
+          toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
           onSearchTextChanged = { searchText ->
             onEvent(RegisterEvent.SearchRegister(searchText = searchText))
           },
           isFilterIconEnabled = false,
         ) { event ->
-
+            onBackPressed()
         }
       }
     },
@@ -127,12 +127,13 @@ fun ProfileSectionScreen(
 
     Box(modifier = modifier
       .padding(innerPadding)
+      .fillMaxSize()
       .background(SearchHeaderColor)) {
 
       Box(
         modifier = modifier
           .background(SearchHeaderColor)
-          .padding(horizontal = 16.dp, vertical = 16.dp)
+          .padding(horizontal = 16.dp)
           .fillMaxSize()
       )
       {
@@ -163,19 +164,28 @@ fun ProfileSectionScreen(
                 Image(
                   painter = painterResource(org.smartregister.fhircore.engine.R.drawable.ic_profile), // Replace with your profile picture
                   modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape),
-                  contentDescription = null
+                    .size(84.dp)
+                    .clip(CircleShape).padding(all = 4.dp),
+                  contentDescription = null,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                  text = "Kiran K",
-                  fontWeight = FontWeight1.Bold
+                  text = "Kiran Kumar",
+                  fontWeight = FontWeight1.Bold,
+                  style = TextStyle(
+                    fontSize = 18.sp,
+                    letterSpacing = 0.15.sp,
+                  )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Username: flw1")
+                Text(text = "Username: flw1", style = TextStyle(
+                  fontSize = 18.sp,
+                  fontWeight = FontWeight.Normal,
+                  letterSpacing = 0.15.sp,
+
+                ))
+                Spacer(modifier = Modifier.height(8.dp))
                 Row() {
-                  Spacer(modifier = Modifier.width(8.dp))
                   Icon(
                     Icons.Filled.HouseSiding,
                     contentDescription = DRAWER_MENU,
@@ -183,8 +193,12 @@ fun ProfileSectionScreen(
                     modifier = modifier
                       .testTag(TOP_ROW_ICON_TEST_TAG),
                   )
-                  Spacer(modifier = Modifier.height(4.dp))
-                  Text(text = "Krishnagiri")
+                  Spacer(modifier = Modifier.width(4.dp))
+                  Text(text = "Krishnagiri", style = TextStyle(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = 0.15.sp,
+                  ))
                 }
                 Spacer(modifier = Modifier.height(20.dp))
               }

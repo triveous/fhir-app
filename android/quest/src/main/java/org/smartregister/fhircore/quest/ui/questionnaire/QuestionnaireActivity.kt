@@ -241,7 +241,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             setNavigationIcon(R.drawable.ic_arrow_back)
             setNavigationOnClickListener { handleBackPress() }
           }
-          questionnaireTitle.apply { text = questionnaireConfig.title }
+          questionnaireTitle.apply { text = getString(R.string.add_case) }
           clearAll.apply {
             visibility = if (questionnaireConfig.showClearAll) View.VISIBLE else View.GONE
             setOnClickListener {

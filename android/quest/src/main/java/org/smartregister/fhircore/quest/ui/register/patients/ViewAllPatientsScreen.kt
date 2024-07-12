@@ -16,6 +16,7 @@
 
 package org.smartregister.fhircore.quest.ui.register.patients
 
+import android.os.Bundle
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,43 +52,31 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.ModalBottomSheetLayout
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.Scaffold
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonColors
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.navigation.NavController
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.Task
-import org.hl7.fhir.r4.model.Task.TaskPriority
-import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.register.tasks.TasksTopScreenSection
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils
-import java.util.Date
+import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 
 
 const val URGENT_REFERRAL_TAB = "Urgent Referral"
@@ -98,9 +87,10 @@ const val ADD_INVESTIGATION_PATIENTS = 1
 const val RETAKE_PHOTO_PATIENTS = 2
 
 enum class FilterType(val label: String) {
-  ALL_PATIENTS("All Submissions"),
+  ALL_PATIENTS("All submissions"),
   UNSYNCED("Unsynced"),
-  DRAFTS("Drafts")
+  DRAFTS("Drafts"),
+  SYNCED("Synced")
 }
 
 @Composable
@@ -112,22 +102,28 @@ fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit
     horizontalArrangement = Arrangement.SpaceBetween
     ) {
     FilterType.entries.forEachIndexed { index, filter ->
-      Box(modifier = Modifier
-        .border(width = 0.5.dp, color = (if (filter == selectedFilter) LightColors.primary else Color.LightGray ), shape = RoundedCornerShape(8.dp))
-        .background(if (filter == selectedFilter) LightColors.primary else SearchHeaderColor)
-        .padding(8.dp)) {
-        Text(
-          text = filter.label,
-          modifier = Modifier
-            .padding(4.dp)
-            .clickable {
-              onFilterSelected(filter)
-            },
-          color = if (filter == selectedFilter) Color.White else Color.Black
-        )
-      }
-      if (index < FilterType.entries.size - 1) {
-        Spacer(modifier = Modifier.width(8.dp)) // Horizontal margin
+      if (filter != FilterType.DRAFTS){
+        Box(modifier = Modifier
+          .border(
+            width = 0.5.dp,
+            color = (if (filter == selectedFilter) LightColors.primary else Color.LightGray),
+            shape = RoundedCornerShape(8.dp)
+          )
+          .background(if (filter == selectedFilter) LightColors.primary else SearchHeaderColor)
+          .padding(8.dp)) {
+          Text(
+            text = filter.label,
+            modifier = Modifier
+              .padding(4.dp)
+              .clickable {
+                onFilterSelected(filter)
+              },
+            color = if (filter == selectedFilter) Color.White else Color.Black
+          )
+        }
+        if (index < FilterType.entries.size - 1) {
+          Spacer(modifier = Modifier.width(8.dp)) // Horizontal margin
+        }
       }
     }
   }
@@ -137,13 +133,16 @@ fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit
 @Composable
 fun ViewAllPatientsScreen(
   modifier: Modifier = Modifier,
-  viewModel : RegisterViewModel,
-  screenTitle : String,
-  onBack : () -> Unit
+  viewModel: RegisterViewModel,
+  screenTitle: String,
+  from: String,
+  registerUiState: RegisterUiState,
+  onEditDraftClicked: (String) -> Unit,
+  onBack: () -> Unit
 ) {
   val lazyListState: LazyListState = rememberLazyListState()
   val coroutineScope = rememberCoroutineScope()
-  val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden)
+  val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
   //var selectedTask by remember { mutableStateOf<TasksViewModel.TaskItem?>(null) }
 
   Scaffold(
@@ -163,12 +162,16 @@ fun ViewAllPatientsScreen(
 
       Box(modifier = modifier.padding(innerPadding)) {
 
-        Box(
-          modifier = modifier
-            .background(SearchHeaderColor)
-        )
-        {
-          var selectedFilter by remember { mutableStateOf(FilterType.ALL_PATIENTS) }
+        Box(modifier = modifier
+            .background(SearchHeaderColor)){
+          var selectedFilter by remember {
+            if (from.contains(FilterType.DRAFTS.name, true)){
+              mutableStateOf(FilterType.DRAFTS)
+            }else{
+              mutableStateOf(FilterType.ALL_PATIENTS)
+            }
+          }
+
           val filteredTasks by viewModel.filteredTasksStateFlow.collectAsState()
           val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
 
@@ -191,11 +194,13 @@ fun ViewAllPatientsScreen(
 
             Row(modifier = Modifier
               .fillMaxWidth()) {
-              FilterRow(selectedFilter) { filter ->
-                selectedFilter = filter
-                viewModel.getAllSyncedPatients()
-                viewModel.getAllDraftResponses()
-                viewModel.getAllUnSyncedPatients()
+              if (!from.contains(FilterType.DRAFTS.name, true)){
+                FilterRow(selectedFilter) { filter ->
+                  selectedFilter = filter
+                  viewModel.getAllSyncedPatients()
+                  viewModel.getAllDraftResponses()
+                  viewModel.getAllUnSyncedPatients()
+                }
               }
             }
 
@@ -233,34 +238,67 @@ fun ViewAllPatientsScreen(
                 }
 
                 FilterType.DRAFTS -> {
+                  var deleteDraftId by remember { mutableStateOf("") }
+                  var showDeleteDialog by remember { mutableStateOf(false) }
+
+
+                  if (showDeleteDialog) {
+                    DeleteRecordDialog(
+                      onDismiss = {
+                        deleteDraftId = ""
+                        showDeleteDialog = false
+                      },
+                      onConfirm = {
+                        viewModel.softDeleteDraft(deleteDraftId)
+                        deleteDraftId = ""
+                        showDeleteDialog = false
+                      },
+                      onCancel = {
+                        deleteDraftId = ""
+                        showDeleteDialog = false
+                      }
+                    )
+                  }
+
                   ShowAllDrafts(
                     modifier = modifier,
                     drafts = savedRes,
                     viewModel = viewModel,
-                    onDeleteResponse = { id, flag ->
-
+                    onDeleteResponse = { id, isShowDeleteDialog ->
+                      deleteDraftId = id
+                      showDeleteDialog = isShowDeleteDialog
                     },
-                    onEditResponse = {},
+                    onEditResponse = {
+                      onEditDraftClicked(it)
+                    },
                     allDraftsSize = 1
                   )
                 }
 
                 FilterType.UNSYNCED -> {
                   ShowUnSyncedPatients2(modifier = modifier, unSynced = unSynced)
+                }
 
-                  /*LazyColumn(modifier = modifier
+                FilterType.SYNCED -> {
+                  LazyColumn(modifier = modifier
                     .background(SearchHeaderColor)) {
-                    items(unSynced) { patient ->
+                    items(allSyncedPatients) { patient ->
                       Box(
                         modifier = modifier
                           .fillMaxWidth()
                           .padding(horizontal = 8.dp)
                           .background(SearchHeaderColor)
                       ) {
-
+                        if(patient.resourceType == RegisterViewModel.AllPatientsResourceType.Patient) {
+                          val patientData = patient.patient
+                          patientData?.let {
+                            ShowSyncedPatientCard(patientData, patient)
+                          }
+                        }
                       }
                     }
-                  }*/
+                  }
+
                 }
               }
 
@@ -323,7 +361,7 @@ fun ShowUnSyncedPatients2(
             .fillMaxWidth(),
           contentAlignment = Alignment.Center
         ) {
-          Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.no_unsync_patients))
+          Text(text = stringResource(id = R.string.no_unsync_patients))
         }
       }
     } else {
@@ -338,9 +376,59 @@ fun ShowUnSyncedPatients2(
               modifier = modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
-                .background(Color.White)
+                .background(SearchHeaderColor)
             ) {
+
               Card(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(vertical = 4.dp)
+                  .background(Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+              ) {
+                Box(
+                  modifier = Modifier
+                    .background(Color.White)
+                ) {
+                  Column(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .padding(vertical = 8.dp, horizontal = 16.dp)
+                      .background(Color.White)
+                  ) {
+                    Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                      androidx.compose.material.Icon(
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.patient_icon),
+                        contentDescription = FILTER,
+                        tint = LightColors.primary
+                      )
+                      Text(
+                        modifier = Modifier
+                          .weight(1f)
+                          .padding(vertical = 4.dp, horizontal = 4.dp),
+                        text = patient.name ?: "",
+                        style = MaterialTheme.typography.h6,
+                        color = LightColors.primary
+                      )
+                      Spacer(modifier = Modifier.height(16.dp))
+                      Text(text = "Sync: Pending",
+                        modifier = Modifier.padding(
+                          vertical = 4.dp,
+                          horizontal = 8.dp
+                        ))
+                    }
+
+                    Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                      Box(modifier = Modifier.padding(vertical = 4.dp, horizontal = 36.dp)) {
+                        Text(text = "Visited ${OpensrpDateUtils.convertToDateStringFromString(patient.lastUpdated)} ")
+                      }
+                    }
+                  }
+                }
+              }
+
+              /*Card(
                 modifier = Modifier
                   .fillMaxWidth()
                   .background(Color.White),
@@ -363,9 +451,9 @@ fun ShowUnSyncedPatients2(
                           vertical = 4.dp,
                           horizontal = 4.dp
                         ),
-                        painter = painterResource(id = com.google.android.fhir.datacapture.R.drawable.ic_document_file),
+                        painter = painterResource(id = R.drawable.ic_patient_male),
                         contentDescription = FILTER,
-                        tint = Color.Black,
+                        tint = LightColors.primary,
                       )
 
                       Text(
@@ -378,7 +466,7 @@ fun ShowUnSyncedPatients2(
                       )
                       Spacer(modifier = Modifier.height(16.dp))
 
-                      Text(text = "Sync: Un-Synced")
+                      Text(text = "Sync: Pending")
 
                     }
 
@@ -387,7 +475,7 @@ fun ShowUnSyncedPatients2(
                     }
                   }
                 }
-              }
+              }*/
             }
           }
         }
@@ -431,11 +519,11 @@ fun ShowSyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPa
             color = LightColors.primary
           )
           Spacer(modifier = Modifier.height(16.dp))
-          Text(text = "Synced",
+          /*Text(text = "Synced",
             modifier = Modifier.padding(
               vertical = 4.dp,
               horizontal = 8.dp
-            ))
+            ))*/
         }
 
         Row(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -468,16 +556,16 @@ fun ShowAllDrafts(
       Column(
         modifier = modifier
           .background(SearchHeaderColor)
-          .padding(top = 48.dp)
+          .padding(top = 16.dp, start = 16.dp, end = 16.dp)
           .fillMaxWidth()
           .height(300.dp),
       ) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.draft))
+        Text(text = "TOTAL DRAFTS: ${drafts.size}")
+        Spacer(modifier = Modifier.height(4.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
 
         Box(modifier = modifier
           .background(SearchHeaderColor)
@@ -495,7 +583,7 @@ fun ShowAllDrafts(
                 vertical = 8.dp,
                 horizontal = 8.dp
               ),
-              painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
+              painter = painterResource(id = R.drawable.ic_draft),
               contentDescription = FILTER,
             )
 
@@ -508,17 +596,16 @@ fun ShowAllDrafts(
       Column(
         modifier = modifier
           .background(SearchHeaderColor)
+          .padding(horizontal = 16.dp, vertical = 16.dp)
           .fillMaxWidth()
       ) {
-        Spacer(modifier = Modifier.height(8.dp))
 
-        Text(text = stringResource(id = org.smartregister.fhircore.quest.R.string.draft))
+        Text(text = "TOTAL DRAFTS: ${drafts.size}")
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         LazyColumn(modifier = Modifier
-          .fillMaxWidth()
-          .height(350.dp)) {
+          .fillMaxWidth()) {
           items(drafts) { response ->
             Box(
               modifier = modifier

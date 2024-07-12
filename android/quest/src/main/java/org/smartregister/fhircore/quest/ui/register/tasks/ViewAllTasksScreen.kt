@@ -16,6 +16,8 @@
 
 package org.smartregister.fhircore.quest.ui.register.tasks
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -74,6 +76,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
@@ -137,7 +140,7 @@ fun ViewAllTasksScreen(
 ) {
   val lazyListState: LazyListState = rememberLazyListState()
   val coroutineScope = rememberCoroutineScope()
-  val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden)
+  val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
   var selectedTask by remember { mutableStateOf<TasksViewModel.TaskItem?>(null) }
 
   Scaffold(
@@ -156,13 +159,13 @@ fun ViewAllTasksScreen(
   ) { innerPadding ->
 
     ModalBottomSheetLayout(
+      sheetGesturesEnabled = false,
       sheetState = bottomSheetState,
       sheetContent = {
         selectedTask?.let { task ->
           TasksBottomSheetContent(task = task, onStatusUpdate = {
             var status : TaskStatus = TaskStatus.NULL
             when(it){
-
               TaskPriority.ROUTINE -> {
                 status = TaskStatus.COMPLETED
               }
@@ -284,13 +287,14 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
   var phone = ""
   var date = ""
   var address = ""
-  if (task.patient?.name?.isNotEmpty() == true && task.patient?.name?.get(0)?.given?.isNotEmpty() == true){
-    name = task.patient?.name?.get(0)?.given?.get(0)?.value.toString()
-    phone = task.patient?.telecom?.get(0)?.value.toString()
-    date = task.patient?.meta?.lastUpdated?.let { OpensrpDateUtils.convertToDate(it) }.toString()
-    address = task.patient?.address?.get(0)?.text.toString()
+  if (task.patient?.name?.isNotEmpty() == true && task.patient.name?.get(0)?.given?.isNotEmpty() == true){
+    name = task.patient.name?.get(0)?.given?.get(0)?.value.orEmpty()
+    phone = task.patient.telecom?.get(0)?.value.orEmpty()
+    date = task.patient.meta?.lastUpdated?.let { OpensrpDateUtils.convertToDate(it) }.toString()
+    address = getPatientAddress(task.patient)
   }
 
+  val context = LocalContext.current
   Column(
     modifier = Modifier
       .fillMaxWidth()
@@ -369,7 +373,10 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
           fontSize = 14.sp,)
       }
 
-      Row(modifier = Modifier.align(Alignment.CenterVertically),
+      Row(modifier = Modifier.align(Alignment.CenterVertically)
+        .clickable {
+          context.startActivity(Intent(Intent.ACTION_DIAL).apply { data = Uri.parse("tel:$phone") })
+        },
         verticalAlignment = Alignment.CenterVertically
       ) {
         Text(text = "Call", color = LightColors.primary)
@@ -562,7 +569,10 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
           backgroundColor = Color.White, // Transparent background
           contentColor = Color.White // Set text color to white
         ),
-        onClick = { onCancel() }) {
+        onClick = {
+          onCancel()
+          selectedPriority.value = TaskPriority.NULL
+          }) {
         Text(text = stringResource(id = R.string.cancel), color = Color(0xFF5B5959))
       }
 
@@ -571,7 +581,10 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
         .weight(1f) // Equally divide width
         .padding(horizontal = 4.dp)
         .background(LightColors.primary),
-        onClick = { onStatusUpdate(selectedPriority.value) }) {
+        onClick = {
+          onStatusUpdate(selectedPriority.value)
+          selectedPriority.value = TaskPriority.NULL
+        }) {
         Text(text = stringResource(id = R.string.update_status), color = Color.White)
       }
 
@@ -579,12 +592,26 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
   }
 }
 
+fun getPatientAddress(patient: Patient?): String {
+  var addressFinal = ""
+  patient?.let { patientItem ->
+    patientItem.address.size.let { it > 0 }.let {
+      if (it){
+        patientItem.address.forEach { address ->
+          addressFinal = "${address.city.orEmpty()} ${address.district.orEmpty()} ${address.state.orEmpty()} ${address.text.orEmpty()}"
+        }
+      }
+    }
+  }
+  return addressFinal
+}
+
 @Composable
 fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewModel.TaskItem) -> Unit) {
   Box(
     modifier = Modifier
       .fillMaxWidth()
-      .padding(vertical = 8.dp)
+      .padding(vertical = 8.dp, horizontal = 16.dp)
       .background(Color.White)
       .clickable {
         onSelectTask(task)
@@ -610,7 +637,7 @@ fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewMo
           var name = ""
           var phone = ""
           if (task.patient?.name?.isNotEmpty() == true && task.patient?.name?.get(0)?.given?.isNotEmpty() == true){
-            name = task.task.description//task.patient?.name?.get(0)?.given?.get(0)?.value.toString()
+            name = task.patient?.name?.get(0)?.given?.get(0)?.value.toString()
             phone = task.patient?.telecom?.get(0)?.value.toString()
           }
           Row(modifier = Modifier.padding(vertical = 4.dp)) {

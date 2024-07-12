@@ -3,7 +3,7 @@
     <string name="language">Language</string>
     <string name="logout_as_user">Log out as </string>
     <string name="show_overdue">Show overdue</string>
-    <string name="search_hint">Search name or ID</string>
+    <string name="search_hint">Search name or phone</string>
     <string name="scan_bar_code">SCAN BARCODE</string>
     <string name="empty_client_list_message_title">No Results</string>
     <string name="empty_client_list_message_details">Sorry, we could not find client with given name or ID</string>
@@ -70,10 +70,10 @@
     <string name="questionnaire_alert_invalid_message">Given details have validation errors. Resolve errors and submit again</string>
     <string name="questionnaire_alert_invalid_title">Validation Failed</string>
     <string name="questionnaire_alert_ack_button_title">OK</string>
-    <string name="username">User Name</string>
+    <string name="username">Username</string>
     <string name="appname">Aarogya Aarohan</string>
     <string name="password">Password</string>
-    <string name="forgot_password">Forgot Password</string>
+    <string name="forgot_password">Forgot password</string>
     <string name="forgot_password_title">Forgot Password!</string>
     <string name="more">More</string>
     <string name="call_supervisor">Contact your site coordinator.</string>
@@ -105,11 +105,11 @@
     <string name="yes">Yes</string>
     <string name="required_constraint_validation_error_msg">There is no response to the required field.</string>
     <string name="set_pin">Set PIN</string>
-    <string name="set_pin_message">CHA will use this PIN to login</string>
+    <string name="set_pin_message">%1$s will use this PIN to login</string>
     <string name="enter_pin_for_user">Enter PIN for %1$s</string>
     <string name="incorrect_pin_please_retry">Incorrect PIN, please try again</string>
     <string name="pin_menu_login">Login</string>
-    <string name="forgot_pin">Forgot PIN? Reset via Login</string>
+    <string name="forgot_pin">Forgot PIN? Reset via login</string>
     <string name="please_contact_supervisor">Please contact your supervisor.</string>
     <string name="percentage" translatable="false">%</string>
     <string name="logging_out">Logging out. Please wait…</string>

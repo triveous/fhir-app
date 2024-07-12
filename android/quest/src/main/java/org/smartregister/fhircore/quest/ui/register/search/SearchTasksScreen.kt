@@ -95,7 +95,7 @@ fun SearchTasksScreen(
 ) {
   val lazyListState: LazyListState = rememberLazyListState()
   val coroutineScope = rememberCoroutineScope()
-  val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden)
+  val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
   var selectedTask by remember { mutableStateOf<RegisterViewModel.TaskItem?>(null) }
   val searchResultTasks by viewModel.searchedTasksStateFlow.collectAsState()
 
@@ -219,8 +219,8 @@ fun SearchTasksScreen(
                     Box(
                       modifier = modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .background(Color.White)
+                        .padding(vertical = 8.dp, horizontal = 16.dp)
+                        .background(SearchHeaderColor)
                         .clickable {
                           selectedTask = task
                           coroutineScope.launch { bottomSheetState.show() }
@@ -247,8 +247,7 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
   Box(
     modifier = Modifier
       .fillMaxWidth()
-      .padding(vertical = 8.dp)
-      .background(Color.White)
+      .background(SearchHeaderColor)
       .clickable {
         onSelectTask(task)
         //viewModel.updateTask(task, Task.TaskStatus.INPROGRESS, Task.TaskPriority.ROUTINE)
@@ -354,13 +353,13 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
                 when(task.task.status){
 
                   TaskStatus.INPROGRESS -> {
-                    statusLabel = TaskStatus.INPROGRESS.name
+                    statusLabel = "PENDING"
                     statusColor = Color(0xFFFFF8E0)
                     statusTextColor = Color(0xFFFFC800)
                   }
 
                   TaskStatus.REQUESTED -> {
-                    statusLabel = TaskStatus.REQUESTED.name
+                    statusLabel = "NEW"
                     statusColor = Color(0xFFFFCDD2)
                     statusTextColor = Color(0xFFFF3355)
                   }
@@ -368,13 +367,13 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
                   TaskStatus.COMPLETED -> {
                     statusLabel = TaskStatus.COMPLETED.name
                     statusColor = Color.LightGray
-                    statusTextColor = Color.Green
+                    statusTextColor = Color.DarkGray
                   }
 
                   else -> {
                     statusLabel = ""
                     statusColor = Color.LightGray
-                    statusTextColor = Color.Gray
+                    statusTextColor = Color.DarkGray
                   }
                 }
 

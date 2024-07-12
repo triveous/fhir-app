@@ -22,7 +22,7 @@
         tools:ignore="UnusedAttribute,LockedOrientationActivity"
         tools:replace="android:theme">
         <activity
-            android:name=".ui.register.tasks.GenericActivity"
+            android:name=".ui.register.patients.GenericActivity"
             android:exported="false"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"

@@ -32,6 +32,7 @@ import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -339,7 +340,7 @@ constructor(
 
       responses.map { task ->
         val patient = patients.find {
-          Log.d("patient-task", "${it.patient?.logicalId} <> ${task.`for`.reference}")
+          //Log.d("patient-task", "${it.patient?.logicalId} <> ${task.`for`.reference}")
 
           task?.`for`?.reference?.toString().let { refId ->
             (refId.toString().contains(it.patient?.logicalId.toString(), true) && task.status != TaskStatus.REJECTED)
@@ -469,9 +470,32 @@ constructor(
   }*/
 
   fun searchTasks(searchText: String) {
+    _searchedTasksStateFlow.value = emptyList()
     val isPhoneNumber = searchText.toIntOrNull() != null
+    val allTasksWithPatients = _allLatestTasksStateFlow.value
+    val matchedTasksWithPatientList = mutableListOf<TaskItem>()
 
     viewModelScope.launch {
+      allTasksWithPatients.forEach { taskItem ->
+        val patient = taskItem.patient
+        patient?.let {
+          if (isPhoneNumber){
+            val phone = patient?.telecom?.get(0)?.value.toString()
+            if (taskItem.task.status != TaskStatus.REJECTED && searchText.contains(phone)){
+              matchedTasksWithPatientList.add(taskItem)
+            }
+          }else{
+            val name = patient?.name?.get(0)?.given?.get(0)?.value.toString() ?: ""
+            if (taskItem.task.status != TaskStatus.REJECTED && name.contains(searchText, true)){
+              matchedTasksWithPatientList.add(taskItem)
+            }
+          }
+        }
+      }
+      _searchedTasksStateFlow.value = matchedTasksWithPatientList
+    }
+
+    /*viewModelScope.launch {
 
       val patients = fhirEngine.search<Patient> {
       }.map {
@@ -484,32 +508,40 @@ constructor(
       val matchedTasksWithPatientList = mutableListOf<TaskItem>()
 
       responses.map { task ->
-        val patientId = task.description
-        //val patient = patients.find { it.id == patientId }
-        val patient = patients.get(0)
+        patients.size.let { it > 0 }.let { isNotEmpty ->
+          if(isNotEmpty){
+            val patient = patients.find {
+              task?.`for`?.reference?.toString().let { refId ->
+                (refId.toString().contains(it.patient?.logicalId.toString(), true) && task.status != TaskStatus.REJECTED)
+              }
+            }
 
-        if (isPhoneNumber){
-          val phone = patient?.patient?.telecom?.get(0)?.value.toString()
-          if (searchText.contains(phone)){
-            val taskItem = TaskItem(
-              task = task,
-              patient = patient?.patient // Use a default patient object if not found
-            )
-            matchedTasksWithPatientList.add(taskItem)
-          }
-        }else{
-          val name = patient?.patient?.name?.get(0)?.given?.get(0)?.value.toString() ?: ""
-          if (name.contains(searchText, true)){
-            val taskItem = TaskItem(
-              task = task,
-              patient = patient?.patient // Use a default patient object if not found
-            )
-            matchedTasksWithPatientList.add(taskItem)
+            patient?.let {
+              if (isPhoneNumber){
+                val phone = patient?.patient?.telecom?.get(0)?.value.toString()
+                if (searchText.contains(phone)){
+                  val taskItem = TaskItem(
+                    task = task,
+                    patient = patient?.patient // Use a default patient object if not found
+                  )
+                  matchedTasksWithPatientList.add(taskItem)
+                }
+              }else{
+                val name = patient?.patient?.name?.get(0)?.given?.get(0)?.value.toString() ?: ""
+                if (name.contains(searchText, true)){
+                  val taskItem = TaskItem(
+                    task = task,
+                    patient = patient?.patient // Use a default patient object if not found
+                  )
+                  matchedTasksWithPatientList.add(taskItem)
+                }
+              }
+            }
           }
         }
       }
       _searchedTasksStateFlow.value = matchedTasksWithPatientList
-    }
+    }*/
   }
 
   fun clearSearch(){
@@ -857,10 +889,12 @@ constructor(
     _isFetching.value = true
     viewModelScope.launch {
       // Fetching patients
+      val data = fhirEngine.getUnsyncedLocalChanges()
       val patients = fhirEngine.search<Patient> {
       }.map {
         it.resource.toResourceData()
       }.sortedByDescending { it.meta.lastUpdated }
+
       _allSyncedPatientsStateFlow.value = patients
       _isFetching.value = false
     }
@@ -952,7 +986,9 @@ constructor(
   )
 
     data class Patient2(
+      val id: String,
       val name: String,
+      val lastUpdated: String,
       val gender: String,
       val primaryContact: String?,
       val age: Int?
@@ -980,10 +1016,13 @@ constructor(
           null
         }
 
+        val id = patientData["id"] as String? ?: ""
+        val lastUpdated = (patientData["meta"] as Map<*, *>) ["lastUpdated"] as String? ?: ""
         val gender = patientData["gender"] as String?
         val telecomData = patientData["telecom"] as List<*>?
+        val mobile = (telecomData?.get(0) as Map<*, *>)["value"].toString()
 
-        return Patient2(name ?: "", gender ?: "", "", 0)
+        return Patient2(id = id, name ?: "", lastUpdated = lastUpdated, gender ?: "", mobile, 0)
       } catch (e: Exception) {
         e.printStackTrace()
         return null
