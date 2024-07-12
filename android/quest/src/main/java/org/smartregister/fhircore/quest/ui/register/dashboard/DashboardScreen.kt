@@ -57,8 +57,12 @@ import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.TextButton
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
+import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
 import org.smartregister.fhircore.engine.ui.theme.ThinGreyBackground
 import org.smartregister.fhircore.quest.ui.register.tasks.BottomSheetContent
@@ -143,7 +147,9 @@ fun DashboardScreen(
             filteredRecordsCount = registerUiState.filteredRecordsCount,
             searchPlaceholder = registerUiState.registerConfiguration?.searchBar?.display,
             onSync = appMainViewModel::onEvent,
+            toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
             onSearchTextChanged = { searchText ->
+
               onEvent(RegisterEvent.SearchRegister(searchText = searchText))
             },
             isFilterIconEnabled = filterActions?.isNotEmpty() ?: false,
@@ -172,7 +178,7 @@ fun DashboardScreen(
           ) {
             Column(modifier = Modifier.padding(8.dp)) {
               Text(
-                text = "Personal Health Center",
+                text = "Health Center",
                 color = GreyTextColor,
                 style = MaterialTheme.typography.h6
               )
@@ -195,33 +201,51 @@ fun DashboardScreen(
                 .fillMaxWidth()
                 .padding(vertical = 4.dp, horizontal = 16.dp)
                 .border(
-                  width = 0.5.dp,
-                  color = Color.DarkGray
+                  width = 0.2.dp,
+                  color = Color.LightGray
                 )
                 .background(ThinGreyBackground),
               horizontalArrangement = Arrangement.SpaceBetween
             ) {
-              Text(text = "Total screened cases", modifier = Modifier.padding(vertical = 16.dp,  horizontal = 8.dp))
-              Text(text = "123", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp)) // Replace with dynamic value
+              Text(text = "Total screened cases", modifier = Modifier.padding(vertical = 16.dp,  horizontal = 8.dp),
+                style = TextStyle(
+                  fontSize = 16.sp,
+                  fontWeight = FontWeight(400),
+                ))
+              Text(text = "105", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                style = TextStyle(
+                fontSize = 32.sp,
+                  fontWeight = FontWeight(500),
+              )) // Replace with dynamic value
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(
               modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp, horizontal = 16.dp)
-                .background(SearchHeaderColor), horizontalArrangement = Arrangement.SpaceBetween
+                .background(ThinGreyBackground), horizontalArrangement = Arrangement.SpaceBetween
             ) {
               Column(
                 modifier = Modifier
                   .background(ThinGreyBackground)
                   .weight(1f)
                   .border(
-                    width = 0.5.dp,
+                    width = 0.2.dp,
                     color = Color.LightGray
                   )
               ) {
-                Text(text = "Today", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp))
-                Text(text = "5", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp)) // Replace with dynamic value
+                Text(text = "Today", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                  style = TextStyle(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight(400),
+                  ))
+                Text(text = "5", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                  style = TextStyle(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight(500),
+                    color = Color.DarkGray
+                  )
+                ) // Replace with dynamic value
               }
               Spacer(modifier = Modifier.height(8.dp))
               Column(
@@ -229,12 +253,21 @@ fun DashboardScreen(
                   .background(ThinGreyBackground)
                   .weight(1f)
                   .border(
-                    width = 0.5.dp,
+                    width = 0.2.dp,
                     color = Color.LightGray
                   )
               ) {
-                Text(text = "This Week", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp))
-                Text(text = "20", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp)) // Replace with dynamic value
+                Text(text = "This Week", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                  style = TextStyle(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight(400),
+                  ))
+                Text(text = "20", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                  style = TextStyle(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight(500),
+                    color = Color.DarkGray
+                  )) // Replace with dynamic value
               }
               Spacer(modifier = Modifier.height(8.dp))
               Column(
@@ -242,12 +275,21 @@ fun DashboardScreen(
                   .background(ThinGreyBackground)
                   .weight(1f)
                   .border(
-                    width = 0.5.dp,
+                    width = 0.2.dp,
                     color = Color.LightGray
                   )
               ) {
-                Text(text = "This Month", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp))
-                Text(text = "80", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp)) // Replace with dynamic value
+                Text(text = "This Month", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                  style = TextStyle(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight(400),
+                  ))
+                Text(text = "80", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                  style = TextStyle(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight(500),
+                    color = Color.DarkGray
+                  )) // Replace with dynamic value
               }
             }
 
@@ -258,7 +300,7 @@ fun DashboardScreen(
               .background(LightColors.primary),
               horizontalArrangement = Arrangement.Center) {
               TextButton(onClick = { }, modifier = Modifier.padding(horizontal = 8.dp)) {
-                Text(text = "New Case", style = MaterialTheme.typography.h6, color = Color.White)
+                Text(text = "Add New Case", style = MaterialTheme.typography.h6, color = Color.White)
               }
             }
             Spacer(modifier = Modifier.height(8.dp))

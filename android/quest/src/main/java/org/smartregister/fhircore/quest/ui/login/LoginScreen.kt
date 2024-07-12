@@ -95,6 +95,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.app.ApplicationConfiguration
+import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginDarkColor
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
@@ -368,7 +369,7 @@ fun LoginPage(
                 .align(Alignment.Center)
                 .size(18.dp),
               strokeWidth = 1.6.dp,
-              color = Color.White,
+              color = LightColors.primary,
             )
           }
         }

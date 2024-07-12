@@ -25,50 +25,31 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Badge
-import androidx.compose.material.BadgedBox
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
-import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.configuration.navigation.ICON_TYPE_LOCAL
-import org.smartregister.fhircore.engine.configuration.navigation.ImageConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.DarkColors
-import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.event.ToolbarClickEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainEvent
-import org.smartregister.fhircore.quest.ui.register.tasks.GenericActivity
-import org.smartregister.fhircore.quest.ui.register.tasks.GenericActivityArg
+import org.smartregister.fhircore.quest.ui.register.patients.GenericActivity
+import org.smartregister.fhircore.quest.ui.register.patients.GenericActivityArg
 
 const val DRAWER_MENU = "Drawer Menu"
 const val SEARCH = "Search"
@@ -140,7 +121,7 @@ fun TopScreenSection(
       if (toolBarHomeNavigation == ToolBarHomeNavigation.SYNC) {
 
         Icon(
-          painter = painterResource(id = R.drawable.ic_profile),
+          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_patient_male),
           contentDescription = FILTER,
           tint = Color.White,
           modifier =
@@ -154,7 +135,7 @@ fun TopScreenSection(
             .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
         )
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
         Icon(
           painter = painterResource(id = R.drawable.ic_sync),

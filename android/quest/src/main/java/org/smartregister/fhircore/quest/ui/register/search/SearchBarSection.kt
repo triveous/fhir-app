@@ -100,8 +100,7 @@ fun SearchBarSection(
       modifier =
       modifier
         .fillMaxWidth()
-        .height(94.dp)
-        .padding(horizontal = 16.dp, vertical = 16.dp)
+        .padding(horizontal = 8.dp)
         .testTag(
           TITLE_ROW_TEST_TAG,
         ),
@@ -124,7 +123,7 @@ fun SearchBarSection(
         value = searchText.value,
         onValueChange = {
           searchText.value = it
-          if (it.length > 2){
+          if (it.length > 1){
             onSearchTextChanged(it)
           } },
         maxLines = 1,
@@ -133,7 +132,7 @@ fun SearchBarSection(
           Text(
             color = GreyTextColor,
             text = stringResource(R.string.search_hint),
-            modifier = modifier.testTag(SEARCH_FIELD_TEST_TAG),
+            modifier = modifier.testTag(SEARCH_FIELD_TEST_TAG).fillMaxWidth(),
           )
         },
         modifier =
@@ -143,13 +142,6 @@ fun SearchBarSection(
           //.clip(RoundedCornerShape(size = 10.dp))
           .background(Color.White)
           .testTag(OUTLINED_BOX_TEST_TAG),
-        leadingIcon = {
-          /*Icon(
-            imageVector = Icons.Filled.Search,
-            SEARCH,
-            modifier = modifier.testTag(LEADING_ICON_TEST_TAG),
-          )*/
-        },
         trailingIcon = {
           if (searchText.value.isNotEmpty()) {
             IconButton(

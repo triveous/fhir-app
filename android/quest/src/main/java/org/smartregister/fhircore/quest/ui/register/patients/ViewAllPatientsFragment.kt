@@ -20,17 +20,12 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Scaffold
-import androidx.compose.material.SnackbarDuration
 import androidx.compose.material.rememberScaffoldState
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -38,39 +33,22 @@ import androidx.compose.ui.platform.testTag
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.findNavController
-import androidx.navigation.fragment.findNavController
-import androidx.navigation.fragment.navArgs
-import androidx.paging.compose.collectAsLazyPagingItems
 import com.google.android.fhir.sync.CurrentSyncJobStatus
-import com.google.android.fhir.sync.SyncJobStatus
-import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
+import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
+import org.smartregister.fhircore.engine.configuration.workflow.ApplicationWorkflow
 import javax.inject.Inject
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.launch
-import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.Task.TaskPriority
-import org.hl7.fhir.r4.model.Task.TaskStatus
-import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
-import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
-import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.isIn
 import org.smartregister.fhircore.quest.event.EventBus
-import org.smartregister.fhircore.quest.ui.main.AppMainUiState
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
-import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
-import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
-import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
-import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
-import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
-import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
+import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
+import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
+import org.smartregister.fhircore.quest.util.extensions.interpolateActionParamsValue
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
@@ -82,34 +60,26 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
   private val appMainViewModel by activityViewModels<AppMainViewModel>()
   //private val registerFragmentArgs by navArgs<ViewAllTasksFragmentArgs>()
   private val registerViewModel by viewModels<RegisterViewModel>()
+  var from = ""
 
   override fun onCreateView(
     inflater: LayoutInflater,
     container: ViewGroup?,
     savedInstanceState: Bundle?,
   ): View {
-    //appMainViewModel.retrieveIconsAsBitmap()
 
-    /*with(arguments) {
-      val priority = arguments?.getString(GenericActivityArg.TASK_PRIORITY)
-      val status = arguments?.getString(GenericActivityArg.TASK_STATUS)
-      val title = arguments?.getString(GenericActivityArg.SCREEN_TITLE)
-      screenTitle = title.orEmpty()
-      when(priority){
-        "ROUTINE" -> taskPriority = TaskPriority.ROUTINE
-        "URGENT" -> taskPriority = TaskPriority.URGENT
-        "ASAP" -> taskPriority = TaskPriority.ASAP
-        "STAT" -> taskPriority = TaskPriority.STAT
-        "NULL" -> taskPriority = TaskPriority.NULL
-      }
+    from = arguments?.getString(GenericActivityArg.ARG_FROM).toString()
+    val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.first()
+    val topMenuConfigId =
+      topMenuConfig.actions?.find { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig.id
 
-      when(status){
-        "REQUESTED" -> taskStatus = TaskStatus.REQUESTED
-        "INPROGRESS" -> taskStatus = TaskStatus.INPROGRESS
-        "COMPLETED" -> taskStatus = TaskStatus.COMPLETED
-        else -> {}
-      }
-    }*/
+    lifecycleScope.launchWhenCreated {
+      registerViewModel.retrieveRegisterUiState(
+        registerId = topMenuConfigId,
+        screenTitle = "screenTitle",
+        clearCache = false,
+      )
+    }
 
     return ComposeView(requireContext()).apply {
       setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -137,21 +107,64 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
               )*/
             },
           ) { innerPadding ->
-            Box(modifier = Modifier.padding(innerPadding)
+            Box(modifier = Modifier
+              .padding(innerPadding)
               .background(SearchHeaderColor)
               .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
               ViewAllPatientsScreen(
                 viewModel = registerViewModel,
-                screenTitle = "Recently Added",
-              ){
-                activity?.finish()
-              }
+                from = from,
+                registerUiState = registerViewModel.registerUiState.value,
+                onEditDraftClicked = {
+                  showQuestionnaire(registerViewModel.registerUiState.value, it)
+                },
+                screenTitle = if (from.contains(FilterType.DRAFTS.name, true)) {"Drafts"} else {"Recently Added"},
+                onBack = {
+                  activity?.finish()
+                }
+              )
             }
           }
         }
       }
     }
+  }
+
+  private fun showQuestionnaire(registerUiState: RegisterUiState, payloadJson: String) {
+    registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
+
+      noResultConfig.actionButton?.actions?.let {
+        val onClickAction =
+          it.find { it.trigger.isIn(ActionTrigger.ON_CLICK, ActionTrigger.ON_QUESTIONNAIRE_SUBMISSION) }
+
+        onClickAction?.let { theConfig ->
+          val actionConfig = theConfig.interpolate(emptyMap())
+          val interpolatedParams = interpolateActionParamsValue(actionConfig, null)
+          when (actionConfig.workflow?.let { ApplicationWorkflow.valueOf(it) }) {
+            ApplicationWorkflow.LAUNCH_QUESTIONNAIRE -> {
+              actionConfig.questionnaire?.let { questionnaireConfig ->
+                val questionnaireConfigInterpolated = questionnaireConfig.interpolate(emptyMap())
+                val bundle = Bundle()
+                bundle.putString(QuestionnaireActivity.QUESTIONNAIRE_RESPONSE_PREFILL, payloadJson)
+
+                (activity as QuestionnaireHandler).launchQuestionnaire(
+                  context = requireActivity(),
+                  questionnaireConfig = questionnaireConfigInterpolated,
+                  actionParams = interpolatedParams,
+                  extraIntentBundle = bundle
+                )
+              }
+            }
+            else -> {
+
+            }
+          }
+        }
+      }
+    }
+
+
   }
 
   override fun onResume() {

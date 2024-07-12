@@ -22,6 +22,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Scaffold
@@ -106,29 +107,14 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
                     // Register screen provides access to the side navigation
                     Scaffold(
                         modifier = Modifier.background(SearchHeaderColor),
-                        drawerGesturesEnabled = scaffoldState.drawerState.isOpen,
                         scaffoldState = scaffoldState,
-                        drawerContent = {
-                            /*AppDrawer(
-                              appUiState = uiState,
-                              openDrawer = openDrawer,
-                              onSideMenuClick = appMainViewModel::onEvent,
-                              navController = findNavController(),
-                            )*/
-                        },
-                        bottomBar = {
-                            // TODO Activate bottom nav via view configuration
-                            /* BottomScreenSection(
-                              navController = navController,
-                              mainNavigationScreens = MainNavigationScreen.appScreens
-                            )*/
-                        },
                         snackbarHost = { snackBarHostState ->
 
                         },
                     ) { innerPadding ->
                         Box(modifier = Modifier.padding(innerPadding)
                             .background(SearchHeaderColor)
+                            .fillMaxSize()
                             .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
                             ProfileSectionScreen(

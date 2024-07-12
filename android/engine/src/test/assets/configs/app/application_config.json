@@ -29,8 +29,8 @@
       "Encounter",
       "Observation",
       "Condition",
-      "Questionnaire",
-      "QuestionnaireResponse"
+      "Questionnaire"
+
     ]
   }
 }

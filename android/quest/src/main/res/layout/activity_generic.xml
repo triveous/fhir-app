@@ -5,7 +5,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.register.tasks.GenericActivity">
+    tools:context=".ui.register.patients.GenericActivity">
 
     <FrameLayout
         android:id="@+id/fragment_container"

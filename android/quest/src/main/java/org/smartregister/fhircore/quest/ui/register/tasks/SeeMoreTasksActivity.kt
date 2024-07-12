@@ -21,8 +21,8 @@ import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.tasks.GenericActivityArg.TASK_PRIORITY
-import org.smartregister.fhircore.quest.ui.register.tasks.GenericActivityArg.TASK_STATUS
+import org.smartregister.fhircore.quest.ui.register.patients.GenericActivityArg.TASK_PRIORITY
+import org.smartregister.fhircore.quest.ui.register.patients.GenericActivityArg.TASK_STATUS
 
 @AndroidEntryPoint
 @ExperimentalMaterialApi

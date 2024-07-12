@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -141,7 +142,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
               .collectAsLazyPagingItems()
           // Register screen provides access to the side navigation
           Scaffold(
-            modifier = Modifier.background(SearchHeaderColor),
+            modifier = Modifier.background(SearchHeaderColor).padding(bottom = 12.dp),
             drawerGesturesEnabled = scaffoldState.drawerState.isOpen,
             scaffoldState = scaffoldState,
             drawerContent = {

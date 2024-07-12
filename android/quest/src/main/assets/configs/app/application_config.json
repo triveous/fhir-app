@@ -33,7 +33,7 @@
       "Observation",
       "Condition",
       "Questionnaire",
-      "QuestionnaireResponse",
+
       "RelatedPerson",
       "List",
       "Flag"
