@@ -16,6 +16,7 @@
 
 package org.smartregister.fhircore.quest.ui.register.profile
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -26,11 +27,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Scaffold
-import androidx.compose.material.SnackbarDuration
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -38,39 +38,20 @@ import androidx.compose.ui.platform.testTag
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.navigation.findNavController
-import androidx.navigation.fragment.findNavController
-import androidx.navigation.fragment.navArgs
-import androidx.paging.compose.collectAsLazyPagingItems
 import com.google.android.fhir.sync.CurrentSyncJobStatus
-import com.google.android.fhir.sync.SyncJobStatus
-import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.launch
-import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
-import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
-import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.launchActivityWithNoBackStackHistory
 import org.smartregister.fhircore.quest.event.EventBus
-import org.smartregister.fhircore.quest.ui.main.AppMainUiState
+import org.smartregister.fhircore.quest.ui.login.LoginActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
-import org.smartregister.fhircore.quest.ui.register.tasks.ViewAllTasksFragment
-import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
-import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
-import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
-import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
-import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
@@ -102,6 +83,7 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
             val scaffoldState = rememberScaffoldState()
 
 
+
                 AppTheme {
 
                     // Register screen provides access to the side navigation
@@ -112,7 +94,20 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
 
                         },
                     ) { innerPadding ->
-                        Box(modifier = Modifier.padding(innerPadding)
+
+                        val isLogout by registerViewModel.isLogout.collectAsState()
+
+                        LaunchedEffect(isLogout) {
+                            if (isLogout){
+                                val intent = Intent(requireActivity(), LoginActivity::class.java)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                startActivity(intent)
+                                requireActivity().finish()
+                            }
+                        }
+
+                        Box(modifier = Modifier
+                            .padding(innerPadding)
                             .background(SearchHeaderColor)
                             .fillMaxSize()
                             .testTag(REGISTER_SCREEN_BOX_TAG)) {
@@ -123,7 +118,7 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
                                 searchText = registerViewModel.searchText,
                                 appMainViewModel = appMainViewModel,
                                 viewModel = registerViewModel,
-                                userName = userNameText
+                                userName = userNameText,
                             ){
                                 activity?.finish()
                             }

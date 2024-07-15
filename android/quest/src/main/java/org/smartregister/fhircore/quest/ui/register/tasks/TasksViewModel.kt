@@ -39,11 +39,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
+import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
@@ -56,8 +58,10 @@ import org.smartregister.fhircore.engine.domain.model.ResourceConfig
 import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterFilterState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
+import org.smartregister.fhircore.quest.util.TaskProgressState
 import java.time.LocalDate
 import java.util.Date
 import java.util.UUID
@@ -123,10 +127,19 @@ constructor(
 
 
 
-  fun updateTask(task : Task, status: TaskStatus, priority: TaskPriority){
+  fun updateTask(task : Task, status: TaskStatus, taskOutput: TaskProgressState){
     viewModelScope.launch {
+
+      val value = CodeableConcept()
+      value.text = taskOutput.text
+
       task.status = status
-      task.priority = priority
+      task.output = listOf(
+        Task.TaskOutputComponent(
+          CodeableConcept(),
+          value,
+        ),
+      )
       fhirEngine.update(task)
       getAllTasks()
     }
@@ -176,14 +189,17 @@ constructor(
 
       _newTasksStateFlow.value = tasksWithPatient
         .filter { it.task.status == TaskStatus.REQUESTED }
+        .distinctBy { it.task.logicalId }
         .sortedByDescending { it.task.meta.lastUpdated }
 
       _pendingTasksStateFlow.value = tasksWithPatient
         .filter { it.task.status == TaskStatus.INPROGRESS }
+        .distinctBy { it.task.logicalId }
         .sortedByDescending { it.task.meta.lastUpdated }
 
       _completedTasksStateFlow.value = tasksWithPatient
         .filter { it.task.status == TaskStatus.COMPLETED }
+        .distinctBy { it.task.logicalId }
         .sortedByDescending {it.task.meta.lastUpdated }
 
       _isFetchingTasks.value = false
@@ -206,8 +222,6 @@ constructor(
 
       responses.map { task ->
         val patient = patients.find {
-          Log.d("patient-task", "${it.patient?.logicalId} <> ${task.`for`.reference}")
-
           task?.`for`?.reference?.toString().let { refId ->
             (refId.toString().contains(it.patient?.logicalId.toString(), true) && task.status != TaskStatus.REJECTED)
           }
@@ -222,34 +236,86 @@ constructor(
         }
       }
 
-      _allLatestTasksStateFlow.value = tasksWithPatientList
+      _allLatestTasksStateFlow.value = tasksWithPatientList.distinctBy { it.task.logicalId }
     }
   }
 
-  fun getFilteredTasks(filter: FilterType, status: TaskStatus, priority: TaskPriority){
+  /*fun getFilteredTasks(filter: FilterType, status: TaskStatus, priority: TaskPriority): List<TaskItem> {
+    val tasks = _allLatestTasksStateFlow.value
+
+    val filteredTasks = tasks.filter { taskItem ->
+      val intent = when (filter) {
+        FilterType.URGENT_REFERRAL -> Task.TaskIntent.ORDER
+        FilterType.ADD_INVESTIGATION -> Task.TaskIntent.PLAN
+        FilterType.RETAKE_PHOTO -> Task.TaskIntent.PROPOSAL
+        else -> null // Handle unexpected filter types
+      }
+
+      intent != null && // Check for valid intent
+              taskItem.task.intent == intent &&
+              taskItem.task.priority == priority &&
+              taskItem.task.status == status
+    }.sortedByDescending { it.task.meta.lastUpdated }
+
+    return filteredTasks.filter { it.task.status != TaskStatus.REJECTED }
+  }*/
+
+
+  fun getFilteredTasks(filter: FilterType, status: TaskStatus, priority: TaskProgressState){
     val tasks = _allLatestTasksStateFlow.value
 
     var newTasks : List<TaskItem> = emptyList<TaskItem>()
+
+    newTasks = tasks.filter {
+      it.task.status == status
+    }
+
+    newTasks = newTasks.filter {
+      if (status == TaskStatus.REQUESTED){
+        if (priority == TaskProgressState.NOT_CONTACTED){
+          it.task.output.isNullOrEmpty()
+        }else{
+          it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == priority.text
+        }
+      }else{
+        it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == priority.text
+      }
+    }
+
     when(filter){
+      FilterType.URGENT_REFERRAL -> newTasks = newTasks.filter {
+        it.task.intent == Task.TaskIntent.ORDER
+      }
+      FilterType.ADD_INVESTIGATION -> newTasks = newTasks.filter {
+        it.task.intent == Task.TaskIntent.PLAN
+      }
+      FilterType.RETAKE_PHOTO -> newTasks = newTasks.filter {
+        it.task.intent == Task.TaskIntent.PROPOSAL
+      }
+    }
+
+
+
+    /*when(filter){
       FilterType.URGENT_REFERRAL -> {
         when(status){
           TaskStatus.REQUESTED -> {
             //Not responded
-            newTasks = if (priority == TaskPriority.ASAP){
+            newTasks = if (priority == TaskProgressState.NOT_CONTACTED){
               tasks.filter {
-                (it.task.intent == Task.TaskIntent.ORDER && it.task.priority == TaskPriority.ASAP && it.task.status == status)
+                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.ORDER && it.task.priority == TaskPriority.ASAP && it.task.status == status)
               }.sortedByDescending { it.task.meta.lastUpdated }
             }else{
               //All others are Not contacted
               tasks.filter {
-                (it.task.intent == Task.TaskIntent.ORDER && it.task.priority != TaskPriority.ASAP && it.task.status == status)
+                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.ORDER && it.task.priority != TaskPriority.ASAP && it.task.status == status)
               }.sortedByDescending { it.task.meta.lastUpdated }
             }
           }
 
           TaskStatus.INPROGRESS -> {
             newTasks = tasks.filter {
-              (it.task.intent == Task.TaskIntent.ORDER && it.task.priority == priority && it.task.status == status)
+              (it.task.status == TaskStatus.INPROGRESS && it.task.intent == Task.TaskIntent.ORDER && it.task.priority == priority && it.task.status == status)
             }.sortedByDescending { it.task.meta.lastUpdated }
           }
 
@@ -265,19 +331,19 @@ constructor(
             //Not responded
             newTasks = if (priority == TaskPriority.ASAP){
               tasks.filter {
-                (it.task.intent == Task.TaskIntent.PLAN && it.task.priority == TaskPriority.ASAP && it.task.status == status)
+                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.PLAN && it.task.priority == TaskPriority.ASAP)
               }.sortedByDescending { it.task.meta.lastUpdated }
             }else{
               //All others are Not contacted
               tasks.filter {
-                (it.task.intent == Task.TaskIntent.PLAN && it.task.priority != TaskPriority.ASAP && it.task.status == status)
+                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.PLAN && it.task.priority != TaskPriority.ASAP)
               }.sortedByDescending { it.task.meta.lastUpdated }
             }
           }
 
           TaskStatus.INPROGRESS -> {
             newTasks = tasks.filter {
-              (it.task.intent == Task.TaskIntent.PLAN && it.task.priority == priority && it.task.status == status)
+              (it.task.status == TaskStatus.INPROGRESS && it.task.intent == Task.TaskIntent.PLAN && it.task.priority == priority)
             }.sortedByDescending { it.task.meta.lastUpdated }
           }
 
@@ -291,21 +357,21 @@ constructor(
         when(status){
           TaskStatus.REQUESTED -> {
             //Not responded
-            if (priority == TaskPriority.ASAP){
-              newTasks = tasks.filter {
-                (it.task.intent == Task.TaskIntent.PROPOSAL && it.task.priority == TaskPriority.ASAP && it.task.status == status)
+            newTasks = if (priority == TaskPriority.ASAP){
+              tasks.filter {
+                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.PROPOSAL && it.task.priority == TaskPriority.ASAP )
               }.sortedByDescending { it.task.meta.lastUpdated }
             }else{
               //All others are Not contacted
-              newTasks = tasks.filter {
-                (it.task.intent == Task.TaskIntent.PROPOSAL && it.task.priority != TaskPriority.ASAP && it.task.status == status)
+              tasks.filter {
+                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.PROPOSAL && it.task.priority != TaskPriority.ASAP )
               }.sortedByDescending { it.task.meta.lastUpdated }
             }
           }
 
           TaskStatus.INPROGRESS -> {
             newTasks = tasks.filter {
-              (it.task.intent == Task.TaskIntent.PROPOSAL && it.task.priority == priority && it.task.status == status)
+              (it.task.status == TaskStatus.INPROGRESS && it.task.intent == Task.TaskIntent.PROPOSAL && it.task.priority == priority)
             }.sortedByDescending { it.task.meta.lastUpdated }
           }
 
@@ -314,23 +380,11 @@ constructor(
           }
         }
       }
-    }
-
-    /*newTasks.forEach {
-      Log.d("patient-task", "${it.patient?.id} <> ${it.task.`for`.reference}")
-      if(it.task.description.contains("Proposal")){
-          it.task.status = TaskStatus.REJECTED
-      }
-      if(it.task.description.contains("Shivaraj")){
-        it.task.status = TaskStatus.REJECTED
-      }
-    }
-*/
-
+    }*/
 
     newTasks = newTasks.filter {
       it.task.status != TaskStatus.REJECTED
-    }
+    }.distinctBy { it.task.logicalId }
 
     _filteredTasksStateFlow.value = newTasks
   }

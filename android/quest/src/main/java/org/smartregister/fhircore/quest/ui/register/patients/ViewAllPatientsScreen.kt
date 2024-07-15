@@ -367,7 +367,7 @@ fun ShowUnSyncedPatients2(
     } else {
       Box(
         modifier = modifier
-          .background(SearchHeaderColor)
+          .background(SearchHeaderColor, )
           .fillMaxWidth()
       ) {
         LazyColumn {
@@ -376,14 +376,14 @@ fun ShowUnSyncedPatients2(
               modifier = modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
-                .background(SearchHeaderColor)
+                .background(SearchHeaderColor, shape = RoundedCornerShape(8.dp))
             ) {
 
               Card(
                 modifier = Modifier
                   .fillMaxWidth()
                   .padding(vertical = 4.dp)
-                  .background(Color.White),
+                  .background(Color.White, shape = RoundedCornerShape(8.dp)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
               ) {
                 Box(
@@ -490,7 +490,7 @@ fun ShowSyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPa
     modifier = Modifier
       .fillMaxWidth()
       .padding(vertical = 4.dp)
-      .background(Color.White),
+      .background(Color.White, shape = RoundedCornerShape(8.dp)),
     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
   ) {
     Box(
@@ -501,7 +501,7 @@ fun ShowSyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPa
         modifier = Modifier
           .fillMaxWidth()
           .padding(vertical = 8.dp, horizontal = 16.dp)
-          .background(Color.White)
+          .background(Color.White, shape = RoundedCornerShape(8.dp))
       ) {
         Row(modifier = Modifier.padding(vertical = 4.dp)) {
           androidx.compose.material.Icon(
@@ -611,7 +611,7 @@ fun ShowAllDrafts(
               modifier = modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
-                .background(Color.White)
+                .background(Color.White, shape = RoundedCornerShape(8.dp))
                 .border(
                   width = 0.dp,
                   color = Color.White,
@@ -621,7 +621,7 @@ fun ShowAllDrafts(
               Card(
                 modifier = Modifier
                   .fillMaxWidth()
-                  .background(Color.White),
+                  .background(Color.White, shape = RoundedCornerShape(8.dp)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
               ) {
                 Box(
@@ -637,14 +637,14 @@ fun ShowAllDrafts(
                     Row(modifier = modifier.padding(vertical = 4.dp)) {
                       androidx.compose.material.Icon(
                         modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp),
-                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
+                        painter = painterResource(id = R.drawable.ic_draft),
                         contentDescription = FILTER,
                       )
                       Text(
                         modifier = Modifier
                           .weight(1f)
                           .padding(vertical = 4.dp, horizontal = 8.dp),
-                        text = response.item[0].item[0].answer[0].value.asStringValue(),
+                        text = response.item[0].item[1].answer[0].value.asStringValue(),
                         style = MaterialTheme.typography.h6,
                         color = Color.DarkGray
                       )

@@ -83,14 +83,14 @@ class SeeMoreTasksActivity : AppCompatActivity() {
                     Box(modifier = Modifier
                         .background(SearchHeaderColor).padding(innerPadding)
                         ) {
-                        ViewAllTasksScreen(
+                        /*ViewAllTasksScreen(
                             viewModel = tasksViewModel,
                             screenTitle = screenTitle,
                             taskStatus = taskStatus,
                             taskPriority = taskPriority
                         ){
                             finish()
-                        }
+                        }*/
                     }
                 }
             }

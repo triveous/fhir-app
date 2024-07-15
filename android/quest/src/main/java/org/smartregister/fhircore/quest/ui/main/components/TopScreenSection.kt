@@ -119,9 +119,8 @@ fun TopScreenSection(
       val context = LocalContext.current
 
       if (toolBarHomeNavigation == ToolBarHomeNavigation.SYNC) {
-
         Icon(
-          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_patient_male),
+          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_profile_actionbar),
           contentDescription = FILTER,
           tint = Color.White,
           modifier =
@@ -134,9 +133,7 @@ fun TopScreenSection(
             }
             .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
         )
-
         Spacer(modifier = Modifier.width(12.dp))
-
         Icon(
           painter = painterResource(id = R.drawable.ic_sync),
           contentDescription = FILTER,
@@ -146,10 +143,9 @@ fun TopScreenSection(
             .clickable { onSync(AppMainEvent.SyncData(context)) }
             .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
         )
+
       }
-
     }
-
   }
 }
 

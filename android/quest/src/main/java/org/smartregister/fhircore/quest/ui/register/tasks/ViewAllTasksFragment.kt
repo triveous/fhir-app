@@ -48,6 +48,8 @@ import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.GenericActivityArg
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
+import org.smartregister.fhircore.quest.util.SectionTitles
+import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
 
 @ExperimentalMaterialApi
@@ -62,7 +64,7 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
   private val registerViewModel by viewModels<RegisterViewModel>()
   val tasksViewModel by viewModels<TasksViewModel>()
 
-  private var taskPriority : TaskPriority = TaskPriority.URGENT
+  private var taskPriority : TaskProgressState = TaskProgressState.NONE
   var taskStatus : TaskStatus = TaskStatus.REQUESTED
   var screenTitle = ""
   override fun onCreateView(
@@ -77,12 +79,12 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
       val status = arguments?.getString(GenericActivityArg.TASK_STATUS)
       val title = arguments?.getString(GenericActivityArg.SCREEN_TITLE)
       screenTitle = title.orEmpty()
-      when(priority){
-        "ROUTINE" -> taskPriority = TaskPriority.ROUTINE
-        "URGENT" -> taskPriority = TaskPriority.URGENT
-        "ASAP" -> taskPriority = TaskPriority.ASAP
-        "STAT" -> taskPriority = TaskPriority.STAT
-        "NULL" -> taskPriority = TaskPriority.NULL
+      taskPriority = when(priority){
+        TaskProgressState.NOT_CONTACTED.name -> TaskProgressState.NOT_CONTACTED
+        TaskProgressState.NOT_AGREED_FOR_FOLLOWUP.name -> TaskProgressState.NOT_AGREED_FOR_FOLLOWUP
+        TaskProgressState.NOT_RESPONDED.name -> TaskProgressState.NOT_RESPONDED
+        TaskProgressState.AGREED_FOLLOWUP_NOT_DONE.name -> TaskProgressState.AGREED_FOLLOWUP_NOT_DONE
+          else -> TaskProgressState.NONE
       }
 
       when(status){
@@ -128,9 +130,6 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
             //drawerGesturesEnabled = scaffoldState.drawerState.isOpen,
             scaffoldState = scaffoldState,
             topBar = {
-
-            },
-            drawerContent = {
 
             },
             bottomBar = {

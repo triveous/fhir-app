@@ -51,20 +51,26 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.R
+import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
+import org.smartregister.fhircore.engine.configuration.workflow.ApplicationWorkflow
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.isIn
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
+import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.tasks.ViewAllTasksFragment
+import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
+import org.smartregister.fhircore.quest.util.extensions.interpolateActionParamsValue
 import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
 
 @ExperimentalMaterialApi
@@ -83,8 +89,17 @@ class DashboardFragment : Fragment(), OnSyncListener {
         savedInstanceState: Bundle?,
     ): View {
         appMainViewModel.retrieveIconsAsBitmap()
+        val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.first()
+        val topMenuConfigId =
+            topMenuConfig.actions?.find { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig.id
 
-
+        lifecycleScope.launchWhenCreated {
+            registerViewModel.retrieveRegisterUiState(
+                registerId = topMenuConfigId,
+                screenTitle = "screenTitle",
+                clearCache = false,
+            )
+        }
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
@@ -141,8 +156,10 @@ class DashboardFragment : Fragment(), OnSyncListener {
                                 registerUiState = registerViewModel.registerUiState.value,
                                 navController = findNavController(),
                                 appMainViewModel = appMainViewModel,
-                                viewModel = registerViewModel,
-                            )
+                                viewModel = registerViewModel
+                            ) {
+                                showQuestionnaire()
+                            }
                         }
                     }
                 }
@@ -152,7 +169,7 @@ class DashboardFragment : Fragment(), OnSyncListener {
 
     override fun onResume() {
         super.onResume()
-        registerViewModel.getAllLatestTasks()
+        registerViewModel.getDashboardCasedData()
         syncListenerManager.registerSyncListener(this, lifecycle)
 
         //registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL, taskStatus, taskPriority)
@@ -161,6 +178,41 @@ class DashboardFragment : Fragment(), OnSyncListener {
     override fun onStop() {
         super.onStop()
         registerViewModel.searchText.value = "" // Clear the search term
+    }
+
+    private fun showQuestionnaire() {
+        val registerUiState = registerViewModel.registerUiState.value
+        registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
+
+            noResultConfig.actionButton?.actions?.let {
+                val onClickAction =
+                    it.find { it.trigger.isIn(ActionTrigger.ON_CLICK, ActionTrigger.ON_QUESTIONNAIRE_SUBMISSION) }
+
+                onClickAction?.let { theConfig ->
+                    val actionConfig = theConfig.interpolate(emptyMap())
+                    val interpolatedParams = interpolateActionParamsValue(actionConfig, null)
+                    when (actionConfig.workflow?.let { ApplicationWorkflow.valueOf(it) }) {
+                        ApplicationWorkflow.LAUNCH_QUESTIONNAIRE -> {
+                            actionConfig.questionnaire?.let { questionnaireConfig ->
+                                val questionnaireConfigInterpolated = questionnaireConfig.interpolate(emptyMap())
+                                val bundle = Bundle()
+                                //bundle.putString(QuestionnaireActivity.QUESTIONNAIRE_RESPONSE_PREFILL, "")
+
+                                (activity as QuestionnaireHandler).launchQuestionnaire(
+                                    context = requireActivity(),
+                                    questionnaireConfig = questionnaireConfigInterpolated,
+                                    actionParams = interpolatedParams,
+                                    extraIntentBundle = bundle
+                                )
+                            }
+                        }
+                        else -> {
+
+                        }
+                    }
+                }
+            }
+        }
     }
 
     override fun onSync(syncJobStatus: CurrentSyncJobStatus) {

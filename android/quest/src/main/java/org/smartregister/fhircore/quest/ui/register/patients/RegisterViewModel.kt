@@ -16,7 +16,6 @@
 
 package org.smartregister.fhircore.quest.ui.register.patients
 
-import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -32,10 +31,10 @@ import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
-import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import javax.inject.Inject
 import kotlin.math.ceil
 import kotlinx.coroutines.flow.Flow
@@ -46,15 +45,18 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
+import org.smartregister.fhircore.engine.auth.AuthCredentials
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.register.RegisterConfiguration
@@ -70,12 +72,20 @@ import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.rulesengine.ResourceDataRulesExecutor
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.daysPassed
+import org.smartregister.fhircore.engine.util.extension.decodeJson
 import org.smartregister.fhircore.engine.util.extension.encodeJson
+import org.smartregister.fhircore.engine.util.extension.isToday
+import org.smartregister.fhircore.engine.util.extension.monthsPassed
+import org.smartregister.fhircore.engine.util.extension.plusDays
+import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
-import org.smartregister.fhircore.quest.ui.register.tasks.FilterType
+import org.smartregister.fhircore.quest.util.OpensrpDateUtils
+import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import timber.log.Timber
 import java.time.LocalDate
@@ -90,6 +100,7 @@ constructor(
   val configurationRegistry: ConfigurationRegistry,
   val sharedPreferencesHelper: SharedPreferencesHelper,
   val dispatcherProvider: DispatcherProvider,
+  val secureSharedPreference: SecureSharedPreference,
   val resourceDataRulesExecutor: ResourceDataRulesExecutor,
   val fhirEngine: FhirEngine,
 ) : ViewModel() {
@@ -109,6 +120,9 @@ constructor(
   private var allPatientRegisterData: Flow<PagingData<ResourceData>>? = null
   private val _percentageProgress: MutableSharedFlow<Int> = MutableSharedFlow(0)
   private val _isUploadSync: MutableSharedFlow<Boolean> = MutableSharedFlow(0)
+
+  private val _dashboardDataStateFlow = MutableStateFlow<DashboardData>(DashboardData("", "", "", ""))
+  val dashboardDataStateFlow: StateFlow<DashboardData> = _dashboardDataStateFlow
 
   private val _allLatestTasksStateFlow = MutableStateFlow<List<TaskItem>>(emptyList())
   val allLatestTasksStateFlow: StateFlow<List<TaskItem>> = _allLatestTasksStateFlow
@@ -140,6 +154,9 @@ constructor(
   val isFetchingTasks: StateFlow<Boolean> = _isFetchingTasks
 
 
+  private val _isLogout = MutableStateFlow<Boolean>(false)
+  val isLogout: StateFlow<Boolean> = _isLogout
+
   private val _allSyncedPatientsStateFlow = MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
   val allSyncedPatientsStateFlow: StateFlow<List<AllPatientsResourceData>> = _allSyncedPatientsStateFlow
 
@@ -167,6 +184,11 @@ constructor(
       pagesDataCache.getOrPut(currentPage.value) {
         getPager(registerId, loadAll).flow.cachedIn(viewModelScope)
       }
+  }
+
+  fun logout(){
+    secureSharedPreference.deleteSessionPin()
+    _isLogout.value = true
   }
 
   private fun getPager(registerId: String, loadAll: Boolean = false): Pager<Int, ResourceData> {
@@ -257,10 +279,19 @@ constructor(
     }
   }
 
-  fun updateTask(task : Task, status: TaskStatus, priority: TaskPriority){
+  fun updateTask(task : Task, status: TaskStatus, taskOutput: TaskProgressState){
     viewModelScope.launch {
+
+      val value = CodeableConcept()
+      value.text = taskOutput.text
+
       task.status = status
-      task.priority = priority
+      task.output = listOf(
+        Task.TaskOutputComponent(
+          CodeableConcept(),
+          value,
+        ),
+      )
       fhirEngine.update(task)
       getAllTasks()
     }
@@ -270,60 +301,37 @@ constructor(
     _isFetchingTasks.value = true
     viewModelScope.launch {
 
-      val patients = fhirEngine.search<Patient> {
-      }.map {
-        it.resource.toResourceData()
-      }
+      // Fetch tasks and patients in parallel
+      val tasksDeferred = async { fhirEngine.search<Task> { } }
+      val patientsDeferred = async { fhirEngine.search<Patient> { } }
 
-      /*val task = Task()
-      task.intent = Task.TaskIntent.ORDER
-      task.description = "Proposal, 35"
-      task.status = TaskStatus.REQUESTED
-      task.priority = TaskPriority.STAT
-      val outPut = Task.TaskOutputComponent()
-      task.output
-      fhirEngine.create(task, isLocalOnly = false)*/
+      val allTasks = tasksDeferred.await().map { it.resource }
+      val patients = patientsDeferred.await().map { it.resource.toResourceData() }
+        .associateBy { it.patient?.logicalId } // Use associateBy to create map with ID as key
 
-      val responses = fhirEngine.search<Task> {
-      }.map { it.resource }
-
-        val tasksWithPatient : MutableList<TaskItem> = mutableListOf()
-        responses.map { task ->
-          patients.size.let { it > 0 }.let { isNotEmpty ->
-            if(isNotEmpty){
-              val patient = patients.find {
-                task?.`for`?.reference?.toString().let { refId ->
-                  (refId.toString().contains(it.patient?.logicalId.toString(), true) && task.status != TaskStatus.REJECTED)
-                }
-              }
-
-              patient?.let {
-                val taskItem = TaskItem(
-                  task = task,
-                  patient = patient?.patient // Use a default patient object if not found
-                )
-                tasksWithPatient.add(taskItem)
-              }
-            }
-          }
+      val tasksWithPatient = allTasks.mapNotNull { task ->
+        val patientId = task?.`for`?.reference?.toString()?.substringAfter("/") ?: return@mapNotNull null
+        if (task.status != TaskStatus.REJECTED && patients.containsKey(patientId)) {
+          TaskItem(task = task, patient = patients[patientId]?.patient)
+        } else {
+          null
         }
+      }.distinctBy { it.task.logicalId }
 
-      _newTasksStateFlow.value = tasksWithPatient
-        .filter { it.task.status == TaskStatus.REQUESTED }
+      _newTasksStateFlow.value = tasksWithPatient.filter { it.task.status == TaskStatus.REQUESTED }
         .sortedByDescending { it.task.meta.lastUpdated }
 
-      _pendingTasksStateFlow.value = tasksWithPatient
-        .filter { it.task.status == TaskStatus.INPROGRESS }
+      _pendingTasksStateFlow.value = tasksWithPatient.filter { it.task.status == TaskStatus.INPROGRESS }
         .sortedByDescending { it.task.meta.lastUpdated }
 
-      _completedTasksStateFlow.value = tasksWithPatient
-        .filter { it.task.status == TaskStatus.COMPLETED }
-        .sortedByDescending {it.task.meta.lastUpdated }
+      _completedTasksStateFlow.value = tasksWithPatient.filter { it.task.status == TaskStatus.COMPLETED }
+        .sortedByDescending { it.task.meta.lastUpdated }
 
       _isFetchingTasks.value = false
-
     }
   }
+
+
 
   fun getAllLatestTasks() {
     viewModelScope.launch {
@@ -356,7 +364,7 @@ constructor(
         }
       }
 
-      _allLatestTasksStateFlow.value = tasksWithPatientList
+      _allLatestTasksStateFlow.value = tasksWithPatientList.distinctBy { it.task.logicalId }
     }
   }
 
@@ -492,56 +500,8 @@ constructor(
           }
         }
       }
-      _searchedTasksStateFlow.value = matchedTasksWithPatientList
+      _searchedTasksStateFlow.value = matchedTasksWithPatientList.distinctBy { it.task.logicalId }
     }
-
-    /*viewModelScope.launch {
-
-      val patients = fhirEngine.search<Patient> {
-      }.map {
-        it.resource.toResourceData()
-      }
-
-      val responses = fhirEngine.search<Task> {
-      }.map { it.resource }
-
-      val matchedTasksWithPatientList = mutableListOf<TaskItem>()
-
-      responses.map { task ->
-        patients.size.let { it > 0 }.let { isNotEmpty ->
-          if(isNotEmpty){
-            val patient = patients.find {
-              task?.`for`?.reference?.toString().let { refId ->
-                (refId.toString().contains(it.patient?.logicalId.toString(), true) && task.status != TaskStatus.REJECTED)
-              }
-            }
-
-            patient?.let {
-              if (isPhoneNumber){
-                val phone = patient?.patient?.telecom?.get(0)?.value.toString()
-                if (searchText.contains(phone)){
-                  val taskItem = TaskItem(
-                    task = task,
-                    patient = patient?.patient // Use a default patient object if not found
-                  )
-                  matchedTasksWithPatientList.add(taskItem)
-                }
-              }else{
-                val name = patient?.patient?.name?.get(0)?.given?.get(0)?.value.toString() ?: ""
-                if (name.contains(searchText, true)){
-                  val taskItem = TaskItem(
-                    task = task,
-                    patient = patient?.patient // Use a default patient object if not found
-                  )
-                  matchedTasksWithPatientList.add(taskItem)
-                }
-              }
-            }
-          }
-        }
-      }
-      _searchedTasksStateFlow.value = matchedTasksWithPatientList
-    }*/
   }
 
   fun clearSearch(){
@@ -549,27 +509,39 @@ constructor(
   }
 
   fun getNotContactedNewTasks(tasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
+
     return tasks.filter {
-      (it.task.priority != TaskPriority.ASAP && it.task.status == status)
-    }.sortedByDescending { it.task.meta.lastUpdated }
+      (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() != TaskProgressState.NOT_RESPONDED.text)
+
+      //(it.task.priority != TaskPriority.ASAP && it.task.status == status)
+    }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
   }
 
   fun getNotRespondedNewTasks(tasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
-    return tasks.filter {
-      (it.task.priority == TaskPriority.ASAP && it.task.status == status)
-    }.sortedByDescending { it.task.meta.lastUpdated }
+    return tasks.filter { it ->
+      (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == TaskProgressState.NOT_RESPONDED.text)
+
+
+      //(it.task.priority == TaskPriority.ASAP && it.task.status == status)
+    }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
   }
 
   fun getPendingAgreedButNotDoneTasks(newTasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
     return newTasks.filter {
-      (it.task.priority == TaskPriority.STAT && it.task.status == status)
-    }.sortedByDescending { it.task.meta.lastUpdated }
+      (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == TaskProgressState.AGREED_FOLLOWUP_NOT_DONE.text)
+
+
+      //(it.task.priority == TaskPriority.STAT && it.task.status == status)
+    }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
   }
 
   fun getPendingNotAgreedTasks(newTasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
     return newTasks.filter {
-      (it.task.priority == TaskPriority.URGENT && it.task.status == status)
-    }.sortedByDescending { it.task.meta.lastUpdated }
+      (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == TaskProgressState.NOT_AGREED_FOR_FOLLOWUP.text)
+
+
+      //(it.task.priority == TaskPriority.URGENT && it.task.status == status)
+    }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
   }
 
 
@@ -833,6 +805,27 @@ constructor(
     _isUploadSync.emit(isUploadSync)
   }
 
+  fun getDashboardCasedData(){
+
+    viewModelScope.launch {
+      val patients = fhirEngine.search<Patient> {
+        // ... your search criteria
+      }.map {
+        it.resource
+      }.sortedByDescending { it.meta.lastUpdated }
+      val todayCases = patients.filter {
+        it?.meta?.lastUpdated?.isToday() == true }.size
+
+      val thisWeek = patients.filter { (it?.meta?.lastUpdated?.daysPassed() ?: 0) <= 7 }.size
+
+      val thisMonth = patients.filter { (it?.meta?.lastUpdated?.monthsPassed() ?: 0) < 1 }.size
+
+      val data = DashboardData("$todayCases", "$thisWeek", "$thisMonth", "${patients.size}")
+      // Update UI or perform further actions with the counts
+      _dashboardDataStateFlow.value = data
+    }
+  }
+
   fun getAllPatients() {
     /*viewModelScope.launch {
       val patients = fhirEngine.search<Patient> {
@@ -999,6 +992,15 @@ constructor(
     val payloadJson: String
   )
 
+  data class DashboardData constructor(
+    val todayCases: String,
+    val thisWeekCases: String,
+    val thisMonthCases: String,
+    val totalCases: String
+  ){
+
+  }
+
     fun parsePatientJson(json: String): Patient2? {
       val gson = Gson()
       try {
@@ -1086,9 +1088,12 @@ constructor(
     )
   }
 
+  fun getUserName(): String {
+    return secureSharedPreference.retrieveSessionUsername() ?: "Guest"
+  }
 
 
-    // ResourceData class with all three types and meta information
+  // ResourceData class with all three types and meta information
   data class AllPatientsResourceData(
         val id: String,
         val meta: Meta,
