@@ -160,6 +160,7 @@ constructor(
       }
 
     Timber.i("SYNC CONFIG $pairs")
+    //pairs.removeAt(6)
 
     return mapOf(*pairs.toTypedArray())
   }

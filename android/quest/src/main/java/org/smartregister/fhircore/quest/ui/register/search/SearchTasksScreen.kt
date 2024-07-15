@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -80,6 +81,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
+import org.smartregister.fhircore.quest.util.TaskProgressState
 
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)
@@ -104,28 +106,39 @@ fun SearchTasksScreen(
     sheetState = bottomSheetState,
     sheetContent = {
       selectedTask?.let { task ->
-        BottomSheetContent(task = task, onStatusUpdate = {
-          var status : TaskStatus = TaskStatus.NULL
-          when(it){
-
-            TaskPriority.ROUTINE -> {
+        BottomSheetContent(task = task, onStatusUpdate = { priority ->
+          var status : TaskStatus = task.task.status
+          var taskPriority = priority
+          when(priority){
+            TaskProgressState.FOLLOWUP_DONE -> {
               status = TaskStatus.COMPLETED
             }
-            TaskPriority.URGENT -> {
+            TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
               status = TaskStatus.INPROGRESS
             }
-            TaskPriority.STAT -> {
+            TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
               status = TaskStatus.INPROGRESS
             }
-            TaskPriority.ASAP -> {
-              status = TaskStatus.INPROGRESS
+
+            TaskProgressState.NONE -> {
+              //taskPriority = TaskProgressState.FOLLOWUP_DONE
+              //status = TaskStatus.REJECTED
             }
-            TaskPriority.NULL -> {
-              status = TaskStatus.INPROGRESS
+            TaskProgressState.REMOVE -> {
+              taskPriority = TaskProgressState.REMOVE
+              status = TaskStatus.REJECTED
             }
+
+            TaskProgressState.NOT_RESPONDED -> {
+              //Status remain same only moves Not contacted to no responded section
+              taskPriority = TaskProgressState.NOT_RESPONDED
+              status = task.task.status
+            }
+
+            else -> { }
           }
 
-          viewModel.updateTask(task.task, status, it)
+          viewModel.updateTask(task.task, status, taskPriority)
           coroutineScope.launch {
             bottomSheetState.hide()
           }
@@ -247,16 +260,15 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
   Box(
     modifier = Modifier
       .fillMaxWidth()
-      .background(SearchHeaderColor)
+      .background(SearchHeaderColor, shape = RoundedCornerShape(8.dp))
       .clickable {
         onSelectTask(task)
-        //viewModel.updateTask(task, Task.TaskStatus.INPROGRESS, Task.TaskPriority.ROUTINE)
       }
   ) {
     Card(
       modifier = Modifier
         .fillMaxWidth()
-        .background(Color.White),
+        .background(Color.White, shape = RoundedCornerShape(8.dp)),
       elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
       Box(

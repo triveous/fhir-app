@@ -74,15 +74,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import org.hl7.fhir.r4.model.CodeableConcept
+import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
+import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils
+import org.smartregister.fhircore.quest.util.TaskProgressState
+import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
 
 
 const val URGENT_REFERRAL_TAB = "Urgent Referral"
@@ -109,10 +115,15 @@ fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit
     FilterType.entries.forEachIndexed { index, filter ->
       Box(modifier = Modifier
         .border(width = 0.5.dp, color = (if (filter == selectedFilter) LightColors.primary else Color.LightGray ), shape = RoundedCornerShape(8.dp))
-        .background(if (filter == selectedFilter) LightColors.primary else SearchHeaderColor)
+        .background(if (filter == selectedFilter) LightColors.primary else SearchHeaderColor,
+          shape = RoundedCornerShape(8.dp))
         .padding(8.dp)) {
         Text(
           text = filter.label,
+          style = TextStyle(
+            fontWeight = FontWeight(600),
+            fontSize = 16.sp
+          ),
           modifier = Modifier
             .padding(4.dp)
             .clickable {
@@ -135,7 +146,7 @@ fun ViewAllTasksScreen(
   viewModel : TasksViewModel,
   screenTitle : String,
   taskStatus: TaskStatus,
-  taskPriority: TaskPriority,
+  taskPriority: TaskProgressState,
   onBack : () -> Unit
 ) {
   val lazyListState: LazyListState = rememberLazyListState()
@@ -163,27 +174,37 @@ fun ViewAllTasksScreen(
       sheetState = bottomSheetState,
       sheetContent = {
         selectedTask?.let { task ->
-          TasksBottomSheetContent(task = task, onStatusUpdate = {
+          TasksBottomSheetContent(task = task, onStatusUpdate = {taskProgressState ->
             var status : TaskStatus = TaskStatus.NULL
-            when(it){
-              TaskPriority.ROUTINE -> {
+            when(taskProgressState){
+              TaskProgressState.FOLLOWUP_DONE -> {
                 status = TaskStatus.COMPLETED
               }
-              TaskPriority.URGENT -> {
+              TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
                 status = TaskStatus.INPROGRESS
               }
-              TaskPriority.STAT -> {
+              TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
                 status = TaskStatus.INPROGRESS
               }
-              TaskPriority.ASAP -> {
-                status = TaskStatus.INPROGRESS
+              TaskProgressState.NOT_CONTACTED -> {
+                status = TaskStatus.REQUESTED
               }
-              TaskPriority.NULL -> {
-                status = TaskStatus.INPROGRESS
+              TaskProgressState.NOT_RESPONDED -> {
+                status = TaskStatus.REQUESTED
+              }
+              TaskProgressState.DEFAULT -> {
+                status = TaskStatus.REQUESTED
+              }
+              TaskProgressState.REMOVE -> {
+                status = TaskStatus.REJECTED
+              }
+              else -> {
+                status = TaskStatus.REQUESTED
+
               }
             }
 
-            viewModel.updateTask(task.task, status, it)
+            viewModel.updateTask(task.task, status, taskProgressState)
             coroutineScope.launch {
               bottomSheetState.hide()
             }
@@ -208,16 +229,16 @@ fun ViewAllTasksScreen(
           val filteredTasks by viewModel.filteredTasksStateFlow.collectAsState()
           val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
 
+          LaunchedEffect(key1 = selectedFilter, key2 = allLatestTasksStateFlow) {
+            viewModel.getFilteredTasks(selectedFilter, taskStatus, taskPriority)
+          }
+
           Column(
             modifier = modifier
               .fillMaxHeight()
               .background(SearchHeaderColor)
               .fillMaxWidth()
           ){
-
-            LaunchedEffect(key1 = selectedFilter, key2 = allLatestTasksStateFlow) {
-              viewModel.getFilteredTasks(selectedFilter, taskStatus, taskPriority)
-            }
 
             Row(modifier = Modifier
               .fillMaxWidth()) {
@@ -281,26 +302,25 @@ fun ViewAllTasksScreen(
 
 
 @Composable
-fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (TaskPriority) -> Unit, onCancel: () -> Unit) {
+fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (TaskProgressState) -> Unit, onCancel: () -> Unit) {
 
   var name = ""
   var phone = ""
   var date = ""
   var address = ""
-  if (task.patient?.name?.isNotEmpty() == true && task.patient.name?.get(0)?.given?.isNotEmpty() == true){
-    name = task.patient.name?.get(0)?.given?.get(0)?.value.orEmpty()
-    phone = task.patient.telecom?.get(0)?.value.orEmpty()
-    date = task.patient.meta?.lastUpdated?.let { OpensrpDateUtils.convertToDate(it) }.toString()
+  if (task.patient?.name?.isNotEmpty() == true && task.patient?.name?.get(0)?.given?.isNotEmpty() == true){
+    name = task.patient?.name?.get(0)?.given?.get(0)?.value.toString()
+    phone = task.patient?.telecom?.get(0)?.value.toString()
+    date = task.patient?.meta?.lastUpdated?.let { OpensrpDateUtils.convertToDate(it) }.toString()
     address = getPatientAddress(task.patient)
   }
-
   val context = LocalContext.current
   Column(
     modifier = Modifier
       .fillMaxWidth()
       .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 36.dp)
   ) {
-    val selectedPriority = remember { mutableStateOf(TaskPriority.NULL) } // Initial selected status
+    val selectedPriority = remember { mutableStateOf(TaskProgressState.NONE) } // Initial selected status
 
     Row(modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp)) {
 
@@ -373,7 +393,9 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
           fontSize = 14.sp,)
       }
 
-      Row(modifier = Modifier.align(Alignment.CenterVertically)
+
+      Row(modifier = Modifier
+        .align(Alignment.CenterVertically)
         .clickable {
           context.startActivity(Intent(Intent.ACTION_DIAL).apply { data = Uri.parse("tel:$phone") })
         },
@@ -450,50 +472,62 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
     }
 
     Spacer(modifier = Modifier.height(16.dp))
-    Spacer(modifier = Modifier
-      .fillMaxWidth()
-      .height(1.dp)
-      .background(Color.LightGray))
 
-    Spacer(modifier = Modifier.height(16.dp))
 
-    Text(text = "CHANGE STATUS", color = colorResource(id = R.color.subTextGrey), fontSize = 14.sp)
-    Spacer(modifier = Modifier.height(16.dp))
+    if (task.task.status != TaskStatus.COMPLETED){
+      Spacer(modifier = Modifier
+        .fillMaxWidth()
+        .height(1.dp)
+        .background(Color.LightGray))
+
+      Spacer(modifier = Modifier.height(16.dp))
+      Text(text = "CHANGE STATUS", color = colorResource(id = R.color.subTextGrey), fontSize = 14.sp)
+      Spacer(modifier = Modifier.height(16.dp))
+    }
+
 
     //val taskImportance = remember { mutableStateOf(TaskPriority.NULL) }
 
-    var options : List<Pair<TaskPriority, String>> = emptyList<Pair<Task.TaskPriority, String>>()
+    val listOfOutput = mutableListOf<Task.TaskOutputComponent>()
+    val op = Task.TaskOutputComponent()
+    val con = CodeableConcept()
+    val codee = Coding()
+    codee.code = "priority"
+    con.coding = listOf()
+    op.type = con
+    listOfOutput.add(op)
+    //task.task.output = listOfOutput
+
+    var options : List<Pair<TaskProgressState, TaskProgressStatusDisplay>> = emptyList<Pair<TaskProgressState, TaskProgressStatusDisplay>>()
     when(task.task.status) {
       TaskStatus.REQUESTED -> {
         options = listOf(
-          TaskPriority.ASAP to "Not responded",
-          TaskPriority.URGENT to "Didn't agree for follow up",
-          TaskPriority.STAT to "Agreed, Follow up not done",
-          TaskPriority.ROUTINE to "Follow up done"
+          TaskProgressState.NOT_RESPONDED to TaskProgressStatusDisplay.NOT_RESPONDED,
+          TaskProgressState.NOT_AGREED_FOR_FOLLOWUP to TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP,
+          TaskProgressState.AGREED_FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE
         )
       }
 
       TaskStatus.INPROGRESS -> {
 
-        when(task.task.priority){
-          TaskPriority.ROUTINE -> {}
-          TaskPriority.URGENT -> {
-            //Clicked item from Inprogress tab -> Not agreed for follow-up.
-            options = listOf(
-              TaskPriority.STAT to "Agreed, Follow up not done",
-              TaskPriority.NULL to "Not Agreed, Remove case"
-            )
-          }
-          TaskPriority.ASAP -> {
+        if (task.task.output.isNotEmpty()){
+          when(task.task.output.get(0).value.valueToString()){
+            TaskProgressState.NOT_AGREED_FOR_FOLLOWUP.text -> {
+              //Clicked on task from Inprogress tab -> Not agreed for follow-up.
+              options = listOf(
+                TaskProgressState.AGREED_FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE,
+                TaskProgressState.REMOVE to TaskProgressStatusDisplay.REMOVE_CASE
+              )
+            }
 
+            TaskProgressState.AGREED_FOLLOWUP_NOT_DONE.text -> {
+              //Clicked on task from Inprogress tab -> Agreed, Follow up not done section.
+              options = listOf(
+                TaskProgressState.NOT_AGREED_FOR_FOLLOWUP to TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP,
+                TaskProgressState.FOLLOWUP_DONE to TaskProgressStatusDisplay.FOLLOWUP_DONE,
+              )
+            }
           }
-          TaskPriority.STAT -> {
-            //Clicked item from Inprogress tab -> Agreed, Follow up not done section.
-            options = listOf(
-              TaskPriority.ROUTINE to "Follow up done"
-            )
-          }
-          TaskPriority.NULL -> {}
         }
       }
       TaskStatus.COMPLETED -> {
@@ -511,11 +545,14 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
         ) {
           var selectedRadioColor = Color.Gray
           selectedRadioColor = when(priority){
-            TaskPriority.ROUTINE -> Color.Green
-            TaskPriority.URGENT -> Color(0xFFFFC800)
-            TaskPriority.ASAP -> Color.Red
-            TaskPriority.STAT -> Color(0xFFFFC800)
-            TaskPriority.NULL -> Color.Gray
+            TaskProgressState.FOLLOWUP_DONE -> Color.Green
+            TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> Color(0xFFFFC800)
+            TaskProgressState.NOT_RESPONDED -> Color.Red
+            TaskProgressState.REMOVE -> Color.Red
+            TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> Color(0xFFFFC800)
+            TaskProgressState.NONE -> Color.Red
+            TaskProgressState.NOT_CONTACTED -> Color.Gray
+            TaskProgressState.DEFAULT -> Color.Gray
           }
 
 
@@ -529,17 +566,11 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
               disabledUnselectedColor = Color.Gray)
           )
           Text(
-            text = label,
+            text = label.text,
             modifier = Modifier
               .padding(horizontal = 8.dp)
               .clickable {
-                if (priority == TaskPriority.NULL) {
-                  //It's removing it from the list
-                  selectedPriority.value = TaskPriority.URGENT
-                  task.task.status = TaskStatus.REJECTED
-                } else {
-                  selectedPriority.value = priority
-                }
+                selectedPriority.value = priority
               },
             color = colorResource(id = R.color.optionColor)
           )
@@ -547,47 +578,62 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
       }
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
-    Spacer(modifier = Modifier
-      .fillMaxWidth()
-      .height(1.dp)
-      .background(Color.LightGray))
-    Spacer(modifier = Modifier.height(16.dp))
+    if (task.task.status != TaskStatus.COMPLETED){
 
-    Row(modifier = Modifier
-      .height(48.dp)
-      .fillMaxWidth()
-      .padding(horizontal = 4.dp),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.SpaceAround) {
+      Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier
+        .fillMaxWidth()
+        .height(1.dp)
+        .background(Color.LightGray))
+      Spacer(modifier = Modifier.height(16.dp))
 
-      Button(modifier = Modifier
-        .fillMaxHeight()
-        .weight(1f) // Equally divide width
+      Row(modifier = Modifier
+        .height(48.dp)
+        .fillMaxWidth()
         .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceAround) {
+
+        Button(modifier = Modifier
+          .fillMaxHeight()
+          .weight(1f) // Equally divide width
+          .padding(horizontal = 4.dp),
+          colors = ButtonDefaults.buttonColors( // Override default colors
+            backgroundColor = Color.White, // Transparent background
+            contentColor = Color.White // Set text color to white
+          ),
+          onClick = {
+            onCancel()
+            selectedPriority.value = TaskProgressState.NONE
+          }) {
+          Text(text = stringResource(id = R.string.cancel), color = Color(0xFF5B5959))
+        }
+
+        Button(modifier = Modifier
+          .fillMaxHeight()
+          .weight(1f) // Equally divide width
+          .padding(horizontal = 4.dp)
+          .background(LightColors.primary),
+          onClick = {
+            onStatusUpdate(selectedPriority.value)
+            selectedPriority.value = TaskProgressState.NONE
+          }) {
+          Text(text = stringResource(id = R.string.update_status), color = Color.White)
+        }
+      }
+    }else{
+      Button(modifier = Modifier
+        .fillMaxWidth()
+        //.weight(1f) // Equally divide width
+
+        .padding(horizontal = 16.dp),
         colors = ButtonDefaults.buttonColors( // Override default colors
           backgroundColor = Color.White, // Transparent background
           contentColor = Color.White // Set text color to white
         ),
-        onClick = {
-          onCancel()
-          selectedPriority.value = TaskPriority.NULL
-          }) {
-        Text(text = stringResource(id = R.string.cancel), color = Color(0xFF5B5959))
+        onClick = { onCancel() }) {
+        Text(text = stringResource(id = R.string.close), color = Color(0xFF5B5959))
       }
-
-      Button(modifier = Modifier
-        .fillMaxHeight()
-        .weight(1f) // Equally divide width
-        .padding(horizontal = 4.dp)
-        .background(LightColors.primary),
-        onClick = {
-          onStatusUpdate(selectedPriority.value)
-          selectedPriority.value = TaskPriority.NULL
-        }) {
-        Text(text = stringResource(id = R.string.update_status), color = Color.White)
-      }
-
     }
   }
 }
@@ -612,7 +658,7 @@ fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewMo
     modifier = Modifier
       .fillMaxWidth()
       .padding(vertical = 8.dp, horizontal = 16.dp)
-      .background(Color.White)
+      .background(Color.White, shape = RoundedCornerShape(8.dp))
       .clickable {
         onSelectTask(task)
         //viewModel.updateTask(task, Task.TaskStatus.INPROGRESS, Task.TaskPriority.ROUTINE)
@@ -621,7 +667,7 @@ fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewMo
     Card(
       modifier = Modifier
         .fillMaxWidth()
-        .background(Color.White),
+        .background(Color.White, shape = RoundedCornerShape(8.dp)),
       elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
       Box(

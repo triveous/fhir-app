@@ -19,6 +19,7 @@ package org.smartregister.fhircore.quest.ui.register.dashboard
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,7 +61,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
@@ -76,17 +76,19 @@ import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN
 @Composable
 fun DashboardScreen(
   modifier: Modifier = Modifier,
-  viewModel : RegisterViewModel,
+  viewModel: RegisterViewModel,
   appMainViewModel: AppMainViewModel,
   onEvent: (RegisterEvent) -> Unit,
   registerUiState: RegisterUiState,
   navController: NavController,
+  onAddNewCase: () -> Unit,
 ) {
   val lazyListState: LazyListState = rememberLazyListState()
   val coroutineScope = rememberCoroutineScope()
   val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden)
   val selectedTask by remember { mutableStateOf<RegisterViewModel.TaskItem?>(null) }
   val searchResultTasks by viewModel.searchedTasksStateFlow.collectAsState()
+  val dashboardDataStateFlow by viewModel.dashboardDataStateFlow.collectAsState()
 
 
   ModalBottomSheetLayout(
@@ -95,7 +97,7 @@ fun DashboardScreen(
       selectedTask?.let { task ->
         BottomSheetContent(task = task, onStatusUpdate = {
           var status: TaskStatus = TaskStatus.NULL
-          when (it) {
+          /*when (it) {
 
             TaskPriority.ROUTINE -> {
               status = TaskStatus.COMPLETED
@@ -116,7 +118,7 @@ fun DashboardScreen(
             TaskPriority.NULL -> {
               status = TaskStatus.INPROGRESS
             }
-          }
+          }*/
 
           viewModel.updateTask(task.task, status, it)
           coroutineScope.launch {
@@ -212,7 +214,7 @@ fun DashboardScreen(
                   fontSize = 16.sp,
                   fontWeight = FontWeight(400),
                 ))
-              Text(text = "105", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+              Text(text = "${dashboardDataStateFlow.totalCases}", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
                 style = TextStyle(
                 fontSize = 32.sp,
                   fontWeight = FontWeight(500),
@@ -239,7 +241,7 @@ fun DashboardScreen(
                     fontSize = 16.sp,
                     fontWeight = FontWeight(400),
                   ))
-                Text(text = "5", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                Text(text = "${dashboardDataStateFlow.todayCases}", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
                   style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight(500),
@@ -262,7 +264,7 @@ fun DashboardScreen(
                     fontSize = 16.sp,
                     fontWeight = FontWeight(400),
                   ))
-                Text(text = "20", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                Text(text = "${dashboardDataStateFlow.thisWeekCases}", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
                   style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight(500),
@@ -284,7 +286,7 @@ fun DashboardScreen(
                     fontSize = 14.sp,
                     fontWeight = FontWeight(400),
                   ))
-                Text(text = "80", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
+                Text(text = "${dashboardDataStateFlow.thisMonthCases}", modifier = Modifier.padding(vertical = 8.dp,  horizontal = 8.dp),
                   style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight(500),
@@ -297,9 +299,12 @@ fun DashboardScreen(
             Row(modifier = Modifier
               .fillMaxWidth()
               .padding(horizontal = 4.dp, vertical = 16.dp)
-              .background(LightColors.primary),
+              .background(LightColors.primary)
+              .clickable {
+                onAddNewCase()
+              },
               horizontalArrangement = Arrangement.Center) {
-              TextButton(onClick = { }, modifier = Modifier.padding(horizontal = 8.dp)) {
+              TextButton(onClick = { onAddNewCase() }, modifier = Modifier.padding(horizontal = 8.dp)) {
                 Text(text = "Add New Case", style = MaterialTheme.typography.h6, color = Color.White)
               }
             }

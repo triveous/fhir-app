@@ -20,6 +20,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.AlertDialog
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,13 +51,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.HouseSiding
@@ -70,6 +72,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
+import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ui.login.PASSWORD_FORGOT_DIALOG
 import org.smartregister.fhircore.quest.ui.main.components.DRAWER_MENU
 import org.smartregister.fhircore.quest.ui.main.components.TOP_ROW_ICON_TEST_TAG
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
@@ -82,24 +86,27 @@ import androidx.compose.ui.text.font.FontWeight.Companion as FontWeight1
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun ProfileSectionScreen(
-    modifier: Modifier = Modifier,
-    viewModel : RegisterViewModel,
-    appMainViewModel: AppMainViewModel,
-    onEvent: (RegisterEvent) -> Unit,
-    registerUiState: RegisterUiState,
-    searchText: MutableState<String>,
-    userName: String = "",
-    onBackPressed : () -> Unit
+  modifier: Modifier = Modifier,
+  viewModel: RegisterViewModel,
+  appMainViewModel: AppMainViewModel,
+  onEvent: (RegisterEvent) -> Unit,
+  registerUiState: RegisterUiState,
+  searchText: MutableState<String>,
+  userName: String = "",
+  onBackPressed: () -> Unit
 ) {
   val lazyListState: LazyListState = rememberLazyListState()
   val coroutineScope = rememberCoroutineScope()
   val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden)
   var selectedTask by remember { mutableStateOf<RegisterViewModel.TaskItem?>(null) }
   val searchResultTasks by viewModel.searchedTasksStateFlow.collectAsState()
-
+  val userNameText = viewModel.getUserName()
+  var showForgotPasswordDialog by remember { mutableStateOf(false) }
 
   Scaffold(
-    modifier = modifier.background(SearchHeaderColor).fillMaxSize(),
+    modifier = modifier
+      .background(SearchHeaderColor)
+      .fillMaxSize(),
     topBar = {
       Column(modifier = modifier
         .background(Color.White)
@@ -124,6 +131,12 @@ fun ProfileSectionScreen(
     },
 
     ) { innerPadding ->
+
+    if (showForgotPasswordDialog) {
+      ForgotPasswordDialog(
+        onDismissDialog = { showForgotPasswordDialog = false },
+      )
+    }
 
     Box(modifier = modifier
       .padding(innerPadding)
@@ -162,15 +175,16 @@ fun ProfileSectionScreen(
               Column(modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(
-                  painter = painterResource(org.smartregister.fhircore.engine.R.drawable.ic_profile), // Replace with your profile picture
+                  painter = painterResource(R.drawable.ic_patient_male), // Replace with your profile picture
                   modifier = Modifier
                     .size(84.dp)
-                    .clip(CircleShape).padding(all = 4.dp),
+                    .clip(CircleShape)
+                    .padding(all = 4.dp),
                   contentDescription = null,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                  text = "Kiran Kumar",
+                  text = "$userNameText",
                   fontWeight = FontWeight1.Bold,
                   style = TextStyle(
                     fontSize = 18.sp,
@@ -178,7 +192,7 @@ fun ProfileSectionScreen(
                   )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Username: flw1", style = TextStyle(
+                Text(text = "Username: $userNameText", style = TextStyle(
                   fontSize = 18.sp,
                   fontWeight = FontWeight.Normal,
                   letterSpacing = 0.15.sp,
@@ -204,7 +218,9 @@ fun ProfileSectionScreen(
               }
 
               Column(
-                modifier = Modifier.fillMaxWidth().background(SearchHeaderColor)
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .background(SearchHeaderColor)
                   .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
               ) {
@@ -215,6 +231,9 @@ fun ProfileSectionScreen(
                   Row(modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .clickable {
+                      viewModel.logout()
+                    }
                     .background(Color.White)) {
                     Icon(
                       Icons.Filled.PhonelinkLock,
@@ -235,6 +254,9 @@ fun ProfileSectionScreen(
                   .background(Color.White)) {
                   Row(modifier = Modifier
                     .fillMaxWidth()
+                    .clickable {
+                      showForgotPasswordDialog = true
+                    }
                     .padding(horizontal = 16.dp, vertical = 16.dp)
                     .background(Color.White)) {
                     Icon(
@@ -258,6 +280,9 @@ fun ProfileSectionScreen(
                   Row(modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .clickable {
+                      viewModel.logout()
+                    }
                     .background(Color.White)) {
                     Icon(
                       Icons.Filled.Logout,
@@ -265,7 +290,9 @@ fun ProfileSectionScreen(
                       tint = Color.Gray,
                       modifier =
                       modifier
-                        .clickable { }
+                        .clickable {
+
+                        }
                         .testTag(TOP_ROW_ICON_TEST_TAG),
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -273,11 +300,57 @@ fun ProfileSectionScreen(
                   }
                 }
               }
-
             }
           }
         }
       }
     }
   }
+}
+
+@Composable
+fun ForgotPasswordDialog(
+  onDismissDialog: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  AlertDialog(
+    onDismissRequest = onDismissDialog,
+    title = {
+      androidx.compose.material.Text(
+        text = stringResource(org.smartregister.fhircore.engine.R.string.forgot_password_title),
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+      )
+    },
+    text = {
+      androidx.compose.material.Text(text = stringResource(org.smartregister.fhircore.engine.R.string.call_supervisor), fontSize = 16.sp)
+    },
+    buttons = {
+      Row(
+        modifier = modifier
+          .fillMaxWidth()
+          .padding(vertical = 20.dp),
+        horizontalArrangement = Arrangement.End,
+      ) {
+        androidx.compose.material.Text(
+          text = stringResource(org.smartregister.fhircore.engine.R.string.cancel),
+          modifier = modifier
+            .padding(horizontal = 10.dp)
+            .clickable { onDismissDialog() },
+        )
+        androidx.compose.material.Text(
+          color = MaterialTheme.colors.primary,
+          text = stringResource(org.smartregister.fhircore.engine.R.string.ok),
+          modifier =
+          modifier
+            .padding(horizontal = 10.dp)
+            .clickable {
+              onDismissDialog()
+              //forgotPassword()
+            },
+        )
+      }
+    },
+    modifier = Modifier.testTag(PASSWORD_FORGOT_DIALOG),
+  )
 }

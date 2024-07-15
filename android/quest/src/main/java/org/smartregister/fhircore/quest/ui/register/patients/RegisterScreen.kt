@@ -448,7 +448,7 @@ fun ShowDrafts(
               modifier = modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
-                .background(Color.White)
+                .background(Color.White, shape = RoundedCornerShape(8.dp))
                 .border(
                   width = 0.dp,
                   color = Color.White,
@@ -458,7 +458,7 @@ fun ShowDrafts(
               Card(
                 modifier = Modifier
                   .fillMaxWidth()
-                  .background(Color.White),
+                  .background(Color.White, shape = RoundedCornerShape(8.dp)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
               ) {
                 Box(
@@ -481,7 +481,7 @@ fun ShowDrafts(
                         modifier = Modifier
                           .weight(1f)
                           .padding(vertical = 4.dp, horizontal = 8.dp),
-                        text = response.item[0].item[0].answer[0].value.asStringValue(),
+                        text = response.item[0].item[1].answer[0].value.asStringValue(),
                         style = TextStyle(
                           fontWeight = FontWeight(500),
                           fontSize = 18.sp,
@@ -864,12 +864,12 @@ fun SyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPatien
     modifier = Modifier
       .fillMaxWidth()
       .padding(vertical = 4.dp)
-      .background(Color.White),
+      .background(Color.White, shape = RoundedCornerShape(8.dp)),
     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
   ) {
     Box(
       modifier = Modifier
-        .background(Color.White)
+        .background(Color.White, shape = RoundedCornerShape(8.dp))
     ) {
       Column(
         modifier = Modifier
@@ -882,7 +882,7 @@ fun SyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPatien
         ) {
           androidx.compose.material.Icon(
             modifier = Modifier.padding(horizontal = 4.dp),
-            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.patient_icon),
+            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_patient_male),
             contentDescription = FILTER,
             tint = LightColors.primary
           )

@@ -163,8 +163,6 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
         }
       }
     }
-
-
   }
 
   override fun onResume() {
