@@ -110,7 +110,9 @@ import com.google.android.fhir.search.count
 import com.google.android.fhir.search.search
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import org.hl7.fhir.r4.model.Reference
 import org.smartregister.fhircore.engine.sync.SyncBroadcaster
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import java.time.format.DateTimeFormatter
 
 @HiltViewModel
@@ -123,6 +125,7 @@ constructor(
   val resourceDataRulesExecutor: ResourceDataRulesExecutor,
   val transformSupportServices: TransformSupportServices,
   val sharedPreferencesHelper: SharedPreferencesHelper,
+  val secureSharedPreference: SecureSharedPreference,
   val fhirOperator: FhirOperator,
   val fhirPathDataExtractor: FhirPathDataExtractor,
   val configurationRegistry: ConfigurationRegistry,
@@ -154,7 +157,9 @@ constructor(
     get() = _isDraftSaved
 
 
-
+  fun getUserName(): String {
+    return secureSharedPreference.retrieveSessionUsername() ?: "guestFlw"
+  }
 
   /**
    * This function retrieves the [Questionnaire] as configured via the [QuestionnaireConfig]. The
@@ -623,8 +628,13 @@ constructor(
   fun saveDraftQuestionnaire(questionnaireResponse: QuestionnaireResponse) {
     viewModelScope.launch {
       val questionnaireHasAnswer =
-        questionnaireResponse.item.any{it.item.get(0).hasAnswer()}
+        questionnaireResponse.item.any{it.item.get(1).hasAnswer()}
       if (questionnaireHasAnswer) {
+        val flwId = getUserName()
+        val ref = Reference()
+        ref.reference = "Practitioner/$flwId"
+        // set author
+        questionnaireResponse.author = ref
         questionnaireResponse.status = QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS
         defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)
         _isDraftSaved.postValue(true)

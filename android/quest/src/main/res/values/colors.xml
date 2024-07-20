@@ -39,4 +39,10 @@
     <color name="translucent_background">#52000000</color>
 
     <color name="search_query_highlight">#52FFC800</color>
+
+    <!--Task bottomsheet colors-->
+    <color name="subTextGrey">#2F363D</color>
+    <color name="subTextGreyBold">#6C737A</color>
+    <color name="optionColor">#2F363D</color>
+
 </resources>

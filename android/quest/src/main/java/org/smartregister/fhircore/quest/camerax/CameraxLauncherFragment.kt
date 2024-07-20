@@ -214,7 +214,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            val resolution = Size(760, 760)
+            val resolution = Size(3072, 3072)
 
             val preview = Preview.Builder()
                 .setTargetResolution(resolution)

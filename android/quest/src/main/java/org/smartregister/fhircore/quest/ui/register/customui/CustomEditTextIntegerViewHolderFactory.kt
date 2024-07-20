@@ -46,7 +46,11 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
 
         override fun bind(questionnaireViewItem: QuestionnaireViewItem) {
             super.bind(questionnaireViewItem)
-            textInputLayout.hint = questionnaireViewItem.questionText
+            var isMandatoryQuestion = ""
+            if (questionnaireViewItem.questionnaireItem.required){
+                isMandatoryQuestion = "*"
+            }
+            textInputLayout.hint = "${questionnaireViewItem.questionText} ${isMandatoryQuestion}"
             header.visibility = View.GONE
             displayValidationResult(questionnaireViewItem.validationResult)
         }

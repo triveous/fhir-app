@@ -95,6 +95,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.app.ApplicationConfiguration
+import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginDarkColor
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
@@ -205,7 +206,7 @@ fun LoginPage(
             color = if (applicationConfiguration.useDarkTheme) Color.White else LoginDarkColor,
             text = stringResource(R.string.appname),
             fontWeight = FontWeight.Bold,
-            fontSize = 32.sp,
+            fontSize = 30.sp,
             modifier =
             modifier
               .wrapContentWidth()
@@ -233,7 +234,7 @@ fun LoginPage(
             .testTag(USERNAME_FIELD_TAG)
             .focusRequester(usernameFocusRequester)
             .focusProperties { next = passwordFocusRequester },
-          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
           keyboardActions =
             KeyboardActions(onDone = { focusManager.moveFocus(FocusDirection.Next) }),
         )
@@ -368,7 +369,7 @@ fun LoginPage(
                 .align(Alignment.Center)
                 .size(18.dp),
               strokeWidth = 1.6.dp,
-              color = Color.White,
+              color = LightColors.primary,
             )
           }
         }
