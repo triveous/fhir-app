@@ -152,6 +152,7 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
                 viewModel = tasksViewModel,
                 screenTitle = screenTitle,
                 taskStatus = taskStatus,
+                registerViewModel = registerViewModel,
                 taskPriority = taskPriority
               ){
                 activity?.finish()

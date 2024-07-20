@@ -31,6 +31,7 @@ import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -58,10 +59,14 @@ import org.smartregister.fhircore.engine.domain.model.ResourceConfig
 import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.SharedPreferenceKey
+import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterFilterState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.TaskProgressState
+import org.smartregister.model.practitioner.PractitionerDetails
 import java.time.LocalDate
 import java.util.Date
 import java.util.UUID
@@ -71,6 +76,7 @@ class TasksViewModel
 @Inject
 constructor(
   val dispatcherProvider: DispatcherProvider,
+  val sharedPreferencesHelper: SharedPreferencesHelper,
   val fhirEngine: FhirEngine,
 ) : ViewModel() {
 
@@ -148,40 +154,37 @@ constructor(
   fun getAllTasks() {
     _isFetchingTasks.value = true
     viewModelScope.launch {
+      val practitionerDetails = getPractitionerDetails()
+
+      val practitionerId = practitionerDetails?.id
 
       val patients = fhirEngine.search<Patient> {
       }.map {
         it.resource.toResourceData()
       }
 
-      /*val task = Task()
-      task.intent = Task.TaskIntent.ORDER
-      task.description = "Proposal, 35"
-      task.status = TaskStatus.REQUESTED
-      task.priority = TaskPriority.STAT
-      val outPut = Task.TaskOutputComponent()
-      task.output
-      fhirEngine.create(task, isLocalOnly = false)*/
-
       val responses = fhirEngine.search<Task> {
       }.map { it.resource }
 
         val tasksWithPatient : MutableList<TaskItem> = mutableListOf()
         responses.map { task ->
-          patients.size.let { it > 0 }.let { isNotEmpty ->
-            if(isNotEmpty){
-              val patient = patients.find {
-                task?.`for`?.reference?.toString().let { refId ->
-                  (refId.toString().contains(it.patient?.logicalId.toString(), true) && task.status != TaskStatus.REJECTED)
-                }
-              }
 
-              patient?.let {
-                val taskItem = TaskItem(
-                  task = task,
-                  patient = patient?.patient // Use a default patient object if not found
-                )
-                tasksWithPatient.add(taskItem)
+          if (task?.owner?.identifier?.value == practitionerId){
+            patients.size.let { it > 0 }.let { isNotEmpty ->
+              if(isNotEmpty){
+                val patient = patients.find {
+                  task?.`for`?.reference?.toString().let { refId ->
+                    (refId.toString().contains(it.patient?.logicalId.toString(), true) && task.status != TaskStatus.REJECTED)
+                  }
+                }
+
+                patient?.let {
+                  val taskItem = TaskItem(
+                    task = task,
+                    patient = patient?.patient // Use a default patient object if not found
+                  )
+                  tasksWithPatient.add(taskItem)
+                }
               }
             }
           }
@@ -207,59 +210,40 @@ constructor(
     }
   }
 
-  fun getAllLatestTasks() {
-    viewModelScope.launch {
-
-      val patients = fhirEngine.search<Patient> {
-      }.map {
-        it.resource.toResourceData()
-      }
-
-      val responses = fhirEngine.search<Task> {
-      }.map { it.resource }
-
-      val tasksWithPatientList = mutableListOf<TaskItem>()
-
-      responses.map { task ->
-        val patient = patients.find {
-          task?.`for`?.reference?.toString().let { refId ->
-            (refId.toString().contains(it.patient?.logicalId.toString(), true) && task.status != TaskStatus.REJECTED)
-          }
-
-        }
-        patient?.let {
-          val taskItem = TaskItem(
-            task = task,
-            patient = patient?.patient
-          )
-          tasksWithPatientList.add(taskItem)
-        }
-      }
-
-      _allLatestTasksStateFlow.value = tasksWithPatientList.distinctBy { it.task.logicalId }
-    }
+  fun getPractitionerDetails() : PractitionerDetails? {
+      return sharedPreferencesHelper.read<PractitionerDetails>(
+        key = SharedPreferenceKey.PRACTITIONER_DETAILS.name,
+        decodeWithGson = true,
+      )
   }
 
-  /*fun getFilteredTasks(filter: FilterType, status: TaskStatus, priority: TaskPriority): List<TaskItem> {
-    val tasks = _allLatestTasksStateFlow.value
+  fun getAllLatestTasks() {
+    viewModelScope.launch {
+      val practitionerDetails = getPractitionerDetails()
+      val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
 
-    val filteredTasks = tasks.filter { taskItem ->
-      val intent = when (filter) {
-        FilterType.URGENT_REFERRAL -> Task.TaskIntent.ORDER
-        FilterType.ADD_INVESTIGATION -> Task.TaskIntent.PLAN
-        FilterType.RETAKE_PHOTO -> Task.TaskIntent.PROPOSAL
-        else -> null // Handle unexpected filter types
-      }
+      // Fetch tasks and patients in parallel
+      val tasksDeferred = async { fhirEngine.search<Task> { } }
+      val patientsDeferred = async { fhirEngine.search<Patient> { } }
 
-      intent != null && // Check for valid intent
-              taskItem.task.intent == intent &&
-              taskItem.task.priority == priority &&
-              taskItem.task.status == status
-    }.sortedByDescending { it.task.meta.lastUpdated }
+      val allTasks = tasksDeferred.await().map { it.resource }
+      val patients = patientsDeferred.await().map { it.resource.toResourceData() }
+        .associateBy { it.patient?.logicalId } // Use associateBy to create map with ID as key
 
-    return filteredTasks.filter { it.task.status != TaskStatus.REJECTED }
-  }*/
+      val tasksWithPatient = allTasks.mapNotNull { task ->
 
+        val taskOwnerId = task.owner?.reference?.toString()?.substringAfterLast("/") ?: ""
+        val patientId = task?.`for`?.reference?.toString()?.substringAfter("/") ?: return@mapNotNull null
+        if (taskOwnerId == practitionerId && task.status != TaskStatus.REJECTED && patients.containsKey(patientId)) {
+          TaskItem(task = task, patient = patients[patientId]?.patient)
+        } else {
+          null
+        }
+      }.distinctBy { it.task.logicalId }
+
+      _allLatestTasksStateFlow.value = tasksWithPatient.distinctBy { it.task.logicalId }
+    }
+  }
 
   fun getFilteredTasks(filter: FilterType, status: TaskStatus, priority: TaskProgressState){
     val tasks = _allLatestTasksStateFlow.value
@@ -294,93 +278,6 @@ constructor(
       }
     }
 
-
-
-    /*when(filter){
-      FilterType.URGENT_REFERRAL -> {
-        when(status){
-          TaskStatus.REQUESTED -> {
-            //Not responded
-            newTasks = if (priority == TaskProgressState.NOT_CONTACTED){
-              tasks.filter {
-                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.ORDER && it.task.priority == TaskPriority.ASAP && it.task.status == status)
-              }.sortedByDescending { it.task.meta.lastUpdated }
-            }else{
-              //All others are Not contacted
-              tasks.filter {
-                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.ORDER && it.task.priority != TaskPriority.ASAP && it.task.status == status)
-              }.sortedByDescending { it.task.meta.lastUpdated }
-            }
-          }
-
-          TaskStatus.INPROGRESS -> {
-            newTasks = tasks.filter {
-              (it.task.status == TaskStatus.INPROGRESS && it.task.intent == Task.TaskIntent.ORDER && it.task.priority == priority && it.task.status == status)
-            }.sortedByDescending { it.task.meta.lastUpdated }
-          }
-
-          else -> {
-
-          }
-        }
-      }
-
-      FilterType.ADD_INVESTIGATION -> {
-        when(status){
-          TaskStatus.REQUESTED -> {
-            //Not responded
-            newTasks = if (priority == TaskPriority.ASAP){
-              tasks.filter {
-                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.PLAN && it.task.priority == TaskPriority.ASAP)
-              }.sortedByDescending { it.task.meta.lastUpdated }
-            }else{
-              //All others are Not contacted
-              tasks.filter {
-                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.PLAN && it.task.priority != TaskPriority.ASAP)
-              }.sortedByDescending { it.task.meta.lastUpdated }
-            }
-          }
-
-          TaskStatus.INPROGRESS -> {
-            newTasks = tasks.filter {
-              (it.task.status == TaskStatus.INPROGRESS && it.task.intent == Task.TaskIntent.PLAN && it.task.priority == priority)
-            }.sortedByDescending { it.task.meta.lastUpdated }
-          }
-
-          else -> {
-
-          }
-        }
-      }
-
-      FilterType.RETAKE_PHOTO -> {
-        when(status){
-          TaskStatus.REQUESTED -> {
-            //Not responded
-            newTasks = if (priority == TaskPriority.ASAP){
-              tasks.filter {
-                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.PROPOSAL && it.task.priority == TaskPriority.ASAP )
-              }.sortedByDescending { it.task.meta.lastUpdated }
-            }else{
-              //All others are Not contacted
-              tasks.filter {
-                (it.task.status == TaskStatus.REQUESTED && it.task.intent == Task.TaskIntent.PROPOSAL && it.task.priority != TaskPriority.ASAP )
-              }.sortedByDescending { it.task.meta.lastUpdated }
-            }
-          }
-
-          TaskStatus.INPROGRESS -> {
-            newTasks = tasks.filter {
-              (it.task.status == TaskStatus.INPROGRESS && it.task.intent == Task.TaskIntent.PROPOSAL && it.task.priority == priority)
-            }.sortedByDescending { it.task.meta.lastUpdated }
-          }
-
-          else -> {
-
-          }
-        }
-      }
-    }*/
 
     newTasks = newTasks.filter {
       it.task.status != TaskStatus.REJECTED

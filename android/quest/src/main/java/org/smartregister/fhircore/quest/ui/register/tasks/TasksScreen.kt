@@ -110,6 +110,7 @@ import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskOutputComponent
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
+import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.R
@@ -248,9 +249,16 @@ fun PendingTasksScreen(
             else -> { }
           }
 
-          viewModel.updateTask(task.task, status, taskPriority)
-          coroutineScope.launch {
-            bottomSheetState.hide()
+          if(taskPriority != TaskProgressState.NONE){
+            viewModel.updateTask(task.task, status, taskPriority)
+            coroutineScope.launch {
+              viewModel.emitSnackBarState(SnackBarMessageConfig("Status updated successfully"))
+              bottomSheetState.hide()
+            }
+          }else{
+            coroutineScope.launch {
+              viewModel.emitSnackBarState(SnackBarMessageConfig("Select the status to update"))
+            }
           }
         },
           onCancel = {

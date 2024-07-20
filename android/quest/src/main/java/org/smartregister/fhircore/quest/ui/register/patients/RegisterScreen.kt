@@ -444,6 +444,8 @@ fun ShowDrafts(
           .fillMaxWidth()
           .height(350.dp)) {
           items(drafts) { response ->
+            val result = response?.item?.firstOrNull()?.item.takeIf { (it?.size ?: 0) >= 1 }
+            val title = result?.get(1)?.answer?.firstOrNull()?.value?.asStringValue() ?: "Guest"
             Box(
               modifier = modifier
                 .fillMaxWidth()
@@ -481,7 +483,7 @@ fun ShowDrafts(
                         modifier = Modifier
                           .weight(1f)
                           .padding(vertical = 4.dp, horizontal = 8.dp),
-                        text = response.item[0].item[1].answer[0].value.asStringValue(),
+                        text = title,
                         style = TextStyle(
                           fontWeight = FontWeight(500),
                           fontSize = 18.sp,

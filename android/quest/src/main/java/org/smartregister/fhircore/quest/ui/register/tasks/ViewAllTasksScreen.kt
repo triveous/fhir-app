@@ -83,9 +83,11 @@ import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
+import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
@@ -144,6 +146,7 @@ fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit
 fun ViewAllTasksScreen(
   modifier: Modifier = Modifier,
   viewModel : TasksViewModel,
+  registerViewModel: RegisterViewModel,
   screenTitle : String,
   taskStatus: TaskStatus,
   taskPriority: TaskProgressState,
@@ -204,9 +207,16 @@ fun ViewAllTasksScreen(
               }
             }
 
-            viewModel.updateTask(task.task, status, taskProgressState)
-            coroutineScope.launch {
-              bottomSheetState.hide()
+            if(taskPriority != TaskProgressState.NONE){
+              registerViewModel.updateTask(task.task, status, taskPriority)
+              coroutineScope.launch {
+                registerViewModel.emitSnackBarState(SnackBarMessageConfig("Status updated successfully"))
+                bottomSheetState.hide()
+              }
+            }else{
+              coroutineScope.launch {
+                registerViewModel.emitSnackBarState(SnackBarMessageConfig("Select the status to update"))
+              }
             }
           },
             onCancel = {
