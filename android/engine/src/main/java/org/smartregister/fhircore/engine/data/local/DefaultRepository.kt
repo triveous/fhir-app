@@ -164,10 +164,10 @@ constructor(
    * By default, mandatory Resource tags for sync are added but this can be disabled through the
    * param [addResourceTags]
    */
-  suspend fun create(addResourceTags: Boolean = true, vararg resource: Resource): List<String> {
+  suspend fun create(addResourceTags: Boolean = true, vararg resource: Resource, isLocalOnly: Boolean = false): List<String> {
     return withContext(dispatcherProvider.io()) {
       preProcessResources(addResourceTags, *resource)
-      fhirEngine.create(*resource)
+      fhirEngine.create(*resource, isLocalOnly = isLocalOnly)
     }
   }
 
@@ -241,16 +241,16 @@ constructor(
    * By default, mandatory Resource tags for sync are added but this can be disabled through the
    * param [addMandatoryTags]
    */
-  suspend fun <R : Resource> addOrUpdate(addMandatoryTags: Boolean = true, resource: R) {
+  suspend fun <R : Resource> addOrUpdate(addMandatoryTags: Boolean = true, resource: R, isLocalOnly: Boolean = false) {
     return withContext(dispatcherProvider.io()) {
       resource.updateLastUpdated()
       try {
         fhirEngine.get(resource.resourceType, resource.logicalId).run {
-          val updateFrom = updateFrom(resource)
+          val updateFrom = updateFrom(resource, )
           fhirEngine.update(updateFrom)
         }
       } catch (resourceNotFoundException: ResourceNotFoundException) {
-        create(addMandatoryTags, resource)
+        create(addMandatoryTags, resource, isLocalOnly = isLocalOnly)
       }
     }
   }

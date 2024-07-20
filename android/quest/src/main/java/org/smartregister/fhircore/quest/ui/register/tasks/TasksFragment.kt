@@ -127,14 +127,7 @@ class TasksFragment : Fragment(), OnSyncListener {
             modifier = Modifier.background(SearchHeaderColor).padding(bottom = 12.dp),
             drawerGesturesEnabled = scaffoldState.drawerState.isOpen,
             scaffoldState = scaffoldState,
-            drawerContent = {
-              /*AppDrawer(
-                appUiState = uiState,
-                openDrawer = openDrawer,
-                onSideMenuClick = appMainViewModel::onEvent,
-                navController = findNavController(),
-              )*/
-            },
+
             bottomBar = {
               // TODO Activate bottom nav via view configuration
               /* BottomScreenSection(

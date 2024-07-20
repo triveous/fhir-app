@@ -301,31 +301,6 @@ fun ViewAllPatientsScreen(
 
                 }
               }
-
-              /*if (filteredTasks.isEmpty()){
-                Box(
-                  modifier = modifier
-                    .background(SearchHeaderColor)
-                    .padding(top = 48.dp)
-                    .fillMaxWidth(),
-                  contentAlignment = Alignment.Center
-                ) {
-
-                  Box(
-                    modifier = modifier
-                      .padding(horizontal = 16.dp)
-                      .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                  ) {
-                    Text(text = stringResource(id = R.string.no_cases))
-                  }
-                }
-              }else{
-
-
-
-
-              }*/
             }
           }
         }
@@ -607,6 +582,8 @@ fun ShowAllDrafts(
         LazyColumn(modifier = Modifier
           .fillMaxWidth()) {
           items(drafts) { response ->
+            val result = response?.item?.firstOrNull()?.item.takeIf { (it?.size ?: 0) >= 1 }
+            val title = result?.get(1)?.answer?.firstOrNull()?.value?.asStringValue() ?: "Guest"
             Box(
               modifier = modifier
                 .fillMaxWidth()
@@ -644,7 +621,7 @@ fun ShowAllDrafts(
                         modifier = Modifier
                           .weight(1f)
                           .padding(vertical = 4.dp, horizontal = 8.dp),
-                        text = response.item[0].item[1].answer[0].value.asStringValue(),
+                        text = title,
                         style = MaterialTheme.typography.h6,
                         color = Color.DarkGray
                       )

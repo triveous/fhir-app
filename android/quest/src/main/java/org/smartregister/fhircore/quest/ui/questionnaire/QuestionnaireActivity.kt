@@ -43,6 +43,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.Resource
 import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.QuestionnaireConfig
@@ -380,6 +381,12 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 ResourceUtils.createFhirLocationFromGpsLocation(gpsLocation = currentLocation!!),
               )
             }
+            val flwId = viewModel.getUserName()
+
+            val ref = Reference()
+            ref.reference = "Practitioner/$flwId"
+            // set author
+            questionnaireResponse.author = ref
 
             handleQuestionnaireSubmission(
               questionnaire = questionnaire!!,
@@ -422,32 +429,6 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           viewModel.saveDraftQuestionnaire(questionnaireResponse)
         }
       }
-
-/*      AlertDialogue.showCancelAlert(
-        context = this,
-        message =
-          org.smartregister.fhircore.engine.R.string
-            .questionnaire_in_progress_alert_back_pressed_message,
-        title = org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_title,
-        confirmButtonListener = {
-          lifecycleScope.launch {
-            retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
-              viewModel.isDraftSaved.observeForever {
-                if (it){
-                  finish()
-                }
-              }
-              viewModel.saveDraftQuestionnaire(questionnaireResponse)
-            }
-          }
-        },
-        confirmButtonText =
-          org.smartregister.fhircore.engine.R.string
-            .questionnaire_alert_back_pressed_save_draft_button_title,
-        neutralButtonListener = { finish() },
-        neutralButtonText =
-          org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
-      )*/
     } else {
       AlertDialogue.showConfirmAlert(
         context = this,
