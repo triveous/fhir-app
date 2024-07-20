@@ -42,14 +42,14 @@ import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.quest.integration.Faker
-import org.smartregister.fhircore.quest.ui.register.FAB_BUTTON_REGISTER_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.FIRST_TIME_SYNC_DIALOG
-import org.smartregister.fhircore.quest.ui.register.NO_REGISTER_VIEW_COLUMN_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.NoRegisterDataView
-import org.smartregister.fhircore.quest.ui.register.REGISTER_CARD_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.RegisterScreen
-import org.smartregister.fhircore.quest.ui.register.RegisterUiState
-import org.smartregister.fhircore.quest.ui.register.TOP_REGISTER_SCREEN_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.FAB_BUTTON_REGISTER_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.FIRST_TIME_SYNC_DIALOG
+import org.smartregister.fhircore.quest.ui.register.patients.NO_REGISTER_VIEW_COLUMN_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.NoRegisterDataView
+import org.smartregister.fhircore.quest.ui.register.patients.REGISTER_CARD_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterScreen
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
+import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
 
 @HiltAndroidTest
 class RegisterScreenTest {

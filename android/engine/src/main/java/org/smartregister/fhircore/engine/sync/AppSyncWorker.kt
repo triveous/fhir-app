@@ -21,6 +21,7 @@ import androidx.core.net.toUri
 import androidx.hilt.work.HiltWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import ca.uhn.fhir.context.FhirContext
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.logicalId
@@ -35,6 +36,7 @@ import dagger.assisted.AssistedInject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.hl7.fhir.r4.model.DocumentReference
+import org.hl7.fhir.r4.model.Resource
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import timber.log.Timber
 
@@ -97,7 +99,14 @@ constructor(
       .map {
         val docReference = it.first
         val fileUri = it.second ?: return@map false;
-        Timber.i("Uploading ${docReference.id}")
+
+        val docReferenceJson = FhirContext.forR4Cached().newJsonParser().encodeResourceToString(docReference as Resource)
+        val docReferenceBytes = docReferenceJson.encodeToByteArray()
+
+        val refBody = docReferenceBytes.toRequestBody("application/json".toMediaType())
+
+        Timber.i("insertResource ${docReference.id}")
+        fhirResourceService.insertResource(docReference.fhirType(), docReference.logicalId, refBody)
 
         val docContentType = docReference.content.first().attachment.contentType
 
@@ -105,6 +114,7 @@ constructor(
         val bytes = runCatching { applicationContext.contentResolver.openInputStream(fileUri)?.use { it.buffered().readBytes() } }.getOrNull()
           ?: return@map false
 
+        Timber.i("uploadFile ${docReference.id}")
         val body = bytes.toRequestBody(docContentType.toMediaType())
         val response = fhirResourceService.uploadFile(
           docReference.fhirType(),

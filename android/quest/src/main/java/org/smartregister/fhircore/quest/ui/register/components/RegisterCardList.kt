@@ -38,8 +38,8 @@ import org.smartregister.fhircore.engine.ui.components.CircularProgressBar
 import org.smartregister.fhircore.engine.ui.components.ErrorMessage
 import org.smartregister.fhircore.engine.ui.components.register.RegisterFooter
 import org.smartregister.fhircore.engine.ui.theme.DividerColor
-import org.smartregister.fhircore.quest.ui.register.RegisterEvent
-import org.smartregister.fhircore.quest.ui.register.RegisterUiState
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.shared.components.ViewRenderer
 import timber.log.Timber
 
@@ -51,15 +51,15 @@ const val REGISTER_CARD_LIST_TEST_TAG = "RegisterCardListTestTag"
  */
 @Composable
 fun RegisterCardList(
-  modifier: Modifier = Modifier,
-  registerCardConfig: RegisterCardConfig,
-  pagingItems: LazyPagingItems<ResourceData>,
-  navController: NavController,
-  lazyListState: LazyListState,
-  onEvent: (RegisterEvent) -> Unit,
-  registerUiState: RegisterUiState,
-  currentPage: MutableState<Int>,
-  showPagination: Boolean = false,
+    modifier: Modifier = Modifier,
+    registerCardConfig: RegisterCardConfig,
+    pagingItems: LazyPagingItems<ResourceData>,
+    navController: NavController,
+    lazyListState: LazyListState,
+    onEvent: (RegisterEvent) -> Unit,
+    registerUiState: RegisterUiState,
+    currentPage: MutableState<Int>,
+    showPagination: Boolean = false,
 ) {
   LazyColumn(modifier = Modifier.testTag(REGISTER_CARD_LIST_TEST_TAG), state = lazyListState) {
     items(
