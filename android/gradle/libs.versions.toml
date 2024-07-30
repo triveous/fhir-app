@@ -16,14 +16,14 @@ android-x-test= "1.5.2"
 core-testing = "2.2.0"
 coverallsGradlePlugin = "2.12.0"
 cqfFhirCr = "3.0.0-PRE9"
-data-capture = "1.1.0-preview8-SNAPSHOT"
+data-capture = "1.1.0-preview7-SNAPSHOT"
 datastore = "1.0.0"
 desugar-jdk-libs = "2.0.4"
 dokkaBase = "1.8.20"
 easy-rules-jexl = "4.1.0"
 espresso-core = "3.5.1"
 fhir-common-utils = "1.0.0-SNAPSHOT"
-fhir-engine = "1.0.0-preview7.1-SNAPSHOT"
+fhir-engine = "1.0.0-preview5-SNAPSHOT"
 foundation = "1.6.3"
 fragment-ktx = "1.6.2"
 glide = "4.16.0"
@@ -84,6 +84,7 @@ kt3k-coveralls-ver="2.12.0"
 kotlin2 = "1.9.0"
 activity = "1.8.0"
 camerax_version = "1.2.2"
+fragment = "1.7.1"
 
 [libraries]
 accompanist-flowlayout = { group = "com.google.accompanist", name = "accompanist-flowlayout", version.ref = "accompanist" }
@@ -201,6 +202,7 @@ camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "
 camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax_version" }
 camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax_version" }
 camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax_version" }
+fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
 
 
 [plugins]

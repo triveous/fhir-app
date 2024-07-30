@@ -35,41 +35,41 @@
         android:orientation="vertical"
         app:elevation="4dp">
 
-        <com.google.android.fhir.datacapture.views.HeaderView
-            android:id="@+id/header"
-            android:layout_width="match_parent"
-            android:visibility="visible"
-            android:layout_marginBottom="@dimen/spacing_8"
+    <com.google.android.fhir.datacapture.views.HeaderView
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:visibility="visible"
+        android:layout_marginBottom="@dimen/spacing_8"
+        android:layout_height="wrap_content"
+        />
+
+    <com.google.android.fhir.datacapture.views.MediaView
+        android:id="@+id/item_media"
+        android:layout_width="match_parent"
+        android:visibility="gone"
+        android:layout_height="wrap_content"
+        />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/radio_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        >
+
+        <androidx.constraintlayout.helper.widget.Flow
+            android:id="@+id/flow"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            app:flow_horizontalBias="0"
+            app:flow_horizontalGap="@dimen/spacing_8"
+            app:flow_verticalGap="@dimen/spacing_8"
+            app:flow_horizontalStyle="packed"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             />
 
-        <com.google.android.fhir.datacapture.views.MediaView
-            android:id="@+id/item_media"
-            android:layout_width="match_parent"
-            android:visibility="gone"
-            android:layout_height="wrap_content"
-            />
-
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/radio_group"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            >
-
-            <androidx.constraintlayout.helper.widget.Flow
-                android:id="@+id/flow"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                app:flow_horizontalBias="0"
-                app:flow_horizontalGap="@dimen/spacing_8"
-                app:flow_verticalGap="@dimen/spacing_8"
-                app:flow_horizontalStyle="packed"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                />
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     </LinearLayout>
 

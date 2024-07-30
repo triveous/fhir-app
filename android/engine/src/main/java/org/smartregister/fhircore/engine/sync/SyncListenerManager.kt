@@ -112,12 +112,12 @@ constructor(
           when (paramName) {
             // TODO: Does not support multi organization yet,
             // https://github.com/opensrp/fhircore/issues/1550
-            ConfigurationRegistry.ORGANIZATION ->
+            /*ConfigurationRegistry.ORGANIZATION ->
               mandatoryTags
                 .firstOrNull {
                   it.display.contentEquals(organizationResourceTag?.tag?.display, ignoreCase = true)
                 }
-                ?.code
+                ?.code*/
             ConfigurationRegistry.ID -> paramExpression
             ConfigurationRegistry.COUNT -> appConfig.remoteSyncPageSize.toString()
             else -> null
@@ -160,6 +160,7 @@ constructor(
       }
 
     Timber.i("SYNC CONFIG $pairs")
+    //pairs.removeAt(6)
 
     return mapOf(*pairs.toTypedArray())
   }

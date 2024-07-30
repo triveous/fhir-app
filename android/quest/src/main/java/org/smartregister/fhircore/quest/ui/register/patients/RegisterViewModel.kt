@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.smartregister.fhircore.quest.ui.register
+package org.smartregister.fhircore.quest.ui.register.patients
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
@@ -28,11 +28,13 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import com.google.android.fhir.FhirEngine
+import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import javax.inject.Inject
 import kotlin.math.ceil
 import kotlinx.coroutines.flow.Flow
@@ -43,12 +45,18 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.ResourceType
+import org.hl7.fhir.r4.model.Task
+import org.hl7.fhir.r4.model.Task.TaskPriority
+import org.hl7.fhir.r4.model.Task.TaskStatus
+import org.smartregister.fhircore.engine.auth.AuthCredentials
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.register.RegisterConfiguration
@@ -64,12 +72,24 @@ import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.rulesengine.ResourceDataRulesExecutor
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.daysPassed
+import org.smartregister.fhircore.engine.util.extension.decodeJson
 import org.smartregister.fhircore.engine.util.extension.encodeJson
+import org.smartregister.fhircore.engine.util.extension.isToday
+import org.smartregister.fhircore.engine.util.extension.monthsPassed
+import org.smartregister.fhircore.engine.util.extension.plusDays
+import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
+import org.smartregister.fhircore.quest.ui.register.tasks.TasksViewModel
+import org.smartregister.fhircore.quest.util.OpensrpDateUtils
+import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
+import org.smartregister.model.practitioner.FhirPractitionerDetails
+import org.smartregister.model.practitioner.PractitionerDetails
 import timber.log.Timber
 import java.time.LocalDate
 import java.util.Date
@@ -83,6 +103,7 @@ constructor(
   val configurationRegistry: ConfigurationRegistry,
   val sharedPreferencesHelper: SharedPreferencesHelper,
   val dispatcherProvider: DispatcherProvider,
+  val secureSharedPreference: SecureSharedPreference,
   val resourceDataRulesExecutor: ResourceDataRulesExecutor,
   val fhirEngine: FhirEngine,
 ) : ViewModel() {
@@ -103,19 +124,50 @@ constructor(
   private val _percentageProgress: MutableSharedFlow<Int> = MutableSharedFlow(0)
   private val _isUploadSync: MutableSharedFlow<Boolean> = MutableSharedFlow(0)
 
+  private val _dashboardDataStateFlow = MutableStateFlow<DashboardData>(DashboardData("", "", "", ""))
+  val dashboardDataStateFlow: StateFlow<DashboardData> = _dashboardDataStateFlow
 
-  private val _patientsStateFlow = MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
-  val patientsStateFlow: StateFlow<List<AllPatientsResourceData>> = _patientsStateFlow
+  private val _allLatestTasksStateFlow = MutableStateFlow<List<TaskItem>>(emptyList())
+  val allLatestTasksStateFlow: StateFlow<List<TaskItem>> = _allLatestTasksStateFlow
+
+  private val _filteredTasksStateFlow = MutableStateFlow<List<TaskItem>>(emptyList())
+  val filteredTasksStateFlow: StateFlow<List<TaskItem>> = _filteredTasksStateFlow
+
+  private val _searchedTasksStateFlow = MutableStateFlow<List<TaskItem>>(emptyList())
+  val searchedTasksStateFlow: StateFlow<List<TaskItem>> = _searchedTasksStateFlow
+
+
+  private val _newTasksStateFlow = MutableStateFlow<List<TaskItem>>(emptyList())
+  val newTasksStateFlow: StateFlow<List<TaskItem>> = _newTasksStateFlow
+
+  private val _pendingTasksStateFlow = MutableStateFlow<List<TaskItem>>(emptyList())
+  val pendingTasksStateFlow: StateFlow<List<TaskItem>> = _pendingTasksStateFlow
+
+  private val _completedTasksStateFlow = MutableStateFlow<List<TaskItem>>(emptyList())
+  val completedTasksStateFlow: StateFlow<List<TaskItem>> = _completedTasksStateFlow
+
+  private val _allPatientsStateFlow = MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
+  val allPatientsStateFlow: StateFlow<List<AllPatientsResourceData>> = _allPatientsStateFlow
 
   private val _isFetching = MutableStateFlow<Boolean>(false)
   val isFetching: StateFlow<Boolean> = _isFetching
 
 
-  private val _savedDraftResponseStateFlow = MutableStateFlow<List<QuestionnaireResponse>>(emptyList())
-  val savedDraftResponse: StateFlow<List<QuestionnaireResponse>> = _savedDraftResponseStateFlow
+  private val _isFetchingTasks = MutableStateFlow<Boolean>(false)
+  val isFetchingTasks: StateFlow<Boolean> = _isFetchingTasks
 
-  private val _unSyncedStateFlow = MutableStateFlow<List<Patient2>>(emptyList())
-  val unSyncedStateFlow: StateFlow<List<Patient2>> = _unSyncedStateFlow
+
+  private val _isLogout = MutableStateFlow<Boolean>(false)
+  val isLogout: StateFlow<Boolean> = _isLogout
+
+  private val _allSyncedPatientsStateFlow = MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
+  val allSyncedPatientsStateFlow: StateFlow<List<AllPatientsResourceData>> = _allSyncedPatientsStateFlow
+
+  private val _allSavedDraftResponseStateFlow = MutableStateFlow<List<QuestionnaireResponse>>(emptyList())
+  val allSavedDraftResponse: StateFlow<List<QuestionnaireResponse>> = _allSavedDraftResponseStateFlow
+
+  private val _allUnSyncedStateFlow = MutableStateFlow<List<Patient2>>(emptyList())
+  val allUnSyncedStateFlow: StateFlow<List<Patient2>> = _allUnSyncedStateFlow
 
   /**
    * This function paginates the register data. An optional [clearCache] resets the data in the
@@ -135,6 +187,11 @@ constructor(
       pagesDataCache.getOrPut(currentPage.value) {
         getPager(registerId, loadAll).flow.cachedIn(viewModelScope)
       }
+  }
+
+  fun logout(){
+    secureSharedPreference.deleteSessionPin()
+    _isLogout.value = true
   }
 
   private fun getPager(registerId: String, loadAll: Boolean = false): Pager<Int, ResourceData> {
@@ -225,6 +282,166 @@ constructor(
     }
   }
 
+  fun updateTask(task : Task, status: TaskStatus, taskOutput: TaskProgressState){
+    viewModelScope.launch {
+
+      val value = CodeableConcept()
+      value.text = taskOutput.text
+
+      task.status = status
+      task.output = listOf(
+        Task.TaskOutputComponent(
+          CodeableConcept(),
+          value,
+        ),
+      )
+      fhirEngine.update(task)
+      getAllTasks()
+    }
+  }
+
+  private fun getPractitionerDetails() : FhirPractitionerDetails? {
+    return sharedPreferencesHelper.read<FhirPractitionerDetails>(
+      key = SharedPreferenceKey.PRACTITIONER_DETAILS.name,
+      decodeWithGson = true,
+    )
+  }
+
+
+  fun getAllTasks() {
+    _isFetchingTasks.value = true
+    viewModelScope.launch {
+      val practitionerDetails = getPractitionerDetails()
+      val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
+
+      // Fetch tasks and patients in parallel
+      val tasksDeferred = async { fhirEngine.search<Task> { } }
+      val patientsDeferred = async { fhirEngine.search<Patient> { } }
+
+      val allTasks = tasksDeferred.await().map { it.resource }
+      val patients = patientsDeferred.await().map { it.resource.toResourceData() }
+        .associateBy { it.patient?.logicalId } // Use associateBy to create map with ID as key
+
+      val tasksWithPatient = allTasks.mapNotNull { task ->
+
+        val taskOwnerId = task.owner?.reference?.toString()?.substringAfterLast("/") ?: ""
+        val patientId = task?.`for`?.reference?.toString()?.substringAfter("/") ?: return@mapNotNull null
+        if (taskOwnerId == practitionerId && task.status != TaskStatus.REJECTED && patients.containsKey(patientId)) {
+          TaskItem(task = task, patient = patients[patientId]?.patient)
+        } else {
+          null
+        }
+      }.distinctBy { it.task.logicalId }
+
+      _newTasksStateFlow.value = tasksWithPatient.filter { it.task.status == TaskStatus.REQUESTED }
+        .sortedByDescending { it.task.meta.lastUpdated }
+
+      _pendingTasksStateFlow.value = tasksWithPatient.filter { it.task.status == TaskStatus.INPROGRESS }
+        .sortedByDescending { it.task.meta.lastUpdated }
+
+      _completedTasksStateFlow.value = tasksWithPatient.filter { it.task.status == TaskStatus.COMPLETED }
+        .sortedByDescending { it.task.meta.lastUpdated }
+
+      _isFetchingTasks.value = false
+    }
+  }
+
+  fun getAllLatestTasks() {
+    viewModelScope.launch {
+      val practitionerDetails = getPractitionerDetails()
+      val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
+
+      // Fetch tasks and patients in parallel
+      val tasksDeferred = async { fhirEngine.search<Task> { } }
+      val patientsDeferred = async { fhirEngine.search<Patient> { } }
+
+      val allTasks = tasksDeferred.await().map { it.resource }
+      val patients = patientsDeferred.await().map { it.resource.toResourceData() }
+        .associateBy { it.patient?.logicalId } // Use associateBy to create map with ID as key
+
+      val tasksWithPatient = allTasks.mapNotNull { task ->
+
+        val taskOwnerId = task.owner?.reference?.toString()?.substringAfterLast("/") ?: ""
+        val patientId = task?.`for`?.reference?.toString()?.substringAfter("/") ?: return@mapNotNull null
+        if (taskOwnerId == practitionerId && task.status != TaskStatus.REJECTED && patients.containsKey(patientId)) {
+          TaskItem(task = task, patient = patients[patientId]?.patient)
+        } else {
+          null
+        }
+      }.distinctBy { it.task.logicalId }
+
+      _allLatestTasksStateFlow.value = tasksWithPatient.distinctBy { it.task.logicalId }
+    }
+  }
+
+  fun searchTasks(searchText: String) {
+    _searchedTasksStateFlow.value = emptyList()
+    val isPhoneNumber = searchText.toIntOrNull() != null
+    val allTasksWithPatients = _allLatestTasksStateFlow.value
+    val matchedTasksWithPatientList = mutableListOf<TaskItem>()
+
+    viewModelScope.launch {
+      allTasksWithPatients.forEach { taskItem ->
+        val patient = taskItem.patient
+        patient?.let {
+          if (isPhoneNumber){
+            val phone = patient?.telecom?.get(0)?.value.toString()
+            if (taskItem.task.status != TaskStatus.REJECTED && searchText.contains(phone)){
+              matchedTasksWithPatientList.add(taskItem)
+            }
+          }else{
+            val name = patient?.name?.get(0)?.given?.get(0)?.value.toString() ?: ""
+            if (taskItem.task.status != TaskStatus.REJECTED && name.contains(searchText, true)){
+              matchedTasksWithPatientList.add(taskItem)
+            }
+          }
+        }
+      }
+      _searchedTasksStateFlow.value = matchedTasksWithPatientList.distinctBy { it.task.logicalId }
+    }
+  }
+
+  fun clearSearch(){
+    _searchedTasksStateFlow.value = emptyList()
+  }
+
+  fun getNotContactedNewTasks(tasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
+
+    return tasks.filter {
+      (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() != TaskProgressState.NOT_RESPONDED.text)
+
+      //(it.task.priority != TaskPriority.ASAP && it.task.status == status)
+    }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
+  }
+
+  fun getNotRespondedNewTasks(tasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
+    return tasks.filter { it ->
+      (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == TaskProgressState.NOT_RESPONDED.text)
+
+
+      //(it.task.priority == TaskPriority.ASAP && it.task.status == status)
+    }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
+  }
+
+  fun getPendingAgreedButNotDoneTasks(newTasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
+    return newTasks.filter {
+      (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == TaskProgressState.AGREED_FOLLOWUP_NOT_DONE.text)
+
+
+      //(it.task.priority == TaskPriority.STAT && it.task.status == status)
+    }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
+  }
+
+  fun getPendingNotAgreedTasks(newTasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
+    return newTasks.filter {
+      (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == TaskProgressState.NOT_AGREED_FOR_FOLLOWUP.text)
+
+
+      //(it.task.priority == TaskPriority.URGENT && it.task.status == status)
+    }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
+  }
+
+
   fun updateRegisterFilterState(registerId: String, questionnaireResponse: QuestionnaireResponse) {
     // Reset filter state if no answer is provided for all the fields
     if (questionnaireResponse.item.all { !it.hasAnswer() }) {
@@ -248,12 +465,15 @@ constructor(
         ?.mapValues { it.value.first() }
 
     // Get filter queries from the map. NOTE: filterId MUST be unique for all resources
-    val baseResourceRegisterFilterField = registerDataFilterFieldsMap?.get(baseResource.filterId)
     val newBaseResourceDataQueries =
       createQueriesForRegisterFilter(
-        dataQueries = baseResourceRegisterFilterField?.dataQueries,
-        qrItemMap = qrItemMap,
+        registerDataFilterFieldsMap?.get(baseResource.filterId)?.dataQueries,
+        qrItemMap,
       )
+
+    Timber.i(
+      "New data queries for filtering Base Resources: ${newBaseResourceDataQueries.encodeJson()}",
+    )
 
     val newRelatedResources =
       createFilterRelatedResources(
@@ -262,30 +482,19 @@ constructor(
         qrItemMap = qrItemMap,
       )
 
-    val fhirResourceConfig =
-      FhirResourceConfig(
-        baseResource =
-          baseResource.copy(
-            dataQueries = newBaseResourceDataQueries ?: baseResource.dataQueries,
-            nestedSearchResources =
-              baseResourceRegisterFilterField?.nestedSearchResources?.map { nestedSearchConfig ->
-                nestedSearchConfig.copy(
-                  dataQueries =
-                    createQueriesForRegisterFilter(
-                      dataQueries = nestedSearchConfig.dataQueries,
-                      qrItemMap = qrItemMap,
-                    ),
-                )
-              } ?: baseResource.nestedSearchResources,
-          ),
-        relatedResources = newRelatedResources,
-      )
+    Timber.i(
+      "New configurations for filtering related resource data: ${newRelatedResources.encodeJson()}",
+    )
+
     registerFilterState.value =
       RegisterFilterState(
         questionnaireResponse = questionnaireResponse,
-        fhirResourceConfig = fhirResourceConfig,
+        fhirResourceConfig =
+          FhirResourceConfig(
+            baseResource = baseResource.copy(dataQueries = newBaseResourceDataQueries),
+            relatedResources = newRelatedResources,
+          ),
       )
-    Timber.i("New ResourceConfig for register data filter: ${fhirResourceConfig.encodeJson()}")
   }
 
   private fun createFilterRelatedResources(
@@ -294,31 +503,20 @@ constructor(
     qrItemMap: Map<String, QuestionnaireResponse.QuestionnaireResponseItemComponent>,
   ): List<ResourceConfig> {
     val newRelatedResources =
-      relatedResources.map { resourceConfig: ResourceConfig ->
-        val registerFilterField = registerDataFilterFieldsMap?.get(resourceConfig.filterId)
+      relatedResources.map {
         val newDataQueries =
           createQueriesForRegisterFilter(
-            dataQueries = registerFilterField?.dataQueries,
-            qrItemMap = qrItemMap,
+            registerDataFilterFieldsMap?.get(it.filterId)?.dataQueries,
+            qrItemMap,
           )
-        resourceConfig.copy(
-          dataQueries = newDataQueries ?: resourceConfig.dataQueries,
+        it.copy(
+          dataQueries = newDataQueries,
           relatedResources =
             createFilterRelatedResources(
               registerDataFilterFieldsMap = registerDataFilterFieldsMap,
-              relatedResources = resourceConfig.relatedResources,
+              relatedResources = it.relatedResources,
               qrItemMap = qrItemMap,
             ),
-          nestedSearchResources =
-            registerFilterField?.nestedSearchResources?.map { nestedSearchConfig ->
-              nestedSearchConfig.copy(
-                dataQueries =
-                  createQueriesForRegisterFilter(
-                    dataQueries = nestedSearchConfig.dataQueries,
-                    qrItemMap = qrItemMap,
-                  ),
-              )
-            } ?: resourceConfig.nestedSearchResources,
         )
       }
     return newRelatedResources
@@ -472,10 +670,7 @@ constructor(
             screenTitle = currentRegisterConfiguration.registerTitle ?: screenTitle,
             isFirstTimeSync =
               sharedPreferencesHelper
-                .read(
-                  SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name,
-                  null,
-                )
+                .read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null)
                 .isNullOrEmpty() && _totalRecordsCount.longValue == 0L,
             registerConfiguration = currentRegisterConfiguration,
             registerId = registerId,
@@ -507,6 +702,27 @@ constructor(
     _isUploadSync.emit(isUploadSync)
   }
 
+  fun getDashboardCasedData(){
+
+    viewModelScope.launch {
+      val patients = fhirEngine.search<Patient> {
+        // ... your search criteria
+      }.map {
+        it.resource
+      }.sortedByDescending { it.meta.lastUpdated }
+      val todayCases = patients.filter {
+        it?.meta?.lastUpdated?.isToday() == true }.size
+
+      val thisWeek = patients.filter { (it?.meta?.lastUpdated?.daysPassed() ?: 0) <= 7 }.size
+
+      val thisMonth = patients.filter { (it?.meta?.lastUpdated?.monthsPassed() ?: 0) < 1 }.size
+
+      val data = DashboardData("$todayCases", "$thisWeek", "$thisMonth", "${patients.size}")
+      // Update UI or perform further actions with the counts
+      _dashboardDataStateFlow.value = data
+    }
+  }
+
   fun getAllPatients() {
     /*viewModelScope.launch {
       val patients = fhirEngine.search<Patient> {
@@ -518,10 +734,15 @@ constructor(
 
     _isFetching.value = true
     viewModelScope.launch {
+      val userName = getUserName()
+
       // Fetching patients
       val patients = fhirEngine.search<Patient> {
       }.map {
         it.resource.toResourceData()
+      }
+        .filter {
+        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString() ?: "").contains(userName, true)
       }
 
       // Fetching drafts
@@ -547,16 +768,50 @@ constructor(
 
       // Combining and sorting by last updated time
       //val combinedList = (patients + drafts + unsyncedPatients)
+      //val combinedList = (patients + drafts)
+
       val combinedList = (patients + unsyncedPatients)
         .sortedByDescending { it.meta.lastUpdated }
 
 
       // Updating the state flow
-      _patientsStateFlow.value = combinedList
+      _allPatientsStateFlow.value = combinedList
       _isFetching.value = false
     }
+  }
 
+  fun getAllSyncedPatients(){
+    _isFetching.value = true
+    viewModelScope.launch {
+      val userName = getUserName()
 
+      // Fetching patients
+      val data = fhirEngine.getUnsyncedLocalChanges()
+      val patients = fhirEngine.search<Patient> {
+      }.map {
+        it.resource.toResourceData()
+      }.filter {
+        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString() ?: "").contains(userName, true)
+      }.sortedByDescending { it.meta.lastUpdated }
+
+      _allSyncedPatientsStateFlow.value = patients
+      _isFetching.value = false
+    }
+  }
+
+  fun getAllDraftResponses() {
+    viewModelScope.launch {
+      val userName = getUserName()
+      val responses = fhirEngine.search<QuestionnaireResponse> {
+      }.map {
+        it.resource
+      }.filter {
+        (it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS) &&
+                (it.author?.reference?.toString() ?: "").contains(userName, true)
+      }
+        .sortedByDescending { it.meta.lastUpdated }
+      _allSavedDraftResponseStateFlow.value = responses
+    }
   }
 
   fun getAllUnSyncedPatients() {
@@ -573,7 +828,7 @@ constructor(
       }
       patients.reverse()
       CoroutineScope(Dispatchers.Main).launch {
-        _unSyncedStateFlow.value = patients
+        _allUnSyncedStateFlow.value = patients
       }
     }
   }
@@ -587,17 +842,6 @@ constructor(
       )
       getAllDraftResponses()
       getAllPatients()
-    }
-  }
-
-  fun getAllDraftResponses() {
-    viewModelScope.launch {
-      val responses = fhirEngine.search<QuestionnaireResponse> {
-      }.map {
-        it.resource
-      }.filter { it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS }
-        .sortedByDescending { it.meta.lastUpdated }
-      _savedDraftResponseStateFlow.value = responses
     }
   }
 
@@ -638,8 +882,16 @@ constructor(
       override fun toString(): String = code
     }
 
+
+  data class TaskItem(
+    val task: Task,
+    val patient: Patient?
+  )
+
     data class Patient2(
+      val id: String,
       val name: String,
+      val lastUpdated: String,
       val gender: String,
       val primaryContact: String?,
       val age: Int?
@@ -649,6 +901,15 @@ constructor(
     val name: String,
     val payloadJson: String
   )
+
+  data class DashboardData constructor(
+    val todayCases: String,
+    val thisWeekCases: String,
+    val thisMonthCases: String,
+    val totalCases: String
+  ){
+
+  }
 
     fun parsePatientJson(json: String): Patient2? {
       val gson = Gson()
@@ -667,10 +928,13 @@ constructor(
           null
         }
 
+        val id = patientData["id"] as String? ?: ""
+        val lastUpdated = (patientData["meta"] as Map<*, *>) ["lastUpdated"] as String? ?: ""
         val gender = patientData["gender"] as String?
         val telecomData = patientData["telecom"] as List<*>?
+        val mobile = (telecomData?.get(0) as Map<*, *>)["value"].toString()
 
-        return Patient2(name ?: "", gender ?: "", "", 0)
+        return Patient2(id = id, name ?: "", lastUpdated = lastUpdated, gender ?: "", mobile, 0)
       } catch (e: Exception) {
         e.printStackTrace()
         return null
@@ -734,14 +998,19 @@ constructor(
     )
   }
 
+  fun getUserName(): String {
+    return secureSharedPreference.retrieveSessionUsername() ?: "Guest"
+  }
+
+
   // ResourceData class with all three types and meta information
   data class AllPatientsResourceData(
-    val id: String,
-    val meta: Meta,
-    val resourceType: AllPatientsResourceType,
-    val patient: Patient? = null,
-    val questionnaireResponse: QuestionnaireResponse? = null,
-    val patient2: Patient2? = null
+        val id: String,
+        val meta: Meta,
+        val resourceType: AllPatientsResourceType,
+        val patient: Patient? = null,
+        val questionnaireResponse: QuestionnaireResponse? = null,
+        val patient2: Patient2? = null
   )
 
   // Enumeration for resource types

@@ -34,7 +34,7 @@
 
     <string name="loading_forms">Loading forms ...</string>
     <string name="loading_responses">Loading responses ...</string>
-    <string name="loading_patients">Loading patients ...</string>
+    <string name="loading_patients">Loading cases ...</string>
     <string name="no_test_results_found">No test results found</string>
     <string name="patient_test_results">TEST RESULTS</string>
     <string name="last_test"> Last Test - %1$s</string>
@@ -145,10 +145,30 @@
     <string name="required_text_and_new_line">Please fill the required field</string>
     <string name="retake">RETAKE</string>
     <string name="done">DONE</string>
-    <string name="no_unsync_patients">No un-synced patients to show</string>
-    <string name="no_draft_patients">No drafts to show</string>
-    <string name="no_patients_added">No patients added yet</string>
+    <string name="no_unsync_patients">There are no unsynced cases.</string>
+    <string name="no_draft_patients">you don\'t have any saved drafts</string>
+    <string name="no_patients_added">No cases submitted yet</string>
     <string name="delete_draft_desc">Are you sure you want to delete the record?</string>
     <string name="delete_draft_title">Delete record</string>
+    <string name="loading_followups">Loading cases</string>
+    <string name="no_followups">No new cases</string>
+    <string name="update_status">UPDATE STATUS</string>
+    <string name="cancel">CANCEL</string>
+    <string name="close">CLOSE</string>
+    <string name="no_cases">No matching recommendations found!</string>
+    <string name="not_contacted">NOT CONTACTED</string>
+    <string name="not_responded">NOT RESPONDED</string>
+    <string name="add_patient">Add new case</string>
+
+    <string name="pending_agreed_not_done">AGREED, FOLLOWUP NOT DONE</string>
+    <string name="pending_not_agreed">NOT AGREED FOR FOLLOWUP</string>
+    <string name="recenty_submitted_label">RECENTLY SUBMITTED</string>
+    <string name="draft">DRAFTS</string>
+    <string name="add_case">Add Case</string>
+    <string name="not_agrred_empty_label">Nothing in not agreed for follow up</string>
+    <string name="not_responded_empty_label">Nothing in not responded</string>
+    <string name="not_contacted_empty_label">Nothing in not contacted</string>
+    <string name="agrred_not_done_empty_label">Nothing in agreed but followup not done</string>
+    <string name="completed_empty_label">Nothing in completed cases</string>
 
 </resources>

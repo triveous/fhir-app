@@ -43,6 +43,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.Resource
 import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.QuestionnaireConfig
@@ -190,10 +191,10 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         onCoarseLocationPermissionGranted = { fetchLocation(false) },
         onLocationPermissionDenied = {
           Toast.makeText(
-            this,
-            getString(R.string.location_permissions_denied),
-            Toast.LENGTH_SHORT,
-          )
+              this,
+              getString(R.string.location_permissions_denied),
+              Toast.LENGTH_SHORT,
+            )
             .show()
           Timber.e("Location permissions denied")
         },
@@ -241,7 +242,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             setNavigationIcon(R.drawable.ic_arrow_back)
             setNavigationOnClickListener { handleBackPress() }
           }
-          questionnaireTitle.apply { text = questionnaireConfig.title }
+          questionnaireTitle.apply { text = getString(R.string.add_case) }
           clearAll.apply {
             visibility = if (questionnaireConfig.showClearAll) View.VISIBLE else View.GONE
             setOnClickListener {
@@ -284,7 +285,6 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     val questionnaireFragmentBuilder =
       QuestionnaireFragment.builder()
         .setQuestionnaire(questionnaire.json())
-
         .showReviewPageBeforeSubmit(false)
         .setCustomQuestionnaireItemViewHolderFactoryMatchersProvider(
           OPENSRP_ITEM_VIEWHOLDER_FACTORY_MATCHERS_PROVIDER,
@@ -317,8 +317,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             viewModel.retrievePopulationResources(
               actionParameters.filterNot {
                 it.paramType == ActionParameterType.QUESTIONNAIRE_RESPONSE_POPULATION_RESOURCE &&
-                        resourceType == it.resourceType &&
-                        resourceIdentifier.equals(it.value, ignoreCase = true)
+                  resourceType == it.resourceType &&
+                  resourceIdentifier.equals(it.value, ignoreCase = true)
               },
             ),
           )
@@ -381,6 +381,12 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 ResourceUtils.createFhirLocationFromGpsLocation(gpsLocation = currentLocation!!),
               )
             }
+            val flwId = viewModel.getUserName()
+
+            val ref = Reference()
+            ref.reference = "Practitioner/$flwId"
+            // set author
+            questionnaireResponse.author = ref
 
             handleQuestionnaireSubmission(
               questionnaire = questionnaire!!,
@@ -411,37 +417,27 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private fun handleBackPress() {
     if (questionnaireConfig.isReadOnly()) {
       finish()
-    } else if (true) {
-      AlertDialogue.showCancelAlert(
-        context = this,
-        message =
-        org.smartregister.fhircore.engine.R.string
-          .questionnaire_in_progress_alert_back_pressed_message,
-        title = org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_title,
-        confirmButtonListener = {
-          lifecycleScope.launch {
-            retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
-              viewModel.saveDraftQuestionnaire(questionnaireResponse)
+    } else if (questionnaireConfig.saveDraft) {
+
+      lifecycleScope.launch {
+        retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
+          viewModel.isDraftSaved.observeForever {
+            if (it){
               finish()
             }
           }
-        },
-        confirmButtonText =
-        org.smartregister.fhircore.engine.R.string
-          .questionnaire_alert_back_pressed_save_draft_button_title,
-        neutralButtonListener = { finish() },
-        neutralButtonText =
-        org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
-      )
+          viewModel.saveDraftQuestionnaire(questionnaireResponse)
+        }
+      }
     } else {
       AlertDialogue.showConfirmAlert(
         context = this,
         message =
-        org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_message,
+          org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_message,
         title = org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_title,
         confirmButtonListener = { finish() },
         confirmButtonText =
-        org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
+          org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
       )
     }
   }
