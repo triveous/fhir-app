@@ -16,12 +16,14 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalZeroShutterLag
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -208,13 +210,14 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
+    @OptIn(ExperimentalZeroShutterLag::class)
     private fun startCamera() {
         cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraExecutor = Executors.newSingleThreadExecutor()
 
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            val resolution = Size(3072, 3072)
+            val resolution = Size(4096, 4096)
 
             val preview = Preview.Builder()
                 .setTargetResolution(resolution)
@@ -225,6 +228,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
             val imageCapture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                 .setTargetResolution(resolution)
                 .build()
 
@@ -241,7 +245,7 @@ class CameraxLauncherFragment : DialogFragment() {
                 flashButton.setImageDrawable(flashOnDrawable)
                 setZoomLevel(0.0f) //0.0f represents 1x zoom level
                 setupZoomControl()
-                //setupTapToFocus()
+                setupTapToFocus()
 
                 flashButton.setOnClickListener {
 
@@ -249,13 +253,13 @@ class CameraxLauncherFragment : DialogFragment() {
                     val flashOffDrawable = context?.getDrawable(R.drawable.flash_off)
 
                     val flashMode = cameraInfo.torchState.value == TorchState.OFF
-                        if (flashMode){
-                            flashButton.setImageDrawable(flashOnDrawable)
-                            TorchState.ON
-                        } else {
-                            flashButton.setImageDrawable(flashOffDrawable)
-                            TorchState.OFF
-                        }
+                    if (flashMode){
+                        flashButton.setImageDrawable(flashOnDrawable)
+                        TorchState.ON
+                    } else {
+                        flashButton.setImageDrawable(flashOffDrawable)
+                        TorchState.OFF
+                    }
                     cameraControl.enableTorch(cameraInfo.torchState.value == TorchState.OFF)
                 }
 

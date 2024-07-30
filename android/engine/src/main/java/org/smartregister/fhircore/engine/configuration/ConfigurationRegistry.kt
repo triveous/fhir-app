@@ -18,6 +18,7 @@ package org.smartregister.fhircore.engine.configuration
 
 import android.content.Context
 import android.database.SQLException
+import android.os.Process
 import ca.uhn.fhir.context.FhirContext
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.db.ResourceNotFoundException
@@ -43,7 +44,6 @@ import org.hl7.fhir.r4.model.Base
 import org.hl7.fhir.r4.model.Binary
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.Composition
-import org.hl7.fhir.r4.model.ImplementationGuide
 import org.hl7.fhir.r4.model.ListResource
 import org.hl7.fhir.r4.model.MetadataResource
 import org.hl7.fhir.r4.model.Resource
@@ -104,6 +104,12 @@ constructor(
   @Inject lateinit var knowledgeManager: KnowledgeManager
 
   private val jsonParser = fhirContext.newJsonParser()
+
+  init {
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+      Process.killProcess(Process.myPid())
+    }
+  }
 
   /**
    * Retrieve configuration for the provided [ConfigType]. The JSON retrieved from [configsJsonMap]
@@ -398,7 +404,7 @@ constructor(
     sharedPreferencesHelper.read(SharedPreferenceKey.APP_ID.name, null)?.let { appId ->
       val parsedAppId = appId.substringBefore(TYPE_REFERENCE_DELIMITER).trim()
       val patientRelatedResourceTypes = mutableListOf<ResourceType>()
-      val compositionResource = fetchRemoteCompositionByAppId(parsedAppId)
+      val compositionResource = fetchRemoteComposition(parsedAppId)
       compositionResource?.let { composition ->
         composition
           .retrieveCompositionSections()
@@ -445,43 +451,11 @@ constructor(
     }
   }
 
-  suspend fun fetchRemoteImplementationGuideByAppId(
-    appId: String?,
-    appVersionCode: Int?,
-  ): ImplementationGuide? {
-    Timber.i("Fetching ImplementationGuide config for app $appId version $appVersionCode")
-
+  suspend fun fetchRemoteComposition(appId: String?): Composition? {
+    Timber.i("Fetching configs for app $appId")
     val urlPath =
-      "ImplementationGuide?&name=$appId&context-quantity=le$appVersionCode&_sort=-context-quantity&_count=1"
-    return fhirResourceDataSource.getResource(urlPath).entryFirstRep.let {
-      if (!it.hasResource()) {
-        Timber.w("No response for ImplementationGuide resource on path $urlPath")
-        return null
-      }
+      "${ResourceType.Composition.name}?${Composition.SP_IDENTIFIER}=$appId&_count=$DEFAULT_COUNT"
 
-      it.resource as ImplementationGuide
-    }
-  }
-
-  suspend fun fetchRemoteCompositionById(
-    id: String?,
-    version: String?,
-  ): Composition? {
-    Timber.i("Fetching Composition config id $id version $version")
-    val urlPath = "Composition/$id/_history/$version"
-    return fhirResourceDataSource.getResource(urlPath).entryFirstRep.let {
-      if (!it.hasResource()) {
-        Timber.w("No response for composition resource on path $urlPath")
-        return null
-      }
-
-      it.resource as Composition
-    }
-  }
-
-  suspend fun fetchRemoteCompositionByAppId(appId: String?): Composition? {
-    Timber.i("Fetching Composition config for app $appId")
-    val urlPath = "Composition?identifier=$appId&_count=$DEFAULT_COUNT"
     return fhirResourceDataSource.getResource(urlPath).entryFirstRep.let {
       if (!it.hasResource()) {
         Timber.w("No response for composition resource on path $urlPath")
@@ -508,7 +482,7 @@ constructor(
               .toRequestBody(NetworkModule.JSON_MEDIA_TYPE),
         )
 
-    processResultBundleEntries(resultBundle.entry, patientRelatedResourceTypes)
+    processResultBundleEntries(resultBundle, patientRelatedResourceTypes)
 
     return resultBundle
   }
@@ -518,36 +492,23 @@ constructor(
     searchPath: String,
     patientRelatedResourceTypes: MutableList<ResourceType>,
   ) {
-    val resultBundle = fetchResourceBundle(gatewayModeHeaderValue, searchPath)
-    val nextPageUrl = resultBundle.getLink(PAGINATION_NEXT)?.url ?: ""
+    val resultBundle =
+      if (gatewayModeHeaderValue.isNullOrEmpty()) {
+        fhirResourceDataSource.getResource(searchPath)
+      } else
+        fhirResourceDataSource.getResourceWithGatewayModeHeader(
+          gatewayModeHeaderValue,
+          searchPath,
+        )
 
-    processResultBundleEntries(resultBundle.entry, patientRelatedResourceTypes)
-
-    if (nextPageUrl.isNotEmpty()) {
-      processCompositionManifestResources(
-        gatewayModeHeaderValue,
-        nextPageUrl,
-        patientRelatedResourceTypes,
-      )
-    }
-  }
-
-  private suspend fun fetchResourceBundle(
-    gatewayModeHeaderValue: String?,
-    searchPath: String,
-  ): Bundle {
-    return if (gatewayModeHeaderValue.isNullOrEmpty()) {
-      fhirResourceDataSource.getResource(searchPath)
-    } else {
-      fhirResourceDataSource.getResourceWithGatewayModeHeader(gatewayModeHeaderValue, searchPath)
-    }
+    processResultBundleEntries(resultBundle, patientRelatedResourceTypes)
   }
 
   private suspend fun processResultBundleEntries(
-    resultBundleEntries: List<Bundle.BundleEntryComponent>,
+    resultBundle: Bundle,
     patientRelatedResourceTypes: MutableList<ResourceType>,
   ) {
-    resultBundleEntries.forEach { bundleEntryComponent ->
+    resultBundle.entry?.forEach { bundleEntryComponent ->
       when (bundleEntryComponent.resource) {
         is Bundle -> {
           val bundle = bundleEntryComponent.resource as Bundle
@@ -750,8 +711,7 @@ constructor(
       resourceGroup.value.forEach {
         processCompositionManifestResources(
           gatewayModeHeaderValue = FHIR_GATEWAY_MODE_HEADER_VALUE,
-          searchPath =
-            "${resourceGroup.key}?$ID=${it.focus.extractId()}&_page=1&_count=$DEFAULT_COUNT",
+          searchPath = "${resourceGroup.key}/${it.focus.extractId()}",
           patientRelatedResourceTypes = patientRelatedResourceTypes,
         )
       }
@@ -810,7 +770,6 @@ constructor(
     const val ORGANIZATION = "organization"
     const val TYPE_REFERENCE_DELIMITER = "/"
     const val DEFAULT_COUNT = 200
-    const val PAGINATION_NEXT = "next"
 
     /**
      * The list of resources whose types can be synced down as part of the Composition configs.
