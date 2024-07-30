@@ -60,6 +60,9 @@ import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.app.fakes.Faker
 import org.smartregister.fhircore.quest.robolectric.RobolectricTest
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 
 @HiltAndroidTest
 class RegisterViewModelTest : RobolectricTest() {

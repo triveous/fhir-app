@@ -149,6 +149,7 @@ fun Activity.applyWindowInsetListener() {
  * This function launches another [Activity] on top of the current. The current [Activity] is
  * cleared from the back stack for launching the next activity then the current [Activity] is
  * finished based on [finishLauncherActivity] condition.
+ *
  */
 inline fun <reified A : Activity> Activity.launchActivityWithNoBackStackHistory(
   finishLauncherActivity: Boolean = true,

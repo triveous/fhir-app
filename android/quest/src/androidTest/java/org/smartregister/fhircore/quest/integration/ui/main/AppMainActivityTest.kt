@@ -29,7 +29,6 @@ import androidx.work.testing.WorkManagerTestInitHelper
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.ResourceType
 import org.junit.Assert
 import org.junit.Before
@@ -46,7 +45,7 @@ import org.smartregister.fhircore.quest.integration.Faker
 import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.profile.PROFILE_TOP_BAR_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.RegisterFragment.Companion.REGISTER_SCREEN_BOX_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterFragment.Companion.REGISTER_SCREEN_BOX_TAG
 import org.smartregister.fhircore.quest.ui.report.measure.screens.SCREEN_TITLE
 import org.smartregister.fhircore.quest.ui.usersetting.USER_SETTING_ROW_LOGOUT
 
