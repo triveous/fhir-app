@@ -61,8 +61,10 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.HouseSiding
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.PermDeviceInformation
 import androidx.compose.material.icons.filled.PhonelinkLock
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.runtime.rememberCoroutineScope
@@ -72,7 +74,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
+import org.smartregister.fhircore.engine.util.extension.appVersion
+import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ui.login.LOGIN_FOOTER
 import org.smartregister.fhircore.quest.ui.login.PASSWORD_FORGOT_DIALOG
 import org.smartregister.fhircore.quest.ui.main.components.DRAWER_MENU
 import org.smartregister.fhircore.quest.ui.main.components.TOP_ROW_ICON_TEST_TAG
@@ -138,7 +143,7 @@ fun ProfileSectionScreen(
       )
     }
 
-    Box(modifier = modifier
+    Column(modifier = modifier
       .padding(innerPadding)
       .fillMaxSize()
       .background(SearchHeaderColor)) {
@@ -297,6 +302,37 @@ fun ProfileSectionScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = "Logout", color = Color.Red)
+                  }
+                }
+
+                Row(modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(horizontal = 16.dp, vertical = 4.dp)
+                  .background(SearchHeaderColor)) {
+                  Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .clickable {
+                      viewModel.logout()
+                    }
+                    .background(SearchHeaderColor)) {
+                    Icon(
+                      Icons.Filled.PermDeviceInformation,
+                      contentDescription = DRAWER_MENU,
+                      tint = Color.Gray,
+                      modifier =
+                      modifier
+                        .clickable {
+
+                        }
+                        .testTag(TOP_ROW_ICON_TEST_TAG),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = stringResource(
+                      id = org.smartregister.fhircore.engine.R.string.app_version,
+                      BuildConfig.VERSION_CODE,
+                      BuildConfig.VERSION_NAME)
+                    )
                   }
                 }
               }
