@@ -28,6 +28,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import com.google.android.fhir.FhirEngine
+import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
@@ -86,6 +87,7 @@ import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
 import org.smartregister.fhircore.quest.ui.register.tasks.TasksViewModel
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils
+import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import org.smartregister.model.practitioner.FhirPractitionerDetails
@@ -709,13 +711,49 @@ constructor(
         // ... your search criteria
       }.map {
         it.resource
-      }.sortedByDescending { it.meta.lastUpdated }
+      }.filter { patient ->
+        (patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/") ?: "").equals(getUserName(), true)
+      }.sortedByDescending {
+        it.meta.lastUpdated
+        /*if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
+          date
+        }else{
+          it.meta.lastUpdated
+        }*/
+      }
+
       val todayCases = patients.filter {
-        it?.meta?.lastUpdated?.isToday() == true }.size
 
-      val thisWeek = patients.filter { (it?.meta?.lastUpdated?.daysPassed() ?: 0) <= 7 }.size
+        if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
+          date.isToday()
+        }else{
+          it.meta?.lastUpdated?.isToday() == true
+        }
+        /*it.extension?.get(0)?.value?.asStringValue()?.let { it1 ->
+        }*/
+      }.size
 
-      val thisMonth = patients.filter { (it?.meta?.lastUpdated?.monthsPassed() ?: 0) < 1 }.size
+      val thisWeek = patients.filter {
+
+        if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
+          date.daysPassed() <= 7
+        }else{
+          (it?.meta?.lastUpdated?.daysPassed() ?: 0) <= 7
+        }
+      }.size
+
+      val thisMonth = patients.filter {
+
+        if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
+          date.monthsPassed() <= 7
+        }else{
+          (it.meta?.lastUpdated?.monthsPassed() ?: 0) < 1
+        }
+      }.size
 
       val data = DashboardData("$todayCases", "$thisWeek", "$thisMonth", "${patients.size}")
       // Update UI or perform further actions with the counts
@@ -724,13 +762,6 @@ constructor(
   }
 
   fun getAllPatients() {
-    /*viewModelScope.launch {
-      val patients = fhirEngine.search<Patient> {
-      }.map {
-        it.resource
-      }.sortedByDescending { it.meta.lastUpdated }
-      _patientsStateFlow.value = patients
-    }*/
 
     _isFetching.value = true
     viewModelScope.launch {
@@ -742,15 +773,17 @@ constructor(
         it.resource.toResourceData()
       }
         .filter {
-        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString() ?: "").contains(userName, true)
-      }
+        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/") ?: "").equals(userName, true)
 
-      // Fetching drafts
-      val drafts = fhirEngine.search<QuestionnaireResponse> {
-      }.filter { it.resource.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS }
-        .map { response ->
-          response.resource.toResourceData()
-        }
+      }.sortedByDescending {
+          it.meta.lastUpdated
+          /*if(it.patient?.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+            val date = convertToDateStringToDate(it.patient?.extension?.get(0)?.value?.asStringValue() ?: "")
+            date
+          }else{
+            it.meta.lastUpdated
+          }*/
+      }
 
       // Fetching unsynced patients
       val unsyncedPatients = mutableListOf<AllPatientsResourceData>()
@@ -770,12 +803,14 @@ constructor(
       //val combinedList = (patients + drafts + unsyncedPatients)
       //val combinedList = (patients + drafts)
 
+/*
       val combinedList = (patients + unsyncedPatients)
         .sortedByDescending { it.meta.lastUpdated }
+*/
 
 
       // Updating the state flow
-      _allPatientsStateFlow.value = combinedList
+      _allPatientsStateFlow.value = patients
       _isFetching.value = false
     }
   }
@@ -786,15 +821,43 @@ constructor(
       val userName = getUserName()
 
       // Fetching patients
+      // Fetching unsynced patients
+      val unsyncedPatients = mutableListOf<AllPatientsResourceData>()
       val data = fhirEngine.getUnsyncedLocalChanges()
+      data.forEach { localChange ->
+        val patient = parsePatientJson(localChange.payload)
+        patient?.let {
+          patient?.let {
+            if (patient.name.isNotEmpty()){
+              unsyncedPatients.add(it.toResourceData())
+            }
+          }
+        }
+      }
+
       val patients = fhirEngine.search<Patient> {
       }.map {
         it.resource.toResourceData()
       }.filter {
-        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString() ?: "").contains(userName, true)
-      }.sortedByDescending { it.meta.lastUpdated }
+        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/") ?: "").equals(userName, true)
+      }
 
-      _allSyncedPatientsStateFlow.value = patients
+      //Removing the unsynced Patient present in the patientsList
+      val filteredPatients = patients.filterNot { patient ->
+        unsyncedPatients.any { unsyncedPatient ->
+          patient.patient?.logicalId == unsyncedPatient.patient2?.id
+        }
+      }.sortedByDescending {
+        it.meta.lastUpdated
+        /*if(it.patient?.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(it.patient?.extension?.get(0)?.value?.asStringValue() ?: "")
+          date
+        }else{
+          it.meta.lastUpdated
+        }*/
+      }
+
+      _allSyncedPatientsStateFlow.value = filteredPatients
       _isFetching.value = false
     }
   }

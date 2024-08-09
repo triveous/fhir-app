@@ -14,7 +14,7 @@ object OpensrpDateUtils {
     }
 
     fun convertToDateStringFromString(input: String): String {
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX") // Adjust format if necessary
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX") // Adjust format if necessary
         val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale.getDefault())
 
         val dateObj: Date? = try {
@@ -25,5 +25,19 @@ object OpensrpDateUtils {
         }
 
         return dateObj?.let { outputFormat.format(it) }.orEmpty()
+    }
+
+    fun convertToDateStringToDate(input: String): Date {
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX") // Adjust format if necessary
+        val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale.getDefault())
+
+        val dateObj: Date? = try {
+            format.parse(input)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+
+        return dateObj ?: Date()
     }
 }
