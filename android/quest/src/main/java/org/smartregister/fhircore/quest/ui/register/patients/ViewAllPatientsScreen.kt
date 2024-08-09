@@ -176,6 +176,7 @@ fun ViewAllPatientsScreen(
           val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
 
           val allSyncedPatients by viewModel.allSyncedPatientsStateFlow.collectAsState()
+          val allSyncedAndUnsyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
           val savedRes by viewModel.allSavedDraftResponse.collectAsState()
           val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
 
@@ -188,6 +189,7 @@ fun ViewAllPatientsScreen(
 
             LaunchedEffect(key1 = selectedFilter, key2 = allLatestTasksStateFlow) {
               viewModel.getAllSyncedPatients()
+              viewModel.getAllPatients()
               viewModel.getAllDraftResponses()
               viewModel.getAllUnSyncedPatients()
             }
@@ -198,6 +200,7 @@ fun ViewAllPatientsScreen(
                 FilterRow(selectedFilter) { filter ->
                   selectedFilter = filter
                   viewModel.getAllSyncedPatients()
+                  viewModel.getAllPatients()
                   viewModel.getAllDraftResponses()
                   viewModel.getAllUnSyncedPatients()
                 }
@@ -219,7 +222,7 @@ fun ViewAllPatientsScreen(
                 FilterType.ALL_PATIENTS -> {
                   LazyColumn(modifier = modifier
                     .background(SearchHeaderColor)) {
-                    items(allSyncedPatients) { patient ->
+                    items(allSyncedAndUnsyncedPatients) { patient ->
                       Box(
                         modifier = modifier
                           .fillMaxWidth()
@@ -316,7 +319,7 @@ fun ShowUnSyncedPatients2(
 ) {
   Box(
     modifier = modifier
-      .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+      .padding(start = 8.dp, end = 8.dp)
       .fillMaxHeight()
       .fillMaxWidth()
       .background(SearchHeaderColor)
@@ -350,7 +353,7 @@ fun ShowUnSyncedPatients2(
             Box(
               modifier = modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                //.padding(vertical = 4.dp)
                 .background(SearchHeaderColor, shape = RoundedCornerShape(8.dp))
             ) {
 
@@ -503,7 +506,12 @@ fun ShowSyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPa
 
         Row(modifier = Modifier.padding(vertical = 4.dp)) {
           Box(modifier = Modifier.padding(vertical = 4.dp, horizontal = 36.dp)) {
-            Text(text = "Visited ${OpensrpDateUtils.convertToDate(patient.meta.lastUpdated)}")
+            if (patient.patient?.extension?.isNotEmpty() == true){
+              Text(text = "Visited ${patient.patient?.extension?.get(0)?.value?.asStringValue()
+                ?.let { OpensrpDateUtils.convertToDateStringFromString(it) }}")
+            }else{
+              Text(text = "Visited ${OpensrpDateUtils.convertToDate(patient.meta.lastUpdated)}")
+            }
           }
         }
       }

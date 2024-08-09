@@ -100,6 +100,7 @@ import org.smartregister.fhircore.engine.ui.theme.LoginDarkColor
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.appVersion
+import org.smartregister.fhircore.quest.BuildConfig
 
 const val APP_NAME_TEXT_TAG = "aapNameTextTag"
 const val USERNAME_FIELD_TAG = "usernameFieldTag"
@@ -383,7 +384,7 @@ fun LoginPage(
       ) {
         Text(
           fontSize = 16.sp,
-          text = stringResource(id = R.string.app_version, versionCode, versionName),
+          text = stringResource(id = R.string.app_version, BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME),
           modifier = modifier
             .wrapContentWidth()
             .padding(bottom = 8.dp)

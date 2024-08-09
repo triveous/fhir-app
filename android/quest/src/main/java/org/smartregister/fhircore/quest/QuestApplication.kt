@@ -60,7 +60,8 @@ class QuestApplication : OpenSrpApplication(), DataCaptureConfig.Provider, Confi
     if (BuildConfig.DEBUG) {
       Timber.plant(Timber.DebugTree())
     } else {
-      Timber.plant(ReleaseTree())
+      Timber.plant(Timber.DebugTree())
+      //Timber.plant(ReleaseTree())
     }
 
     if (BuildConfig.DEBUG.not()) {

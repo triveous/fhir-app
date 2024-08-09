@@ -96,8 +96,10 @@ import androidx.compose.ui.text.font.FontWeight
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
+import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.ui.register.components.EmptyStateSection
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
+import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringFromString
 import java.util.Date
 
 
@@ -197,7 +199,7 @@ fun RegisterScreen(
         val tabTitles = listOf(ALL_PATIENTS_TAB, DRAFT_PATIENTS_TAB, UNSYNCED_PATIENTS_TAB)
         val pagerState = rememberPagerState(pageCount = { 3 }, initialPage = 0)
 
-        val allSyncedPatients by viewModel.allSyncedPatientsStateFlow.collectAsState()
+        val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
         val savedRes by viewModel.allSavedDraftResponse.collectAsState()
         val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
         val isFetching by viewModel.isFetching.collectAsState()
@@ -910,7 +912,13 @@ fun SyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPatien
 
         Row(modifier = Modifier.padding(vertical = 4.dp)) {
           Box(modifier = Modifier.padding(vertical = 4.dp, horizontal = 36.dp)) {
-            Text(text = "Visited ${convertToDate(patient.meta.lastUpdated)}")
+
+            if (patient.patient?.extension?.isNotEmpty() == true){
+              Text(text = "Visited ${patient.patient?.extension?.get(0)?.value?.asStringValue()
+                ?.let { convertToDateStringFromString(it)}}")
+            }else{
+              Text(text = "Visited ${convertToDate(patient.meta.lastUpdated)}")
+            }
           }
         }
       }
