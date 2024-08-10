@@ -29,28 +29,27 @@ import android.os.Looper
 import android.os.Message
 import androidx.core.os.bundleOf
 import com.google.android.fhir.sync.HttpAuthenticationMethod
-import com.google.android.fhir.sync.HttpAuthenticator as FhirAuthenticator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
-import java.io.IOException
-import java.net.UnknownHostException
-import java.util.Base64
-import javax.inject.Inject
-import javax.inject.Singleton
-import javax.net.ssl.SSLHandshakeException
 import kotlinx.coroutines.runBlocking
 import org.smartregister.fhircore.engine.configuration.app.ConfigService
 import org.smartregister.fhircore.engine.data.remote.auth.OAuthService
 import org.smartregister.fhircore.engine.data.remote.model.response.OAuthResponse
+import org.smartregister.fhircore.engine.di.BaseUrlsHolder
 import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.extension.today
 import org.smartregister.fhircore.engine.util.toPasswordHash
 import retrofit2.HttpException
 import timber.log.Timber
+import java.io.IOException
+import java.net.UnknownHostException
+import java.util.Base64
+import javax.inject.Inject
+import javax.net.ssl.SSLHandshakeException
+import com.google.android.fhir.sync.HttpAuthenticator as FhirAuthenticator
 
-@Singleton
 class TokenAuthenticator
 @Inject
 constructor(
@@ -58,12 +57,13 @@ constructor(
   val configService: ConfigService,
   val oAuthService: OAuthService,
   val dispatcherProvider: DispatcherProvider,
+  val baseUrlsHolders: BaseUrlsHolder,
   val accountManager: AccountManager,
   @ApplicationContext val context: Context,
 ) : FhirAuthenticator {
 
   private val jwtParser = Jwts.parser()
-  private val authConfiguration by lazy { configService.provideAuthConfiguration() }
+  private val authConfiguration by lazy { configService.provideAuthConfiguration(baseUrlsHolders) }
   private var isLoginPageRendered = false
 
   fun getAccessToken(): String {

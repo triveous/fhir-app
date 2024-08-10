@@ -321,6 +321,9 @@ dependencies {
 
   androidTestUtil(libs.orchestrator)
 
+  //Splash
+  implementation(libs.core.splashscreen)
+
   // Android test dependencies
   androidTestImplementation(libs.bundles.junit.test)
   androidTestImplementation(libs.runner)

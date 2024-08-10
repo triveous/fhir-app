@@ -45,4 +45,9 @@
     <color name="subTextGreyBold">#6C737A</color>
     <color name="optionColor">#2F363D</color>
 
+    <!--Designer Color Name-->
+    <color name="anti_flash_white">#F5F3F0</color>
+    <color name="crayola">#2F363D</color>
+
+
 </resources>

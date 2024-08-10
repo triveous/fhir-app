@@ -14,6 +14,7 @@ converter-gson = "2.9.0"
 core-ktx = "1.12.0"
 android-x-test= "1.5.2"
 core-testing = "2.2.0"
+coreSplashscreen = "1.0.1"
 coverallsGradlePlugin = "2.12.0"
 cqfFhirCr = "3.0.0-PRE9"
 data-capture = "1.1.0-preview7-SNAPSHOT"
@@ -104,6 +105,7 @@ converter-gson = { group = "com.squareup.retrofit2", name = "converter-gson", ve
 core-desugar = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar-jdk-libs" }
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
 core-ktx-test = { group = "androidx.test", name = "core-ktx", version.ref = "android-x-test" }
+core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "coreSplashscreen" }
 core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "core-testing" }
 coveralls-gradle-plugin = { module = "gradle.plugin.org.kt3k.gradle.plugin:coveralls-gradle-plugin", version.ref = "coverallsGradlePlugin" }
 cqf-fhir-cr = { module = "org.opencds.cqf.fhir:cqf-fhir-cr", version.ref = "cqfFhirCr" }
