@@ -27,6 +27,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
+import ca.uhn.fhir.context.FhirContext
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.logicalId
@@ -46,18 +47,15 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.Reference
-import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.Task
-import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
-import org.smartregister.fhircore.engine.auth.AuthCredentials
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.register.RegisterConfiguration
@@ -77,21 +75,16 @@ import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.daysPassed
-import org.smartregister.fhircore.engine.util.extension.decodeJson
 import org.smartregister.fhircore.engine.util.extension.encodeJson
 import org.smartregister.fhircore.engine.util.extension.isToday
 import org.smartregister.fhircore.engine.util.extension.monthsPassed
-import org.smartregister.fhircore.engine.util.extension.plusDays
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
-import org.smartregister.fhircore.quest.ui.register.tasks.TasksViewModel
-import org.smartregister.fhircore.quest.util.OpensrpDateUtils
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import org.smartregister.model.practitioner.FhirPractitionerDetails
-import org.smartregister.model.practitioner.PractitionerDetails
 import timber.log.Timber
 import java.time.LocalDate
 import java.util.Date
@@ -864,16 +857,21 @@ constructor(
 
   fun getAllDraftResponses() {
     viewModelScope.launch {
-      val userName = getUserName()
-      val responses = fhirEngine.search<QuestionnaireResponse> {
-      }.map {
-        it.resource
-      }.filter {
-        (it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS) &&
-                (it.author?.reference?.toString() ?: "").contains(userName, true)
+      val allResponses = mutableListOf<QuestionnaireResponse>()
+      try {
+        val parser = FhirContext.forR4Cached().newJsonParser()
+        val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, false)
+        if (!draftResponsesJson.isNullOrEmpty()){
+          val allDrafts = parser?.parseResource(draftResponsesJson) as Bundle
+
+          allDrafts?.entry?.forEach {
+            allResponses.add(it.resource as QuestionnaireResponse)
+          }
+        }
+      }catch (e: Exception){
+        e.printStackTrace()
       }
-        .sortedByDescending { it.meta.lastUpdated }
-      _allSavedDraftResponseStateFlow.value = responses
+      _allSavedDraftResponseStateFlow.value = allResponses
     }
   }
 
@@ -898,14 +896,37 @@ constructor(
 
   fun softDeleteDraft(resourceId: String){
     viewModelScope.launch {
-      registerRepository.delete(
-        resourceType = ResourceType.QuestionnaireResponse,
-        resourceId = resourceId,
-        softDelete = false
-      )
-      getAllDraftResponses()
-      getAllPatients()
+      try {
+        val parser = FhirContext.forR4Cached().newJsonParser()
+
+        val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, false)
+        val allDrafts = parser?.parseResource(draftResponsesJson) as Bundle
+
+        if (!draftResponsesJson.isNullOrEmpty()) {
+          val entriesToRemove = mutableListOf<Int>()
+
+          allDrafts?.entry?.let {
+            for (i in 0 until it.size) {
+              val entry = allDrafts.entry[i]
+              if (entry.resource.id == resourceId) {
+                entriesToRemove.add(i)
+              }
+            }
+            entriesToRemove.forEach { allDrafts.entry.removeAt(it) }
+          }
+
+        }
+
+        // Save the updated bundle
+        val bundleJson = parser.encodeResourceToString(allDrafts)
+        sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
+
+      }catch (e: Exception){
+        e.printStackTrace()
+      }
     }
+    getAllDraftResponses()
+    getAllPatients()
   }
 
 

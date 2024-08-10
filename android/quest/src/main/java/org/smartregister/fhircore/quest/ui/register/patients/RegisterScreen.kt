@@ -96,7 +96,6 @@ import androidx.compose.ui.text.font.FontWeight
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
-import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.ui.register.components.EmptyStateSection
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringFromString
@@ -498,6 +497,7 @@ fun ShowDrafts(
                         modifier = Modifier.clickable {
                           val json = response.encodeResourceToString()
                           onEditResponse(json)
+                          viewModel.softDeleteDraft(response.id)
                         }
                       ) {
                         Icon(
@@ -510,7 +510,7 @@ fun ShowDrafts(
                         )
                       }
                       Box(modifier = modifier.clickable {
-                        onDeleteResponse(response.id.extractLogicalIdUuid(), true)
+                        onDeleteResponse(response.id, true)
                       }) {
                         androidx.compose.material.Icon(
                           modifier = Modifier.padding(
@@ -524,7 +524,7 @@ fun ShowDrafts(
                     }
 
                     Row(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
-                      Text(text = "Created: ${convertToDate(response.meta.lastUpdated)}")
+                      Text(text = "Created: ${response?.meta?.lastUpdated?.let { convertToDate(it) }}")
                     }
                   }
                 }
