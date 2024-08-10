@@ -17,17 +17,18 @@
 package org.smartregister.fhircore.engine.util
 
 import android.content.Context
+import android.util.Log
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.util.Base64
-import javax.inject.Inject
-import javax.inject.Singleton
 import org.jetbrains.annotations.VisibleForTesting
 import org.smartregister.fhircore.engine.auth.AuthCredentials
 import org.smartregister.fhircore.engine.util.extension.decodeJson
 import org.smartregister.fhircore.engine.util.extension.encodeJson
+import java.util.Base64
+import javax.inject.Inject
+import javax.inject.Singleton
 
 @Singleton
 class SecureSharedPreference @Inject constructor(@ApplicationContext val context: Context) {
@@ -80,6 +81,29 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
       )
       putString(SharedPreferenceKey.LOGIN_PIN_KEY.name, pin.toPasswordHash(randomSaltBytes))
     }
+  }
+  fun saveUrls(fhirBaseUrl: String?, oauthBaseUrl: String?) {
+    secureSharedPreferences.edit {
+      putString(SharedPreferenceKey.FHIR_BASE_URL.name, fhirBaseUrl)
+      putString(SharedPreferenceKey.OAUTH_BASE_URL.name, oauthBaseUrl)
+    }
+  }
+  fun getFhirBaseUrl(): String {
+    var fhirBaseUrl = secureSharedPreferences.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null)
+    if (fhirBaseUrl.isNullOrEmpty()) {
+      fhirBaseUrl = STAGING_FHIR_BASE_URL
+    }
+    Log.e("TAG","secure getFhirBaseUrl() fhirBaseUrl --> $fhirBaseUrl")
+    return fhirBaseUrl
+  }
+
+  fun getOauthBaseUrl(): String {
+    var oAuthBaseurl = secureSharedPreferences.getString(SharedPreferenceKey.OAUTH_BASE_URL.name, null)
+    if (oAuthBaseurl.isNullOrEmpty()) {
+      oAuthBaseurl = STAGING_OAUTH_BASE_URL
+    }
+    Log.e("TAG","secure getOauthBaseUrl() oAuthBaseurl--> $oAuthBaseurl")
+    return oAuthBaseurl
   }
 
   @VisibleForTesting fun get256RandomBytes() = 256.getRandomBytesOfSize()

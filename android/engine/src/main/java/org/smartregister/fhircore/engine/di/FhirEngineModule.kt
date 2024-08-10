@@ -29,7 +29,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Singleton
 import org.smartregister.fhircore.engine.BuildConfig
 import org.smartregister.fhircore.engine.configuration.app.ConfigService
 import org.smartregister.fhircore.engine.data.remote.shared.TokenAuthenticator
@@ -37,6 +36,7 @@ import org.smartregister.fhircore.engine.di.NetworkModule.Companion.AUTHORIZATIO
 import org.smartregister.fhircore.engine.di.NetworkModule.Companion.COOKIE
 import org.smartregister.fhircore.engine.di.NetworkModule.Companion.TIMEOUT_DURATION
 import timber.log.Timber
+import javax.inject.Singleton
 
 /**
  * Provide [FhirEngine] dependency in isolation so we can replace it with a fake dependency in test
@@ -51,13 +51,14 @@ class FhirEngineModule {
     @ApplicationContext context: Context,
     tokenAuthenticator: TokenAuthenticator,
     configService: ConfigService,
+    baseUrlsHolder: BaseUrlsHolder
   ): FhirEngine {
     FhirEngineProvider.init(
       FhirEngineConfiguration(
         enableEncryptionIfSupported = !BuildConfig.DEBUG,
         databaseErrorStrategy = DatabaseErrorStrategy.UNSPECIFIED,
         ServerConfiguration(
-          baseUrl = configService.provideAuthConfiguration().fhirServerBaseUrl,
+          baseUrl = baseUrlsHolder.fhirServerBaseUrl.value?:"",
           authenticator = tokenAuthenticator,
           networkConfiguration =
             NetworkConfiguration(

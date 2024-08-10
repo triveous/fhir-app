@@ -1,49 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
-        android:name=".QuestApplication"
-        android:allowBackup="true"
-        android:enableOnBackInvokedCallback="true"
-        android:hardwareAccelerated="true"
-        android:icon="@drawable/ic_launcher"
-        android:installLocation="internalOnly"
-        android:label="@string/app_name"
-        android:largeHeap="true"
-        android:screenOrientation="portrait"
-        android:supportsRtl="true"
-        android:theme="@style/AppTheme.NoActionBar"
-        android:usesCleartextTraffic="false"
-        android:windowSoftInputMode="adjustResize"
-        tools:ignore="UnusedAttribute,LockedOrientationActivity"
-        tools:replace="android:theme">
-        <activity
-            android:name=".ui.register.patients.GenericActivity"
-            android:exported="false"
-            android:launchMode="singleTop"
+            android:name=".QuestApplication"
+            android:allowBackup="true"
+            android:enableOnBackInvokedCallback="true"
+            android:hardwareAccelerated="true"
+            android:icon="@drawable/ic_launcher"
+            android:installLocation="internalOnly"
+            android:label="@string/app_name"
+            android:largeHeap="true"
             android:screenOrientation="portrait"
-            />
+            android:supportsRtl="true"
+            android:theme="@style/AppTheme.NoActionBar"
+            android:usesCleartextTraffic="false"
+            android:windowSoftInputMode="adjustResize"
+            tools:ignore="UnusedAttribute,LockedOrientationActivity"
+            tools:replace="android:theme">
         <activity
-            android:name=".ui.register.tasks.SeeMoreTasksActivity"
-            android:exported="false" />
+                android:name=".ui.register.patients.GenericActivity"
+                android:exported="false"
+                android:launchMode="singleTop"
+                android:screenOrientation="portrait" />
+        <activity
+                android:name=".ui.register.tasks.SeeMoreTasksActivity"
+                android:exported="false" />
 
         <profileable
-            android:shell="true"
-            tools:targetApi="29" />
+                android:shell="true"
+                tools:targetApi="29" />
 
         <meta-data
-            android:name="io.sentry.auto-init"
-            android:value="false" />
+                android:name="io.sentry.auto-init"
+                android:value="false" />
 
         <activity
-            android:name=".ui.appsetting.AppSettingActivity"
-            android:clearTaskOnLaunch="true"
-            android:exported="true"
-            android:screenOrientation="portrait">
+                android:name=".ui.splash.SplashActivity"
+                android:clearTaskOnLaunch="true"
+                android:exported="true"
+                android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -51,53 +51,64 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".ui.login.LoginActivity"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait" />
+                android:name=".ui.login.LoginActivity"
+                android:exported="false"
+                android:launchMode="singleTop"
+                android:screenOrientation="portrait" />
         <activity
-            android:name=".ui.pin.PinLoginActivity"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait" />
+                android:name=".ui.pin.PinLoginActivity"
+                android:exported="false"
+                android:launchMode="singleTop"
+                android:screenOrientation="portrait" />
         <activity
-            android:name=".ui.main.AppMainActivity"
-            android:clearTaskOnLaunch="true"
-            android:launchMode="singleTop"
-            android:screenOrientation="portrait" />
+                android:name=".ui.appsetting.AppSettingActivity"
+                android:exported="false"
+                android:launchMode="singleTop"
+                android:screenOrientation="portrait" />
+
         <activity
-            android:name=".ui.questionnaire.QuestionnaireActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme" />
+                android:name=".ui.selectSite.SelectSiteScreenActivity"
+                android:exported="false"
+                android:launchMode="singleTop"
+                android:screenOrientation="portrait" />
         <activity
-            android:name="androidx.compose.ui.tooling.PreviewActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:theme="@style/AppTheme"
-            tools:replace="exported" />
+                android:name=".ui.main.AppMainActivity"
+                android:clearTaskOnLaunch="true"
+                android:launchMode="singleTop"
+                android:screenOrientation="portrait" />
+        <activity
+                android:name=".ui.questionnaire.QuestionnaireActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"
+                android:theme="@style/AppTheme" />
+        <activity
+                android:name="androidx.compose.ui.tooling.PreviewActivity"
+                android:exported="false"
+                android:screenOrientation="portrait"
+                android:theme="@style/AppTheme"
+                tools:replace="exported" />
 
         <service
-            android:name=".ui.login.AuthAndroidService"
-            android:enabled="true"
-            android:exported="false">
+                android:name=".ui.login.AuthAndroidService"
+                android:enabled="true"
+                android:exported="false">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />
             </intent-filter>
 
             <meta-data
-                android:name="android.accounts.AccountAuthenticator"
-                android:resource="@xml/authenticator" />
+                    android:name="android.accounts.AccountAuthenticator"
+                    android:resource="@xml/authenticator" />
         </service>
 
         <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
+                android:name="androidx.core.content.FileProvider"
+                android:authorities="${applicationId}.fileprovider"
+                android:exported="false"
+                android:grantUriPermissions="true">
             <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
+                    android:name="android.support.FILE_PROVIDER_PATHS"
+                    android:resource="@xml/file_paths" />
         </provider>
     </application>
 

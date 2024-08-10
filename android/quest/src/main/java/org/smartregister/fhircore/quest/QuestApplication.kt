@@ -30,14 +30,16 @@ import dagger.hilt.components.SingletonComponent
 import io.sentry.android.core.SentryAndroid
 import io.sentry.android.core.SentryAndroidOptions
 import io.sentry.android.fragment.FragmentLifecycleIntegration
-import java.net.URL
-import javax.inject.Inject
 import org.smartregister.fhircore.engine.OpenSrpApplication
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.ReferenceUrlResolver
+import org.smartregister.fhircore.engine.di.BaseUrlsHolder
+import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.getSubDomain
 import org.smartregister.fhircore.quest.data.QuestXFhirQueryResolver
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireItemViewHolderFactoryMatchersProviderFactoryImpl
 import timber.log.Timber
+import java.net.URL
+import javax.inject.Inject
 
 @HiltAndroidApp
 class QuestApplication : OpenSrpApplication(), DataCaptureConfig.Provider, Configuration.Provider {
@@ -50,6 +52,8 @@ class QuestApplication : OpenSrpApplication(), DataCaptureConfig.Provider, Confi
   @Inject lateinit var referenceUrlResolver: ReferenceUrlResolver
 
   @Inject lateinit var xFhirQueryResolver: QuestXFhirQueryResolver
+  @Inject lateinit var sharedPreferencesHelper: SharedPreferencesHelper
+  @Inject lateinit var baseUrlsHolder: BaseUrlsHolder
 
   private var configuration: DataCaptureConfig? = null
 
@@ -96,7 +100,12 @@ class QuestApplication : OpenSrpApplication(), DataCaptureConfig.Provider, Confi
           ),
         )
         try {
-          options.environment = URL(BuildConfig.FHIR_BASE_URL).getSubDomain().replace('-', '.')
+          val url = if (::sharedPreferencesHelper.isInitialized){
+            sharedPreferencesHelper.getFhirBaseUrl()
+          } else {
+            BuildConfig.FHIR_BASE_URL
+          }
+          options.environment = URL(url).getSubDomain().replace('-', '.')
         } catch (e: Exception) {
           Timber.e(e)
         }
@@ -127,7 +136,10 @@ class QuestApplication : OpenSrpApplication(), DataCaptureConfig.Provider, Confi
       .build()
 
   override fun getFhirServerHost(): URL? {
-    fhirServerHost = fhirServerHost ?: URL(BuildConfig.FHIR_BASE_URL)
-    return fhirServerHost
+    return URL(baseUrlsHolder.fhirServerBaseUrl.value)
+  }
+
+  internal fun updateFhirServerHost(){
+    URL(baseUrlsHolder.fhirServerBaseUrl.value)
   }
 }

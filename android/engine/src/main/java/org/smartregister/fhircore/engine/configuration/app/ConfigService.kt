@@ -20,6 +20,7 @@ import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.SearchParameter
+import org.smartregister.fhircore.engine.di.BaseUrlsHolder
 import org.smartregister.fhircore.engine.sync.ResourceTag
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
@@ -29,7 +30,7 @@ import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 interface ConfigService {
 
   /** Provide [AuthConfiguration] for the application. */
-  fun provideAuthConfiguration(): AuthConfiguration
+  fun provideAuthConfiguration(baseUrlsHolder: BaseUrlsHolder): AuthConfiguration
 
   /** Define a list of [ResourceTag] for the application. */
   fun defineResourceTags(): List<ResourceTag>
