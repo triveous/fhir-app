@@ -68,7 +68,7 @@ class NetworkModule {
           level =
             if (BuildConfig.DEBUG) {
               HttpLoggingInterceptor.Level.BODY
-            } else HttpLoggingInterceptor.Level.BODY
+            } else HttpLoggingInterceptor.Level.BASIC
           redactHeader(AUTHORIZATION)
           redactHeader(COOKIE)
         },
@@ -147,7 +147,7 @@ class NetworkModule {
           level =
             if (BuildConfig.DEBUG) {
               HttpLoggingInterceptor.Level.BODY
-            } else HttpLoggingInterceptor.Level.BASIC
+            } else HttpLoggingInterceptor.Level.BODY
           redactHeader(AUTHORIZATION)
           redactHeader(COOKIE)
         },

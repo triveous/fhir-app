@@ -914,8 +914,8 @@ fun SyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPatien
           Box(modifier = Modifier.padding(vertical = 4.dp, horizontal = 36.dp)) {
 
             if (patient.patient?.extension?.isNotEmpty() == true){
-              Text(text = "Visited ${patient.patient?.extension?.get(0)?.value?.asStringValue()
-                ?.let { convertToDateStringFromString(it)}}")
+              val extension = patient.patient?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
+              Text(text = "Visited ${extension?.value?.asStringValue()?.let {convertToDateStringFromString(it)}}")
             }else{
               Text(text = "Visited ${convertToDate(patient.meta.lastUpdated)}")
             }
