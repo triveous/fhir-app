@@ -31,7 +31,6 @@ import com.google.android.fhir.datacapture.validation.Valid
 import com.google.android.fhir.db.ResourceNotFoundException
 import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.Search
-import com.google.android.fhir.search.StringFilterModifier
 import com.google.android.fhir.search.filter.TokenParamFilterCriterion
 import com.google.android.fhir.search.search
 import com.google.android.fhir.workflow.FhirOperator
@@ -96,21 +95,12 @@ import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
 import org.smartregister.fhircore.quest.R
 import timber.log.Timber
-import java.time.LocalDate
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import androidx.work.WorkManager
-import com.google.android.fhir.FhirEngine
-import com.google.android.fhir.search.Order
-import com.google.android.fhir.search.count
-import com.google.android.fhir.search.search
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+
 import org.hl7.fhir.r4.model.Reference
 import org.smartregister.fhircore.engine.sync.SyncBroadcaster
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
-import java.time.format.DateTimeFormatter
+
+import kotlin.random.Random
 
 @HiltViewModel
 class QuestionnaireViewModel
@@ -625,18 +615,40 @@ constructor(
    */
   fun saveDraftQuestionnaire(questionnaireResponse: QuestionnaireResponse) {
     viewModelScope.launch {
-      val questionnaireHasAnswer =
-        questionnaireResponse.item.any{it.item.get(1).hasAnswer()}
+      val questionnaireHasAnswer = questionnaireResponse.item.any { it?.item?.get(1)?.hasAnswer() == true }
       if (questionnaireHasAnswer) {
-        val flwId = getUserName()
-        val ref = Reference()
-        ref.reference = "Practitioner/$flwId"
-        // set author
-        questionnaireResponse.author = ref
-        questionnaireResponse.status = QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS
-        defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)
-        _isDraftSaved.postValue(true)
-      }else{
+        try {
+          val flwId = getUserName()
+          val ref = Reference()
+          ref.reference = "Practitioner/$flwId"
+          // set author
+          questionnaireResponse.author = ref
+          questionnaireResponse.id = UUID.randomUUID().toString()
+          questionnaireResponse.meta.lastUpdated = Date()
+
+          val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, true)
+          val draftResBundle = if (draftResponsesJson != null) parser.parseResource(draftResponsesJson) as Bundle else Bundle()
+
+          val entryIndex = draftResBundle.entry?.indexOfFirst {
+            it.resource.id == (questionnaireResponse.id ?: -1)
+          }
+
+          if (entryIndex != null && entryIndex != -1) {
+            draftResBundle.entry?.set(entryIndex, Bundle.BundleEntryComponent().apply { resource = questionnaireResponse })
+          } else {
+            val entity = Bundle.BundleEntryComponent().apply { resource = questionnaireResponse }
+            draftResBundle.addEntry(entity)
+          }
+
+          // Save the updated bundle
+          val bundleJson = parser.encodeResourceToString(draftResBundle)
+          sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
+
+          _isDraftSaved.postValue(true)
+        }catch (exception: Exception){
+          Timber.e(exception, "An error occurred while saveDraftQuestionnaire")
+        }
+      } else {
         _isDraftSaved.postValue(true)
       }
     }
