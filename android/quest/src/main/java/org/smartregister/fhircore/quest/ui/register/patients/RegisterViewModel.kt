@@ -54,6 +54,7 @@ import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.configuration.ConfigType
@@ -76,6 +77,7 @@ import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.daysPassed
 import org.smartregister.fhircore.engine.util.extension.encodeJson
+import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.engine.util.extension.isToday
 import org.smartregister.fhircore.engine.util.extension.monthsPassed
 import org.smartregister.fhircore.engine.util.extension.valueToString
@@ -863,7 +865,18 @@ constructor(
       }catch (exception: Exception){
         Timber.e(exception, "An error occurred while getting all drafts")
       }
-      _allSavedDraftResponseStateFlow.value = allResponses
+
+      val userName = getUserName()
+      val responses = fhirEngine.search<QuestionnaireResponse> {
+      }.map {
+        it.resource
+      }.filter {
+        (it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS) &&
+                (it.author?.reference?.toString() ?: "").contains(userName, true)
+      }
+        .sortedByDescending { it.meta.lastUpdated }
+
+      _allSavedDraftResponseStateFlow.value = allResponses + responses
     }
   }
 
@@ -894,25 +907,31 @@ constructor(
         val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, false)
         val allDrafts = parser?.parseResource(draftResponsesJson) as Bundle
 
-        if (!draftResponsesJson.isNullOrEmpty()) {
-          val entriesToRemove = mutableListOf<Int>()
+        if (allDrafts?.entry?.any { it.resource?.id == resourceId } == true){
+          if (!draftResponsesJson.isNullOrEmpty()) {
+            val entriesToRemove = mutableListOf<Int>()
 
-          allDrafts?.entry?.let {
-            for (i in 0 until it.size) {
-              val entry = allDrafts.entry[i]
-              if (entry.resource.id == resourceId) {
-                entriesToRemove.add(i)
+            allDrafts?.entry?.let {
+              for (i in 0 until it.size) {
+                val entry = allDrafts.entry[i]
+                if (entry.resource.id == resourceId) {
+                  entriesToRemove.add(i)
+                }
               }
+              entriesToRemove.forEach { allDrafts.entry.removeAt(it) }
             }
-            entriesToRemove.forEach { allDrafts.entry.removeAt(it) }
           }
 
+          // Save the updated bundle
+          val bundleJson = parser.encodeResourceToString(allDrafts)
+          sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
+        }else{
+          registerRepository.delete(
+            resourceType = ResourceType.QuestionnaireResponse,
+            resourceId = resourceId.extractLogicalIdUuid(),
+            softDelete = false
+          )
         }
-
-        // Save the updated bundle
-        val bundleJson = parser.encodeResourceToString(allDrafts)
-        sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
-
       }catch (exception: Exception){
         Timber.e(exception, "An error occurred while deleting a draft")
       }
