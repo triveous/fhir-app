@@ -503,8 +503,12 @@ fun ShowSyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPa
         Row(modifier = Modifier.padding(vertical = 4.dp)) {
           Box(modifier = Modifier.padding(vertical = 4.dp, horizontal = 36.dp)) {
             if (patient.patient?.extension?.isNotEmpty() == true){
-              Text(text = "Visited ${patient.patient?.extension?.get(0)?.value?.asStringValue()
-                ?.let { OpensrpDateUtils.convertToDateStringFromString(it) }}")
+              val extension = patient.patient?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
+              Text(text = "Visited ${extension?.value?.asStringValue()?.let {
+                OpensrpDateUtils.convertToDateStringFromString(
+                  it
+                )
+              }}")
             }else{
               Text(text = "Visited ${OpensrpDateUtils.convertToDate(patient.meta.lastUpdated)}")
             }

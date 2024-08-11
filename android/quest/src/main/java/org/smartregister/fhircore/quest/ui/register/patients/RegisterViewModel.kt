@@ -705,15 +705,7 @@ constructor(
       }.map {
         it.resource
       }.filter { patient ->
-        (patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/") ?: "").equals(getUserName(), true)
-      }.sortedByDescending {
-        it.meta.lastUpdated
-        /*if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
-          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
-          date
-        }else{
-          it.meta.lastUpdated
-        }*/
+        (patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/").orEmpty()).equals(getUserName(), true)
       }
 
       val todayCases = patients.filter {
@@ -868,8 +860,8 @@ constructor(
             allResponses.add(it.resource as QuestionnaireResponse)
           }
         }
-      }catch (e: Exception){
-        e.printStackTrace()
+      }catch (exception: Exception){
+        Timber.e(exception, "An error occurred while getting all drafts")
       }
       _allSavedDraftResponseStateFlow.value = allResponses
     }
@@ -921,8 +913,8 @@ constructor(
         val bundleJson = parser.encodeResourceToString(allDrafts)
         sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
 
-      }catch (e: Exception){
-        e.printStackTrace()
+      }catch (exception: Exception){
+        Timber.e(exception, "An error occurred while deleting a draft")
       }
     }
     getAllDraftResponses()

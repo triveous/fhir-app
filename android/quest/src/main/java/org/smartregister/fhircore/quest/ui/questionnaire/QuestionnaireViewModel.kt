@@ -615,7 +615,7 @@ constructor(
    */
   fun saveDraftQuestionnaire(questionnaireResponse: QuestionnaireResponse) {
     viewModelScope.launch {
-      val questionnaireHasAnswer = questionnaireResponse.item.any { it.item.get(1).hasAnswer() }
+      val questionnaireHasAnswer = questionnaireResponse.item.any { it?.item?.get(1)?.hasAnswer() == true }
       if (questionnaireHasAnswer) {
         try {
           val flwId = getUserName()
@@ -623,7 +623,7 @@ constructor(
           ref.reference = "Practitioner/$flwId"
           // set author
           questionnaireResponse.author = ref
-          questionnaireResponse.id = "qr-${Random.nextBits(1000000)}"
+          questionnaireResponse.id = UUID.randomUUID().toString()
           questionnaireResponse.meta.lastUpdated = Date()
 
           val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, true)
@@ -645,12 +645,11 @@ constructor(
           sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
 
           _isDraftSaved.postValue(true)
-        }catch (e: Exception){
-          Timber.d(
-            "saveDraftQuestionnaire: ${e.printStackTrace()}")
+        }catch (exception: Exception){
+          Timber.e(exception, "An error occurred while saveDraftQuestionnaire")
         }
       } else {
-        _isDraftSaved.postValue(false)
+        _isDraftSaved.postValue(true)
       }
     }
   }
