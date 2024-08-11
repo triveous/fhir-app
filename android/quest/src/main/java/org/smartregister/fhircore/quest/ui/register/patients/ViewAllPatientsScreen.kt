@@ -65,18 +65,14 @@ import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.navigation.NavController
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
-import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.quest.R
-import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.register.tasks.TasksTopScreenSection
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils
-import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 
 
 const val URGENT_REFERRAL_TAB = "Urgent Referral"
@@ -176,6 +172,7 @@ fun ViewAllPatientsScreen(
           val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
 
           val allSyncedPatients by viewModel.allSyncedPatientsStateFlow.collectAsState()
+          val allSyncedAndUnsyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
           val savedRes by viewModel.allSavedDraftResponse.collectAsState()
           val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
 
@@ -188,6 +185,7 @@ fun ViewAllPatientsScreen(
 
             LaunchedEffect(key1 = selectedFilter, key2 = allLatestTasksStateFlow) {
               viewModel.getAllSyncedPatients()
+              viewModel.getAllPatients()
               viewModel.getAllDraftResponses()
               viewModel.getAllUnSyncedPatients()
             }
@@ -198,6 +196,7 @@ fun ViewAllPatientsScreen(
                 FilterRow(selectedFilter) { filter ->
                   selectedFilter = filter
                   viewModel.getAllSyncedPatients()
+                  viewModel.getAllPatients()
                   viewModel.getAllDraftResponses()
                   viewModel.getAllUnSyncedPatients()
                 }
@@ -219,7 +218,7 @@ fun ViewAllPatientsScreen(
                 FilterType.ALL_PATIENTS -> {
                   LazyColumn(modifier = modifier
                     .background(SearchHeaderColor)) {
-                    items(allSyncedPatients) { patient ->
+                    items(allSyncedAndUnsyncedPatients) { patient ->
                       Box(
                         modifier = modifier
                           .fillMaxWidth()
@@ -316,7 +315,7 @@ fun ShowUnSyncedPatients2(
 ) {
   Box(
     modifier = modifier
-      .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+      .padding(start = 8.dp, end = 8.dp)
       .fillMaxHeight()
       .fillMaxWidth()
       .background(SearchHeaderColor)
@@ -350,7 +349,7 @@ fun ShowUnSyncedPatients2(
             Box(
               modifier = modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                //.padding(vertical = 4.dp)
                 .background(SearchHeaderColor, shape = RoundedCornerShape(8.dp))
             ) {
 
@@ -503,7 +502,16 @@ fun ShowSyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPa
 
         Row(modifier = Modifier.padding(vertical = 4.dp)) {
           Box(modifier = Modifier.padding(vertical = 4.dp, horizontal = 36.dp)) {
-            Text(text = "Visited ${OpensrpDateUtils.convertToDate(patient.meta.lastUpdated)}")
+            if (patient.patient?.extension?.isNotEmpty() == true){
+              val extension = patient.patient?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
+              Text(text = "Visited ${extension?.value?.asStringValue()?.let {
+                OpensrpDateUtils.convertToDateStringFromString(
+                  it
+                )
+              }}")
+            }else{
+              Text(text = "Visited ${OpensrpDateUtils.convertToDate(patient.meta.lastUpdated)}")
+            }
           }
         }
       }
@@ -630,6 +638,7 @@ fun ShowAllDrafts(
                         modifier = Modifier.clickable {
                           val json = response.encodeResourceToString()
                           onEditResponse(json)
+                          viewModel.softDeleteDraft(response.id)
                         }
                       ) {
                         Icon(
@@ -642,7 +651,7 @@ fun ShowAllDrafts(
                         )
                       }
                       Box(modifier = modifier.clickable {
-                        onDeleteResponse(response.id.extractLogicalIdUuid(), true)
+                        onDeleteResponse(response.id, true)
                       }) {
                         androidx.compose.material.Icon(
                           modifier = Modifier.padding(
@@ -656,7 +665,9 @@ fun ShowAllDrafts(
                     }
 
                     Row(modifier = modifier.padding(vertical = 8.dp, horizontal = 36.dp)) {
-                      Text(text = "Created: ${OpensrpDateUtils.convertToDate(response.meta.lastUpdated)}")
+                      Text(text = "Created: ${response?.meta?.lastUpdated?.let {
+                        OpensrpDateUtils.convertToDate(it)
+                      }}")
                     }
                   }
                 }
