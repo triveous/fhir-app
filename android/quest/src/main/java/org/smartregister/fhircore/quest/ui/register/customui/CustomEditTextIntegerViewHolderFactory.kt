@@ -44,19 +44,27 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
             textInputEditText = itemView.findViewById(R.id.text_input_edit_text)
         }
 
-        override fun bind(questionnaireViewItem: QuestionnaireViewItem) {
-            super.bind(questionnaireViewItem)
+        override fun updateInputTextUI(
+            questionnaireViewItem: QuestionnaireViewItem,
+            textInputEditText: TextInputEditText
+        ) {
             var isMandatoryQuestion = ""
             if (questionnaireViewItem.questionnaireItem.required){
                 isMandatoryQuestion = "*"
             }
-            textInputLayout.hint = "${questionnaireViewItem.questionText} ${isMandatoryQuestion}"
             header.visibility = View.GONE
-            displayValidationResult(questionnaireViewItem.validationResult)
         }
 
-        fun displayValidationResult(validationResult: ValidationResult) {
-            textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, validationResult)
+        override fun updateValidationTextUI(
+            questionnaireViewItem: QuestionnaireViewItem,
+            textInputLayout: TextInputLayout
+        ) {
+            var isMandatoryQuestion = ""
+            if (questionnaireViewItem.questionnaireItem.required){
+                isMandatoryQuestion = "*"
+            }
+            textInputLayout.hint = "${questionnaireViewItem.questionText} $isMandatoryQuestion"
+            textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, questionnaireViewItem.validationResult)
         }
 
         override suspend fun handleInput(
@@ -80,7 +88,7 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
             }
         }
 
-        override fun updateUI(
+        fun updateUI(
             questionnaireViewItem: QuestionnaireViewItem,
             textInputEditText: TextInputEditText,
             textInputLayout: TextInputLayout,
