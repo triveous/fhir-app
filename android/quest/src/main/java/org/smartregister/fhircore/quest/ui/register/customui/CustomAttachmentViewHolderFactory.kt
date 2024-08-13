@@ -32,7 +32,7 @@ import com.google.android.fhir.datacapture.views.attachment.CameraLauncherFragme
 import com.google.android.fhir.datacapture.views.attachment.OpenDocumentLauncherFragment
 import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemViewHolderDelegate
 import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemViewHolderFactory
-import com.google.android.fhir.logicalId
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.material.divider.MaterialDivider
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
