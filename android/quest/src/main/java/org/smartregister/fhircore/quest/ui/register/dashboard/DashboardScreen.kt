@@ -184,12 +184,6 @@ fun DashboardScreen(
                 color = GreyTextColor,
                 style = MaterialTheme.typography.h6
               )
-              Spacer(modifier = Modifier.height(4.dp))
-              Text(
-                text = "Mallapadi 1",
-                color = Color.Black,
-                style = MaterialTheme.typography.h5
-              )
             }
           }
           Column(
