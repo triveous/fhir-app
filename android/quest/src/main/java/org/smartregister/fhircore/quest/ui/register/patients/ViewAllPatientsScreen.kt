@@ -20,7 +20,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +46,6 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,29 +62,20 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.fhir.datacapture.extensions.asStringValue
-import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.LightColors
-import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
-import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
-import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_THIN_LIGHT
 import org.smartregister.fhircore.quest.theme.Colors.TRANSPARENT
 import org.smartregister.fhircore.quest.theme.body14Medium
-import org.smartregister.fhircore.quest.theme.body18Medium
-import org.smartregister.fhircore.quest.theme.bodyExtraBold
-import org.smartregister.fhircore.quest.theme.bodyNormal
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.register.components.EmptyStateSection
 import org.smartregister.fhircore.quest.ui.register.tasks.TasksTopScreenSection
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils
-import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
 
 
 const val URGENT_REFERRAL_TAB = "Urgent Referral"
@@ -258,7 +247,7 @@ fun ViewAllPatientsScreen(
                                             if (patient.resourceType == RegisterViewModel.AllPatientsResourceType.Patient) {
                                                 val patientData = patient.patient
                                                 patientData?.let {
-                                                    ShowSyncedPatientCard(patientData, patient)
+                                                    SyncedPatientCardItem(patientData, patient)
                                                 }
                                             }
                                         }
@@ -325,7 +314,7 @@ fun ViewAllPatientsScreen(
                                             if (patient.resourceType == RegisterViewModel.AllPatientsResourceType.Patient) {
                                                 val patientData = patient.patient
                                                 patientData?.let {
-                                                    ShowSyncedPatientCard(patientData, patient)
+                                                    SyncedPatientCardItem(patientData, patient)
                                                 }
                                             }
                                         }
@@ -450,77 +439,6 @@ fun ShowUnSyncedPatients2(
 }
 
 @Composable
-fun ShowSyncedPatientCard(
-    patientData: Patient,
-    patient: RegisterViewModel.AllPatientsResourceData
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-
-        Box(modifier = Modifier.background(Color.White)) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .background(Color.White)
-            ) {
-                Row(
-                    modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top
-                ) {
-                    androidx.compose.material.Icon(
-                        painter = painterResource(id = R.drawable.ic_patient_male),
-                        contentDescription = FILTER,
-                        tint = BRANDEIS_BLUE
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.Top) {
-                            val stringData =
-                                patientData.name?.firstOrNull()?.given?.firstOrNull()?.value
-                            Text(
-                                text = stringData ?: "",
-                                style = body18Medium(), color = BRANDEIS_BLUE,
-                                modifier = Modifier
-                                    .weight(0.7f)
-                                    .padding(end = 10.dp)
-                            )
-                            if (true) { // TODO: need to add the sync status
-//                                Spacer(modifier = Modifier.weight(1f))
-                                Text(
-                                    text = stringResource(
-                                        id = R.string.cases_sync,
-                                        "Pending"
-                                    ) ?: "",
-                                    style = bodyNormal(16.sp).copy(color = CRAYOLA_THIN_LIGHT),
-                                    modifier = Modifier.weight(.4f)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = stringResource(id = R.string.visited),
-                                style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = convertToDate(patient.meta.lastUpdated),
-                                style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun ShowAllDrafts(
     modifier: Modifier,
     drafts: List<QuestionnaireResponse>,
@@ -565,105 +483,7 @@ fun ShowAllDrafts(
                         .fillMaxWidth()
                 ) {
                     items(drafts) { response ->
-                        val result =
-                            response?.item?.firstOrNull()?.item.takeIf { (it?.size ?: 0) >= 1 }
-                        val title =
-                            result?.get(1)?.answer?.firstOrNull()?.value?.asStringValue() ?: "Guest"
-                        Box(
-                            modifier = modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .background(Color.White, shape = RoundedCornerShape(8.dp))
-                                .border(
-                                    width = 0.dp,
-                                    color = Color.White,
-                                    shape = RoundedCornerShape(8.dp),
-                                ),
-                        ) {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.White, shape = RoundedCornerShape(8.dp)),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                            ) {
-                                Box(
-                                    modifier = modifier
-                                        .background(Color.White)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 8.dp, horizontal = 16.dp)
-                                            .background(Color.White)
-                                    ) {
-                                        Row(modifier = modifier.padding(vertical = 4.dp)) {
-                                            androidx.compose.material.Icon(
-                                                modifier = Modifier.padding(
-                                                    vertical = 4.dp,
-                                                    horizontal = 4.dp
-                                                ),
-                                                painter = painterResource(id = R.drawable.ic_draft),
-                                                contentDescription = FILTER,
-                                            )
-                                            Text(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .padding(vertical = 4.dp, horizontal = 8.dp),
-                                                text = title,
-                                                style = MaterialTheme.typography.h6,
-                                                color = Color.DarkGray
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Box(
-                                                modifier = Modifier.clickable {
-                                                    val json = response.encodeResourceToString()
-                                                    onEditResponse(json)
-                                                }
-                                            ) {
-                                                Icon(
-                                                    modifier = Modifier.padding(
-                                                        vertical = 4.dp,
-                                                        horizontal = 8.dp
-                                                    ),
-                                                    painter = painterResource(id = R.drawable.edit_draft),
-                                                    contentDescription = FILTER,
-                                                )
-                                            }
-                                            Box(modifier = modifier.clickable {
-                                                onDeleteResponse(
-                                                    response.id.extractLogicalIdUuid(),
-                                                    true
-                                                )
-                                            }) {
-                                                androidx.compose.material.Icon(
-                                                    modifier = Modifier.padding(
-                                                        vertical = 4.dp,
-                                                        horizontal = 8.dp
-                                                    ),
-                                                    painter = painterResource(id = R.drawable.ic_delete_draft),
-                                                    contentDescription = FILTER,
-                                                )
-                                            }
-                                        }
-
-                                        Row(
-                                            modifier = modifier.padding(
-                                                vertical = 8.dp,
-                                                horizontal = 36.dp
-                                            )
-                                        ) {
-                                            Text(
-                                                text = "Created: ${
-                                                    convertToDate(
-                                                        response.meta.lastUpdated
-                                                    )
-                                                }"
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        DraftsItem(response, modifier, onEditResponse, onDeleteResponse)
                     }
                 }
 

@@ -31,7 +31,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,8 +63,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
-import com.google.android.fhir.datacapture.extensions.asStringValue
-import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
@@ -75,24 +72,17 @@ import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
-import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
-import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.quest.event.ToolbarClickEvent
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
-import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
-import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_THIN_LIGHT
 import org.smartregister.fhircore.quest.theme.body14Medium
-import org.smartregister.fhircore.quest.theme.body18Medium
-import org.smartregister.fhircore.quest.theme.bodyExtraBold
 import org.smartregister.fhircore.quest.theme.bodyNormal
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity.Companion.QUESTIONNAIRE_RESPONSE_PREFILL
 import org.smartregister.fhircore.quest.ui.register.components.EmptyStateSection
-import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 
 
@@ -456,91 +446,6 @@ fun ShowDrafts(
     }
 }
 
-@Composable
-private fun DraftsItem(
-    response: QuestionnaireResponse,
-    modifier: Modifier,
-    onEditResponse: (String) -> Unit?,
-    onDeleteResponse: (String, Boolean) -> Unit
-) {
-    val result = response?.item?.firstOrNull()?.item.takeIf { (it?.size ?: 0) >= 1 }
-    val title = result?.get(1)?.answer?.firstOrNull()?.value?.asStringValue() ?: "Guest"
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Box(
-            modifier = modifier.background(Color.White)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .background(Color.White)
-            ) {
-                Row {
-                    androidx.compose.material.Icon(
-                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
-                        contentDescription = FILTER,
-                        modifier=Modifier.padding(8.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Column {
-                        Row {
-                            Text(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(end = 8.dp, top = 8.dp),
-                                text = title,
-                                style = body18Medium().copy(color = CRAYOLA)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Box(modifier = Modifier.clickable {
-                                val json = response.encodeResourceToString()
-                                onEditResponse(json)
-                            }) {
-                                Image(
-                                    modifier = Modifier.padding(8.dp),
-                                    painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
-                                    contentDescription = FILTER,
-                                )
-                            }
-                            Box(modifier = modifier.clickable {
-                                onDeleteResponse(
-                                    response.id.extractLogicalIdUuid(), true
-                                )
-                            }) {
-                                androidx.compose.material.Icon(
-                                    modifier = Modifier.padding(8.dp),
-                                    painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
-                                    contentDescription = FILTER,
-                                )
-                            }
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        ) {
-                            Text(
-                                text = stringResource(id = org.smartregister.fhircore.quest.R.string.created),
-                                style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = convertToDate(response.meta.lastUpdated),
-                                style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -588,7 +493,7 @@ private fun ShowAllPatients(
                         if (patient.resourceType == RegisterViewModel.AllPatientsResourceType.Patient) {
                             val patientData = patient.patient
                             patientData?.let {
-                                SyncedPatientCard(patientData, patient)
+                                SyncedPatientCardItem(patientData, patient)
                             }
                         }
                     }
@@ -617,73 +522,6 @@ private fun ShowAllPatients(
                                 .fillMaxWidth()
                                 .padding(16.dp)
                         )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SyncedPatientCard(patientData: Patient, patient: RegisterViewModel.AllPatientsResourceData) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-
-        Box(modifier = Modifier.background(Color.White)) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .background(Color.White)
-            ) {
-                Row(
-                    modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top
-                ) {
-                    androidx.compose.material.Icon(
-                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_patient_male),
-                        contentDescription = FILTER,
-                        tint = BRANDEIS_BLUE
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.Top) {
-                            val stringData = patientData.name?.firstOrNull()?.given?.firstOrNull()?.value
-                            Text(
-                                text = stringData ?: "",
-                                style = body18Medium(), color = BRANDEIS_BLUE,
-                                modifier = Modifier
-                                    .weight(0.7f)
-                                    .padding(end = 10.dp)
-                            )
-                            if (true) { // TODO: need to add the sync status
-//                                Spacer(modifier = Modifier.weight(1f))
-                                Text(
-                                    text = stringResource(
-                                        id = org.smartregister.fhircore.quest.R.string.cases_sync,
-                                        "Pending"
-                                    ) ?: "",
-                                    style = bodyNormal(16.sp).copy(color = CRAYOLA_THIN_LIGHT),
-                                    modifier = Modifier.weight(.4f)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = stringResource(id = org.smartregister.fhircore.quest.R.string.visited),
-                                style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = convertToDate(patient.meta.lastUpdated),
-                                style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                        }
                     }
                 }
             }
