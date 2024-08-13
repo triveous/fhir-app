@@ -97,58 +97,85 @@ constructor(
       }
       .filter { it.second !== null }
       .map {
+
         val docReference = it.first
-        val fileUri = it.second ?: return@map false;
+        val fileUri = it.second
 
-        val docReferenceJson = FhirContext.forR4Cached().newJsonParser().encodeResourceToString(docReference as Resource)
-        val docReferenceBytes = docReferenceJson.encodeToByteArray()
-
-        val refBody = docReferenceBytes.toRequestBody("application/json".toMediaType())
-
-        Timber.i("insertResource ${docReference.id}")
-        fhirResourceService.insertResource(docReference.fhirType(), docReference.logicalId, refBody)
-
-        val docContentType = docReference.content.first().attachment.contentType
-
-        // In case the file is missing, we will return true and no do anything
-        val bytes = runCatching { applicationContext.contentResolver.openInputStream(fileUri)?.use { it.buffered().readBytes() } }.getOrNull()
-          ?: return@map false
-
-        Timber.i("uploadFile ${docReference.id}")
-        val body = bytes.toRequestBody(docContentType.toMediaType())
-        val response = fhirResourceService.uploadFile(
-          docReference.fhirType(),
-          docReference.logicalId,
-          "DocumentReference.content.attachment",
-          body)
-
-
-        if (response.isSuccessful.not()) {
-          Timber.e("Failed to upload document ${it.first.id}")
-
-          // When it is client error, it cannot be retried successfully ever,
-          // so we are going to purge the data
-          if (response.code() == 400 || response.code() == 422 || response.code() == 410) {
-            // Save the changes to document reference
-            openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
-
-            // When the content is uploaded, we will reset the description back to empty so that
-            // it won't be attempted the next time
-            applicationContext.contentResolver.delete(fileUri, null, null)
-          }
-          return@map false
+        if (fileUri == null){
+          Timber.w("File URI is null for document : ${docReference.logicalId}")
+          return@map false;
         }
 
-        Timber.i("Document uploaded ${it.first.id}")
+        try {
+          Timber.i("Serializing document reference with logicalId: ${docReference.logicalId}")
+          val docReferenceJson = FhirContext.forR4Cached().newJsonParser().encodeResourceToString(docReference as Resource)
+          val docReferenceBytes = docReferenceJson.encodeToByteArray()
 
-        // Save the changes to document reference
-        openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+          val refBody = docReferenceBytes.toRequestBody("application/json".toMediaType())
 
-        // When the content is uploaded, we will reset the description back to empty so that
-        // it won't be attempted the next time
-        applicationContext.contentResolver.delete(fileUri, null, null)
+          Timber.i("Inserting document reference with logicalId: ${docReference.logicalId}")
 
-        true
+          fhirResourceService.insertResource(docReference.fhirType(), docReference.logicalId, refBody)
+
+          Timber.i("Successfully inserted document reference with logicalId: ${docReference.logicalId}")
+
+          val docContentType = docReference.content.first().attachment.contentType
+
+          Timber.i("Retrieving file bytes for document with logicalId: ${docReference.logicalId}")
+          // In case the file is missing, we will return true and no do anything
+          val bytes = runCatching {
+            applicationContext.contentResolver.openInputStream(fileUri)?.use { it.buffered().readBytes() }
+          }.getOrNull() ?: run {
+            Timber.w("Failed to retrieve file bytes for document with logicalId: ${docReference.logicalId}")
+            return@map false
+          }
+
+          Timber.i("Successfully retrieved file bytes for document with logicalId: ${docReference.logicalId}")
+
+          val body = bytes.toRequestBody(docContentType.toMediaType())
+
+          Timber.i("Uploading file for document with logicalId: ${docReference.logicalId}")
+          val response = fhirResourceService.uploadFile(
+            docReference.fhirType(),
+            docReference.logicalId,
+            "DocumentReference.content.attachment",
+            body)
+
+          Timber.i("Received response for upload of document with logicalId: ${docReference.logicalId} - Success: ${response.isSuccessful}")
+
+          if (response.isSuccessful.not()) {
+            Timber.e("File upload failed for document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - Message: ${response.message()}")
+
+            // When it is client error, it cannot be retried successfully ever,
+            // so we are going to purge the data
+            if (response.code() == 400 || response.code() == 422 || response.code() == 410) {
+              Timber.i("Client error encountered. Purging document with logicalId: ${docReference.logicalId}")
+
+              // Save the changes to document reference
+              openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+
+              // When the content is uploaded, we will reset the description back to empty so that
+              // it won't be attempted the next time
+              applicationContext.contentResolver.delete(fileUri, null, null)
+            }
+            return@map false
+          }
+
+          Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId}")
+          // Save the changes to document reference
+          openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+
+          // When the content is uploaded, we will reset the description back to empty so that
+          // it won't be attempted the next time
+          applicationContext.contentResolver.delete(fileUri, null, null)
+
+          true
+        } catch (e: Exception) {
+          Timber.e(e, "Exception during document upload: ${docReference.logicalId}")
+          Timber.e(e, "Exception stackTrace: ${e.printStackTrace()}")
+          false
+        }
+
       }.all { it }
   }
 }
