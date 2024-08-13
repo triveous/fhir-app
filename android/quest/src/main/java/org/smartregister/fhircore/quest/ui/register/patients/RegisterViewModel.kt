@@ -711,34 +711,41 @@ constructor(
       }
 
       val todayCases = patients.filter {
-
-        if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
-          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
-          date.isToday()
+        val extension = it?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
+        if(extension != null && extension.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(extension.value?.asStringValue())
+          date?.isToday() ?: false
         }else{
-          it.meta?.lastUpdated?.isToday() == true
+          false
         }
-        /*it.extension?.get(0)?.value?.asStringValue()?.let { it1 ->
-        }*/
       }.size
 
       val thisWeek = patients.filter {
 
-        if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
-          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
-          date.daysPassed() <= 7
+        val extension = it?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
+        if(extension != null && extension.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(extension.value?.asStringValue())
+          if (date != null){
+            date.daysPassed() <= 7
+          }else{
+            false
+          }
         }else{
-          (it?.meta?.lastUpdated?.daysPassed() ?: 0) <= 7
+          false
         }
       }.size
 
       val thisMonth = patients.filter {
-
-        if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
-          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
-          date.monthsPassed() <= 7
+        val extension = it?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
+        if(extension != null && extension.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(extension.value?.asStringValue())
+          if (date != null){
+            date.monthsPassed() <= 1
+          }else{
+            false
+          }
         }else{
-          (it.meta?.lastUpdated?.monthsPassed() ?: 0) < 1
+          false
         }
       }.size
 
@@ -763,13 +770,13 @@ constructor(
         (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/") ?: "").equals(userName, true)
 
       }.sortedByDescending {
-          it.meta.lastUpdated
-          /*if(it.patient?.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
-            val date = convertToDateStringToDate(it.patient?.extension?.get(0)?.value?.asStringValue() ?: "")
-            date
+          val extension = it?.patient?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
+          if(extension != null && extension.value?.asStringValue()?.isNotEmpty() == true){
+            val date = convertToDateStringToDate(extension.value?.asStringValue())
+            date ?: it.meta.lastUpdated
           }else{
             it.meta.lastUpdated
-          }*/
+          }
       }
 
       // Fetching unsynced patients
@@ -835,13 +842,13 @@ constructor(
           patient.patient?.logicalId == unsyncedPatient.patient2?.id
         }
       }.sortedByDescending {
-        it.meta.lastUpdated
-        /*if(it.patient?.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
-          val date = convertToDateStringToDate(it.patient?.extension?.get(0)?.value?.asStringValue() ?: "")
-          date
+        val extension = it?.patient?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
+        if(extension != null && extension.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(extension.value?.asStringValue())
+          date ?: it.meta.lastUpdated
         }else{
           it.meta.lastUpdated
-        }*/
+        }
       }
 
       _allSyncedPatientsStateFlow.value = filteredPatients

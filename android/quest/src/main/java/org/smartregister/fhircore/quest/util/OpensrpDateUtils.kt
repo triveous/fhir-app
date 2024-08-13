@@ -28,7 +28,7 @@ object OpensrpDateUtils {
         return dateObj?.let { outputFormat.format(it) }.orEmpty()
     }
 
-    fun convertToDateStringToDate(input: String): Date {
+    fun convertToDateStringToDate(input: String?): Date? {
         val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
         val dateObj: Date? = try {
             format.parse(input)
@@ -36,6 +36,6 @@ object OpensrpDateUtils {
             Timber.e(exception, "An error occurred while convertToDateStringToDate")
             null
         }
-        return dateObj ?: Date()
+        return dateObj
     }
 }
