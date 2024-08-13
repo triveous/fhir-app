@@ -36,7 +36,10 @@ class SelectSiteScreenActivity : BaseMultiLanguageActivity() {
             configType = "application",
             appTitle = "FHIRCore App",
         )
-        setContent { AppTheme { SelectSiteScreen(selectSiteViewModel,ApplicationConfiguration(
+        setContent { AppTheme {
+            SelectSiteScreen(
+                this@SelectSiteScreenActivity,
+                selectSiteViewModel,ApplicationConfiguration(
             appId = "appId",
             configType = "application",
             appTitle = "FHIRCore App",

@@ -101,7 +101,6 @@ fun ProfileSectionScreen(
                     .background(Color.White)
                     .fillMaxWidth()
             ) {
-
                 TopScreenSection(
                     modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
                     title = stringResource(id = org.smartregister.fhircore.engine.R.string.profile),
