@@ -27,7 +27,9 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
+import ca.uhn.fhir.context.FhirContext
 import com.google.android.fhir.FhirEngine
+import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
@@ -45,18 +47,16 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.Task
-import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
-import org.smartregister.fhircore.engine.auth.AuthCredentials
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.register.RegisterConfiguration
@@ -76,20 +76,17 @@ import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.daysPassed
-import org.smartregister.fhircore.engine.util.extension.decodeJson
 import org.smartregister.fhircore.engine.util.extension.encodeJson
+import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.engine.util.extension.isToday
 import org.smartregister.fhircore.engine.util.extension.monthsPassed
-import org.smartregister.fhircore.engine.util.extension.plusDays
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
-import org.smartregister.fhircore.quest.ui.register.tasks.TasksViewModel
-import org.smartregister.fhircore.quest.util.OpensrpDateUtils
+import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import org.smartregister.model.practitioner.FhirPractitionerDetails
-import org.smartregister.model.practitioner.PractitionerDetails
 import timber.log.Timber
 import java.time.LocalDate
 import java.util.Date
@@ -709,13 +706,41 @@ constructor(
         // ... your search criteria
       }.map {
         it.resource
-      }.sortedByDescending { it.meta.lastUpdated }
+      }.filter { patient ->
+        (patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/").orEmpty()).equals(getUserName(), true)
+      }
+
       val todayCases = patients.filter {
-        it?.meta?.lastUpdated?.isToday() == true }.size
 
-      val thisWeek = patients.filter { (it?.meta?.lastUpdated?.daysPassed() ?: 0) <= 7 }.size
+        if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
+          date.isToday()
+        }else{
+          it.meta?.lastUpdated?.isToday() == true
+        }
+        /*it.extension?.get(0)?.value?.asStringValue()?.let { it1 ->
+        }*/
+      }.size
 
-      val thisMonth = patients.filter { (it?.meta?.lastUpdated?.monthsPassed() ?: 0) < 1 }.size
+      val thisWeek = patients.filter {
+
+        if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
+          date.daysPassed() <= 7
+        }else{
+          (it?.meta?.lastUpdated?.daysPassed() ?: 0) <= 7
+        }
+      }.size
+
+      val thisMonth = patients.filter {
+
+        if(it.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(it.extension?.get(0)?.value?.asStringValue() ?: "")
+          date.monthsPassed() <= 7
+        }else{
+          (it.meta?.lastUpdated?.monthsPassed() ?: 0) < 1
+        }
+      }.size
 
       val data = DashboardData("$todayCases", "$thisWeek", "$thisMonth", "${patients.size}")
       // Update UI or perform further actions with the counts
@@ -724,13 +749,6 @@ constructor(
   }
 
   fun getAllPatients() {
-    /*viewModelScope.launch {
-      val patients = fhirEngine.search<Patient> {
-      }.map {
-        it.resource
-      }.sortedByDescending { it.meta.lastUpdated }
-      _patientsStateFlow.value = patients
-    }*/
 
     _isFetching.value = true
     viewModelScope.launch {
@@ -742,15 +760,17 @@ constructor(
         it.resource.toResourceData()
       }
         .filter {
-        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString() ?: "").contains(userName, true)
-      }
+        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/") ?: "").equals(userName, true)
 
-      // Fetching drafts
-      val drafts = fhirEngine.search<QuestionnaireResponse> {
-      }.filter { it.resource.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS }
-        .map { response ->
-          response.resource.toResourceData()
-        }
+      }.sortedByDescending {
+          it.meta.lastUpdated
+          /*if(it.patient?.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+            val date = convertToDateStringToDate(it.patient?.extension?.get(0)?.value?.asStringValue() ?: "")
+            date
+          }else{
+            it.meta.lastUpdated
+          }*/
+      }
 
       // Fetching unsynced patients
       val unsyncedPatients = mutableListOf<AllPatientsResourceData>()
@@ -770,12 +790,14 @@ constructor(
       //val combinedList = (patients + drafts + unsyncedPatients)
       //val combinedList = (patients + drafts)
 
+/*
       val combinedList = (patients + unsyncedPatients)
         .sortedByDescending { it.meta.lastUpdated }
+*/
 
 
       // Updating the state flow
-      _allPatientsStateFlow.value = combinedList
+      _allPatientsStateFlow.value = patients
       _isFetching.value = false
     }
   }
@@ -786,21 +808,64 @@ constructor(
       val userName = getUserName()
 
       // Fetching patients
+      // Fetching unsynced patients
+      val unsyncedPatients = mutableListOf<AllPatientsResourceData>()
       val data = fhirEngine.getUnsyncedLocalChanges()
+      data.forEach { localChange ->
+        val patient = parsePatientJson(localChange.payload)
+        patient?.let {
+          patient?.let {
+            if (patient.name.isNotEmpty()){
+              unsyncedPatients.add(it.toResourceData())
+            }
+          }
+        }
+      }
+
       val patients = fhirEngine.search<Patient> {
       }.map {
         it.resource.toResourceData()
       }.filter {
-        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString() ?: "").contains(userName, true)
-      }.sortedByDescending { it.meta.lastUpdated }
+        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/") ?: "").equals(userName, true)
+      }
 
-      _allSyncedPatientsStateFlow.value = patients
+      //Removing the unsynced Patient present in the patientsList
+      val filteredPatients = patients.filterNot { patient ->
+        unsyncedPatients.any { unsyncedPatient ->
+          patient.patient?.logicalId == unsyncedPatient.patient2?.id
+        }
+      }.sortedByDescending {
+        it.meta.lastUpdated
+        /*if(it.patient?.extension?.get(0)?.value?.asStringValue()?.isNotEmpty() == true){
+          val date = convertToDateStringToDate(it.patient?.extension?.get(0)?.value?.asStringValue() ?: "")
+          date
+        }else{
+          it.meta.lastUpdated
+        }*/
+      }
+
+      _allSyncedPatientsStateFlow.value = filteredPatients
       _isFetching.value = false
     }
   }
 
   fun getAllDraftResponses() {
     viewModelScope.launch {
+      val allResponses = mutableListOf<QuestionnaireResponse>()
+      try {
+        val parser = FhirContext.forR4Cached().newJsonParser()
+        val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, false)
+        if (!draftResponsesJson.isNullOrEmpty()){
+          val allDrafts = parser?.parseResource(draftResponsesJson) as Bundle
+
+          allDrafts?.entry?.forEach {
+            allResponses.add(it.resource as QuestionnaireResponse)
+          }
+        }
+      }catch (exception: Exception){
+        Timber.e(exception, "An error occurred while getting all drafts")
+      }
+
       val userName = getUserName()
       val responses = fhirEngine.search<QuestionnaireResponse> {
       }.map {
@@ -810,7 +875,8 @@ constructor(
                 (it.author?.reference?.toString() ?: "").contains(userName, true)
       }
         .sortedByDescending { it.meta.lastUpdated }
-      _allSavedDraftResponseStateFlow.value = responses
+
+      _allSavedDraftResponseStateFlow.value = allResponses + responses
     }
   }
 
@@ -835,14 +901,43 @@ constructor(
 
   fun softDeleteDraft(resourceId: String){
     viewModelScope.launch {
-      registerRepository.delete(
-        resourceType = ResourceType.QuestionnaireResponse,
-        resourceId = resourceId,
-        softDelete = false
-      )
-      getAllDraftResponses()
-      getAllPatients()
+      try {
+        val parser = FhirContext.forR4Cached().newJsonParser()
+
+        val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, false)
+        val allDrafts = parser?.parseResource(draftResponsesJson) as Bundle
+
+        if (allDrafts?.entry?.any { it.resource?.id == resourceId } == true){
+          if (!draftResponsesJson.isNullOrEmpty()) {
+            val entriesToRemove = mutableListOf<Int>()
+
+            allDrafts?.entry?.let {
+              for (i in 0 until it.size) {
+                val entry = allDrafts.entry[i]
+                if (entry.resource.id == resourceId) {
+                  entriesToRemove.add(i)
+                }
+              }
+              entriesToRemove.forEach { allDrafts.entry.removeAt(it) }
+            }
+          }
+
+          // Save the updated bundle
+          val bundleJson = parser.encodeResourceToString(allDrafts)
+          sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
+        }else{
+          registerRepository.delete(
+            resourceType = ResourceType.QuestionnaireResponse,
+            resourceId = resourceId.extractLogicalIdUuid(),
+            softDelete = false
+          )
+        }
+      }catch (exception: Exception){
+        Timber.e(exception, "An error occurred while deleting a draft")
+      }
     }
+    getAllDraftResponses()
+    getAllPatients()
   }
 
 

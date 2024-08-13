@@ -19,6 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+-keep class timber.** { *; }
 -keep class org.smartregister.fhircore.** { *; }
 -dontwarn org.smartregister.fhircore.**
 -keep class * extends android.app.Activity

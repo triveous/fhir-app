@@ -178,7 +178,7 @@ fun ViewAllPatientsScreen(
 
                 val filteredTasks by viewModel.filteredTasksStateFlow.collectAsState()
                 val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
-
+                val allSyncedAndUnsyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
                 val allSyncedPatients by viewModel.allSyncedPatientsStateFlow.collectAsState()
                 val savedRes by viewModel.allSavedDraftResponse.collectAsState()
                 val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
@@ -191,6 +191,7 @@ fun ViewAllPatientsScreen(
                 ) {
 
                     LaunchedEffect(key1 = selectedFilter, key2 = allLatestTasksStateFlow) {
+                        viewModel.getAllPatients()
                         viewModel.getAllSyncedPatients()
                         viewModel.getAllDraftResponses()
                         viewModel.getAllUnSyncedPatients()
@@ -203,6 +204,7 @@ fun ViewAllPatientsScreen(
                         if (!from.contains(FilterType.DRAFTS.name, true)) {
                             FilterRow(selectedFilter) { filter ->
                                 selectedFilter = filter
+                                viewModel.getAllPatients()
                                 viewModel.getAllSyncedPatients()
                                 viewModel.getAllDraftResponses()
                                 viewModel.getAllUnSyncedPatients()
@@ -237,7 +239,7 @@ fun ViewAllPatientsScreen(
                                     modifier = modifier
                                         .background(ANTI_FLASH_WHITE)
                                 ) {
-                                    items(allSyncedPatients) { patient ->
+                                    items(allSyncedAndUnsyncedPatients) { patient ->
                                         Box(
                                             modifier = modifier
                                                 .fillMaxWidth()
