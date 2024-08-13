@@ -1,28 +1,23 @@
 package org.smartregister.fhircore.quest.ui.selectSite.viewModel
 
-import android.app.Application
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.smartregister.fhircore.engine.data.remote.selectSite.SelectSite
+import org.smartregister.fhircore.engine.data.remote.selectSite.SelectYourSiteResponse
+import org.smartregister.fhircore.engine.domain.networkUtils.ApiException
+import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.SELECT_YOUR_SITE_URL
+import org.smartregister.fhircore.engine.domain.repository.SelectYourSiteRepository
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.BuildConfig
-import org.smartregister.fhircore.quest.R
-import org.smartregister.fhircore.quest.data.local.selectSite.SelectSite
 import org.smartregister.fhircore.quest.ui.selectSite.STAGING_FHIR_BASE_URL
 import org.smartregister.fhircore.quest.ui.selectSite.STAGING_OAUTH_BASE_URL
-import org.smartregister.fhircore.quest.ui.selectSite.URL_COMMON_FHIR
-import org.smartregister.fhircore.quest.ui.selectSite.URL_COMMON_OAUTH
-import org.smartregister.fhircore.quest.ui.selectSite.URL_SITE_1
-import org.smartregister.fhircore.quest.ui.selectSite.URL_SITE_2
-import org.smartregister.fhircore.quest.ui.selectSite.URL_SITE_3
-import org.smartregister.fhircore.quest.ui.selectSite.URL_SITE_4
-import org.smartregister.fhircore.quest.ui.selectSite.URL_SITE_5
-import org.smartregister.fhircore.quest.ui.selectSite.URL_SITE_6
-import org.smartregister.fhircore.quest.ui.selectSite.URL_SITE_7
-import org.smartregister.fhircore.quest.ui.selectSite.URL_SITE_8
 import org.smartregister.fhircore.quest.util.mutableLiveData
 import javax.inject.Inject
 
@@ -33,90 +28,44 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SelectSiteViewModel @Inject constructor(
-    val context: Application,
+    private val selectYourSiteRepository: SelectYourSiteRepository,
     val secureSharedPreference: SecureSharedPreference,
     val sharedPreferencesHelper: SharedPreferencesHelper
-) : AndroidViewModel(context) {
+) : ViewModel() {
+    var mError = mutableLiveData("")
+    var isLoading = mutableLiveData(false)
+    private var mResponse = mutableLiveData(SelectYourSiteResponse())
 
     private val _selectSiteList = mutableLiveData(ArrayList<SelectSite>())
     val selectSiteList: LiveData<ArrayList<SelectSite>>
         get() = _selectSiteList
 
     // State to manage the selected site
-    var selectedSite: MutableState<SelectSite?>
-    var isTest: Boolean=true
+    var selectedSite: MutableState<SelectSite?> = mutableStateOf(null)
+    var isTest: Boolean= false
 
     init {
-        val context = context.applicationContext
+        getSelectSites()
+    }
 
-        _selectSiteList.value = arrayListOf(
-            SelectSite(
-                name = context.getString(R.string.kle_dental_sciences),
-                district = context.getString(R.string.district_bengaluru),
-                state = context.getString(R.string.state_karnataka),
-                backendUrl = URL_SITE_1,
-                fhirBaseUrl = URL_SITE_1 + URL_COMMON_FHIR,
-                oAuthBaseUrl = URL_SITE_1 + URL_COMMON_OAUTH
-            ),
-            SelectSite(
-                name = context.getString(R.string.aiims_delhi),
-                district = context.getString(R.string.district_new_delhi),
-                state = context.getString(R.string.state_delhi),
-                backendUrl = URL_SITE_2,
-                fhirBaseUrl = URL_SITE_2 + URL_COMMON_FHIR,
-                oAuthBaseUrl = URL_SITE_2 + URL_COMMON_OAUTH
-            ),
-            SelectSite(
-                name = context.getString(R.string.msmf_bangalore),
-                district = context.getString(R.string.district_bengaluru_rural),
-                state = context.getString(R.string.state_karnataka),
-                backendUrl = URL_SITE_3,
-                fhirBaseUrl = URL_SITE_3 + URL_COMMON_FHIR,
-                oAuthBaseUrl = URL_SITE_3 + URL_COMMON_OAUTH
-            ),
-            SelectSite(
-                name = context.getString(R.string.public_health_krishnagiri),
-                district = context.getString(R.string.district_krishnagiri),
-                state = context.getString(R.string.state_tamil_nadu),
-                backendUrl = URL_SITE_4,
-                fhirBaseUrl = URL_SITE_4 + URL_COMMON_FHIR,
-                oAuthBaseUrl = URL_SITE_4 + URL_COMMON_OAUTH
-            ),
-            SelectSite(
-                name = context.getString(R.string.public_health_thanjavur),
-                district = context.getString(R.string.district_thanjavur),
-                state = context.getString(R.string.state_tamil_nadu),
-                backendUrl = URL_SITE_5,
-                fhirBaseUrl = URL_SITE_5 + URL_COMMON_FHIR,
-                oAuthBaseUrl = URL_SITE_5 + URL_COMMON_OAUTH
-            ),
-            SelectSite(
-                name = context.getString(R.string.mpmmcc_varanasi),
-                district = context.getString(R.string.district_varanasi),
-                state = context.getString(R.string.state_uttar_pradesh),
-                backendUrl = URL_SITE_6,
-                fhirBaseUrl = URL_SITE_6 + URL_COMMON_FHIR,
-                oAuthBaseUrl = URL_SITE_6 + URL_COMMON_OAUTH
-            ),
-            SelectSite(
-                name = context.getString(R.string.cachar_cancer_silchar),
-                district = context.getString(R.string.district_cachar),
-                state = context.getString(R.string.state_assam),
-                backendUrl = URL_SITE_7,
-                fhirBaseUrl = URL_SITE_7 + URL_COMMON_FHIR,
-                oAuthBaseUrl = URL_SITE_7 + URL_COMMON_OAUTH
-            ),
-            SelectSite(
-                name = context.getString(R.string.dr_borooah_cancer_guwahati),
-                district = context.getString(R.string.district_guwahati),
-                state = context.getString(R.string.state_assam),
-                backendUrl = URL_SITE_8,
-                fhirBaseUrl = URL_SITE_8 + URL_COMMON_FHIR,
-                oAuthBaseUrl = URL_SITE_8 + URL_COMMON_OAUTH
-            )
-        )
-
-        selectedSite = mutableStateOf(selectSiteList.value?.get(0))
+    private fun getSelectSites(){
+        viewModelScope.launch(Dispatchers.IO) {
+            isLoading.postValue(true)
+            try {
+                val response = selectYourSiteRepository.getSelectYourSites(SELECT_YOUR_SITE_URL)
+                mResponse.postValue(response)
+                val list= ArrayList<SelectSite>()
+                response.sites?.let { list.addAll(it) }
+                _selectSiteList.postValue(list)
+                viewModelScope.launch(Dispatchers.Main) {
+                    selectedSite.value = list[0]
+                }
+                isLoading.postValue(false)
+            } catch (e: ApiException) {
+                isLoading.postValue(false)
+                mError.postValue(e.message)
+            }
+        }
     }
 
     fun setSelectSite(selectSite: SelectSite) {
@@ -130,18 +79,22 @@ class SelectSiteViewModel @Inject constructor(
     }
 
     private fun getFhirBaseUrl(selectSite: SelectSite, isTest: Boolean = false): String? {
-        return if (BuildConfig.DEBUG && !isTest) {
-            STAGING_FHIR_BASE_URL
-        } else {
+        return if (BuildConfig.BUILD_TYPE.equals("release",true) || isTest) {
+            println("BuildConfig.DEBUG--> true")
             selectSite.fhirBaseUrl
+        } else {
+            println("BuildConfig.DEBUG-->  false")
+            STAGING_FHIR_BASE_URL
         }
     }
 
     private fun getOAuthBaseUrl(selectSite: SelectSite, isTest: Boolean = false): String? {
-        return if (BuildConfig.DEBUG && !isTest) {
-            STAGING_OAUTH_BASE_URL
+        return if (BuildConfig.BUILD_TYPE.equals("release",true) || isTest) {
+            println("BuildConfig.DEBUG-->  true")
+            selectSite.authBaseUrl
         } else {
-            selectSite.oAuthBaseUrl
+            println("BuildConfig.DEBUG-->  false")
+            STAGING_OAUTH_BASE_URL
         }
     }
 }

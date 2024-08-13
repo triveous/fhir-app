@@ -7,7 +7,7 @@ import java.util.Locale
 object OpensrpDateUtils {
 
     fun convertToDate(input: Date): String {
-        val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("dd MMMM yyyy hh:mm a", Locale.getDefault())
 
         // Format the date to the desired output format
         return outputFormat.format(input)

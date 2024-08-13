@@ -1,6 +1,7 @@
 package org.smartregister.fhircore.quest.ui.selectSite
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -41,8 +42,10 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,13 +58,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.app.ApplicationConfiguration
+import org.smartregister.fhircore.engine.data.remote.selectSite.SelectSite
+import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
-import org.smartregister.fhircore.engine.ui.theme.LoginDarkColor
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
 import org.smartregister.fhircore.engine.util.extension.appVersion
-import org.smartregister.fhircore.quest.data.local.selectSite.SelectSite
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
 import org.smartregister.fhircore.quest.theme.Theme.getBackground
@@ -76,6 +81,7 @@ import org.smartregister.fhircore.quest.ui.selectSite.viewModel.SelectSiteViewMo
 
 @Composable
 fun SelectSiteScreen(
+    selectSiteScreenActivity: SelectSiteScreenActivity? = null,
     siteViewModel: SelectSiteViewModel? = null,
     applicationConfiguration: ApplicationConfiguration,
     onContinueButtonClicked: () -> Unit,
@@ -84,6 +90,7 @@ fun SelectSiteScreen(
     appVersionPair: Pair<Int, String>? = null,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val (versionCode, versionName) = remember { appVersionPair ?: context.appVersion() }
 
     Surface(
@@ -94,121 +101,145 @@ fun SelectSiteScreen(
         color = getBackground(),
         contentColor = contentColorFor(backgroundColor = Color.DarkGray),
     ) {
-        Column(
-            modifier =
-            modifier
-                .padding(horizontal = 16.dp, vertical = 32.dp)
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(modifier = modifier.padding(4.dp), verticalArrangement = Arrangement.Top) {
-                // TODO Add configurable logo. Images to be downloaded from server
-                if (applicationConfiguration.loginConfig.showLogo) {
-                    Image(
-                        painter = painterResource(org.smartregister.fhircore.quest.R.drawable.ic_logo),
-                        contentDescription = stringResource(id = R.string.app_logo),
-                        modifier =
-                        modifier
-                            .align(Alignment.CenterHorizontally)
-                            .requiredHeight(54.dp)
-                            .requiredWidth(54.dp)
-                            .testTag(APP_LOGO_TAG),
-                    )
-                }
-                Spacer(modifier = modifier.height(16.dp))
-                if (
-                    applicationConfiguration.appTitle.isNotEmpty() &&
-                    applicationConfiguration.loginConfig.showAppTitle
-                ) {
-                    Text(
-                        style = bodyBold(30.sp),
-                        text = stringResource(R.string.appname),
-                        modifier = modifier
-                            .wrapContentWidth()
-                            .align(Alignment.CenterHorizontally)
-                            .testTag(APP_NAME_TEXT_TAG),
-                    )
-                }
-
-                Spacer(modifier = modifier.height(32.dp))
-                Text(
-                    text = stringResource(R.string.select_your_site),
-                    style = bodyMedium(20.sp),
-                    modifier = modifier.align(Alignment.CenterHorizontally)
-                )
-
-                Spacer(modifier = modifier.height(24.dp))
-                Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxWidth()) {
-                    SiteSelectionDropdown(
-                        showProgressBar,
-                        modifier,
-                        applicationConfiguration,
-                        items = siteViewModel?.selectSiteList?.value,
-                        selectedItem = siteViewModel?.selectedSite?.value,
-                        onItemSelected = {
-                            siteViewModel?.setSelectSite(it)
-                        },
-                        onContinue = {
-                            onContinueButtonClicked()
-                        }
-                    )
-
-                    if (showProgressBar) {
-                        CircularProgressIndicator(
-                            modifier = modifier
-                                .align(Alignment.Center)
-                                .size(18.dp),
-                            strokeWidth = 1.6.dp,
-                            color = LightColors.primary,
+        Box {
+            Column(
+                modifier =
+                modifier
+                    .padding(horizontal = 16.dp, vertical = 32.dp)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = modifier.padding(4.dp), verticalArrangement = Arrangement.Top) {
+                    // TODO Add configurable logo. Images to be downloaded from server
+                    if (applicationConfiguration.loginConfig.showLogo) {
+                        Image(
+                            painter = painterResource(org.smartregister.fhircore.quest.R.drawable.ic_logo),
+                            contentDescription = stringResource(id = R.string.app_logo),
+                            modifier =
+                            modifier
+                                .align(Alignment.CenterHorizontally)
+                                .requiredHeight(54.dp)
+                                .requiredWidth(54.dp)
+                                .testTag(APP_LOGO_TAG),
                         )
                     }
-                }
-            }
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 20.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Column {
+                    Spacer(modifier = modifier.height(16.dp))
+                    if (
+                        applicationConfiguration.appTitle.isNotEmpty() &&
+                        applicationConfiguration.loginConfig.showAppTitle
+                    ) {
+                        Text(
+                            style = bodyBold(30.sp),
+                            text = stringResource(R.string.appname),
+                            modifier = modifier
+                                .wrapContentWidth()
+                                .align(Alignment.CenterHorizontally)
+                                .testTag(APP_NAME_TEXT_TAG),
+                        )
+                    }
+
+                    Spacer(modifier = modifier.height(32.dp))
                     Text(
-                        text = stringResource(id = R.string.powered_by),
+                        text = stringResource(R.string.select_your_site),
+                        style = bodyMedium(20.sp),
+                        modifier = modifier.align(Alignment.CenterHorizontally)
+                    )
+
+                    Spacer(modifier = modifier.height(24.dp))
+                    val selectSiteList by siteViewModel!!.selectSiteList.observeAsState(initial = arrayListOf())
+
+                    Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxWidth()) {
+                        SiteSelectionDropdown(
+                            showProgressBar,
+                            modifier,
+                            applicationConfiguration,
+                            items = selectSiteList,
+                            selectedItem = siteViewModel?.selectedSite?.value,
+                            onItemSelected = { siteViewModel?.selectedSite?.value = it },
+                            onContinue = {
+                                scope.launch {
+                                    siteViewModel?.selectedSite?.value?.let {
+                                        siteViewModel.setSelectSite(it)
+                                    }
+                                    delay(300)
+                                    onContinueButtonClicked()
+                                }
+                            }
+                        )
+
+                        if (showProgressBar) {
+                            CircularProgressIndicator(
+                                modifier = modifier
+                                    .align(Alignment.Center)
+                                    .size(18.dp),
+                                strokeWidth = 1.6.dp,
+                                color = LightColors.primary,
+                            )
+                        }
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 20.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(id = R.string.powered_by),
+                            style = body14Medium(),
+                            color = CRAYOLA_LIGHT,
+                            modifier = modifier
+                                .wrapContentWidth()
+                                .padding(bottom = 8.dp),
+                        )
+                        Row {
+                            Image(
+                                painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_iisc),
+                                contentDescription = stringResource(id = R.string.powered_by),
+                                modifier = Modifier
+                                    .width(43.dp)
+                                    .height(35.dp)
+                            )
+                            Text(
+                                text = stringResource(id = R.string.iisc),
+                                style = body18Medium(),
+                                color = BRANDEIS_BLUE,
+                                modifier = modifier
+                                    .wrapContentWidth()
+                                    .fillMaxHeight()
+                                    .align(Alignment.Bottom),
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = stringResource(id = R.string.app_version, versionCode, versionName),
                         style = body14Medium(),
                         color = CRAYOLA_LIGHT,
+                        fontWeight = FontWeight(400),
                         modifier = modifier
                             .wrapContentWidth()
-                            .padding(bottom = 8.dp),
+                            .padding(bottom = 8.dp)
+                            .fillMaxHeight()
+                            .align(Alignment.Bottom),
                     )
-                    Row {
-                        Image(
-                            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_iisc),
-                            contentDescription = stringResource(id = R.string.powered_by),
-                            modifier = Modifier
-                                .width(43.dp)
-                                .height(35.dp)
-                        )
-                        Text(
-                            text = stringResource(id = R.string.iisc),
-                            style = body18Medium(),
-                            color = BRANDEIS_BLUE,
-                            modifier = modifier.wrapContentWidth().fillMaxHeight().align(Alignment.Bottom),
-                        )
-                    }
                 }
-
-                Text(
-                    text = stringResource(id = R.string.app_version, versionCode, versionName),
-                    style = body14Medium(),
-                    color = CRAYOLA_LIGHT,
-                    fontWeight = FontWeight(400),
-                    modifier = modifier
-                        .wrapContentWidth()
-                        .padding(bottom = 8.dp).fillMaxHeight().align(Alignment.Bottom),
-                )
+            }
+            // Show loader
+            val observeAsState = siteViewModel?.isLoading?.observeAsState(initial = false)
+            if (observeAsState?.value==true) {
+                LoaderDialog(modifier = modifier, dialogMessage = stringResource(R.string.loading))
+            }
+            val error = siteViewModel?.mError?.observeAsState(initial = "")
+            // show error
+            if (!error?.value.isNullOrEmpty()){
+                Toast.makeText(selectSiteScreenActivity, error?.value, Toast.LENGTH_SHORT).show()
             }
         }
+
     }
 }
 
@@ -246,7 +277,8 @@ fun SiteSelectionDropdown(
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                     },
                     modifier = Modifier
-                        .fillMaxWidth().menuAnchor()
+                        .fillMaxWidth()
+                        .menuAnchor()
 
                 )
 
@@ -263,7 +295,7 @@ fun SiteSelectionDropdown(
                                 disabledLeadingIconColor = Color.White,
                                 disabledTrailingIconColor = Color.White
                             ),
-                            text = { Text(text = item.name, textAlign = TextAlign.Start) },
+                            text = { Text(text = item.name?:"", textAlign = TextAlign.Start) },
                             onClick = {
                                 onItemSelected(item)
                                 expanded = false

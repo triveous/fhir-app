@@ -9,9 +9,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.R
+import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
 
 /**
  * Created by Jeetesh Surana.
@@ -99,13 +101,38 @@ fun bodyNormal(fontSize: TextUnit, darkTheme: Boolean = isSystemInDarkTheme()): 
         fontSize = fontSize, color = getTextColor(darkTheme)
     )
 }
+
+@Composable
+fun Body16Normal(fontSize: TextUnit=16.sp, darkTheme: Boolean = isSystemInDarkTheme()): TextStyle {
+    val robotoFontFamily: FontFamily = robotoFontFamilyData()
+    return TextStyle(
+        fontFamily = robotoFontFamily,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = 0.5.sp,
+        lineHeight=24.sp,
+        textAlign = TextAlign.Center,
+        fontSize = fontSize, color = CRAYOLA_LIGHT
+    )
+}
+
 @Composable
 fun bodyBold(fontSize: TextUnit, darkTheme: Boolean = isSystemInDarkTheme()): TextStyle {
     val robotoFontFamily: FontFamily = robotoFontFamilyData()
     return TextStyle(
         fontFamily = robotoFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Bold,
         fontSize = fontSize, color = getTextColor(darkTheme)
+    )
+}
+
+@Composable
+fun bodyExtraBold(fontSize: TextUnit, darkTheme: Boolean = isSystemInDarkTheme()): TextStyle {
+    val robotoFontFamily: FontFamily = robotoFontFamilyData()
+    return TextStyle(
+        fontFamily = robotoFontFamily,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = fontSize, color = getTextColor(darkTheme),
+        letterSpacing = 0.7.sp
     )
 }
 

@@ -33,54 +33,52 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.ModalBottomSheetLayout
+import androidx.compose.material.ModalBottomSheetValue
+import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
+import org.hl7.fhir.r4.model.Task
+import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
+import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
+import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.ModalBottomSheetLayout
-import androidx.compose.material.ModalBottomSheetValue
-import androidx.compose.material.rememberModalBottomSheetState
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.unit.sp
-import org.hl7.fhir.r4.model.Task
-import org.hl7.fhir.r4.model.Task.TaskPriority
-import org.hl7.fhir.r4.model.Task.TaskStatus
-import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
-import org.smartregister.fhircore.quest.R
-import org.smartregister.fhircore.quest.ui.register.tasks.BottomSheetContent
 import org.smartregister.fhircore.quest.ui.register.patients.NoRegisterDataView
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.tasks.BottomSheetContent
 import org.smartregister.fhircore.quest.util.TaskProgressState
 
 
@@ -413,7 +411,6 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
 @Composable
 private fun PreviewNoRegistersView() {
   NoRegisterDataView(
-    viewModel = viewModel(),
     noResults =
       NoResultsConfig(
         title = "Title",

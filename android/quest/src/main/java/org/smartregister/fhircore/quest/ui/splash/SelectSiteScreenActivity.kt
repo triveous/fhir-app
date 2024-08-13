@@ -34,6 +34,7 @@ import org.smartregister.fhircore.quest.ui.selectSite.SelectSiteScreenActivity
 /**
  * Created by Jeetesh Surana.
  */
+
 @AndroidEntryPoint
 class SplashActivity : BaseMultiLanguageActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,7 +45,7 @@ class SplashActivity : BaseMultiLanguageActivity() {
             SplashScreen()
             LaunchedEffect(key1 = true) {
                 val fhirBaseUrl = sharedPreferencesHelper.getFhirBaseUrlWithoutDefaultValue()
-                delay(1 * 1000) // 3 seconds delay
+                delay( 1000)
                 if (fhirBaseUrl.isNullOrEmpty()) {
                     startActivity(Intent(this@SplashActivity, SelectSiteScreenActivity::class.java))
                 } else {
