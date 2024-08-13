@@ -217,4 +217,10 @@
     <string name="synced_submissions">synced submissions: %s</string>
     <string name="nothing_in_un_synced">Nothing in un-synced</string>
     <string name="cases_no_draft_patients">No cases added yet. Start by adding \n a new cases.</string>
+
+    <!-- Recommendation-->
+    <string name="phone">Phone:</string>
+    <string name="add_investigation">ADD INVESTIGATION</string>
+    <string name="urgent_referral">URGENT REFERRAL</string>
+    <string name="retake_photo">RETAKE PHOTO</string>
 </resources>
