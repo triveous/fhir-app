@@ -16,7 +16,6 @@
 
 package org.smartregister.fhircore.quest.ui.register.tasks
 
-import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -32,7 +31,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,7 +44,6 @@ import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
@@ -64,12 +61,12 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterFilterState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
-import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.model.practitioner.PractitionerDetails
 import java.time.LocalDate
 import java.util.Date
 import java.util.UUID
+import javax.inject.Inject
 
 @HiltViewModel
 class TasksViewModel
@@ -233,7 +230,7 @@ constructor(
       val tasksWithPatient = allTasks.mapNotNull { task ->
 
         val taskOwnerId = task.owner?.reference?.toString()?.substringAfterLast("/") ?: ""
-        val patientId = task?.`for`?.reference?.toString()?.substringAfter("/") ?: return@mapNotNull null
+        val patientId = task.`for`?.reference?.toString()?.substringAfter("/") ?: return@mapNotNull null
         if (taskOwnerId == practitionerId && task.status != TaskStatus.REJECTED && patients.containsKey(patientId)) {
           TaskItem(task = task, patient = patients[patientId]?.patient)
         } else {
