@@ -17,13 +17,13 @@
 package org.smartregister.fhircore.engine.p2p.dao
 
 import com.google.android.fhir.FhirEngine
-import com.google.android.fhir.logicalId
 import java.util.TreeSet
 import javax.inject.Inject
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.util.DefaultDispatcherProvider
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.resourceClassType
 import org.smartregister.p2p.dao.SenderTransferDao
 import org.smartregister.p2p.model.RecordCount

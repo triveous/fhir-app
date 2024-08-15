@@ -17,7 +17,7 @@
 package org.smartregister.fhircore.engine.rulesengine
 
 import android.content.Context
-import com.google.android.fhir.logicalId
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.fhir.search.Order
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.math.BigDecimal

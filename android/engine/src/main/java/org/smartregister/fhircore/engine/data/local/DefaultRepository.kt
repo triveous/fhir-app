@@ -27,7 +27,6 @@ import ca.uhn.fhir.rest.gclient.TokenClientParam
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.db.ResourceNotFoundException
 import com.google.android.fhir.get
-import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.Search
 import com.google.android.fhir.search.filter.ReferenceParamFilterCriterion
 import com.google.android.fhir.search.filter.TokenParamFilterCriterion
@@ -87,6 +86,7 @@ import org.smartregister.fhircore.engine.util.extension.filterBy
 import org.smartregister.fhircore.engine.util.extension.filterByResourceTypeId
 import org.smartregister.fhircore.engine.util.extension.generateMissingId
 import org.smartregister.fhircore.engine.util.extension.loadResource
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.updateFrom
 import org.smartregister.fhircore.engine.util.extension.updateLastUpdated
 import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor

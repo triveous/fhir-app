@@ -18,7 +18,7 @@ package org.smartregister.fhircore.engine.util.extension
 
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.datacapture.extensions.targetStructureMap
-import com.google.android.fhir.logicalId
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import java.util.Locale
 import org.hl7.fhir.r4.model.BooleanType
 import org.hl7.fhir.r4.model.Bundle

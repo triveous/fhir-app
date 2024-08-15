@@ -29,7 +29,7 @@ import com.google.android.fhir.datacapture.validation.NotValidated
 import com.google.android.fhir.datacapture.validation.QuestionnaireResponseValidator
 import com.google.android.fhir.datacapture.validation.Valid
 import com.google.android.fhir.db.ResourceNotFoundException
-import com.google.android.fhir.logicalId
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.fhir.search.Search
 import com.google.android.fhir.search.filter.TokenParamFilterCriterion
 import com.google.android.fhir.search.search
@@ -571,7 +571,6 @@ constructor(
             questionnaireResponse = questionnaireResponse,
             structureMapExtractionContext =
               StructureMapExtractionContext(
-                context = context,
                 transformSupportServices = transformSupportServices,
                 structureMapProvider = { structureMapUrl: String?, _: IWorkerContext ->
                   structureMapUrl?.substringAfterLast("/")?.let {
