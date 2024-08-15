@@ -23,7 +23,7 @@ import ca.uhn.fhir.parser.IParser
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.SearchResult
 import com.google.android.fhir.db.ResourceNotFoundException
-import com.google.android.fhir.logicalId
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.fhir.search.Search
 import com.google.common.reflect.TypeToken
 import com.google.gson.GsonBuilder
