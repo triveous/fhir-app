@@ -61,6 +61,7 @@ android {
   defaultConfig {
     applicationId = BuildConfigs.applicationId
     minSdk = BuildConfigs.minSdk
+    targetSdk = BuildConfigs.targetSdk
     versionCode = BuildConfigs.versionCode
     versionName = BuildConfigs.versionName
     multiDexEnabled = true
@@ -108,7 +109,6 @@ android {
     create("debugNonProxy") { initWith(getByName("debug")) }
 
     getByName("release") {
-      isDebuggable = true
       isMinifyEnabled = false
       isShrinkResources = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

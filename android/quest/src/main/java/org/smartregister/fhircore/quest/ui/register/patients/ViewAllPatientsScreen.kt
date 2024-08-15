@@ -485,7 +485,7 @@ fun ShowAllDrafts(
                         .fillMaxWidth()
                 ) {
                     items(drafts) { response ->
-                        DraftsItem(response, modifier, onEditResponse, onDeleteResponse)
+                        DraftsItem(response, modifier, viewModel, onEditResponse, onDeleteResponse)
                     }
                 }
 

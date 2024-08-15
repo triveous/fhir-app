@@ -408,39 +408,39 @@ fun ShowDrafts(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(350.dp)
+                        .height(250.dp)
                 ) {
                     items(drafts) { response ->
-                        DraftsItem(response, modifier, onEditResponse, onDeleteResponse)
+                        DraftsItem(response, modifier, viewModel, onEditResponse, onDeleteResponse)
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            if (allDraftsSize > 3) {
-                Row(horizontalArrangement = Arrangement.Center,
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            val intent = Intent(context, GenericActivity::class.java).apply {
-                                putExtra(
-                                    GenericActivityArg.ARG_FROM, GenericActivityArg.FROM_DRAFTS
-                                )
-                            }
-                            context.startActivity(intent)
-                        }) {
-                    Text(
-                        text = stringResource(
-                            id = org.smartregister.fhircore.quest.R.string.dynamic_see_more,
-                            "${allDraftsSize - 3}"
-                        ).uppercase(), style = body14Medium().copy(
-                            textAlign = TextAlign.Center, color = BRANDEIS_BLUE, letterSpacing = 1.sp
-                        ), modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
-                }
                 Spacer(modifier = Modifier.height(8.dp))
+                if (allDraftsSize > 3) {
+                    Row(horizontalArrangement = Arrangement.Center,
+                        modifier = modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val intent = Intent(context, GenericActivity::class.java).apply {
+                                    putExtra(
+                                        GenericActivityArg.ARG_FROM, GenericActivityArg.FROM_DRAFTS
+                                    )
+                                }
+                                context.startActivity(intent)
+                            }) {
+                        Text(
+                            text = stringResource(
+                                id = org.smartregister.fhircore.quest.R.string.dynamic_see_more,
+                                "${allDraftsSize - 3}"
+                            ).uppercase(), style = body14Medium().copy(
+                                textAlign = TextAlign.Center, color = BRANDEIS_BLUE, letterSpacing = 1.sp
+                            ), modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
         }
     }

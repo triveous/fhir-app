@@ -45,6 +45,7 @@ import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
 internal fun DraftsItem(
     response: QuestionnaireResponse,
     modifier: Modifier,
+    viewModel: RegisterViewModel,
     onEditResponse: (String) -> Unit?,
     onDeleteResponse: (String, Boolean) -> Unit
 ) {
@@ -86,6 +87,7 @@ internal fun DraftsItem(
                             Box(modifier = Modifier.clickable {
                                 val json = response.encodeResourceToString()
                                 onEditResponse(json)
+                                viewModel.softDeleteDraft(response.id)
                             }) {
                                 Image(
                                     modifier = Modifier.padding(8.dp),
@@ -95,7 +97,7 @@ internal fun DraftsItem(
                             }
                             Box(modifier = modifier.clickable {
                                 onDeleteResponse(
-                                    response.id.extractLogicalIdUuid(), true
+                                    response.id, true
                                 )
                             }) {
                                 androidx.compose.material.Icon(
