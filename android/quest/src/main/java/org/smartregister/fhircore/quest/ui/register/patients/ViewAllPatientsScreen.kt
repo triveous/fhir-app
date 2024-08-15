@@ -87,9 +87,7 @@ const val RETAKE_PHOTO_PATIENTS = 2
 
 enum class FilterType(val label: String) {
     ALL_PATIENTS("All submissions"),
-    UNSYNCED("Unsynced"),
     DRAFTS("Drafts"),
-    SYNCED("Synced")
 }
 
 @Composable
@@ -293,35 +291,6 @@ fun ViewAllPatientsScreen(
                                     },
                                     allDraftsSize = 1
                                 )
-                            }
-
-                            FilterType.UNSYNCED -> {
-                                submissions = stringResource(id = R.string.un_synced_submissions,unSynced.size.toString())
-                                ShowUnSyncedPatients2(modifier = modifier, unSynced = unSynced)
-                            }
-
-                            FilterType.SYNCED -> {
-                                submissions = stringResource(id = R.string.synced_submissions,allSyncedPatients.size.toString())
-                                LazyColumn(
-                                    modifier = modifier
-                                        .background(ANTI_FLASH_WHITE)
-                                ) {
-                                    items(allSyncedPatients) { patient ->
-                                        Box(
-                                            modifier = modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 8.dp)
-                                                .background(ANTI_FLASH_WHITE)
-                                        ) {
-                                            if (patient.resourceType == RegisterViewModel.AllPatientsResourceType.Patient) {
-                                                val patientData = patient.patient
-                                                patientData?.let {
-                                                    SyncedPatientCardItem(patientData, patient)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
                             }
                         }
                     }
