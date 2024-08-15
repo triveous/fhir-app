@@ -3,3 +3,28 @@ release/
 src/*/assets/configs/
 src/androidTest/assets/resources.db
 src/benchmark/assets/resources.db
+
+.DS_Store
+/build
+
+# Gradle files
+.gradle/
+docs/
+
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Keystore configuration file
+keystore.properties
+
+# Log Files
+*.log
+
+# IntelliJ
+*.iml
+.idea
+
+# Gradle Properties
+gradle.properties
+
