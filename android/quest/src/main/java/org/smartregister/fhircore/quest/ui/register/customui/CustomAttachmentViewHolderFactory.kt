@@ -538,7 +538,7 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
     return doc
   }
 
-  private val IMAGE_CACHE_BASE_URI: String = "content://{${BuildConfig.APPLICATION_ID}}.fileprovider/cache/"
+  private val IMAGE_CACHE_BASE_URI: String = "content://${BuildConfig.APPLICATION_ID}.fileprovider/cache/"
   val EXTRA_MIME_TYPE_KEY = "mime_type"
   val EXTRA_SAVED_PHOTO_URI_KEY = "saved_photo_uri"
 
