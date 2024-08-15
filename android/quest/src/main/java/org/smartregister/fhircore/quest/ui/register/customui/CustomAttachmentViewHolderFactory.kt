@@ -32,7 +32,6 @@ import com.google.android.fhir.datacapture.views.attachment.CameraLauncherFragme
 import com.google.android.fhir.datacapture.views.attachment.OpenDocumentLauncherFragment
 import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemViewHolderDelegate
 import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemViewHolderFactory
-import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.material.divider.MaterialDivider
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
@@ -45,6 +44,7 @@ import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
@@ -465,7 +465,8 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
           }
 
           MimeType.IMAGE.value -> {
-            displaySnackbar(view, com.google.android.fhir.datacapture.R.string.image_uploaded)
+//            displaySnackbar(view, com.google.android.fhir.datacapture.R.string.image_uploaded)
+            displaySnackbar(view, R.string.image_saved)
           }
 
           MimeType.VIDEO.value -> {
@@ -537,7 +538,7 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
     return doc
   }
 
-  private val IMAGE_CACHE_BASE_URI: String = "content://org.smartregister.opensrp.fileprovider/cache/"
+  private val IMAGE_CACHE_BASE_URI: String = "content://{${BuildConfig.APPLICATION_ID}}.fileprovider/cache/"
   val EXTRA_MIME_TYPE_KEY = "mime_type"
   val EXTRA_SAVED_PHOTO_URI_KEY = "saved_photo_uri"
 

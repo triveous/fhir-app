@@ -223,4 +223,5 @@
     <string name="add_investigation">ADD INVESTIGATION</string>
     <string name="urgent_referral">URGENT REFERRAL</string>
     <string name="retake_photo">RETAKE PHOTO</string>
+    <string name="image_saved">Image Saved</string>
 </resources>
