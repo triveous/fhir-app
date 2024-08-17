@@ -83,6 +83,11 @@ import org.smartregister.fhircore.engine.util.extension.monthsPassed
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
+import org.smartregister.fhircore.quest.util.DraftsUtils
+import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
+import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
+import org.smartregister.fhircore.quest.util.DraftsUtils.removeDraftFromBundle
+import org.smartregister.fhircore.quest.util.DraftsUtils.saveBundleToSharedPreferences
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
@@ -726,7 +731,7 @@ constructor(
         if(extension != null && extension.value?.asStringValue()?.isNotEmpty() == true){
           val date = convertToDateStringToDate(extension.value?.asStringValue())
           if (date != null){
-            date.daysPassed() <= 7
+            date.daysPassed() < 7
           }else{
             false
           }
@@ -861,13 +866,13 @@ constructor(
       val allResponses = mutableListOf<QuestionnaireResponse>()
       try {
         val parser = FhirContext.forR4Cached().newJsonParser()
-        val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, false)
+        val draftResponsesJson = getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
         if (!draftResponsesJson.isNullOrEmpty()){
-          val allDrafts = parser?.parseResource(draftResponsesJson) as Bundle
-
+          val allDrafts = parseDraftResponses(parser, draftResponsesJson)
           allDrafts?.entry?.forEach {
             allResponses.add(it.resource as QuestionnaireResponse)
           }
+          allResponses.sortedByDescending { it?.meta?.lastUpdated }
         }
       }catch (exception: Exception){
         Timber.e(exception, "An error occurred while getting all drafts")
@@ -906,43 +911,56 @@ constructor(
     }
   }
 
-  fun softDeleteDraft(resourceId: String){
+  fun deleteIfNotOldDraft(resourceId: String){
+    viewModelScope.launch {
+      try {
+        val parser = FhirContext.forR4Cached().newJsonParser()
+        val draftResponsesJson = getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
+
+        val allDrafts = parseDraftResponses(parser, draftResponsesJson)
+
+        if (allDrafts?.entry?.any { it.resource?.id == resourceId } == true) {
+          removeDraftFromBundle(allDrafts, resourceId)
+          saveBundleToSharedPreferences(sharedPreferencesHelper, parser, allDrafts)
+        }
+      }catch (exception: Exception){
+        Timber.e(exception, "An error occurred while deleteIfNotOldDraft")
+      }
+    }
+  }
+
+  fun softDeleteDraft(resourceId: String) {
     viewModelScope.launch {
       try {
         val parser = FhirContext.forR4Cached().newJsonParser()
 
-        val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, false)
-        val allDrafts = parser?.parseResource(draftResponsesJson) as Bundle
+        val draftResponsesJson = getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
 
-        if (allDrafts?.entry?.any { it.resource?.id == resourceId } == true){
-          if (!draftResponsesJson.isNullOrEmpty()) {
-            val entriesToRemove = mutableListOf<Int>()
+        val allDrafts = parseDraftResponses(parser, draftResponsesJson)
 
-            allDrafts?.entry?.let {
-              for (i in 0 until it.size) {
-                val entry = allDrafts.entry[i]
-                if (entry.resource.id == resourceId) {
-                  entriesToRemove.add(i)
-                }
-              }
-              entriesToRemove.forEach { allDrafts.entry.removeAt(it) }
-            }
-          }
-
-          // Save the updated bundle
-          val bundleJson = parser.encodeResourceToString(allDrafts)
-          sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
-        }else{
-          registerRepository.delete(
-            resourceType = ResourceType.QuestionnaireResponse,
-            resourceId = resourceId.extractLogicalIdUuid(),
-            softDelete = false
-          )
+        if (allDrafts?.entry?.any { it.resource?.id == resourceId } == true) {
+          saveBundleToSharedPreferences(sharedPreferencesHelper, parser, removeDraftFromBundle(allDrafts, resourceId))
+        } else {
+          deleteDraftFromRepository(resourceId)
         }
-      }catch (exception: Exception){
-        Timber.e(exception, "An error occurred while deleting a draft")
+        refreshData()
+      } catch (exception: Exception) {
+        Timber.e(exception, "An error occurred while softDeleteDraft")
       }
     }
+  }
+
+
+
+  private suspend fun deleteDraftFromRepository(resourceId: String) {
+    registerRepository.delete(
+      resourceType = ResourceType.QuestionnaireResponse,
+      resourceId = resourceId.extractLogicalIdUuid(),
+      softDelete = false
+    )
+  }
+
+  private fun refreshData() {
     getAllDraftResponses()
     getAllPatients()
   }

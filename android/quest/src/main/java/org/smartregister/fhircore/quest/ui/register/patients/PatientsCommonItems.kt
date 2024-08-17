@@ -87,7 +87,7 @@ internal fun DraftsItem(
                             Box(modifier = Modifier.clickable {
                                 val json = response.encodeResourceToString()
                                 onEditResponse(json)
-                                viewModel.softDeleteDraft(response.id)
+                                viewModel.deleteIfNotOldDraft(response.id)
                             }) {
                                 Image(
                                     modifier = Modifier.padding(8.dp),
