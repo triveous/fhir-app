@@ -24,16 +24,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.core.os.bundleOf
-import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
-import androidx.navigation.ui.setupWithNavController
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import dagger.hilt.android.AndroidEntryPoint
 import io.sentry.android.navigation.SentryNavigationListener
-import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.IdType
 import org.hl7.fhir.r4.model.QuestionnaireResponse
@@ -54,12 +51,12 @@ import org.smartregister.fhircore.geowidget.screens.GeoWidgetViewModel
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
-import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
 import timber.log.Timber
+import javax.inject.Inject
 
 @AndroidEntryPoint
 @ExperimentalMaterialApi
@@ -93,14 +90,14 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
     super.onCreate(savedInstanceState)
     //setContentView(FragmentContainerView(this).apply { id = R.id.nav_host })
     setContentView(R.layout.activity_main)
-    val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.first()
+    val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.firstOrNull()
     val topMenuConfigId =
-      topMenuConfig.actions?.find { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig.id
+      topMenuConfig?.actions?.firstOrNull { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig?.id
 
     val fragmentManager = supportFragmentManager
     navHostFragment = fragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment?
       ?: NavHostFragment.create(R.navigation.application_nav_graph, bundleOf(
-        NavigationArg.SCREEN_TITLE to topMenuConfig.display,
+        NavigationArg.SCREEN_TITLE to topMenuConfig?.display,
         NavigationArg.REGISTER_ID to topMenuConfigId,
       )).also {
         fragmentManager.beginTransaction()
@@ -116,7 +113,7 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
         R.id.navigation_register -> {
           navController.popBackStack(R.id.registerFragment, true)
           navController.navigate(R.id.registerFragment, bundleOf(
-            NavigationArg.SCREEN_TITLE to topMenuConfig.display,
+            NavigationArg.SCREEN_TITLE to topMenuConfig?.display,
             NavigationArg.REGISTER_ID to topMenuConfigId,
           ))
           true
