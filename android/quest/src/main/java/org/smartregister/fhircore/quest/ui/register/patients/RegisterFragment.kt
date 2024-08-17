@@ -47,6 +47,7 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -179,6 +180,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
     registerViewModel.getAllSyncedPatients()
     registerViewModel.getAllDraftResponses()
     registerViewModel.getAllUnSyncedPatients()
+    registerViewModel.getAllUnSyncedPatientsImages()
 
 
     syncListenerManager.registerSyncListener(this, lifecycle)
@@ -215,11 +217,13 @@ class RegisterFragment : Fragment(), OnSyncListener {
               duration = SnackbarDuration.Short,
             ),
           )
+          delay(200)
+          registerViewModel.getAllPatients()
+          registerViewModel.getAllSyncedPatients()
+          registerViewModel.getAllDraftResponses()
+          registerViewModel.getAllUnSyncedPatients()
+          registerViewModel.getAllUnSyncedPatientsImages()
         }
-        registerViewModel.getAllPatients()
-        registerViewModel.getAllSyncedPatients()
-        registerViewModel.getAllDraftResponses()
-        registerViewModel.getAllUnSyncedPatients()
       }
       is CurrentSyncJobStatus.Failed -> {
         refreshRegisterData()

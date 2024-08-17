@@ -26,17 +26,11 @@ import androidx.core.os.bundleOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.text.SimpleDateFormat
-import java.time.OffsetDateTime
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
-import javax.inject.Inject
-import kotlin.time.Duration
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.model.Binary
@@ -84,6 +78,14 @@ import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.schedulePeriodically
+import timber.log.Timber
+import java.text.SimpleDateFormat
+import java.time.OffsetDateTime
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import javax.inject.Inject
+import kotlin.time.Duration
 
 @HiltViewModel
 class AppMainViewModel
@@ -164,7 +166,8 @@ constructor(
     }
   }
 
-  fun onEvent(event: AppMainEvent) {
+  fun onEvent(event: AppMainEvent,isForeground:Boolean=false) {
+    Timber.e("TAG","onEvent --> isForeground -->$isForeground ")
     when (event) {
       is AppMainEvent.SwitchLanguage -> {
         sharedPreferencesHelper.write(SharedPreferenceKey.LANG.name, event.language.tag)
@@ -175,7 +178,14 @@ constructor(
       }
       is AppMainEvent.SyncData -> {
         if (event.context.isDeviceOnline()) {
-          viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
+          if (!isForeground) {
+            viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
+          } else {
+            Timber.e("TAG","syncBroadcaster.runOneTimeSync--> start")
+            viewModelScope.launch { syncBroadcaster.runOneTimeSync(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) }
+
+          }
+//          viewModelScope.launch { syncBroadcaster.runOneTimeSync(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) }
         } else {
           event.context.showToast(event.context.getString(R.string.sync_failed), Toast.LENGTH_LONG)
         }
