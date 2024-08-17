@@ -30,7 +30,6 @@ import com.google.android.fhir.datacapture.validation.NotValidated
 import com.google.android.fhir.datacapture.validation.QuestionnaireResponseValidator
 import com.google.android.fhir.datacapture.validation.Valid
 import com.google.android.fhir.db.ResourceNotFoundException
-import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.fhir.search.Search
 import com.google.android.fhir.search.filter.TokenParamFilterCriterion
 import com.google.android.fhir.search.search
@@ -87,6 +86,7 @@ import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.engine.util.extension.find
 import org.smartregister.fhircore.engine.util.extension.generateMissingId
 import org.smartregister.fhircore.engine.util.extension.isIn
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.prePopulateInitialValues
 import org.smartregister.fhircore.engine.util.extension.prepareQuestionsForReadingOrEditing
 import org.smartregister.fhircore.engine.util.extension.showToast
@@ -647,11 +647,12 @@ constructor(
             it.resource.id == (questionnaireResponse.id ?: -1)
           }
 
+          val entity = Bundle.BundleEntryComponent().apply { resource = questionnaireResponse }
+
           if (entryIndex != null && entryIndex != -1) {
-            draftResBundle?.entry?.set(entryIndex, Bundle.BundleEntryComponent().apply { resource = questionnaireResponse })
+            draftResBundle?.entry?.set(entryIndex, entity)
           } else {
-            val entity = Bundle.BundleEntryComponent().apply { resource = questionnaireResponse }
-            if (draftResBundle?.entry?.isEmpty() == true){
+            if (draftResBundle == null || draftResBundle.entry?.isEmpty() == true){
               draftResBundle = Bundle().apply {
                 addEntry(entity)
               }
