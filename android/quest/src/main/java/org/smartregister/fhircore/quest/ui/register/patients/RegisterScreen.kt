@@ -172,7 +172,7 @@ fun RegisterScreen(
             }
 
             registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
-                val allSyncedPatients by viewModel.allSyncedPatientsStateFlow.collectAsState()
+                val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
                 val savedRes by viewModel.allSavedDraftResponse.collectAsState()
                 val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
                 val isFetching by viewModel.isFetching.collectAsState()

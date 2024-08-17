@@ -23,6 +23,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.uhn.fhir.context.FhirContext
+import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.mapping.ResourceMapper
 import com.google.android.fhir.datacapture.mapping.StructureMapExtractionContext
 import com.google.android.fhir.datacapture.validation.NotValidated
@@ -93,6 +94,8 @@ import org.smartregister.fhircore.engine.util.extension.updateLastUpdated
 import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
+import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import timber.log.Timber
 import java.util.Date
 import java.util.UUID
@@ -113,6 +116,7 @@ constructor(
   val fhirPathDataExtractor: FhirPathDataExtractor,
   val configurationRegistry: ConfigurationRegistry,
   val syncBroadcaster: SyncBroadcaster,
+  val fhirEngine: FhirEngine
 ) : ViewModel() {
   private val parser = FhirContext.forR4Cached().newJsonParser()
 
@@ -618,26 +622,49 @@ constructor(
           ref.reference = "Practitioner/$flwId"
           // set author
           questionnaireResponse.author = ref
-          questionnaireResponse.id = questionnaireResponse.id?: UUID.randomUUID().toString()
+          questionnaireResponse.id = questionnaireResponse.id ?: UUID.randomUUID().toString()
           questionnaireResponse.meta.lastUpdated = Date()
 
-          val draftResponsesJson = sharedPreferencesHelper.read<String>(SharedPreferenceKey.DRAFTS.name, true)
-          val draftResBundle = if (draftResponsesJson != null) parser.parseResource(draftResponsesJson) as Bundle else Bundle()
+          val userName = getUserName()
+          val responses = fhirEngine.search<QuestionnaireResponse> {
+          }.map {
+            it.resource
+          }.filter {
+            (it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS) &&
+                    (it.author?.reference?.toString() ?: "").contains(userName, true)
+          }
+            .sortedByDescending { it.meta.lastUpdated }
 
-          val entryIndex = draftResBundle.entry?.indexOfFirst {
+          if (responses.find { it.id == questionnaireResponse.id } != null){
+            defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)
+            _isDraftSaved.postValue(true)
+            return@launch
+          }
+          val draftResponsesJson = getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
+          var draftResBundle = parseDraftResponses(parser, draftResponsesJson)
+
+          val entryIndex = draftResBundle?.entry?.indexOfFirst {
             it.resource.id == (questionnaireResponse.id ?: -1)
           }
 
           if (entryIndex != null && entryIndex != -1) {
-            draftResBundle.entry?.set(entryIndex, Bundle.BundleEntryComponent().apply { resource = questionnaireResponse })
+            draftResBundle?.entry?.set(entryIndex, Bundle.BundleEntryComponent().apply { resource = questionnaireResponse })
           } else {
             val entity = Bundle.BundleEntryComponent().apply { resource = questionnaireResponse }
-            draftResBundle.addEntry(entity)
+            if (draftResBundle?.entry?.isEmpty() == true){
+              draftResBundle = Bundle().apply {
+                addEntry(entity)
+              }
+            }else{
+              draftResBundle?.addEntry(entity)
+            }
           }
 
           // Save the updated bundle
-          val bundleJson = parser.encodeResourceToString(draftResBundle)
-          sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
+          draftResBundle?.let {
+            val bundleJson = parser.encodeResourceToString(draftResBundle)
+            sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
+          }
 
           _isDraftSaved.postValue(true)
         }catch (exception: Exception){
