@@ -9,7 +9,6 @@
     <application
             android:name=".QuestApplication"
             android:allowBackup="true"
-            android:debuggable="false"
             android:enableOnBackInvokedCallback="true"
             android:hardwareAccelerated="true"
             android:icon="@drawable/ic_launcher"
