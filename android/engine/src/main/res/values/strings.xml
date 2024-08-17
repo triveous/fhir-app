@@ -186,4 +186,8 @@
     <string name="select_your_site">Select your site</string>
     <string name="btn_continue">CONTINUE</string>
     <string name="iisc">IISc</string>
+    <string name="uploading_images_title">Uploading Images</string>
+    <string name="images_pending_text">%1$d images pending</string>
+    <string name="upload_success">Image uploaded successfully</string>
+    <string name="upload_failure">Some image failed to upload</string>
 </resources>

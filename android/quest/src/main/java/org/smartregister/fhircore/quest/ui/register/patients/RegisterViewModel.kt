@@ -30,15 +30,12 @@ import androidx.paging.filter
 import ca.uhn.fhir.context.FhirContext
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.extensions.asStringValue
-import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import javax.inject.Inject
-import kotlin.math.ceil
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +47,7 @@ import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
+import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
@@ -79,6 +77,7 @@ import org.smartregister.fhircore.engine.util.extension.daysPassed
 import org.smartregister.fhircore.engine.util.extension.encodeJson
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.engine.util.extension.isToday
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.monthsPassed
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
@@ -96,6 +95,8 @@ import timber.log.Timber
 import java.time.LocalDate
 import java.util.Date
 import java.util.UUID
+import javax.inject.Inject
+import kotlin.math.ceil
 
 @HiltViewModel
 class RegisterViewModel
@@ -171,6 +172,9 @@ constructor(
   private val _allUnSyncedStateFlow = MutableStateFlow<List<Patient2>>(emptyList())
   val allUnSyncedStateFlow: StateFlow<List<Patient2>> = _allUnSyncedStateFlow
 
+  private var _allUnSyncedImages = MutableStateFlow<Int>(0)
+  val allUnSyncedImages: StateFlow<Int> = _allUnSyncedImages
+
   /**
    * This function paginates the register data. An optional [clearCache] resets the data in the
    * cache (this is necessary after a questionnaire has been submitted to refresh the register with
@@ -205,12 +209,12 @@ constructor(
       config = PagingConfig(pageSize = pageSize, enablePlaceholders = false),
       pagingSourceFactory = {
         RegisterPagingSource(
-            registerRepository = registerRepository,
-            resourceDataRulesExecutor = resourceDataRulesExecutor,
-            ruleConfigs = ruleConfigs,
-            fhirResourceConfig = registerFilterState.value.fhirResourceConfig,
-            actionParameters = registerUiState.value.params,
-          )
+          registerRepository = registerRepository,
+          resourceDataRulesExecutor = resourceDataRulesExecutor,
+          ruleConfigs = ruleConfigs,
+          fhirResourceConfig = registerFilterState.value.fhirResourceConfig,
+          actionParameters = registerUiState.value.params,
+        )
           .apply {
             setPatientPagingSourceState(
               RegisterPagingSourceState(
@@ -272,7 +276,7 @@ constructor(
     if (searchBar?.computedRules != null) {
       paginatedRegisterData.value =
         retrieveAllPatientRegisterData(registerUiState.value.registerId).map {
-          pagingData: PagingData<ResourceData> ->
+            pagingData: PagingData<ResourceData> ->
           pagingData.filter { resourceData: ResourceData ->
             searchBar.computedRules!!.any { ruleName ->
               // if ruleName not found in map return {-1}; check always return false hence no data
@@ -492,10 +496,10 @@ constructor(
       RegisterFilterState(
         questionnaireResponse = questionnaireResponse,
         fhirResourceConfig =
-          FhirResourceConfig(
-            baseResource = baseResource.copy(dataQueries = newBaseResourceDataQueries),
-            relatedResources = newRelatedResources,
-          ),
+        FhirResourceConfig(
+          baseResource = baseResource.copy(dataQueries = newBaseResourceDataQueries),
+          relatedResources = newRelatedResources,
+        ),
       )
   }
 
@@ -514,11 +518,11 @@ constructor(
         it.copy(
           dataQueries = newDataQueries,
           relatedResources =
-            createFilterRelatedResources(
-              registerDataFilterFieldsMap = registerDataFilterFieldsMap,
-              relatedResources = it.relatedResources,
-              qrItemMap = qrItemMap,
-            ),
+          createFilterRelatedResources(
+            registerDataFilterFieldsMap = registerDataFilterFieldsMap,
+            relatedResources = it.relatedResources,
+            qrItemMap = qrItemMap,
+          ),
         )
       }
     return newRelatedResources
@@ -671,22 +675,22 @@ constructor(
           RegisterUiState(
             screenTitle = currentRegisterConfiguration.registerTitle ?: screenTitle,
             isFirstTimeSync =
-              sharedPreferencesHelper
-                .read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null)
-                .isNullOrEmpty() && _totalRecordsCount.longValue == 0L,
+            sharedPreferencesHelper
+              .read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null)
+              .isNullOrEmpty() && _totalRecordsCount.longValue == 0L,
             registerConfiguration = currentRegisterConfiguration,
             registerId = registerId,
             totalRecordsCount = _totalRecordsCount.longValue,
             filteredRecordsCount = _filteredRecordsCount.longValue,
             pagesCount =
-              ceil(
-                  (if (registerFilterState.value.fhirResourceConfig != null) {
-                      _filteredRecordsCount.longValue
-                    } else _totalRecordsCount.longValue)
-                    .toDouble()
-                    .div(currentRegisterConfiguration.pageSize.toLong()),
-                )
-                .toInt(),
+            ceil(
+              (if (registerFilterState.value.fhirResourceConfig != null) {
+                _filteredRecordsCount.longValue
+              } else _totalRecordsCount.longValue)
+                .toDouble()
+                .div(currentRegisterConfiguration.pageSize.toLong()),
+            )
+              .toInt(),
             progressPercentage = _percentageProgress,
             isSyncUpload = _isUploadSync,
             params = paramsMap,
@@ -772,9 +776,9 @@ constructor(
         it.resource.toResourceData()
       }
         .filter {
-        (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/") ?: "").equals(userName, true)
+          (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()?.substringAfter("/") ?: "").equals(userName, true)
 
-      }.sortedByDescending {
+        }.sortedByDescending {
           val extension = it?.patient?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
           if(extension != null && extension.value?.asStringValue()?.isNotEmpty() == true){
             val date = convertToDateStringToDate(extension.value?.asStringValue())
@@ -782,7 +786,7 @@ constructor(
           }else{
             it.meta.lastUpdated
           }
-      }
+        }
 
       // Fetching unsynced patients
       val unsyncedPatients = mutableListOf<AllPatientsResourceData>()
@@ -802,10 +806,10 @@ constructor(
       //val combinedList = (patients + drafts + unsyncedPatients)
       //val combinedList = (patients + drafts)
 
-/*
-      val combinedList = (patients + unsyncedPatients)
-        .sortedByDescending { it.meta.lastUpdated }
-*/
+      /*
+            val combinedList = (patients + unsyncedPatients)
+              .sortedByDescending { it.meta.lastUpdated }
+      */
 
 
       // Updating the state flow
@@ -910,6 +914,11 @@ constructor(
       }
     }
   }
+  fun getAllUnSyncedPatientsImages(){
+    viewModelScope.launch {
+      _allUnSyncedImages.value = fhirEngine.search<DocumentReference> {}.count()
+    }
+  }
 
   fun deleteIfNotOldDraft(resourceId: String){
     viewModelScope.launch {
@@ -966,41 +975,41 @@ constructor(
   }
 
 
-    /** The Patient's details for display purposes. */
-    data class PatientItem(
-      val id: String,
-      val resourceId: String,
-      val name: String,
-      val gender: String,
-      val dob: LocalDate? = null,
-      val phone: String,
-      val city: String,
-      val country: String,
-      val isActive: Boolean,
-      val html: String,
-      var risk: String? = ""
-    ) {
-      override fun toString(): String = name
-    }
+  /** The Patient's details for display purposes. */
+  data class PatientItem(
+    val id: String,
+    val resourceId: String,
+    val name: String,
+    val gender: String,
+    val dob: LocalDate? = null,
+    val phone: String,
+    val city: String,
+    val country: String,
+    val isActive: Boolean,
+    val html: String,
+    var risk: String? = ""
+  ) {
+    override fun toString(): String = name
+  }
 
-    /** The Observation's details for display purposes. */
-    data class ObservationItem(
-      val id: String,
-      val code: String,
-      val effective: String,
-      val value: String,
-    ) {
-      override fun toString(): String = code
-    }
+  /** The Observation's details for display purposes. */
+  data class ObservationItem(
+    val id: String,
+    val code: String,
+    val effective: String,
+    val value: String,
+  ) {
+    override fun toString(): String = code
+  }
 
-    data class ConditionItem(
-      val id: String,
-      val code: String,
-      val effective: String,
-      val value: String,
-    ) {
-      override fun toString(): String = code
-    }
+  data class ConditionItem(
+    val id: String,
+    val code: String,
+    val effective: String,
+    val value: String,
+  ) {
+    override fun toString(): String = code
+  }
 
 
   data class TaskItem(
@@ -1008,14 +1017,14 @@ constructor(
     val patient: Patient?
   )
 
-    data class Patient2(
-      val id: String,
-      val name: String,
-      val lastUpdated: String,
-      val gender: String,
-      val primaryContact: String?,
-      val age: Int?
-    )
+  data class Patient2(
+    val id: String,
+    val name: String,
+    val lastUpdated: String,
+    val gender: String,
+    val primaryContact: String?,
+    val age: Int?
+  )
 
   data class DraftPatient(
     val name: String,
@@ -1031,35 +1040,35 @@ constructor(
 
   }
 
-    fun parsePatientJson(json: String): Patient2? {
-      val gson = Gson()
-      try {
-        val patientData = gson.fromJson(json, Map::class.java)
+  fun parsePatientJson(json: String): Patient2? {
+    val gson = Gson()
+    try {
+      val patientData = gson.fromJson(json, Map::class.java)
 
-        val nameList = patientData["name"] as List<*>?
-        val name = if (nameList != null && nameList.isNotEmpty()) {
-          val firstName = (nameList[0] as Map<*, *>)["given"] as List<*>?
-          if (firstName != null && firstName.isNotEmpty()) {
-            firstName[0] as String
-          } else {
-            null
-          }
+      val nameList = patientData["name"] as List<*>?
+      val name = if (nameList != null && nameList.isNotEmpty()) {
+        val firstName = (nameList[0] as Map<*, *>)["given"] as List<*>?
+        if (firstName != null && firstName.isNotEmpty()) {
+          firstName[0] as String
         } else {
           null
         }
-
-        val id = patientData["id"] as String? ?: ""
-        val lastUpdated = (patientData["meta"] as Map<*, *>) ["lastUpdated"] as String? ?: ""
-        val gender = patientData["gender"] as String?
-        val telecomData = patientData["telecom"] as List<*>?
-        val mobile = (telecomData?.get(0) as Map<*, *>)["value"].toString()
-
-        return Patient2(id = id, name ?: "", lastUpdated = lastUpdated, gender ?: "", mobile, 0)
-      } catch (e: Exception) {
-        e.printStackTrace()
-        return null
+      } else {
+        null
       }
+
+      val id = patientData["id"] as String? ?: ""
+      val lastUpdated = (patientData["meta"] as Map<*, *>) ["lastUpdated"] as String? ?: ""
+      val gender = patientData["gender"] as String?
+      val telecomData = patientData["telecom"] as List<*>?
+      val mobile = (telecomData?.get(0) as Map<*, *>)["value"].toString()
+
+      return Patient2(id = id, name ?: "", lastUpdated = lastUpdated, gender ?: "", mobile, 0)
+    } catch (e: Exception) {
+      e.printStackTrace()
+      return null
     }
+  }
 
   fun parseQuestionnaireResponseJson(json: String): DraftPatient? {
     val gson = Gson()
@@ -1125,12 +1134,12 @@ constructor(
 
   // ResourceData class with all three types and meta information
   data class AllPatientsResourceData(
-        val id: String,
-        val meta: Meta,
-        val resourceType: AllPatientsResourceType,
-        val patient: Patient? = null,
-        val questionnaireResponse: QuestionnaireResponse? = null,
-        val patient2: Patient2? = null
+    val id: String,
+    val meta: Meta,
+    val resourceType: AllPatientsResourceType,
+    val patient: Patient? = null,
+    val questionnaireResponse: QuestionnaireResponse? = null,
+    val patient2: Patient2? = null
   )
 
   // Enumeration for resource types

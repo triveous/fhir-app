@@ -16,8 +16,13 @@
 
 package org.smartregister.fhircore.quest.ui.register.patients
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -78,11 +83,13 @@ import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
 import org.smartregister.fhircore.quest.theme.body14Medium
 import org.smartregister.fhircore.quest.theme.bodyNormal
+import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity.Companion.QUESTIONNAIRE_RESPONSE_PREFILL
 import org.smartregister.fhircore.quest.ui.register.components.EmptyStateSection
+import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 
 
@@ -116,6 +123,21 @@ fun RegisterScreen(
     navController: NavController,
     toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
 ) {
+    var showDialog by remember { mutableStateOf(false) }
+    var appMainEvent : AppMainEvent?=null
+    var imageCount =1
+    var totalImageLeftCountData = getSyncImagelist(imageCount)
+    var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
+
+
+    val permissionGranted = remember { mutableStateOf(false) }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        permissionGranted.value = isGranted
+    }
+
 
     Scaffold(
         topBar = {
@@ -129,7 +151,9 @@ fun RegisterScreen(
                     filteredRecordsCount = registerUiState.filteredRecordsCount,
                     searchPlaceholder = registerUiState.registerConfiguration?.searchBar?.display,
                     toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
-                    onSync = appMainViewModel::onEvent,
+                    onSync = {
+                        appMainEvent=it
+                        showDialog = true },
                     onSearchTextChanged = { searchText ->
                         onEvent(RegisterEvent.SearchRegister(searchText = searchText))
                     },
@@ -151,9 +175,7 @@ fun RegisterScreen(
                     }
                 }
             }
-        },
-
-        ) { innerPadding ->
+        },) { innerPadding ->
 
         Box(
             modifier = modifier.padding(innerPadding),
@@ -170,15 +192,18 @@ fun RegisterScreen(
                     showPercentageProgress = true,
                 )
             }
-
             registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
                 val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
                 val savedRes by viewModel.allSavedDraftResponse.collectAsState()
                 val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
+                val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
                 val isFetching by viewModel.isFetching.collectAsState()
                 var deleteDraftId by remember { mutableStateOf("") }
                 var showDeleteDialog by remember { mutableStateOf(false) }
 
+                imageCount = unSyncedImagesCount
+                totalImageLeftCountData = getSyncImagelist(imageCount)
+                totalImageLeft = totalImageLeftCountData
                 if (allSyncedPatients.isEmpty() && savedRes.isEmpty()) {
                     Column(
                         modifier = Modifier
@@ -205,7 +230,7 @@ fun RegisterScreen(
                                 style = bodyNormal(fontSize = 16.sp).copy(letterSpacing = .5.sp, lineHeight = 24.sp, textAlign = TextAlign.Center, color = CRAYOLA_LIGHT),
                                 text = if (isFetching) stringResource(id = org.smartregister.fhircore.quest.R.string.loading_patients) else stringResource(
                                     id = org.smartregister.fhircore.quest.R.string.cases_no_draft_patients
-                                    
+
                                 ), modifier = Modifier.padding(horizontal = 40.dp)
                             )
                         }
@@ -363,9 +388,39 @@ fun RegisterScreen(
                     }
                 }
             }
+
+            ForegroundSyncDialog(
+                showDialog = showDialog,
+                title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
+                content = totalImageLeft,
+                imageCount,
+                confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
+                dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
+                onDismiss = {
+                    showDialog = false
+                },
+                onConfirm = {
+                    Log.e("TAG","ForegroundSyncDialog --> onConfirm --> ")
+                    showDialog = false
+                    if (!permissionGranted.value) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            permissionGranted.value = true
+                            appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                        }
+                    }else{
+                        appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                    }
+                }
+            )
         }
     }
 }
+
+@Composable
+private fun getSyncImagelist(imageCount: Int) =
+    stringResource(id = org.smartregister.fhircore.quest.R.string.image_left, imageCount.toString())
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -377,7 +432,9 @@ fun ShowDrafts(
     onEditResponse: (String) -> Unit?,
     allDraftsSize: Int
 ) {
-    Box(modifier = modifier.padding(top = 8.dp).fillMaxWidth()) {
+    Box(modifier = modifier
+        .padding(top = 8.dp)
+        .fillMaxWidth()) {
         if (drafts.isEmpty()) {
             Column(
                 modifier = modifier

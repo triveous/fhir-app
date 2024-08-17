@@ -224,4 +224,10 @@
     <string name="urgent_referral">URGENT REFERRAL</string>
     <string name="retake_photo">RETAKE PHOTO</string>
     <string name="image_saved">Image Saved</string>
+    <string name="sync_status">Sync Status</string>
+    <string name="sync_now">Sync now</string>
+    <string name="notification_sync_failed">Sync failed</string>
+    <string name="notification_sync">Syncing…</string>
+    <string name="image_left">Image Left: %s</string>
+    <string name="okay">Okay</string>
 </resources>
