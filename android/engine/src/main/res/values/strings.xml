@@ -188,6 +188,6 @@
     <string name="iisc">IISc</string>
     <string name="uploading_images_title">Uploading Images</string>
     <string name="images_pending_text">%1$d images pending</string>
-    <string name="upload_success">Image uploaded successfully</string>
-    <string name="upload_failure">Some image failed to upload</string>
+    <string name="upload_success">Images uploaded successfully</string>
+    <string name="upload_failure">Some images failed to upload</string>
 </resources>
