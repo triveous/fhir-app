@@ -38,8 +38,8 @@ fun createNotification(context: Context): Notification {
 
     // Build the notification
     return NotificationCompat.Builder(context, CHANNEL_ID)
-        .setContentTitle("Service Running")
-        .setContentText("Your foreground service is active.")
+        .setContentTitle(context.getString(R.string.appname))
+        .setContentText(context.getString(R.string.syncing))
         .setSmallIcon(R.drawable.ic_quest_logo) // Replace with your own icon
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setOngoing(true) // This makes the notification persistent
