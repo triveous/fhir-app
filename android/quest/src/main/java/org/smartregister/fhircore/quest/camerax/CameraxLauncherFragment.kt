@@ -16,7 +16,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -247,7 +246,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            val resolution = Size(780, 780)
+            val resolution = Size(4096, 4096)
 
             val preview = Preview.Builder()
                 .setTargetResolution(resolution)
@@ -340,49 +339,40 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
-    fun decodeFileToBitmap(filePath: String): Bitmap? {
+    private fun decodeFileToBitmap(filePath: String): Bitmap? {
         return try {
             val tStart = System.currentTimeMillis()
-
-            val options = BitmapFactory.Options()
-            options.inPreferredConfig = Bitmap.Config.ARGB_8888
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
             var bitmap = BitmapFactory.decodeFile(filePath, options)
+                ?: throw IOException("Failed to decode file: $filePath")
+
             val end = System.currentTimeMillis()
             val elapseSec = (end - tStart) / 1000f
-            Log.d("cls6.pt process", "bitmp $elapseSec sec")
+            Timber.d("cls6.pt process: bitmap $elapseSec sec")
 
-            bitmap = Bitmap.createScaledBitmap(bitmap, 256, 256, true)
-
-            return bitmap
-
+            Bitmap.createScaledBitmap(bitmap, 256, 256, true)
         } catch (e: Exception) {
-            null // Handle exception (e.g., log error)
+            Timber.e(e, "Error decoding file to bitmap: $filePath")
+            null
         }
     }
     fun getAssetPath(context: Context, assetName: String): String? {
-        // Access AssetManager directly (no need for Context)
         val assetManager = context.assets
-
-        // Attempt to open the asset using open(assetName)
         val assetInputStream = assetManager.open(assetName) ?: return null
-
-        // Create a temporary file in the internal directory (consider using cache dir for frequent access)
         val internalFile = File(context.filesDir, assetName)
 
         try {
-            internalFile.createNewFile() // Create a new file if it doesn't exist
+            internalFile.createNewFile()
             val outputStream = FileOutputStream(internalFile)
 
-            // Efficiently copy the asset data using a buffer
             val buffer = ByteArray(1024)
             var bytesRead: Int
             while (assetInputStream.read(buffer).also { bytesRead = it } > 0) {
                 outputStream.write(buffer, 0, bytesRead)
             }
-
             outputStream.close()
-            Log.d("cls6.pt process", "absolutePath")
-
             return internalFile.absolutePath
         } catch (e: IOException) {
             e.printStackTrace()
@@ -392,119 +382,57 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
-    fun convertRGBtoBGR(inputTensor: Tensor): Tensor {
-        // Check if the tensor shape is [1, 3, H, W]
-        val shape = inputTensor.shape()
-        require(!(shape.size != 4 || shape[1] != 3L)) { "Input tensor must have shape [1, 3, H, W]" }
-        val channels = shape[1].toInt()
-        val height = shape[2].toInt()
-        val width = shape[3].toInt()
+    private fun convertRGBtoBGR(inputTensor: Tensor): Tensor? {
+        return try {
+            val shape = inputTensor.shape()
+            require(shape.size == 4 && shape[1] == 3L) { "Input tensor must have shape [1, 3, H, W]" }
 
-        // Extract tensor data
-        val inputData = inputTensor.dataAsFloatArray
+            val channels = shape[1].toInt()
+            val height = shape[2].toInt()
+            val width = shape[3].toInt()
 
-        // Prepare an array for the BGR data
-        val outputData = FloatArray(inputData.size)
+            val inputData = inputTensor.dataAsFloatArray
+            val outputData = FloatArray(inputData.size)
+            val productOfHeightAndWidth = height * width
 
-        val hw = height * width
-
-
-        // Copy B values
-        for (i in 0 until hw) {
-            outputData[i] = inputData[2 * hw + i] // B
-        }
-
-        // Copy G values
-        for (i in 0 until hw) {
-            outputData[hw + i] = inputData[hw + i] // G
-        }
-
-        // Copy R values
-        for (i in 0 until hw) {
-            outputData[2 * hw + i] = inputData[i] // R
-        }
-        // Create a new tensor with the BGR data
-        return Tensor.fromBlob(outputData, shape)
-    }
-    private fun processImage(absolutePath: String): Pair<String, String> {
-        var tStart = System.currentTimeMillis()
-        var tEnd = System.currentTimeMillis()
-
-        val capturedImage = decodeFileToBitmap(absolutePath)
-
-        val mean = floatArrayOf(0.485f, 0.456f, 0.406f)
-        val std = floatArrayOf(0.229f, 0.224f, 0.225f)
-
-        tStart = System.currentTimeMillis()
-
-        val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(capturedImage, mean, std)
-        tEnd = System.currentTimeMillis()
-        Log.d("cls6.pt process", "TensorImageUtils ${((tEnd - tStart) / 1000.0)} sec")
-
-
-        tStart = System.currentTimeMillis()
-
-        val bgrTensor = convertRGBtoBGR(inputTensor)
-
-        tEnd = System.currentTimeMillis()
-        Log.d("cls6.pt process", "convertRGBtoBGR ${((tEnd - tStart) / 1000.0)} sec")
-
-        tStart = System.currentTimeMillis()
-
-        val output = module?.forward(IValue.from(bgrTensor))
-        val outputDict = output?.toDictStringKey()
-        val outputTensor = outputDict?.get("logits")!!.toTensor()
-
-        tEnd = System.currentTimeMillis()
-        Log.d("cls6.pt process", "forward ${((tEnd - tStart) / 1000.0)} sec")
-
-        var scores = outputTensor.dataAsFloatArray[0]
-
-        Log.d("cls6.pt process", "score ${scores}")
-
-
-        /*var dnr = 0f
-        for (i in scores.indices) {
-            scores[i] = exp(scores[i])
-            dnr += scores[i]
-        }
-
-        for (i in scores.indices) {
-            scores[i] = scores[i] / dnr
-        }*/
-
-        // searching for the index with maximum score
-
-        // searching for the index with maximum score
-        /*var maxScore = 0f
-        var maxScoreIdx = -1
-        for (i in scores.indices) {
-            if (scores[i] > maxScore) {
-                maxScore = scores[i]
-                maxScoreIdx = i
+            for (i in 0 until productOfHeightAndWidth) {
+                outputData[i] = inputData[2 * productOfHeightAndWidth + i] // B
+                outputData[productOfHeightAndWidth + i] = inputData[productOfHeightAndWidth + i] // G
+                outputData[2 * productOfHeightAndWidth + i] = inputData[i] // R
             }
-        }*/
 
-        //val pred = (scores[maxScoreIdx] * 100)
-        scores = 1 / (1 + exp(-scores).toFloat())
-        Log.d("cls6.pt process", "af score ${scores}")
-
-        val prediction = if (scores > 0.5f) 1 else 0
-
-
-        //val elapsedSeconds = (tEnd - tStart) / 1000.0
-        //val df = DecimalFormat("#0.00")
-        //textview3!!.text = "Elapsed Time (Seconds): ${df.format(elapsedSeconds)}"
-
-        //val className = classes.diseases[maxScoreIdx]
-        val className = classes.diseases[prediction]
-        val df1 = DecimalFormat("#0.00")
-        val confidence = if (prediction == 1) {
-            (scores * 100).toString()
-        } else {
-            ((1 - scores) * 100).toString()
+            Tensor.fromBlob(outputData, shape)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to convert RGB to BGR")
+            null
         }
-        return Pair(className, "$confidence")
+    }
+
+    private fun processImage(absolutePath: String): Pair<String, String>? {
+        try {
+            val capturedImage = decodeFileToBitmap(absolutePath) ?: throw IllegalArgumentException("Failed to decode image")
+
+            val mean = floatArrayOf(0.485f, 0.456f, 0.406f)
+            val std = floatArrayOf(0.229f, 0.224f, 0.225f)
+
+            val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(capturedImage, mean, std)
+            val bgrTensor = convertRGBtoBGR(inputTensor) ?: throw IllegalStateException("Failed to convert RGB to BGR")
+
+            val output = module?.forward(IValue.from(bgrTensor)) ?: throw IllegalStateException("Module is null or forward operation failed")
+            val outputDict = output.toDictStringKey() ?: throw IllegalStateException("Failed to convert output to dictionary")
+            val outputTensor = outputDict["logits"]?.toTensor() ?: throw IllegalStateException("Failed to get logits tensor")
+
+            var scores = outputTensor.dataAsFloatArray[0]
+            //Sigmoid
+            scores = 1 / (1 + exp(-scores))
+            val prediction = if (scores > 0.5f) 1 else 0
+            val className = classes.diseases[prediction]
+            val confidence = if (prediction == 1) (scores * 100).toString() else ((1 - scores) * 100).toString()
+            return Pair(className, confidence)
+        } catch (e: Exception) {
+            Timber.e(e, "Error processing image")
+            return null
+        }
     }
 
     fun View.setSafeOnClickListener(interval: Long = 1000, onSafeClick: (View) -> Unit) {
@@ -520,34 +448,17 @@ class CameraxLauncherFragment : DialogFragment() {
         setOnClickListener(safeClickListener)
     }
     private fun onPhotoSelected(absolutePath : String){
-
-        //var score = processImage(absolutePath)
-        //predictionScore.text = "$score"
-        val df1 = DecimalFormat("#0.00")
-
         val score = processImage(fileAbsPath)
-        /*predictionScore.text = "$score"
-
-        val prediction = if (score > 0.5f) 1 else 0
-        val predictionResult = classes.diseases[prediction]
-        val confidence = if (prediction == 1) {
-            (score * 100).toString()
-        } else {
-            ((1 - score) * 100).toString()
-        }*/
-        Log.d("cls6.pt process", "score ${score.first} confi ${score.second}")
-
         requireActivity().runOnUiThread {
             setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
                 putString(CAMERA_RESULT_URI_KEY, absolutePath)
-                putString(CAMERA_PREDICTION_KEY, score.first)
-                putString(CAMERA_CONFIDENCE_KEY, "${score.second}%")
+                putString(CAMERA_PREDICTION_KEY, "${score?.first ?: "Error in processing"}")
+                putString(CAMERA_CONFIDENCE_KEY, "${score?.second ?: "Error in processing"}%")
                 putBoolean(CAMERA_RESULT_KEY, true)
             })
             requireActivity().showToast("Image processed successfully", Toast.LENGTH_SHORT)
             dismiss()
         }
-
     }
 
     override fun onDestroy() {
