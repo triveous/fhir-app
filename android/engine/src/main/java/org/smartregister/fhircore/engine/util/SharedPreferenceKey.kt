@@ -33,6 +33,7 @@ enum class SharedPreferenceKey {
   CARE_TEAM,
   ORGANIZATION,
   FHIR_BASE_URL,
+  SITE_NAME,
   OAUTH_BASE_URL,
   DRAFTS,
 }

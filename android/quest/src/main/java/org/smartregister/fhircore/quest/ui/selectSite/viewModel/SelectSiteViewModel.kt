@@ -76,6 +76,8 @@ class SelectSiteViewModel @Inject constructor(
 
         secureSharedPreference.saveUrls(fhirBaseUrl, oauthBaseUrl)
         sharedPreferencesHelper.saveUrls(fhirBaseUrl, oauthBaseUrl)
+        secureSharedPreference.saveSiteName(selectSite.name)
+        sharedPreferencesHelper.saveSiteName(selectSite.name)
     }
 
     private fun getFhirBaseUrl(selectSite: SelectSite, isTest: Boolean = false): String? {
