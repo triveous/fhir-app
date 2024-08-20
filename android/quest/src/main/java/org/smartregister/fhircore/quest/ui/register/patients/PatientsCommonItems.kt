@@ -27,7 +27,6 @@ import com.google.android.fhir.datacapture.extensions.asStringValue
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
-import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
@@ -36,6 +35,7 @@ import org.smartregister.fhircore.quest.theme.bodyExtraBold
 import org.smartregister.fhircore.quest.theme.bodyNormal
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
+import org.smartregister.fhircore.quest.util.OpensrpDateUtils.getRegistrationDateFromExtension
 
 /**
  * Created by Jeetesh Surana.
@@ -185,8 +185,9 @@ fun SyncedPatientCardItem(patientData: Patient, patient: RegisterViewModel.AllPa
                                 style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
+
                             Text(
-                                text = convertToDate(patient.meta.lastUpdated),
+                                text = "${getRegistrationDateFromExtension(patient.patient)}",
                                 style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT)
                             )
                         }
