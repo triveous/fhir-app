@@ -88,6 +88,17 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
       putString(SharedPreferenceKey.OAUTH_BASE_URL.name, oauthBaseUrl)
     }
   }
+
+  fun saveSiteName(siteName: String?) {
+    secureSharedPreferences.edit {
+      putString(SharedPreferenceKey.SITE_NAME.name, siteName)
+    }
+  }
+
+  fun getSiteName(): String? {
+    return secureSharedPreferences.getString(SharedPreferenceKey.SITE_NAME.name, null)
+  }
+
   fun getFhirBaseUrl(): String {
     var fhirBaseUrl = secureSharedPreferences.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null)
     if (fhirBaseUrl.isNullOrEmpty()) {
