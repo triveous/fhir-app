@@ -72,6 +72,8 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
       private lateinit var photoPreview: ConstraintLayout
       private lateinit var photoThumbnail: ImageView
       private lateinit var photoTitle: TextView
+      private lateinit var photoResult: TextView
+      private lateinit var photoConfidence: TextView
       private lateinit var photoDeleteButton: Button
       private lateinit var photoDeleteButton2: ImageView
       private lateinit var filePreview: ConstraintLayout
@@ -95,6 +97,8 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         divider = itemView.findViewById(R.id.divider)
         photoPreview = itemView.findViewById(R.id.photo_preview)
         photoThumbnail = itemView.findViewById(R.id.photo_thumbnail)
+        photoResult = itemView.findViewById(R.id.photo_result)
+        photoConfidence = itemView.findViewById(R.id.photo_confidence)
         photoTitle = itemView.findViewById(R.id.photo_title)
         photoDeleteButton = itemView.findViewById(R.id.photo_delete)
         photoDeleteButton2 = itemView.findViewById(R.id.photo_delete2)
@@ -253,6 +257,9 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
           if (!isSaved) return@setFragmentResultListener
 
           val fileAbsolutePath = result.getString(CameraxLauncherFragment.CAMERA_RESULT_URI_KEY)
+          val predictionResult = result.getString(CameraxLauncherFragment.CAMERA_PREDICTION_KEY)
+          val confidence = result.getString(CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY)
+
           if (!fileAbsolutePath.isNullOrEmpty()) {
             try {
             val capturedFile = File(fileAbsolutePath)
@@ -291,9 +298,16 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
               divider.visibility = View.VISIBLE
               displayPreview(
                 attachmentType = attachmentMimeType,
-                attachmentTitle = capturedFile.name,
+                attachmentTitle = "RESULT : $predictionResult",
                 attachmentUri = attachmentUri,
               )
+
+              predictionResult?.isNotEmpty().let {
+                photoResult.text = "RESULT : $predictionResult"
+              }
+              confidence?.isNotEmpty().let {
+                photoConfidence.text = "CONFIDENCE : $confidence"
+              }
               displaySnackbarOnUpload(view, attachmentMimeType)
             }
             }catch (e:Exception){
