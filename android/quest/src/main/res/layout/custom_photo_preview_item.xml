@@ -20,7 +20,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="@dimen/item_margin_horizontal"
+    android:background="@color/backgroundGray"
+    android:layout_marginHorizontal="@dimen/attachment_preview_margin_top"
     android:layout_marginTop="@dimen/attachment_preview_margin_top"
     >
 
@@ -44,16 +45,41 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/photo_thumbnail" />
 
+
     <TextView
-        android:id="@+id/photo_title"
-        style="?attr/questionnaireAttachmentPreviewTitleStyle"
+        android:id="@+id/photo_result"
         android:layout_width="0dp"
+        android:textSize="14sp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="@dimen/attachment_preview_title_margin_horizontal"
         app:layout_constraintEnd_toEndOf="@+id/divider"
         app:layout_constraintStart_toEndOf="@+id/photo_thumbnail"
         app:layout_constraintTop_toTopOf="parent"
-        tools:text="sample-image.jpeg" />
+        tools:text="Result : NON - SUSPECIOUS" />
+
+    <TextView
+        android:id="@+id/photo_confidence"
+        android:layout_width="0dp"
+        android:textSize="14sp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/attachment_preview_title_margin_horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/divider"
+        app:layout_constraintStart_toEndOf="@+id/photo_thumbnail"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="CONFIDENCE : 10%" />
+
+    <TextView
+        android:id="@+id/photo_title"
+        android:layout_width="0dp"
+        android:textSize="14sp"
+        android:visibility="gone"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/attachment_preview_title_margin_horizontal"
+        app:layout_constraintEnd_toEndOf="@+id/divider"
+        app:layout_constraintStart_toEndOf="@+id/photo_thumbnail"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="RESULT : NON - SUSPECIOUS" />
 
     <Button
         android:id="@+id/photo_delete"
