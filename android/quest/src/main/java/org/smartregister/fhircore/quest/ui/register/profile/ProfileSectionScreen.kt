@@ -35,7 +35,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PermDeviceInformation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
@@ -54,9 +57,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
+import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
@@ -67,6 +72,7 @@ import org.smartregister.fhircore.quest.theme.bodyNormal
 import org.smartregister.fhircore.quest.ui.login.PASSWORD_FORGOT_DIALOG
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.DRAWER_MENU
+import org.smartregister.fhircore.quest.ui.main.components.TOP_ROW_ICON_TEST_TAG
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
@@ -90,6 +96,9 @@ fun ProfileSectionScreen(
 
     val userNameText = viewModel.getUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
+
+    val getDefaultSiteName = stringResource(id = R.string.krishnagiri)
+    val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: getDefaultSiteName
 
     Scaffold(
         modifier = modifier
@@ -130,7 +139,8 @@ fun ProfileSectionScreen(
         Box(
             modifier = modifier
                 .padding(innerPadding)
-                .fillMaxSize().padding(top = 40.dp)
+                .fillMaxSize()
+                .padding(top = 40.dp)
         ) {
             Column(
                 modifier = Modifier.fillMaxSize()
@@ -159,10 +169,8 @@ fun ProfileSectionScreen(
                         text = stringResource(id = R.string.profile_username,userNameText), style =bodyNormal(16.sp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(painter = painterResource(id = R.drawable.ic_address), contentDescription = DRAWER_MENU, modifier = Modifier.size(12.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(color = CRAYOLA_LIGHT, text = stringResource(id = R.string.krishnagiri), style =bodyNormal(16.sp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 40.dp)) {
+                        Text(color = CRAYOLA_LIGHT, text = selectedSiteName, style =bodyNormal(16.sp).copy(textAlign = TextAlign.Center))
                     }
                     Spacer(modifier = Modifier.height(20.dp))
                 }
@@ -257,6 +265,40 @@ fun ProfileSectionScreen(
                                 text = stringResource(id = R.string.logout),
                                 style = bodyMedium(fontSize = 18.sp),
                                 color = Colors.SIZZLING_RED
+                            )
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .clickable {
+                                viewModel.logout()
+                            }
+                        ) {
+                            Icon(
+                                Icons.Filled.PermDeviceInformation,
+                                contentDescription = DRAWER_MENU,
+                                tint = Color.Gray,
+                                modifier =
+                                modifier
+                                    .clickable {
+
+                                    }
+                                    .testTag(TOP_ROW_ICON_TEST_TAG),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = stringResource(
+                                id = org.smartregister.fhircore.engine.R.string.app_version,
+                                BuildConfig.VERSION_CODE,
+                                BuildConfig.VERSION_NAME)
                             )
                         }
                     }
