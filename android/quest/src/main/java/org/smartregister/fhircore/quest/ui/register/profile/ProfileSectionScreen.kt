@@ -96,9 +96,7 @@ fun ProfileSectionScreen(
 
     val userNameText = viewModel.getUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
-
-    val getDefaultSiteName = stringResource(id = R.string.krishnagiri)
-    val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: getDefaultSiteName
+    val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: ""
 
     Scaffold(
         modifier = modifier
@@ -280,7 +278,6 @@ fun ProfileSectionScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 16.dp)
                             .clickable {
-                                viewModel.logout()
                             }
                         ) {
                             Icon(
