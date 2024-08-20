@@ -205,7 +205,6 @@
     <string name="logout">Logout</string>
     <string name="change_pin">Change PIN</string>
     <string name="profile_username">Username: %s</string>
-    <string name="krishnagiri">Krishnagiri</string>
 
     <!-- Cases-->
     <string name="visited">Visited</string>
