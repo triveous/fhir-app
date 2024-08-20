@@ -1,5 +1,8 @@
 package org.smartregister.fhircore.quest.util
 
+import com.google.android.fhir.datacapture.extensions.asStringValue
+import org.hl7.fhir.r4.model.Patient
+import org.smartregister.fhircore.engine.util.extension.isToday
 import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -13,6 +16,18 @@ object OpensrpDateUtils {
         // Format the date to the desired output format
         return outputFormat.format(input)
     }
+
+    fun getRegistrationDateFromExtension(patient: Patient?): String {
+        val extension = patient?.extension?.find { it.url?.substringAfterLast("/").equals("patient-registraion-date") }
+        if(extension != null && extension.value?.asStringValue()?.isNotEmpty() == true){
+            val date = convertToDateStringToDate(extension.value?.asStringValue())
+            date?.let {
+                return convertToDate(date)
+            }
+        }
+        return ""
+    }
+
 
     fun convertToDateStringFromString(input: String): String {
         val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
