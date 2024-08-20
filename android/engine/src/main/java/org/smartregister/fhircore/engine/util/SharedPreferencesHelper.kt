@@ -133,6 +133,14 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
             putString(SharedPreferenceKey.OAUTH_BASE_URL.name, oauthBaseUrl)
         }
     }
+    fun saveSiteName(siteName: String?) {
+        prefs.edit {
+            putString(SharedPreferenceKey.SITE_NAME.name, siteName)
+        }
+    }
+    fun getSiteName(): String? {
+       return prefs.getString(SharedPreferenceKey.SITE_NAME.name, null)
+    }
 
     fun getFhirBaseUrl(): String {
         var fhirBaseUrl = prefs.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null)
