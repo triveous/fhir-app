@@ -2,8 +2,8 @@ object BuildConfigs {
     const val minSdk = 26
     const val compileSdk = 34
     const val targetSdk = 34
-    const val versionCode = 20
-    const val versionName = "1.0.0-beta2"
+    const val versionCode = 21
+    const val versionName = "1.0.0-beta8"
     const val applicationId = "org.smartregister.opensrp"
     const val jvmToolchain = 17
     const val kotlinCompilerExtensionVersion = "1.5.8"
