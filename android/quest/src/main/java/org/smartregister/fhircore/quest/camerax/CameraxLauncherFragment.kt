@@ -458,12 +458,12 @@ class CameraxLauncherFragment : DialogFragment() {
         tEnd = System.currentTimeMillis()
         Log.d("cls6.pt process", "forward ${((tEnd - tStart) / 1000.0)} sec")
 
-        var scores = outputTensor.dataAsFloatArray
+        var scores = outputTensor.dataAsFloatArray[0]
 
         Log.d("cls6.pt process", "score ${scores}")
 
 
-        var dnr = 0f
+        /*var dnr = 0f
         for (i in scores.indices) {
             scores[i] = exp(scores[i])
             dnr += scores[i]
@@ -471,39 +471,40 @@ class CameraxLauncherFragment : DialogFragment() {
 
         for (i in scores.indices) {
             scores[i] = scores[i] / dnr
-        }
+        }*/
 
         // searching for the index with maximum score
 
         // searching for the index with maximum score
-        var maxScore = 0f
+        /*var maxScore = 0f
         var maxScoreIdx = -1
         for (i in scores.indices) {
             if (scores[i] > maxScore) {
                 maxScore = scores[i]
                 maxScoreIdx = i
             }
-        }
+        }*/
 
-        val pred = (scores[maxScoreIdx] * 100)
-        //score = 1 / (1 + exp(-score.toDouble()).toFloat())
+        //val pred = (scores[maxScoreIdx] * 100)
+        scores = 1 / (1 + exp(-scores).toFloat())
         Log.d("cls6.pt process", "af score ${scores}")
 
-        //val prediction = if (scores > 0.5f) 1 else 0
+        val prediction = if (scores > 0.5f) 1 else 0
 
 
         //val elapsedSeconds = (tEnd - tStart) / 1000.0
         //val df = DecimalFormat("#0.00")
         //textview3!!.text = "Elapsed Time (Seconds): ${df.format(elapsedSeconds)}"
 
-        val className = classes.diseases[maxScoreIdx]
-        /*val df1 = DecimalFormat("#0.00")
+        //val className = classes.diseases[maxScoreIdx]
+        val className = classes.diseases[prediction]
+        val df1 = DecimalFormat("#0.00")
         val confidence = if (prediction == 1) {
-            (score * 100).toString()
+            (scores * 100).toString()
         } else {
-            ((1 - score) * 100).toString()
-        }*/
-        return Pair(className, "$pred")
+            ((1 - scores) * 100).toString()
+        }
+        return Pair(className, "$confidence")
     }
 
     fun View.setSafeOnClickListener(interval: Long = 1000, onSafeClick: (View) -> Unit) {
