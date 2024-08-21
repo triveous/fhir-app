@@ -229,4 +229,6 @@
     <string name="notification_sync">Syncing…</string>
     <string name="image_left">Image Left: %s</string>
     <string name="okay">Okay</string>
+    <string name="result">RESULT : %s</string>
+    <string name="confidence">CONFIDENCE : %s</string>
 </resources>
