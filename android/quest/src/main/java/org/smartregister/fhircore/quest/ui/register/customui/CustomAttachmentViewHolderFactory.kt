@@ -161,7 +161,11 @@ internal object CustomAttachmentViewHolderFactory :
                     )
                 }
                 photoDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
-                photoDeleteButton2.setOnClickListener { view -> onDeleteClicked(view) }
+                photoDeleteButton2.setOnClickListener { view ->
+                    questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
+                    questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
+                    onDeleteClicked(view)
+                }
                 fileDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
                 displayValidationResult(questionnaireViewItem.validationResult)
 
@@ -341,7 +345,6 @@ internal object CustomAttachmentViewHolderFactory :
 
                             //Suspicious/NonSuspicious
                             questionnaireItem.addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL,StringType(predictionResult))
-                            questionnaireItem.getExtensionsByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL)
 
                             //Confidence percentage
                             questionnaireItem.addExtension(CONFIDENCE_PERCENTAGE_URL,StringType(confidence))
