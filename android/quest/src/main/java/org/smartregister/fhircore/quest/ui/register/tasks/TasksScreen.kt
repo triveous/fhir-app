@@ -156,7 +156,7 @@ fun FilterRow2(selectedFilter: TabType, onFilterSelected: (TabType) -> Unit) {
                     color = (if (filter == selectedFilter) BRANDEIS_BLUE else Colors.CRAYOLA_LIGHT),
                     shape = RoundedCornerShape(8.dp)
                 )
-                .padding(8.dp)
+                .padding(4.dp)
                 .align(Alignment.CenterVertically)
                 .weight(1f)
             ) {
@@ -682,6 +682,12 @@ private fun ShowAllPatients(
                                                     textColor = Color(0xFFFFC800)
                                                 }
 
+                                                Task.TaskIntent.OPTION -> {
+                                                    label = "ADVICE TO QUIT HABIT"
+                                                    color = Color(0xFFFFF8E0)
+                                                    textColor = Color(0xFFFFC800)
+                                                }
+
                                                 Task.TaskIntent.ORDER -> {
                                                     label = "URGENT REFERRAL"
                                                     color = Color(0xFFFFCDD2)
@@ -871,6 +877,12 @@ fun BottomSheetContent(
 
                 Task.TaskIntent.PLAN -> {
                     label = "ADD INVESTIGATION"
+                    color = Color(0xFFFFF8E0)
+                    textColor = Color(0xFFFFC800)
+                }
+
+                Task.TaskIntent.OPTION -> {
+                    label = "ADVICE TO QUIT HABIT"
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                 }
@@ -1297,6 +1309,12 @@ fun CardItemView(
                         when (task.task.intent) {
                             Task.TaskIntent.PLAN -> {
                                 label = stringResource(id = R.string.add_investigation)
+                                color = Color(0xFFFFF8E0)
+                                textColor = Color(0xFFFFC800)
+                            }
+
+                            Task.TaskIntent.OPTION -> {
+                                label = "ADVICE TO QUIT HABIT"
                                 color = Color(0xFFFFF8E0)
                                 textColor = Color(0xFFFFC800)
                             }
