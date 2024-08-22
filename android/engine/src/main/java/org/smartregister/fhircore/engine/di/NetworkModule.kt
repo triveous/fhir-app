@@ -27,9 +27,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import java.util.TimeZone
-import java.util.concurrent.TimeUnit
-import javax.inject.Singleton
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
@@ -47,17 +44,26 @@ import org.smartregister.fhircore.engine.data.remote.auth.OAuthService
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirConverterFactory
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.data.remote.shared.TokenAuthenticator
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.TimeZoneTypeAdapter
 import org.smartregister.fhircore.engine.util.extension.getCustomJsonParser
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import timber.log.Timber
+import java.util.TimeZone
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
 
 @InstallIn(SingletonComponent::class)
 @Module
 class NetworkModule {
   private var _isNonProxy = BuildConfig.IS_NON_PROXY_APK
+
+  @Singleton
+  @Provides
+  fun baseUrlsHolders(secureSharedPreference: SecureSharedPreference): BaseUrlsHolder =
+    BaseUrlsHolder(secureSharedPreference)
 
   @Provides
   @NoAuthorizationOkHttpClientQualifier
@@ -84,6 +90,7 @@ class NetworkModule {
     tokenAuthenticator: TokenAuthenticator,
     sharedPreferencesHelper: SharedPreferencesHelper,
     openSrpApplication: OpenSrpApplication?,
+    baseUrlsHolder: BaseUrlsHolder
   ) =
     OkHttpClient.Builder()
       .addInterceptor(
@@ -182,9 +189,10 @@ class NetworkModule {
     @NoAuthorizationOkHttpClientQualifier okHttpClient: OkHttpClient,
     configService: ConfigService,
     gson: Gson,
+    baseUrlsHolder: BaseUrlsHolder
   ): Retrofit =
     Retrofit.Builder()
-      .baseUrl(configService.provideAuthConfiguration().oauthServerBaseUrl)
+      .baseUrl(baseUrlsHolder.oauthServerBaseUrl.value?:"")
       .client(okHttpClient)
       .addConverterFactory(GsonConverterFactory.create(gson))
       .build()
@@ -196,9 +204,10 @@ class NetworkModule {
     @WithAuthorizationOkHttpClientQualifier okHttpClient: OkHttpClient,
     configService: ConfigService,
     json: Json,
+    baseUrlsHolder: BaseUrlsHolder
   ): Retrofit =
     Retrofit.Builder()
-      .baseUrl(configService.provideAuthConfiguration().oauthServerBaseUrl)
+      .baseUrl(baseUrlsHolder.oauthServerBaseUrl.value?:"")
       .client(okHttpClient)
       .addConverterFactory(json.asConverterFactory(JSON_MEDIA_TYPE))
       .build()
@@ -210,9 +219,10 @@ class NetworkModule {
     configService: ConfigService,
     gson: Gson,
     parser: IParser,
+    baseUrlsHolder: BaseUrlsHolder
   ): Retrofit =
     Retrofit.Builder()
-      .baseUrl(configService.provideAuthConfiguration().fhirServerBaseUrl)
+      .baseUrl(baseUrlsHolder.fhirServerBaseUrl.value?:"")
       .client(okHttpClient)
       .addConverterFactory(FhirConverterFactory(parser))
       .addConverterFactory(GsonConverterFactory.create(gson))

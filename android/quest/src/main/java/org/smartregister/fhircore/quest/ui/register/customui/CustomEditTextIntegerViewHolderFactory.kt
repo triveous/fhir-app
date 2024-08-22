@@ -1,6 +1,5 @@
 package org.smartregister.fhircore.quest.ui.register.customui
 
-import android.content.Context
 import android.icu.number.NumberFormatter
 import android.icu.text.DecimalFormat
 import android.os.Build
@@ -8,11 +7,6 @@ import android.text.Editable
 import android.text.InputType
 import android.view.View
 import androidx.annotation.RequiresApi
-import com.google.android.fhir.datacapture.extensions.asStringValue
-import com.google.android.fhir.datacapture.validation.Invalid
-import com.google.android.fhir.datacapture.validation.NotValidated
-import com.google.android.fhir.datacapture.validation.Valid
-import com.google.android.fhir.datacapture.validation.ValidationResult
 import com.google.android.fhir.datacapture.views.HeaderView
 import com.google.android.fhir.datacapture.views.QuestionnaireViewItem
 import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemEditTextViewHolderDelegate
@@ -22,7 +16,6 @@ import com.google.android.material.textfield.TextInputLayout
 import org.hl7.fhir.r4.model.IntegerType
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.quest.R
 import java.util.Locale
 
@@ -44,19 +37,24 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
             textInputEditText = itemView.findViewById(R.id.text_input_edit_text)
         }
 
-        override fun bind(questionnaireViewItem: QuestionnaireViewItem) {
-            super.bind(questionnaireViewItem)
+        override fun updateInputTextUI(
+            questionnaireViewItem: QuestionnaireViewItem,
+            textInputEditText: TextInputEditText
+        ) {
+            updateUI(questionnaireViewItem, textInputEditText)
+            header.visibility = View.GONE
+        }
+
+        override fun updateValidationTextUI(
+            questionnaireViewItem: QuestionnaireViewItem,
+            textInputLayout: TextInputLayout
+        ) {
             var isMandatoryQuestion = ""
             if (questionnaireViewItem.questionnaireItem.required){
                 isMandatoryQuestion = "*"
             }
-            textInputLayout.hint = "${questionnaireViewItem.questionText} ${isMandatoryQuestion}"
-            header.visibility = View.GONE
-            displayValidationResult(questionnaireViewItem.validationResult)
-        }
-
-        fun displayValidationResult(validationResult: ValidationResult) {
-            textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, validationResult)
+            textInputLayout.hint = "${questionnaireViewItem.questionText} $isMandatoryQuestion"
+            textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, questionnaireViewItem.validationResult)
         }
 
         override suspend fun handleInput(
@@ -80,10 +78,10 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
             }
         }
 
-        override fun updateUI(
+        fun updateUI(
             questionnaireViewItem: QuestionnaireViewItem,
             textInputEditText: TextInputEditText,
-            textInputLayout: TextInputLayout,
+//            textInputLayout: TextInputLayout,
         ) {
             val answer =
                 questionnaireViewItem.answers.singleOrNull()?.valueIntegerType?.value?.toString()
@@ -102,14 +100,14 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
             }
 
             // Update error message if draft answer present
-            if (draftAnswer != null) {
-                textInputLayout.error =
-                    textInputEditText.context.getString(
-                        org.smartregister.fhircore.engine.R.string.integer_format_validation_error_msg,
-                        formatInteger(Int.MIN_VALUE),
-                        formatInteger(Int.MAX_VALUE),
-                    )
-            }
+//            if (draftAnswer != null) {
+//                textInputLayout.error =
+//                    textInputEditText.context.getString(
+//                        org.smartregister.fhircore.engine.R.string.integer_format_validation_error_msg,
+//                        formatInteger(Int.MIN_VALUE),
+//                        formatInteger(Int.MAX_VALUE),
+//                    )
+//            }
         }
     }
 

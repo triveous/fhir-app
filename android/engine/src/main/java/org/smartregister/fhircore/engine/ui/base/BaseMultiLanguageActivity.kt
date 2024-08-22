@@ -33,7 +33,8 @@ import org.smartregister.fhircore.engine.util.extension.setAppLocale
  */
 abstract class BaseMultiLanguageActivity : AppCompatActivity() {
 
-  @Inject lateinit var sharedPreferencesHelper: SharedPreferencesHelper
+  @Inject
+  lateinit var sharedPreferencesHelper: SharedPreferencesHelper
 
   override fun onCreate(savedInstanceState: Bundle?) {
     inject()

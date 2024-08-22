@@ -32,9 +32,9 @@ import com.google.android.fhir.datacapture.views.attachment.CameraLauncherFragme
 import com.google.android.fhir.datacapture.views.attachment.OpenDocumentLauncherFragment
 import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemViewHolderDelegate
 import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemViewHolderFactory
-import com.google.android.fhir.logicalId
 import com.google.android.material.divider.MaterialDivider
 import com.google.android.material.snackbar.Snackbar
+import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.DecimalType
@@ -43,6 +43,8 @@ import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.StringType
+import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
@@ -78,8 +80,10 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
       private lateinit var fileDeleteButton: Button
       private lateinit var context: AppCompatActivity
       private lateinit var fhirEngine: FhirEngine
+      private var sharedPreferencesHelper: SharedPreferencesHelper?=null
 
       override fun init(itemView: View) {
+
         header = itemView.findViewById(R.id.header)
         errorTextView = itemView.findViewById(R.id.error)
         takePhotoButton = itemView.findViewById(R.id.take_photo)
@@ -100,7 +104,7 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         fileDeleteButton = itemView.findViewById(R.id.file_delete)
         context = itemView.context.tryUnwrapContext()!!
         fhirEngine = FhirEngineProvider.getInstance(context.applicationContext)
-
+        sharedPreferencesHelper = SharedPreferencesHelper(itemView.context, Gson())
       }
 
       override fun bind(questionnaireViewItem: QuestionnaireViewItem) {
@@ -275,7 +279,7 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
                 value =
                   Attachment().apply {
                     contentType = attachmentMimeTypeWithSubType
-                    url = doc.url
+                    url = doc.getUrl(sharedPreferencesHelper)
                     title = capturedFile.name
                     creation = Date()
                   }
@@ -344,7 +348,7 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
               value =
                 Attachment().apply {
                   contentType = attachmentMimeTypeWithSubType
-                  url = doc.url
+                  url = doc.getUrl(sharedPreferencesHelper)
                   title = attachmentTitle
                   creation = Date()
                 }
@@ -461,7 +465,8 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
           }
 
           MimeType.IMAGE.value -> {
-            displaySnackbar(view, com.google.android.fhir.datacapture.R.string.image_uploaded)
+//            displaySnackbar(view, com.google.android.fhir.datacapture.R.string.image_uploaded)
+            displaySnackbar(view, R.string.image_saved)
           }
 
           MimeType.VIDEO.value -> {
@@ -533,7 +538,7 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
     return doc
   }
 
-  private val IMAGE_CACHE_BASE_URI: String = "content://org.smartregister.opensrp.fileprovider/cache/"
+  private val IMAGE_CACHE_BASE_URI: String = "content://${BuildConfig.APPLICATION_ID}.fileprovider/cache/"
   val EXTRA_MIME_TYPE_KEY = "mime_type"
   val EXTRA_SAVED_PHOTO_URI_KEY = "saved_photo_uri"
 
@@ -579,5 +584,9 @@ private fun Questionnaire.QuestionnaireItemComponent.isGivenSizeOverLimit(
   return size > (maxSizeInBytes ?: DEFAULT_SIZE)
 }
 
-private val DocumentReference.url
-  get() = "${BuildConfig.FHIR_BASE_URL}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
+//private val DocumentReference.url
+//  get() = "${BuildConfig.FHIR_BASE_URL}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
+
+fun DocumentReference.getUrl(sharedPreferencesHelper: SharedPreferencesHelper?): String {
+  return "${sharedPreferencesHelper?.getFhirBaseUrl()}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
+}

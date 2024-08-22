@@ -23,22 +23,18 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ca.uhn.fhir.context.FhirContext
+import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.mapping.ResourceMapper
 import com.google.android.fhir.datacapture.mapping.StructureMapExtractionContext
 import com.google.android.fhir.datacapture.validation.NotValidated
 import com.google.android.fhir.datacapture.validation.QuestionnaireResponseValidator
 import com.google.android.fhir.datacapture.validation.Valid
 import com.google.android.fhir.db.ResourceNotFoundException
-import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.Search
-import com.google.android.fhir.search.StringFilterModifier
 import com.google.android.fhir.search.filter.TokenParamFilterCriterion
 import com.google.android.fhir.search.search
 import com.google.android.fhir.workflow.FhirOperator
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.util.Date
-import java.util.UUID
-import javax.inject.Inject
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,9 +48,9 @@ import org.hl7.fhir.r4.model.Library
 import org.hl7.fhir.r4.model.ListResource
 import org.hl7.fhir.r4.model.ListResource.ListEntryComponent
 import org.hl7.fhir.r4.model.Parameters
-import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.RelatedPerson
 import org.hl7.fhir.r4.model.Resource
 import org.hl7.fhir.r4.model.ResourceType
@@ -72,8 +68,10 @@ import org.smartregister.fhircore.engine.domain.model.ActionParameterType
 import org.smartregister.fhircore.engine.domain.model.isEditable
 import org.smartregister.fhircore.engine.domain.model.isReadOnly
 import org.smartregister.fhircore.engine.rulesengine.ResourceDataRulesExecutor
+import org.smartregister.fhircore.engine.sync.SyncBroadcaster
 import org.smartregister.fhircore.engine.task.FhirCarePlanGenerator
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.DEFAULT_PLACEHOLDER_PREFIX
@@ -88,6 +86,7 @@ import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.engine.util.extension.find
 import org.smartregister.fhircore.engine.util.extension.generateMissingId
 import org.smartregister.fhircore.engine.util.extension.isIn
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.prePopulateInitialValues
 import org.smartregister.fhircore.engine.util.extension.prepareQuestionsForReadingOrEditing
 import org.smartregister.fhircore.engine.util.extension.showToast
@@ -95,22 +94,12 @@ import org.smartregister.fhircore.engine.util.extension.updateLastUpdated
 import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
+import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import timber.log.Timber
-import java.time.LocalDate
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import androidx.work.WorkManager
-import com.google.android.fhir.FhirEngine
-import com.google.android.fhir.search.Order
-import com.google.android.fhir.search.count
-import com.google.android.fhir.search.search
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import org.hl7.fhir.r4.model.Reference
-import org.smartregister.fhircore.engine.sync.SyncBroadcaster
-import org.smartregister.fhircore.engine.util.SecureSharedPreference
-import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.UUID
+import javax.inject.Inject
 
 @HiltViewModel
 class QuestionnaireViewModel
@@ -127,6 +116,7 @@ constructor(
   val fhirPathDataExtractor: FhirPathDataExtractor,
   val configurationRegistry: ConfigurationRegistry,
   val syncBroadcaster: SyncBroadcaster,
+  val fhirEngine: FhirEngine
 ) : ViewModel() {
   private val parser = FhirContext.forR4Cached().newJsonParser()
 
@@ -585,7 +575,6 @@ constructor(
             questionnaireResponse = questionnaireResponse,
             structureMapExtractionContext =
               StructureMapExtractionContext(
-                context = context,
                 transformSupportServices = transformSupportServices,
                 structureMapProvider = { structureMapUrl: String?, _: IWorkerContext ->
                   structureMapUrl?.substringAfterLast("/")?.let {
@@ -625,18 +614,64 @@ constructor(
    */
   fun saveDraftQuestionnaire(questionnaireResponse: QuestionnaireResponse) {
     viewModelScope.launch {
-      val questionnaireHasAnswer =
-        questionnaireResponse.item.any{it.item.get(1).hasAnswer()}
+      val questionnaireHasAnswer = questionnaireResponse.item.any { it?.item?.get(1)?.hasAnswer() == true }
       if (questionnaireHasAnswer) {
-        val flwId = getUserName()
-        val ref = Reference()
-        ref.reference = "Practitioner/$flwId"
-        // set author
-        questionnaireResponse.author = ref
-        questionnaireResponse.status = QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS
-        defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)
-        _isDraftSaved.postValue(true)
-      }else{
+        try {
+          val flwId = getUserName()
+          val ref = Reference()
+          ref.reference = "Practitioner/$flwId"
+          // set author
+          questionnaireResponse.author = ref
+          questionnaireResponse.id = questionnaireResponse.id ?: UUID.randomUUID().toString()
+          questionnaireResponse.meta.lastUpdated = Date()
+
+          val userName = getUserName()
+          val responses = fhirEngine.search<QuestionnaireResponse> {
+          }.map {
+            it.resource
+          }.filter {
+            (it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS) &&
+                    (it.author?.reference?.toString() ?: "").contains(userName, true)
+          }
+            .sortedByDescending { it.meta.lastUpdated }
+
+          if (responses.find { it.id == questionnaireResponse.id } != null){
+            defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)
+            _isDraftSaved.postValue(true)
+            return@launch
+          }
+          val draftResponsesJson = getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
+          var draftResBundle = parseDraftResponses(parser, draftResponsesJson)
+
+          val entryIndex = draftResBundle?.entry?.indexOfFirst {
+            it.resource.id == (questionnaireResponse.id ?: -1)
+          }
+
+          val entity = Bundle.BundleEntryComponent().apply { resource = questionnaireResponse }
+
+          if (entryIndex != null && entryIndex != -1) {
+            draftResBundle?.entry?.set(entryIndex, entity)
+          } else {
+            if (draftResBundle == null || draftResBundle.entry?.isEmpty() == true){
+              draftResBundle = Bundle().apply {
+                addEntry(entity)
+              }
+            }else{
+              draftResBundle?.addEntry(entity)
+            }
+          }
+
+          // Save the updated bundle
+          draftResBundle?.let {
+            val bundleJson = parser.encodeResourceToString(draftResBundle)
+            sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
+          }
+
+          _isDraftSaved.postValue(true)
+        }catch (exception: Exception){
+          Timber.e(exception, "An error occurred while saveDraftQuestionnaire")
+        }
+      } else {
         _isDraftSaved.postValue(true)
       }
     }

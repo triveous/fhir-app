@@ -49,7 +49,6 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.QuestionnaireResponse
@@ -69,6 +68,7 @@ import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
 import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
+import javax.inject.Inject
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
@@ -149,12 +149,9 @@ class TasksFragment : Fragment(), OnSyncListener {
               .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
               PendingTasksScreen(
-                openDrawer = openDrawer,
                 onEvent = registerViewModel::onEvent,
                 registerUiState = registerViewModel.registerUiState.value,
                 searchText = registerViewModel.searchText,
-                currentPage = registerViewModel.currentPage,
-                pagingItems = pagingItems,
                 navController = findNavController(),
                 appMainViewModel = appMainViewModel,
                 viewModel = registerViewModel

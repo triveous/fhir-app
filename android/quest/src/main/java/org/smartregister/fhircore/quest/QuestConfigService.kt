@@ -18,26 +18,32 @@ package org.smartregister.fhircore.quest
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import javax.inject.Singleton
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.app.AuthConfiguration
 import org.smartregister.fhircore.engine.configuration.app.ConfigService
 import org.smartregister.fhircore.engine.configuration.app.ConfigService.Companion.APP_VERSION
+import org.smartregister.fhircore.engine.di.BaseUrlsHolder
 import org.smartregister.fhircore.engine.sync.ResourceTag
+import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.quest.di.config.AuthConfigurationHelper
+import javax.inject.Inject
 
-@Singleton
-class QuestConfigService @Inject constructor(@ApplicationContext val context: Context) :
+class QuestConfigService @Inject constructor(@ApplicationContext val context: Context, val sharedPreferencesHelper: SharedPreferencesHelper, val baseUrlsHolder: BaseUrlsHolder, val authConfigurationHelper: AuthConfigurationHelper) :
   ConfigService {
 
-  override fun provideAuthConfiguration() =
+
+  override fun provideAuthConfiguration(baseUrlsHolder: BaseUrlsHolder) =
+    getAuthConfiguration(baseUrlsHolder)
+
+  internal fun getAuthConfiguration(baseUrlsHolder: BaseUrlsHolder) =
+    authConfigurationHelper.authConfiguration.value?:
     AuthConfiguration(
-      fhirServerBaseUrl = BuildConfig.FHIR_BASE_URL,
-      oauthServerBaseUrl = BuildConfig.OAUTH_BASE_URL,
+      fhirServerBaseUrl = sharedPreferencesHelper.getFhirBaseUrl(),
+      oauthServerBaseUrl = sharedPreferencesHelper.getOauthBaseUrl(),
       clientId = BuildConfig.OAUTH_CLIENT_ID,
       accountType = BuildConfig.APPLICATION_ID,
-    )
+      )
 
   override fun defineResourceTags() =
     listOf(

@@ -171,4 +171,62 @@
     <string name="agrred_not_done_empty_label">Nothing in agreed but followup not done</string>
     <string name="completed_empty_label">Nothing in completed cases</string>
 
+    <string name="kle_dental_sciences">KLE Society’s Institute of Dental Sciences, Bangalore</string>
+    <string name="aiims_delhi">AIIMS, Delhi</string>
+    <string name="nci_jhajjar">NCI, Jhajjar</string>
+    <string name="msmf_bangalore">MSMF, Narayana Hrudayalaya Health City, Bangalore</string>
+    <string name="msmc_bangalore">MSMC, Narayana Hrudayalaya Health City, Bangalore</string>
+    <string name="public_health_krishnagiri">Public health facilities, Krishnagiri</string>
+    <string name="public_health_thanjavur">Public health facilities, Thanjavur</string>
+    <string name="mpmmcc_varanasi">MPMMCC, Varanasi</string>
+    <string name="cachar_cancer_silchar">Cachar Cancer Hospital and Research Centre, Silchar</string>
+    <string name="dr_borooah_cancer_guwahati">Dr. Bhubaneswar Borooah Cancer Institute, Guwahati</string>
+
+
+    <!-- Districts -->
+    <string name="district_bengaluru">Bengaluru</string>
+    <string name="district_new_delhi">New Delhi</string>
+    <string name="district_bengaluru_rural">Bengaluru Rural</string>
+    <string name="district_krishnagiri">Krishnagiri</string>
+    <string name="district_thanjavur">Thanjavur</string>
+    <string name="district_varanasi">Varanasi</string>
+    <string name="district_cachar">Cachar</string>
+    <string name="district_guwahati">Guwahati</string>
+
+    <!-- States -->
+    <string name="state_karnataka">Karnataka</string>
+    <string name="state_delhi">Delhi</string>
+    <string name="state_tamil_nadu">Tamil Nadu</string>
+    <string name="state_uttar_pradesh">Uttar Pradesh</string>
+    <string name="state_assam">Assam</string>
+
+    <!-- Profile-->
+    <string name="change_password">Change Password</string>
+    <string name="logout">Logout</string>
+    <string name="change_pin">Change PIN</string>
+    <string name="profile_username">Username: %s</string>
+
+    <!-- Cases-->
+    <string name="visited">Visited</string>
+    <string name="cases_sync">Sync: %s</string>
+    <string name="dynamic_see_more">SEE %s MORE</string>
+    <string name="created">Created</string>
+    <string name="total_submissions">Total submissions: %s</string>
+    <string name="un_synced_submissions">UN-synced submissions: %s</string>
+    <string name="synced_submissions">synced submissions: %s</string>
+    <string name="nothing_in_un_synced">Nothing in un-synced</string>
+    <string name="cases_no_draft_patients">No cases added yet. Start by adding \n a new cases.</string>
+
+    <!-- Recommendation-->
+    <string name="phone">Phone:</string>
+    <string name="add_investigation">ADD INVESTIGATION</string>
+    <string name="urgent_referral">URGENT REFERRAL</string>
+    <string name="retake_photo">RETAKE PHOTO</string>
+    <string name="image_saved">Image Saved</string>
+    <string name="sync_status">Sync Status</string>
+    <string name="sync_now">Sync now</string>
+    <string name="notification_sync_failed">Sync failed</string>
+    <string name="notification_sync">Syncing…</string>
+    <string name="image_left">Image Left: %s</string>
+    <string name="okay">Okay</string>
 </resources>

@@ -135,7 +135,7 @@ fun TopScreenSection(
         )
         Spacer(modifier = Modifier.width(12.dp))
         Icon(
-          painter = painterResource(id = R.drawable.ic_sync),
+          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_cases_sync),
           contentDescription = FILTER,
           tint = Color.White,
           modifier =

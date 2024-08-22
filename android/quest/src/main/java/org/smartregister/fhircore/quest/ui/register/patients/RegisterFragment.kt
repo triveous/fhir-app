@@ -28,7 +28,6 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.SnackbarDuration
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
@@ -44,13 +43,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import androidx.paging.compose.collectAsLazyPagingItems
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -72,6 +69,7 @@ import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
 import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
+import javax.inject.Inject
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
@@ -135,11 +133,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
         }
 
         AppTheme {
-          val pagingItems =
-            registerViewModel.paginatedRegisterData
-              .collectAsState(emptyFlow())
-              .value
-              .collectAsLazyPagingItems()
           // Register screen provides access to the side navigation
           Scaffold(
             modifier = Modifier.background(SearchHeaderColor).padding(bottom = 12.dp),
@@ -169,8 +162,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
                 onEvent = registerViewModel::onEvent,
                 registerUiState = registerViewModel.registerUiState.value,
                 searchText = registerViewModel.searchText,
-                currentPage = registerViewModel.currentPage,
-                pagingItems = pagingItems,
                 navController = findNavController(),
                 appMainViewModel = appMainViewModel,
                 toolBarHomeNavigation = registerFragmentArgs.toolBarHomeNavigation,
@@ -189,6 +180,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
     registerViewModel.getAllSyncedPatients()
     registerViewModel.getAllDraftResponses()
     registerViewModel.getAllUnSyncedPatients()
+    registerViewModel.getAllUnSyncedPatientsImages()
 
 
     syncListenerManager.registerSyncListener(this, lifecycle)
@@ -225,11 +217,13 @@ class RegisterFragment : Fragment(), OnSyncListener {
               duration = SnackbarDuration.Short,
             ),
           )
+          delay(200)
+          registerViewModel.getAllPatients()
+          registerViewModel.getAllSyncedPatients()
+          registerViewModel.getAllDraftResponses()
+          registerViewModel.getAllUnSyncedPatients()
+          registerViewModel.getAllUnSyncedPatientsImages()
         }
-        registerViewModel.getAllPatients()
-        registerViewModel.getAllSyncedPatients()
-        registerViewModel.getAllDraftResponses()
-        registerViewModel.getAllUnSyncedPatients()
       }
       is CurrentSyncJobStatus.Failed -> {
         refreshRegisterData()
