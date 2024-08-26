@@ -18,10 +18,6 @@ package org.smartregister.fhircore.quest.ui.main
 
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.core.os.bundleOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -46,9 +42,7 @@ import org.smartregister.fhircore.engine.configuration.app.ApplicationConfigurat
 import org.smartregister.fhircore.engine.configuration.geowidget.GeoWidgetConfiguration
 import org.smartregister.fhircore.engine.configuration.navigation.ICON_TYPE_REMOTE
 import org.smartregister.fhircore.engine.configuration.navigation.NavigationConfiguration
-import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
 import org.smartregister.fhircore.engine.configuration.report.measure.MeasureReportConfiguration
-import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
 import org.smartregister.fhircore.engine.data.local.register.RegisterRepository
 import org.smartregister.fhircore.engine.domain.model.ActionParameter
 import org.smartregister.fhircore.engine.domain.model.ActionParameterType
@@ -64,7 +58,6 @@ import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.decodeToBitmap
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
-import org.smartregister.fhircore.engine.util.extension.fetchLanguages
 import org.smartregister.fhircore.engine.util.extension.getActivity
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.refresh
@@ -100,18 +93,8 @@ constructor(
   val workManager: WorkManager,
   val fhirCarePlanGenerator: FhirCarePlanGenerator,
 ) : ViewModel() {
-  val appMainUiState: MutableState<AppMainUiState> =
-    mutableStateOf(
-      appMainUiStateOf(
-        navigationConfiguration =
-          NavigationConfiguration(
-            sharedPreferencesHelper.read(SharedPreferenceKey.APP_ID.name, "")!!,
-          ),
-      ),
-    )
 
   private val simpleDateFormat = SimpleDateFormat(SYNC_TIMESTAMP_OUTPUT_FORMAT, Locale.getDefault())
-  private val registerCountMap: SnapshotStateMap<String, Long> = mutableStateMapOf()
 
   val applicationConfiguration: ApplicationConfiguration by lazy {
     configurationRegistry.retrieveConfiguration(ConfigType.Application, paramsMap = emptyMap())
@@ -143,31 +126,8 @@ constructor(
       }
   }
 
-  suspend fun retrieveAppMainUiState(refreshAll: Boolean = true) {
-    if (refreshAll) {
-      appMainUiState.value =
-        appMainUiStateOf(
-          appTitle = applicationConfiguration.appTitle,
-          currentLanguage = loadCurrentLanguage(),
-          username = secureSharedPreference.retrieveSessionUsername() ?: "",
-          lastSyncTime = retrieveLastSyncTimestamp() ?: "",
-          languages = configurationRegistry.fetchLanguages(),
-          navigationConfiguration = navigationConfiguration,
-          registerCountMap = registerCountMap,
-        )
-    }
-
-    // Count data for configured registers by populating the register count map
-    viewModelScope.launch {
-      navigationConfiguration.run {
-        clientRegisters.countRegisterData()
-        bottomSheetRegisters?.registers?.countRegisterData()
-      }
-    }
-  }
-
   fun onEvent(event: AppMainEvent,isForeground:Boolean=false) {
-    Timber.e("TAG","onEvent --> isForeground -->$isForeground ")
+    Timber.e("TAG onEvent --> isForeground -->$isForeground ")
     when (event) {
       is AppMainEvent.SwitchLanguage -> {
         sharedPreferencesHelper.write(SharedPreferenceKey.LANG.name, event.language.tag)
@@ -177,15 +137,14 @@ constructor(
         }
       }
       is AppMainEvent.SyncData -> {
+        Timber.e("TAG SyncData onEvent --> isForeground -->$isForeground event--> ${event}")
         if (event.context.isDeviceOnline()) {
           if (!isForeground) {
             viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
           } else {
-            Timber.e("TAG","syncBroadcaster.runOneTimeSync--> start")
+            Timber.e("TAG syncBroadcaster.runOneTimeSync--> start")
             viewModelScope.launch { syncBroadcaster.runOneTimeSync(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) }
-
           }
-//          viewModelScope.launch { syncBroadcaster.runOneTimeSync(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) }
         } else {
           event.context.showToast(event.context.getString(R.string.sync_failed), Toast.LENGTH_LONG)
         }
@@ -197,7 +156,6 @@ constructor(
             SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name,
             formatLastSyncTimestamp(event.state.timestamp),
           )
-          viewModelScope.launch { retrieveAppMainUiState() }
         }
       }
       is AppMainEvent.TriggerWorkflow ->
@@ -222,7 +180,6 @@ constructor(
     (event.navController.context.getActivity())?.let { activity ->
       RegisterBottomSheetFragment(
           navigationMenuConfigs = event.registersList,
-          registerCountMap = appMainUiState.value.registerCountMap,
           menuClickListener = {
             onEvent(AppMainEvent.TriggerWorkflow(navController = event.navController, navMenu = it))
           },
@@ -255,19 +212,6 @@ constructor(
         )
       }
     }
-  }
-
-  private suspend fun List<NavigationMenuConfig>.countRegisterData() {
-    // Set count for registerId against its value. Use action Id; otherwise default to menu id
-    return this.filter { it.showCount }
-      .forEach { menuConfig ->
-        val countAction =
-          menuConfig.actions?.find { actionConfig ->
-            actionConfig.trigger == ActionTrigger.ON_COUNT
-          }
-        registerCountMap[countAction?.id ?: menuConfig.id] =
-          registerRepository.countRegisterData(menuConfig.id)
-      }
   }
 
   private fun loadCurrentLanguage() =

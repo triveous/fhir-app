@@ -83,7 +83,7 @@ constructor(
     }
 
     override suspend fun doWork(): Result {
-        Timber.e("TAG","Running sync worker...")
+        Timber.i("AppSyncWorker Running sync worker")
         val metaSyncResult = super.doWork()
         try {
             setForeground(getForegroundInfo()) // Set the foreground info

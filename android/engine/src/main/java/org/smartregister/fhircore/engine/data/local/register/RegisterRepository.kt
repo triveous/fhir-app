@@ -19,7 +19,6 @@ package org.smartregister.fhircore.engine.data.local.register
 import ca.uhn.fhir.parser.IParser
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.search.Search
-import javax.inject.Inject
 import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.model.Resource
 import org.smartregister.fhircore.engine.configuration.ConfigType
@@ -39,6 +38,7 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import timber.log.Timber
+import javax.inject.Inject
 
 class RegisterRepository
 @Inject
@@ -100,11 +100,21 @@ constructor(
           configComputedRuleValues = configComputedRuleValues,
         )
       }
-    return search.count(
-      onFailure = {
-        Timber.e(it, "Error counting register data for register id: ${registerConfiguration.id}")
-      },
-    )
+
+    var count: Long=0
+    try {
+      search.count(
+        onCountSuccess = {
+          count = it
+        },
+        onCountFailure = {
+          Timber.e(it, "Error counting register data for register id: ${registerConfiguration.id}")
+        },
+      )
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+    return count
   }
 
   override suspend fun loadProfileData(

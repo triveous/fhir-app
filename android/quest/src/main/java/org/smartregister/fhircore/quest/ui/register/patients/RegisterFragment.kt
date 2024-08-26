@@ -111,7 +111,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
         val appConfig = appMainViewModel.applicationConfiguration
         val scope = rememberCoroutineScope()
         val scaffoldState = rememberScaffoldState()
-        val uiState: AppMainUiState = appMainViewModel.appMainUiState.value
         val openDrawer: (Boolean) -> Unit = { open: Boolean ->
           scope.launch {
             if (open) scaffoldState.drawerState.open() else scaffoldState.drawerState.close()
@@ -284,7 +283,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
     if (questionnaireSubmission.questionnaireConfig.saveQuestionnaireResponse) {
       appMainViewModel.run {
         onQuestionnaireSubmission(questionnaireSubmission)
-        retrieveAppMainUiState(refreshAll = false) // Update register counts
+//        retrieveAppMainUiState(refreshAll = false) // Update register counts
       }
 
       val (questionnaireConfig, _) = questionnaireSubmission

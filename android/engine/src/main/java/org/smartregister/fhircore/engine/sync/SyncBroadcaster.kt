@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.isWorkScheduled
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -60,13 +61,15 @@ constructor(
   val dispatcherProvider: DispatcherProvider,
   @ApplicationContext val context: Context,
 ) {
-
+  val workTag=AppSyncWorker::class.java.name+"-oneTimeSync"
+  val periodicWorkTag=AppSyncWorker::class.java.name+"-periodicSync"
   /**
    * Run one time sync. The [SyncJobStatus] will be broadcast to all the registered [OnSyncListener]
    * 's
    */
   suspend fun runOneTimeSync() = coroutineScope {
     Timber.i("Running one time sync...")
+    Timber.e("isWorkScheduled--> ${isWorkScheduled(context, workTag)}")
     Sync.oneTimeSync<AppSyncWorker>(context).handleOneTimeSyncJobStatus(this)
   }
 
@@ -76,6 +79,7 @@ constructor(
    */
   suspend fun runOneTimeSync(expedited: OutOfQuotaPolicy? = null) = coroutineScope {
     Timber.i("Running one time sync with expedited...")
+    Timber.e("isWorkScheduled--> ${isWorkScheduled(context, workTag)}")
     Sync.oneTimeSync<AppSyncWorker>(context, expedited = expedited).handleOneTimeSyncJobStatus(this)
   }
 
@@ -86,6 +90,7 @@ constructor(
   @OptIn(ExperimentalCoroutinesApi::class)
   suspend fun schedulePeriodicSync(interval: Long = 15) = coroutineScope {
     Timber.i("Scheduling periodic sync...")
+    Timber.e("isWorkScheduled--> ${isWorkScheduled(context, periodicWorkTag)}")
     Sync.periodicSync<AppSyncWorker>(
       context = context,
       periodicSyncConfiguration =
