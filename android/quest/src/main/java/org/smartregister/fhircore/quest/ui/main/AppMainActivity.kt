@@ -142,7 +142,7 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
         }*/
 
         R.id.navigation_dashboard -> {
-          appMainViewModel.appMainUiState.value.username
+//          appMainViewModel.appMainUiState.value.username
           navController.popBackStack(R.id.dashboardFragment, true)
           navController.navigate(R.id.dashboardFragment)
           true
@@ -180,7 +180,7 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
     // Setup the drawer and schedule jobs
     appMainViewModel.run {
       lifecycleScope.launch {
-        retrieveAppMainUiState()
+//        retrieveAppMainUiState()
         if (isDeviceOnline()) {
           syncBroadcaster.schedulePeriodicSync(applicationConfiguration.syncInterval)
         } else {
@@ -233,6 +233,7 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
   }
 
   override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
+    Timber.e("App Main Activity TAG onSync --> $syncJobStatus")
     when (syncJobStatus) {
       is CurrentSyncJobStatus.Succeeded -> {
         appMainViewModel.run {

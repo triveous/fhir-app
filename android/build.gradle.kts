@@ -48,7 +48,6 @@ allprojects {
     maven {
       url = uri("https://maven.pkg.github.com/midas-in/android-fhir")
       credentials {
-
       }
     }
     tasks.dependencyCheckAggregate{

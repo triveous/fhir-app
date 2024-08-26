@@ -80,7 +80,6 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
 
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun ProfileSectionScreen(
     modifier: Modifier = Modifier,
@@ -96,6 +95,7 @@ fun ProfileSectionScreen(
 
     val userNameText = viewModel.getUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
+
 
     val getDefaultSiteName = stringResource(id = R.string.krishnagiri)
     val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: getDefaultSiteName
@@ -113,15 +113,8 @@ fun ProfileSectionScreen(
                 TopScreenSection(
                     modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
                     title = stringResource(id = org.smartregister.fhircore.engine.R.string.profile),
-                    searchText = searchText.value,
-                    filteredRecordsCount = registerUiState.filteredRecordsCount,
-                    searchPlaceholder = registerUiState.registerConfiguration?.searchBar?.display,
-                    onSync = appMainViewModel::onEvent,
+                    onSync = {},
                     toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-                    onSearchTextChanged = { searchText ->
-                        onEvent(RegisterEvent.SearchRegister(searchText = searchText))
-                    },
-                    isFilterIconEnabled = false,
                 ) { event ->
                     onBackPressed()
                 }
@@ -136,138 +129,154 @@ fun ProfileSectionScreen(
             )
         }
 
-        Box(
-            modifier = modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .padding(top = 40.dp)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
+        Box {
+
+            Box(
+                modifier = modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .padding(top = 40.dp)
             ) {
-                //Spacer(modifier = Modifier.height(48.dp))
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_profile), // Replace with your profile picture
-                        modifier = Modifier
-                            .size(84.dp)
-                            .clip(CircleShape)
-                            .padding(all = 4.dp),
-                        contentDescription = null,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = userNameText,
-                        style = bodyBold(fontSize = 18.sp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        color = CRAYOLA_LIGHT,
-                        text = stringResource(id = R.string.profile_username,userNameText), style =bodyNormal(16.sp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 40.dp)) {
-                        Text(color = CRAYOLA_LIGHT, text = selectedSiteName, style =bodyNormal(16.sp).copy(textAlign = TextAlign.Center))
-                    }
-                    Spacer(modifier = Modifier.height(20.dp))
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Card(
-                        shape = RoundedCornerShape(4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp), // Set corner radius here
-                        elevation = CardDefaults.cardElevation(2.dp)
+                    //Spacer(modifier = Modifier.height(48.dp))
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically,
+                        Image(
+                            painter = painterResource(R.drawable.ic_profile), // Replace with your profile picture
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.logout()
-                                }
-                                .padding(horizontal = 16.dp, vertical = 16.dp)
-                                .background(Color.White)) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_change_pin),
-                                contentDescription = DRAWER_MENU,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                                .size(84.dp)
+                                .clip(CircleShape)
+                                .padding(all = 4.dp),
+                            contentDescription = null,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = userNameText,
+                            style = bodyBold(fontSize = 18.sp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            color = CRAYOLA_LIGHT,
+                            text = stringResource(id = R.string.profile_username, userNameText),
+                            style = bodyNormal(16.sp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 40.dp)) {
                             Text(
-                                text = stringResource(id = R.string.change_pin),
-                                style = bodyMedium(fontSize = 18.sp)
-                            )
+                                color = CRAYOLA_LIGHT,
+                                text = selectedSiteName,
+                                style = bodyNormal(16.sp)
+                            .copy(textAlign = TextAlign.Center))
                         }
+                        Spacer(modifier = Modifier.height(20.dp))
                     }
 
-                    Card(
-                        shape = RoundedCornerShape(4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp), // Set corner radius here
-                        elevation = CardDefaults.cardElevation(2.dp)
+                            .padding(vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically,
+                        Card(
+                            shape = RoundedCornerShape(4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    showForgotPasswordDialog = true
-                                }
-                                .padding(horizontal = 16.dp, vertical = 16.dp)
-                                .background(Color.White)) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_lock),
-                                contentDescription = DRAWER_MENU,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(id = R.string.change_password),
-                                style = bodyMedium(fontSize = 18.sp)
-                            )
+                                .padding(
+                                    horizontal = 16.dp,
+                                    vertical = 4.dp
+                                ), // Set corner radius here
+                            elevation = CardDefaults.cardElevation(2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.logout()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                                    .background(Color.White)) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_change_pin),
+                                    contentDescription = DRAWER_MENU,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(id = R.string.change_pin),
+                                    style = bodyMedium(fontSize = 18.sp)
+                                )
+                            }
                         }
-                    }
 
-                    Card(
-                        shape = RoundedCornerShape(4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp), // Set corner radius here
-                        elevation = CardDefaults.cardElevation(2.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically,
+                        Card(
+                            shape = RoundedCornerShape(4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    viewModel.logout()
-                                }
-                                .padding(horizontal = 16.dp, vertical = 16.dp)
-                                .background(Color.White)) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_logout),
-                                contentDescription = DRAWER_MENU,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(id = R.string.logout),
-                                style = bodyMedium(fontSize = 18.sp),
-                                color = Colors.SIZZLING_RED
-                            )
+                                .padding(
+                                    horizontal = 16.dp,
+                                    vertical = 4.dp
+                                ), // Set corner radius here
+                            elevation = CardDefaults.cardElevation(2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showForgotPasswordDialog = true
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                                    .background(Color.White)) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_lock),
+                                    contentDescription = DRAWER_MENU,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(id = R.string.change_password),
+                                    style = bodyMedium(fontSize = 18.sp)
+                                )
+                            }
                         }
-                    }
+
+                        Card(
+                            shape = RoundedCornerShape(4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = 16.dp,
+                                    vertical = 4.dp
+                                ), // Set corner radius here
+                            elevation = CardDefaults.cardElevation(2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.logout()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                                    .background(Color.White)) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_logout),
+                                    contentDescription = DRAWER_MENU,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(id = R.string.logout),
+                                    style = bodyMedium(fontSize = 18.sp),
+                                    color = Colors.SIZZLING_RED
+                                )
+                            }
+                        }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -301,7 +310,7 @@ fun ProfileSectionScreen(
                                 BuildConfig.VERSION_NAME)
                             )
                         }
-                    }
+                    }}
                 }
             }
         }
