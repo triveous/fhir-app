@@ -1,16 +1,23 @@
 package org.smartregister.fhircore.quest.ui.register.customui
 
+import android.app.Dialog
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.view.Gravity
 import android.view.View
+import android.view.Window
+import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.os.bundleOf
 import androidx.lifecycle.lifecycleScope
@@ -74,6 +81,7 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
       private lateinit var photoTitle: TextView
       private lateinit var photoDeleteButton: Button
       private lateinit var photoDeleteButton2: ImageView
+      private lateinit var photoView: ImageView
       private lateinit var filePreview: ConstraintLayout
       private lateinit var fileIcon: ImageView
       private lateinit var fileTitle: TextView
@@ -98,6 +106,7 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         photoTitle = itemView.findViewById(R.id.photo_title)
         photoDeleteButton = itemView.findViewById(R.id.photo_delete)
         photoDeleteButton2 = itemView.findViewById(R.id.photo_delete2)
+        photoView = itemView.findViewById(R.id.photo_view)
         filePreview = itemView.findViewById(R.id.file_preview)
         fileIcon = itemView.findViewById(R.id.file_icon)
         fileTitle = itemView.findViewById(R.id.file_title)
@@ -123,6 +132,7 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
         uploadFileButton.setOnClickListener { view -> onUploadClicked(view, questionnaireItem) }
         photoDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
         photoDeleteButton2.setOnClickListener { view -> onDeleteClicked(view) }
+        photoView.setOnClickListener { view -> onViewPhotoClicked(view) }
         fileDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
         displayValidationResult(questionnaireViewItem.validationResult)
 
@@ -447,6 +457,56 @@ internal object CustomAttachmentViewHolderFactory : QuestionnaireItemViewHolderF
             view,
             getMimeType(questionnaireViewItem.answers.first().valueAttachment.contentType),
           )
+        }
+      }
+
+      fun showFullScreenImageDialog(context: Context, imageUri: Uri) {
+        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.window?.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+
+        val rootLayout = FrameLayout(context)
+
+        val imageView = ImageView(context).apply {
+          adjustViewBounds = true
+          scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+
+        val closeButton = ImageButton(context).apply {
+          setImageDrawable(ContextCompat.getDrawable(context, android.R.drawable.ic_menu_close_clear_cancel))
+          background = null
+          setPadding(20, 20, 20, 20)
+        }
+
+        val closeButtonParams = FrameLayout.LayoutParams(
+          FrameLayout.LayoutParams.WRAP_CONTENT,
+          FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+          gravity = Gravity.TOP or Gravity.END
+          topMargin = 20
+          rightMargin = 20
+        }
+
+        rootLayout.addView(imageView)
+        rootLayout.addView(closeButton, closeButtonParams)
+
+        dialog.setContentView(rootLayout)
+
+        Glide.with(context)
+          .load(imageUri)
+          .into(imageView)
+
+        closeButton.setOnClickListener {
+          dialog.dismiss()
+        }
+
+        dialog.show()
+      }
+
+      private fun onViewPhotoClicked(view: View) {
+        context.lifecycleScope.launch {
+          val attachmentUri = getFileUri(questionnaireViewItem.answers.first().valueAttachment.title ?: "")
+          showFullScreenImageDialog(context, attachmentUri)
         }
       }
 
