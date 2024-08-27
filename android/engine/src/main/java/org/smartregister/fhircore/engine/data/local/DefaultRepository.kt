@@ -38,9 +38,6 @@ import com.jayway.jsonpath.Configuration
 import com.jayway.jsonpath.JsonPath
 import com.jayway.jsonpath.Option
 import com.jayway.jsonpath.PathNotFoundException
-import java.util.LinkedList
-import java.util.UUID
-import javax.inject.Inject
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -91,6 +88,9 @@ import org.smartregister.fhircore.engine.util.extension.updateFrom
 import org.smartregister.fhircore.engine.util.extension.updateLastUpdated
 import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import timber.log.Timber
+import java.util.LinkedList
+import java.util.UUID
+import javax.inject.Inject
 
 open class DefaultRepository
 @Inject
@@ -500,19 +500,6 @@ constructor(
                 configComputedRuleValues = configComputedRuleValues,
               )
             }
-          val key = resourceConfig.id ?: resourceConfig.resource.name
-          search.count(
-            onSuccess = {
-              relatedResourceWrapper.relatedResourceCountMap[key] =
-                LinkedList<RelatedResourceCount>().apply { add(RelatedResourceCount(count = it)) }
-            },
-            onFailure = {
-              Timber.e(
-                it,
-                "Error retrieving total count for all related resourced identified by $key",
-              )
-            },
-          )
         } else {
           computeCountForEachRelatedResource(
             resources = resources,
@@ -534,15 +521,30 @@ constructor(
     return relatedResourceWrapper
   }
 
+  //TODO: Resolve the issue for ANR
   protected suspend fun Search.count(
-    onSuccess: (Long) -> Unit = {},
-    onFailure: (Throwable) -> Unit = { throwable -> Timber.e(throwable, "Error counting data") },
-  ): Long =
-    kotlin
-      .runCatching { withContext(dispatcherProvider.io()) { fhirEngine.count(this@count) } }
-      .onSuccess { count -> onSuccess(count) }
-      .onFailure { throwable -> onFailure(throwable) }
-      .getOrDefault(0)
+    onCountSuccess: (Long) -> Unit = {},
+    onCountFailure: (Throwable) -> Unit = { throwable -> Timber.e(throwable, "Error counting data") },
+  ) {
+    try {
+      kotlin.runCatching {
+        withContext(dispatcherProvider.io()) {
+          fhirEngine.count(this@count)
+        } }
+        .onSuccess { count ->
+          withContext(dispatcherProvider.main()){
+            onCountSuccess(count)
+          }
+        }
+        .onFailure { throwable ->
+          withContext(dispatcherProvider.main()) {
+            onCountFailure(throwable)
+          }
+        }
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+  }
 
   private suspend fun computeCountForEachRelatedResource(
     resources: List<Resource>,
@@ -566,7 +568,7 @@ constructor(
           )
         }
       search.count(
-        onSuccess = {
+        onCountSuccess = {
           relatedResourceCountLinkedList.add(
             RelatedResourceCount(
               relatedResourceType = resourceConfig.resource,
@@ -575,7 +577,7 @@ constructor(
             ),
           )
         },
-        onFailure = {
+        onCountFailure = {
           Timber.e(
             it,
             "Error retrieving count for ${baseResource.logicalId.asReference(baseResource.resourceType)} for related resource identified ID $key",

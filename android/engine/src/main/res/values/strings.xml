@@ -190,4 +190,9 @@
     <string name="images_pending_text">%1$d images pending</string>
     <string name="upload_success">Images uploaded successfully</string>
     <string name="upload_failure">Some images failed to upload</string>
+    <!--error message-->
+    <string name="failed_to_overwrite_url_request_successfully">Failed to overwrite URL request successfully</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="failed_to_complete_request_successfully">Failed to complete request successfully</string>
+    <string name="no_internet_connection">No internet connection</string>
 </resources>
