@@ -324,7 +324,7 @@ constructor(
 
   fun getAllTasks() {
     _isFetchingTasks.value = true
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       val practitionerDetails = getPractitionerDetails()
       val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
 
@@ -1038,21 +1038,25 @@ constructor(
 
   }
 
-  fun parsePatientJson(json: String): Patient2? {
+  private fun parsePatientJson(json: String): Patient2? {
     val gson = Gson()
     try {
       val patientData = gson.fromJson(json, Map::class.java)
 
-      val nameList = patientData["name"] as List<*>?
-      val name = if (nameList != null && nameList.isNotEmpty()) {
-        val firstName = (nameList[0] as Map<*, *>)["given"] as List<*>?
-        if (firstName != null && firstName.isNotEmpty()) {
-          firstName[0] as String
+      var name: String?=""
+      val patientDataName = patientData["name"]
+      if (patientDataName!=null) {
+        val nameList = patientDataName as? List<*>?
+        name = if (nameList != null && nameList.isNotEmpty()) {
+          val firstName = (nameList[0] as? Map<*, *>)?.get("given") as? List<*>?
+          if (firstName != null && firstName.isNotEmpty()) {
+            firstName[0] as String
+          } else {
+            null
+          }
         } else {
           null
         }
-      } else {
-        null
       }
 
       val id = patientData["id"] as? String? ?: ""
@@ -1128,7 +1132,6 @@ constructor(
   fun getUserName(): String {
     return secureSharedPreference.retrieveSessionUsername() ?: "Guest"
   }
-
 
   // ResourceData class with all three types and meta information
   data class AllPatientsResourceData(

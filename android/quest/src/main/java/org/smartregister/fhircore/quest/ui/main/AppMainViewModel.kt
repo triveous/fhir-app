@@ -127,7 +127,7 @@ constructor(
   }
 
   fun onEvent(event: AppMainEvent,isForeground:Boolean=false) {
-    Timber.e("TAG onEvent --> isForeground -->$isForeground ")
+//    Timber.e("TAG onEvent --> isForeground -->$isForeground ")
     when (event) {
       is AppMainEvent.SwitchLanguage -> {
         sharedPreferencesHelper.write(SharedPreferenceKey.LANG.name, event.language.tag)

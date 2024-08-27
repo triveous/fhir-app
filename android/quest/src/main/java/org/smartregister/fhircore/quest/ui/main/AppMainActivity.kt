@@ -233,7 +233,7 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
   }
 
   override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
-    Timber.e("App Main Activity TAG onSync --> $syncJobStatus")
+//    Timber.e("App Main Activity TAG onSync --> $syncJobStatus")
     when (syncJobStatus) {
       is CurrentSyncJobStatus.Succeeded -> {
         appMainViewModel.run {
