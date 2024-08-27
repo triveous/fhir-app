@@ -379,7 +379,7 @@ fun RegisterScreen(
                 showDialog = viewModel.showDialog.value,
                 title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
                 content = totalImageLeft,
-                viewModel.allUnSyncedImages.value?:0,
+                viewModel.imageCount,
                 confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
                 dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
                 onDismiss = {
