@@ -17,6 +17,8 @@
 package org.smartregister.fhircore.engine.di
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.parser.IParser
 import com.google.gson.Gson
@@ -33,17 +35,23 @@ import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
+import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.smartregister.fhircore.engine.BuildConfig
 import org.smartregister.fhircore.engine.OpenSrpApplication
+import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.app.ConfigService
 import org.smartregister.fhircore.engine.data.remote.auth.KeycloakService
 import org.smartregister.fhircore.engine.data.remote.auth.OAuthService
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirConverterFactory
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.data.remote.shared.TokenAuthenticator
+import org.smartregister.fhircore.engine.domain.networkUtils.ErrorCodes.FAILED_TO_COMPLETE_REQUEST_ERROR_CODE
+import org.smartregister.fhircore.engine.domain.networkUtils.ErrorCodes.FAILED_TO_OVERWRITE_URL_ERROR_CODE
+import org.smartregister.fhircore.engine.domain.networkUtils.ErrorCodes.NO_INTERNET_CONNECTION_ERROR_CODE
+import org.smartregister.fhircore.engine.domain.networkUtils.ErrorCodes.UNKNOWN_ERROR_CODE
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.TimeZoneTypeAdapter
@@ -51,6 +59,7 @@ import org.smartregister.fhircore.engine.util.extension.getCustomJsonParser
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import timber.log.Timber
+import java.net.UnknownHostException
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
@@ -90,80 +99,20 @@ class NetworkModule {
     tokenAuthenticator: TokenAuthenticator,
     sharedPreferencesHelper: SharedPreferencesHelper,
     openSrpApplication: OpenSrpApplication?,
-    baseUrlsHolder: BaseUrlsHolder
-  ) =
-    OkHttpClient.Builder()
-      .addInterceptor(
-        Interceptor { chain: Interceptor.Chain ->
-          try {
-            var request = chain.request()
-            val requestPath = request.url.encodedPath.substring(1)
-            val resourcePath = if (!_isNonProxy) requestPath.replace("fhir/", "") else requestPath
-
-            openSrpApplication?.let {
-              if (
-                (request.url.host == it.getFhirServerHost()?.host) &&
-                  CUSTOM_ENDPOINTS.contains(resourcePath)
-              ) {
-                val newUrl = request.url.newBuilder().encodedPath("/$resourcePath").build()
-                request = request.newBuilder().url(newUrl).build()
-              }
-            }
-
-            chain.proceed(request)
-          } catch (e: Exception) {
-            Timber.e(e)
-            Response.Builder()
-              .request(chain.request())
-              .protocol(Protocol.HTTP_1_1)
-              .code(901)
-              .message(e.message ?: "Failed to overwrite URL request successfully")
-              .body("{$e}".toResponseBody(null))
-              .build()
-          }
-        },
-      )
-      .addInterceptor(
-        Interceptor { chain: Interceptor.Chain ->
-          try {
-            val accessToken = tokenAuthenticator.getAccessToken()
-            // NB: Build new request before setting Auth header; otherwise the header will be
-            // bypassed
-            val request = chain.request().newBuilder()
-            if (accessToken.isNotEmpty()) {
-              request.addHeader(AUTHORIZATION, "Bearer $accessToken")
-              sharedPreferencesHelper.retrieveApplicationId()?.let {
-                request.addHeader(APPLICATION_ID, it)
-              }
-            }
-            chain.proceed(request.build())
-          } catch (e: Exception) {
-            Timber.e(e)
-            Response.Builder()
-              .request(chain.request())
-              .protocol(Protocol.HTTP_1_1)
-              .code(900)
-              .message(e.message ?: "Failed to complete request successfully")
-              .body("{$e}".toResponseBody(null))
-              .build()
-          }
-        },
-      )
-      .addInterceptor(
-        HttpLoggingInterceptor().apply {
-          level =
-            if (BuildConfig.DEBUG) {
-              HttpLoggingInterceptor.Level.BODY
-            } else HttpLoggingInterceptor.Level.BASIC
-          redactHeader(AUTHORIZATION)
-          redactHeader(COOKIE)
-        },
-      )
+    baseUrlsHolder: BaseUrlsHolder,
+    @ApplicationContext context: Context
+  ): OkHttpClient {
+    return OkHttpClient.Builder()
+      .addInterceptor(createUrlInterceptor(openSrpApplication,context))
+      .addInterceptor(createAuthInterceptor(tokenAuthenticator, sharedPreferencesHelper))
+      .addInterceptor(createLoggingInterceptor())
+      .addInterceptor(createConnectionCheckInterceptor(context))
       .connectTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
       .readTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
       .callTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
       .retryOnConnectionFailure(false) // Avoid silent retries sometimes before token is provided
       .build()
+  }
 
   @Provides
   fun provideGson(): Gson =
@@ -245,6 +194,127 @@ class NetworkModule {
   @Singleton
   fun provideFHIRBaseURL(@ApplicationContext context: Context): OpenSrpApplication? =
     if (context is OpenSrpApplication) context else null
+
+  private fun createUrlInterceptor(openSrpApplication: OpenSrpApplication?, context: Context): Interceptor {
+    return Interceptor { chain ->
+      var attempt = 0
+      var request = chain.request()
+      var response: Response? = null
+      val maxRetries = 2
+
+      while (attempt <= maxRetries) {
+        try {
+          request = modifyUrlIfNeeded(request, openSrpApplication)
+          response = chain.proceed(request)
+          break
+        } catch (e: UnknownHostException) {
+          Timber.e("Hostname resolution failed on attempt $attempt: ${e.message}")
+          if (attempt >= maxRetries) {
+            Timber.e("Max retries reached for hostname resolution.")
+            throw e
+          }
+          attempt++
+        } catch (e: Exception) {
+          Timber.e(e, "Failed to overwrite URL request successfully")
+          return@Interceptor buildErrorResponse(chain, FAILED_TO_OVERWRITE_URL_ERROR_CODE, e.message ?: context.getString(R.string.failed_to_overwrite_url_request_successfully), e)
+        }
+      }
+      response ?: buildErrorResponse(chain, UNKNOWN_ERROR_CODE, context.getString(R.string.unknown_error), null)
+    }
+  }
+
+  private fun modifyUrlIfNeeded(request: Request, openSrpApplication: OpenSrpApplication?): Request {
+    val requestPath = request.url.encodedPath.substring(1)
+    val resourcePath = if (!_isNonProxy) requestPath.replace("fhir/", "") else requestPath
+
+    openSrpApplication?.let {
+      if (request.url.host == it.getFhirServerHost()?.host && CUSTOM_ENDPOINTS.contains(resourcePath)) {
+        val newUrl = request.url.newBuilder().encodedPath("/$resourcePath").build()
+        return request.newBuilder().url(newUrl).build()
+      }
+    }
+
+    return request
+  }
+
+  private fun createAuthInterceptor(
+    tokenAuthenticator: TokenAuthenticator,
+    sharedPreferencesHelper: SharedPreferencesHelper
+  ): Interceptor {
+    return Interceptor { chain ->
+      try {
+        val accessToken = tokenAuthenticator.getAccessToken()
+        val requestBuilder = chain.request().newBuilder()
+        if (accessToken.isNotEmpty()) {
+          requestBuilder.addHeader(AUTHORIZATION, "Bearer $accessToken")
+          sharedPreferencesHelper.retrieveApplicationId()?.let {
+            requestBuilder.addHeader(APPLICATION_ID, it)
+          }
+        }
+        chain.proceed(requestBuilder.build())
+      } catch (e: Exception) {
+        Timber.e(e, "Failed to complete request successfully")
+        buildErrorResponse(chain, FAILED_TO_COMPLETE_REQUEST_ERROR_CODE, e.message ?: tokenAuthenticator.context.getString(R.string.failed_to_complete_request_successfully), e)
+      }
+    }
+  }
+
+  private fun createLoggingInterceptor(): Interceptor {
+    return HttpLoggingInterceptor().apply {
+      level = if (BuildConfig.DEBUG) {
+        HttpLoggingInterceptor.Level.BODY
+      } else {
+        HttpLoggingInterceptor.Level.BASIC
+      }
+      redactHeader(AUTHORIZATION)
+      redactHeader(COOKIE)
+    }
+  }
+
+  private fun createConnectionCheckInterceptor(context: Context): Interceptor {
+    return Interceptor { chain ->
+      if (!isInternetAvailable(context)) {
+        return@Interceptor buildErrorResponse(
+          chain,
+          NO_INTERNET_CONNECTION_ERROR_CODE,
+          context.getString(R.string.no_internet_connection),
+          Exception(context.getString(R.string.no_internet_connection))
+        )
+      }
+      chain.proceed(chain.request())
+    }
+  }
+
+  private fun isInternetAvailable(context: Context): Boolean {
+    var result = false
+    val connectivityManager =
+      context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
+    connectivityManager?.let {
+      it.getNetworkCapabilities(connectivityManager.activeNetwork)?.apply {
+        result = when {
+          hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+          hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+          else -> false
+        }
+      }
+    }
+    return result
+  }
+
+  private fun buildErrorResponse(
+    chain: Interceptor.Chain,
+    code: Int,
+    message: String,
+    e: Exception?
+  ): Response {
+    return Response.Builder()
+      .request(chain.request())
+      .protocol(Protocol.HTTP_1_1)
+      .code(code)
+      .message(message)
+      .body("{$e}".toResponseBody(null))
+      .build()
+  }
 
   companion object {
     const val TIMEOUT_DURATION = 120L

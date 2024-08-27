@@ -16,8 +16,12 @@
 
 package org.smartregister.fhircore.quest.ui.register.tasks
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -119,11 +123,13 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.getSyncImageList
 import org.smartregister.fhircore.quest.ui.shared.components.ExtendedFab
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
 import org.smartregister.fhircore.quest.util.SectionTitles
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
+import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 
 enum class TabType(val label: String) {
     TASK_NEW_TAB("New"),
@@ -198,6 +204,19 @@ fun PendingTasksScreen(
     )
     var selectedTask by remember { mutableStateOf<RegisterViewModel.TaskItem?>(null) }
 
+    val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
+    var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
+    var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        viewModel.setPermissionGranted(isGranted)
+        if (isGranted){
+            viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+        }
+    }
+
     ModalBottomSheetLayout(
         sheetGesturesEnabled = false,
         sheetState = bottomSheetState,
@@ -264,27 +283,16 @@ fun PendingTasksScreen(
                 .padding(bottom = 16.dp),
             topBar = {
                 Column(modifier = modifier.background(SearchHeaderColor)) {
-
-                    // Top section has toolbar and a results counts view
-                    val filterActions =
-                        registerUiState.registerConfiguration?.registerFilter?.dataFilterActions
                     TopScreenSection(
                         modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
                         title = stringResource(id = org.smartregister.fhircore.engine.R.string.appname),
-                        searchText = searchText.value,
-                        filteredRecordsCount = registerUiState.filteredRecordsCount,
-                        searchPlaceholder = registerUiState.registerConfiguration?.searchBar?.display,
-                        onSync = appMainViewModel::onEvent,
-                        toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
-                        onSearchTextChanged = { searchText ->
-                            onEvent(RegisterEvent.SearchRegister(searchText = searchText))
+                        onSync = {
+                            viewModel.appMainEvent=it
+                            viewModel.setShowDialog(true)
                         },
-                        isFilterIconEnabled = filterActions?.isNotEmpty() ?: false,
+                        toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
                     ) { event ->
-
-
                     }
-
                     Box(
                         modifier
                             .fillMaxWidth()
@@ -337,193 +345,230 @@ fun PendingTasksScreen(
             },
         ) { innerPadding ->
 
-            Box(modifier = modifier.padding(innerPadding)) {
+            Box {
+                Box(modifier = modifier.padding(innerPadding)) {
 
-                val newTasks by viewModel.newTasksStateFlow.collectAsState()
-                val pendingTasks by viewModel.pendingTasksStateFlow.collectAsState()
-                val completedTasks by viewModel.completedTasksStateFlow.collectAsState()
+                    val newTasks by viewModel.newTasksStateFlow.collectAsState()
+                    val pendingTasks by viewModel.pendingTasksStateFlow.collectAsState()
+                    val completedTasks by viewModel.completedTasksStateFlow.collectAsState()
 
-                var selectedTabType = remember {
-                    mutableStateOf(TabType.TASK_NEW_TAB)
-                }
-                val context = LocalContext.current
-
-                Box(
-                    modifier = modifier
-                        .background(SearchHeaderColor)
-                )
-                {
-
-                    Box(modifier = Modifier.padding(bottom = 16.dp)) {
-                        FilterRow2(selectedTabType.value) {
-                            selectedTabType.value = it
-                        }
+                    var selectedTabType = remember {
+                        mutableStateOf(TabType.TASK_NEW_TAB)
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    val context = LocalContext.current
 
-                    when (selectedTabType.value) {
+                    viewModel.imageCount = unSyncedImagesCount
+                    totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                    totalImageLeft = totalImageLeftCountData
 
-                        TabType.TASK_NEW_TAB -> {
+                    Box(
+                        modifier = modifier
+                            .background(SearchHeaderColor)
+                    )
+                    {
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Box(modifier = Modifier.padding(bottom = 16.dp)) {
+                            FilterRow2(selectedTabType.value) {
+                                selectedTabType.value = it
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                            Box(
-                                modifier = modifier
-                                    .padding(top = 72.dp, start = 16.dp, end = 16.dp)
-                                    .fillMaxHeight()
-                                    .fillMaxWidth()
-                                    .background(SearchHeaderColor)
-                            ) {
+                        when (selectedTabType.value) {
 
-                                val notContactedTasks = viewModel.getNotContactedNewTasks(
-                                    newTasks,
-                                    TaskStatus.REQUESTED
-                                )
-                                val notRespondedTasks = viewModel.getNotRespondedNewTasks(
-                                    newTasks,
-                                    TaskStatus.REQUESTED
-                                )
-
-                                val sectionsList: MutableList<Section> = mutableListOf()
-                                val section = Section(
-                                    title = stringResource(id = R.string.not_contacted),
-                                    items = notContactedTasks
-                                )
-                                sectionsList.add(section)
-
-                                val section2 = Section(
-                                    title = stringResource(id = R.string.not_responded),
-                                    items = notRespondedTasks
-                                )
-                                sectionsList.add(section2)
+                            TabType.TASK_NEW_TAB -> {
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                LazyColumn {
-                                    sectionsList.forEach { section ->
-                                        item {
-                                            Box {
-                                                SectionView(
-                                                    section = section,
-                                                    isExpanded = true,
-                                                    onSeeMoreCasesClicked = { title, status, priority ->
-                                                        val intent = Intent(
-                                                            context,
-                                                            GenericActivity::class.java
-                                                        ).apply {
-                                                            putExtra(ARG_FROM, "tasks")
-                                                            putExtra(
-                                                                SCREEN_TITLE,
-                                                                if (title.contains(
-                                                                        SectionTitles.NOT_CONTACTED,
-                                                                        true
-                                                                    )
-                                                                ) {
-                                                                    TaskProgressStatusDisplay.NOT_CONTACTED.text
-                                                                } else {
-                                                                    TaskProgressStatusDisplay.NOT_RESPONDED.text
-                                                                }
-                                                            )
-                                                            putExtra(TASK_STATUS, status.name)
-                                                            putExtra(TASK_PRIORITY, priority.name)
-                                                        }
-                                                        context.startActivity(intent)
-                                                    },
-                                                    onSelectTask = {
-                                                        selectedTask = it
-                                                        coroutineScope.launch { bottomSheetState.show() }
-                                                    })
+                                Box(
+                                    modifier = modifier
+                                        .padding(top = 72.dp, start = 16.dp, end = 16.dp)
+                                        .fillMaxHeight()
+                                        .fillMaxWidth()
+                                        .background(SearchHeaderColor)
+                                ) {
+
+                                    val notContactedTasks = viewModel.getNotContactedNewTasks(
+                                        newTasks,
+                                        TaskStatus.REQUESTED
+                                    )
+                                    val notRespondedTasks = viewModel.getNotRespondedNewTasks(
+                                        newTasks,
+                                        TaskStatus.REQUESTED
+                                    )
+
+                                    val sectionsList: MutableList<Section> = mutableListOf()
+                                    val section = Section(
+                                        title = stringResource(id = R.string.not_contacted),
+                                        items = notContactedTasks
+                                    )
+                                    sectionsList.add(section)
+
+                                    val section2 = Section(
+                                        title = stringResource(id = R.string.not_responded),
+                                        items = notRespondedTasks
+                                    )
+                                    sectionsList.add(section2)
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    LazyColumn {
+                                        sectionsList.forEach { section ->
+                                            item {
+                                                Box {
+                                                    SectionView(
+                                                        section = section,
+                                                        isExpanded = true,
+                                                        onSeeMoreCasesClicked = { title, status, priority ->
+                                                            val intent = Intent(
+                                                                context,
+                                                                GenericActivity::class.java
+                                                            ).apply {
+                                                                putExtra(ARG_FROM, "tasks")
+                                                                putExtra(
+                                                                    SCREEN_TITLE,
+                                                                    if (title.contains(
+                                                                            SectionTitles.NOT_CONTACTED,
+                                                                            true
+                                                                        )
+                                                                    ) {
+                                                                        TaskProgressStatusDisplay.NOT_CONTACTED.text
+                                                                    } else {
+                                                                        TaskProgressStatusDisplay.NOT_RESPONDED.text
+                                                                    }
+                                                                )
+                                                                putExtra(TASK_STATUS, status.name)
+                                                                putExtra(
+                                                                    TASK_PRIORITY,
+                                                                    priority.name
+                                                                )
+                                                            }
+                                                            context.startActivity(intent)
+                                                        },
+                                                        onSelectTask = {
+                                                            selectedTask = it
+                                                            coroutineScope.launch { bottomSheetState.show() }
+                                                        })
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        TabType.TASK_PENDING_TAB -> {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            TabType.TASK_PENDING_TAB -> {
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            Box(
-                                modifier = modifier
-                                    .padding(top = 64.dp, start = 16.dp, end = 16.dp)
-                                    .fillMaxHeight()
-                                    .fillMaxWidth()
-                                    .background(SearchHeaderColor)
-                            ) {
+                                Box(
+                                    modifier = modifier
+                                        .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+                                        .fillMaxHeight()
+                                        .fillMaxWidth()
+                                        .background(SearchHeaderColor)
+                                ) {
 
-                                val pendingAgreedButNotDoneTasks =
-                                    viewModel.getPendingAgreedButNotDoneTasks(
+                                    val pendingAgreedButNotDoneTasks =
+                                        viewModel.getPendingAgreedButNotDoneTasks(
+                                            pendingTasks,
+                                            TaskStatus.INPROGRESS
+                                        )
+                                    val pendingNotAgreedTasks = viewModel.getPendingNotAgreedTasks(
                                         pendingTasks,
                                         TaskStatus.INPROGRESS
                                     )
-                                val pendingNotAgreedTasks = viewModel.getPendingNotAgreedTasks(
-                                    pendingTasks,
-                                    TaskStatus.INPROGRESS
-                                )
 
-                                val sectionsList: MutableList<Section> = mutableListOf()
-                                val section = Section(
-                                    title = stringResource(id = R.string.pending_agreed_not_done),
-                                    items = pendingAgreedButNotDoneTasks
-                                )
-                                sectionsList.add(section)
+                                    val sectionsList: MutableList<Section> = mutableListOf()
+                                    val section = Section(
+                                        title = stringResource(id = R.string.pending_agreed_not_done),
+                                        items = pendingAgreedButNotDoneTasks
+                                    )
+                                    sectionsList.add(section)
 
-                                val section2 = Section(
-                                    title = stringResource(id = R.string.pending_not_agreed),
-                                    items = pendingNotAgreedTasks
-                                )
-                                sectionsList.add(section2)
+                                    val section2 = Section(
+                                        title = stringResource(id = R.string.pending_not_agreed),
+                                        items = pendingNotAgreedTasks
+                                    )
+                                    sectionsList.add(section2)
 
-                                LazyColumn {
-                                    sectionsList.forEach { section ->
-                                        item {
-                                            Box {
-                                                SectionView(
-                                                    section = section,
-                                                    isExpanded = true,
-                                                    onSeeMoreCasesClicked = { title, status, priority ->
-                                                        val intent = Intent(
-                                                            context,
-                                                            GenericActivity::class.java
-                                                        ).apply {
-                                                            putExtra(ARG_FROM, "tasks")
-                                                            putExtra(
-                                                                SCREEN_TITLE,
-                                                                if (title.contains(
-                                                                        SectionTitles.AGREED_FOLLOWUP_NOT_DONE,
-                                                                        true
-                                                                    )
-                                                                ) {
-                                                                    TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE.text
-                                                                } else {
-                                                                    TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP.text
-                                                                }
-                                                            )
-                                                            putExtra(TASK_STATUS, status.name)
-                                                            putExtra(TASK_PRIORITY, priority.name)
-                                                        }
-                                                        context.startActivity(intent)
-                                                    },
-                                                    onSelectTask = {
-                                                        selectedTask = it
-                                                        coroutineScope.launch { bottomSheetState.show() }
-                                                    })
+                                    LazyColumn {
+                                        sectionsList.forEach { section ->
+                                            item {
+                                                Box {
+                                                    SectionView(
+                                                        section = section,
+                                                        isExpanded = true,
+                                                        onSeeMoreCasesClicked = { title, status, priority ->
+                                                            val intent = Intent(
+                                                                context,
+                                                                GenericActivity::class.java
+                                                            ).apply {
+                                                                putExtra(ARG_FROM, "tasks")
+                                                                putExtra(
+                                                                    SCREEN_TITLE,
+                                                                    if (title.contains(
+                                                                            SectionTitles.AGREED_FOLLOWUP_NOT_DONE,
+                                                                            true
+                                                                        )
+                                                                    ) {
+                                                                        TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE.text
+                                                                    } else {
+                                                                        TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP.text
+                                                                    }
+                                                                )
+                                                                putExtra(TASK_STATUS, status.name)
+                                                                putExtra(
+                                                                    TASK_PRIORITY,
+                                                                    priority.name
+                                                                )
+                                                            }
+                                                            context.startActivity(intent)
+                                                        },
+                                                        onSelectTask = {
+                                                            selectedTask = it
+                                                            coroutineScope.launch { bottomSheetState.show() }
+                                                        })
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        TabType.TASK_COMPLETED_TAB -> {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            ShowUnSyncedPatients(modifier, completedTasks) {
-                                selectedTask = it
-                                coroutineScope.launch { bottomSheetState.show() }
+                            TabType.TASK_COMPLETED_TAB -> {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                ShowUnSyncedPatients(modifier, completedTasks) {
+                                    selectedTask = it
+                                    coroutineScope.launch { bottomSheetState.show() }
+                                }
                             }
                         }
                     }
                 }
+
+                ForegroundSyncDialog(
+                    showDialog = viewModel.showDialog.value,
+                    title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
+                    content = totalImageLeft,
+                    viewModel.imageCount,
+                    confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
+                    dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
+                    onDismiss = {
+                        viewModel.setShowDialog(false)
+                    },
+                    onConfirm = {
+                        viewModel.setShowDialog(false)
+                        if (!viewModel.permissionGranted.value) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                viewModel.setPermissionGranted(true)
+                                viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                            }
+                        }else{
+                            viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                        }
+                    }
+                )
             }
         }
     }
@@ -1117,9 +1162,9 @@ fun SectionView(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp)
-            .clickable { expanded = !expanded }) {
+                .fillMaxWidth()
+                .padding(top = 16.dp)
+                .clickable { expanded = !expanded }) {
             Text(
                 text = section.title, fontSize = 14.sp, modifier = Modifier.weight(1f),
                 color = colorResource(
@@ -1342,7 +1387,9 @@ fun CardItemView(
                             text = label,
                             color = textColor,
                             style = body14Medium(),
-                            modifier = Modifier.background(color, shape = MaterialTheme.shapes.small).padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier
+                                .background(color, shape = MaterialTheme.shapes.small)
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
                 }

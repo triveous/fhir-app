@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
 import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 
 const val DEFAULT_MAX_PAGE_COUNT = 20
 const val SEARCH_FOOTER_TAG = "searchFooterTag"
@@ -124,28 +123,4 @@ fun RegisterFooter(
       }
     }
   }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun SearchFooterPreviewNoPreviousButton() {
-  RegisterFooter(10, 1, DEFAULT_MAX_PAGE_COUNT, {}, {})
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun SearchFooterPreviewNoNextButton() {
-  RegisterFooter(10, 20, DEFAULT_MAX_PAGE_COUNT, {}, {})
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun SearchFooterPreviewWithBothPreviousAndNextButtons() {
-  RegisterFooter(10, 6, DEFAULT_MAX_PAGE_COUNT, {}, {})
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun SearchFooterPreviewWithZeroResults() {
-  RegisterFooter(0, 6, DEFAULT_MAX_PAGE_COUNT, {}, {})
 }

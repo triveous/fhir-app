@@ -10,7 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.data.remote.selectSite.SelectSite
 import org.smartregister.fhircore.engine.data.remote.selectSite.SelectYourSiteResponse
-import org.smartregister.fhircore.engine.domain.networkUtils.ApiException
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.SELECT_YOUR_SITE_URL
 import org.smartregister.fhircore.engine.domain.repository.SelectYourSiteRepository
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
@@ -61,7 +60,7 @@ class SelectSiteViewModel @Inject constructor(
                     selectedSite.value = list[0]
                 }
                 isLoading.postValue(false)
-            } catch (e: ApiException) {
+            } catch (e: Exception) {
                 isLoading.postValue(false)
                 mError.postValue(e.message)
             }
