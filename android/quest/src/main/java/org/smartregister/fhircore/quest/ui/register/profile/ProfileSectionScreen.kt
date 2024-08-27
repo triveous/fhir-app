@@ -16,7 +16,6 @@
 
 package org.smartregister.fhircore.quest.ui.register.profile
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,7 +33,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
@@ -92,13 +90,9 @@ fun ProfileSectionScreen(
     onBackPressed: () -> Unit
 ) {
 
-
     val userNameText = viewModel.getUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
-
-
-    val getDefaultSiteName = stringResource(id = R.string.krishnagiri)
-    val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: getDefaultSiteName
+    val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: ""
 
     Scaffold(
         modifier = modifier
