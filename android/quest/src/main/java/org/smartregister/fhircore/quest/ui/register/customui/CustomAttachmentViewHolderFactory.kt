@@ -107,7 +107,8 @@ internal object CustomAttachmentViewHolderFactory :
                 photoTitle = itemView.findViewById(R.id.photo_title)
                 photoDeleteButton = itemView.findViewById(R.id.photo_delete)
                 photoDeleteButton2 = itemView.findViewById(R.id.photo_delete2)
-                photoView = itemView.findViewById(R.id.photo_view)filePreview = itemView.findViewById(R.id.file_preview)
+                photoView = itemView.findViewById(R.id.photo_view)
+                filePreview = itemView.findViewById(R.id.file_preview)
                 fileIcon = itemView.findViewById(R.id.file_icon)
                 fileTitle = itemView.findViewById(R.id.file_title)
                 fileDeleteButton = itemView.findViewById(R.id.file_delete)
@@ -162,7 +163,8 @@ internal object CustomAttachmentViewHolderFactory :
                 }
                 photoDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
                 photoDeleteButton2.setOnClickListener { view -> onDeleteClicked(view) }
-                photoView.setOnClickListener { view -> onViewPhotoClicked(view) }fileDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
+                photoView.setOnClickListener { view -> onViewPhotoClicked(view) }
+                fileDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
                 displayValidationResult(questionnaireViewItem.validationResult)
 
                 displayAttachmentPreview(questionnaireViewItem)
