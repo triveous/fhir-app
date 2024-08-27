@@ -37,12 +37,16 @@ import com.google.android.fhir.sync.FhirSyncWorker
 import com.google.android.fhir.sync.upload.UploadStrategy
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Resource
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
+import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
+import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
@@ -60,6 +64,10 @@ constructor(
     private val appTimeStampContext: AppTimeStampContext,
     private val fhirResourceService: FhirResourceService,
 ) : FhirSyncWorker(appContext, workerParams) {
+
+    companion object{
+        val mutex = Mutex()
+    }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
 
@@ -83,29 +91,38 @@ constructor(
     }
 
     override suspend fun doWork(): Result {
-        Timber.i("AppSyncWorker Running sync worker")
+        Timber.e("AppSyncWorker Running sync worker")
+        if (mutex.isLocked) {
+            Timber.e("AppSyncWorker is locked. Returning failure")
+            return Result.failure()
+        }
         val metaSyncResult = super.doWork()
-        try {
-            setForeground(getForegroundInfo()) // Set the foreground info
-            val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
+        mutex.withLock {
+            Timber.i("AppSyncWorker Running within lock sync worker")
+            try {
+                setForeground(getForegroundInfo()) // Set the foreground info
+                val allDocUploaded =
+                    performDocumentReferenceUpload(applicationContext, id.toString())
 
-            val retries = inputData.getInt("max_retires", 0)
-            // In case it has failed or to be retried, we will send the original result
-            if (metaSyncResult.javaClass === Result.success().javaClass) {
-                return when (allDocUploaded) {
-                    true -> {
-                        Result.success()
-                    }
-                    false -> if (retries > runAttemptCount) Result.retry() else Result.failure(
-                        workDataOf(
-                            "error" to Exception::class.java.name,
-                            "reason" to "Failed to upload all files"
+                val retries = inputData.getInt("max_retires", 0)
+                // In case it has failed or to be retried, we will send the original result
+                if (metaSyncResult.javaClass === Result.success().javaClass) {
+                    return when (allDocUploaded) {
+                        true -> {
+                            Result.success()
+                        }
+
+                        false -> if (retries > runAttemptCount) Result.retry() else Result.failure(
+                            workDataOf(
+                                "error" to Exception::class.java.name,
+                                "reason" to "Failed to upload all files"
+                            )
                         )
-                    )
+                    }
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
         return metaSyncResult
     }
@@ -119,7 +136,7 @@ constructor(
 
         val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(context.getString(R.string.uploading_images_title))
-            .setSmallIcon(R.drawable.ic_sync)
+            .setSmallIcon(R.drawable.ic_quest_logo)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
 
@@ -133,30 +150,20 @@ constructor(
             .setContentText(context.getString(R.string.images_pending_text,pendingDocuments))
         notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
 
-        val result = docReferences
-            .map {
-                val uriString = it.resource.getExtensionByUrl("http://hl7.org/fhir/StructureDefinition/file-location")?.value?.asStringValue()
+        val result = docReferences.map {
+                val uriString = it.resource.getExtensionByUrl(UPLOAD_IMAGE_URL)?.value?.asStringValue()
                 if (uriString.isNullOrBlank()) return@map it.resource to null
-
                 it.resource to uriString.toUri()
-            }
-            .filter { it.second !== null }
-            .map {
-
+            }.filter { it.second !== null }.map {
                 val docReference = it.first
-                val fileUri = it.second
-
-                if (fileUri == null){
-//                    Timber.w("File URI is null for document : ${docReference.logicalId}")
-                    return@map false
-                }
+                val fileUri = it.second ?: return@map false
 
                 try {
 //                    Timber.i("Serializing document reference with logicalId: ${docReference.logicalId}")
                     val docReferenceJson = FhirContext.forR4Cached().newJsonParser().encodeResourceToString(docReference as Resource)
                     val docReferenceBytes = docReferenceJson.encodeToByteArray()
 
-                    val refBody = docReferenceBytes.toRequestBody("application/json".toMediaType())
+                    val refBody = docReferenceBytes.toRequestBody(HEADER_APPLICATION_JSON.toMediaType())
 
 //                    Timber.i("Inserting document reference with logicalId: ${docReference.logicalId}")
 
@@ -229,10 +236,9 @@ constructor(
                     true
                 } catch (e: Exception) {
 //                    Timber.e(e, "Exception during document upload: ${docReference.logicalId}")
-//                    Timber.e(e, "Exception stackTrace: ${e.printStackTrace()}")
+                    Timber.e(e, "Exception stackTrace: ${e.printStackTrace()}")
                     false
                 }
-
             }.all { it }
 
         // Update notification on completion

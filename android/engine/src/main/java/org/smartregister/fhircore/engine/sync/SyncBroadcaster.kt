@@ -40,7 +40,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.util.DispatcherProvider
-import org.smartregister.fhircore.engine.util.isWorkScheduled
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -69,7 +68,10 @@ constructor(
    */
   suspend fun runOneTimeSync() = coroutineScope {
     Timber.i("Running one time sync...")
-    Timber.e("isWorkScheduled--> ${isWorkScheduled(context, workTag)}")
+    if (AppSyncWorker.mutex.isLocked) {
+      Timber.e("mutex is locked")
+      return@coroutineScope
+    }
     Sync.oneTimeSync<AppSyncWorker>(context).handleOneTimeSyncJobStatus(this)
   }
 
@@ -79,7 +81,10 @@ constructor(
    */
   suspend fun runOneTimeSync(expedited: OutOfQuotaPolicy? = null) = coroutineScope {
     Timber.i("Running one time sync with expedited...")
-    Timber.e("isWorkScheduled--> ${isWorkScheduled(context, workTag)}")
+    if (AppSyncWorker.mutex.isLocked) {
+      Timber.e("mutex is locked")
+      return@coroutineScope
+    }
     Sync.oneTimeSync<AppSyncWorker>(context, expedited = expedited).handleOneTimeSyncJobStatus(this)
   }
 
@@ -90,7 +95,6 @@ constructor(
   @OptIn(ExperimentalCoroutinesApi::class)
   suspend fun schedulePeriodicSync(interval: Long = 15) = coroutineScope {
     Timber.i("Scheduling periodic sync...")
-    Timber.e("isWorkScheduled--> ${isWorkScheduled(context, periodicWorkTag)}")
     Sync.periodicSync<AppSyncWorker>(
       context = context,
       periodicSyncConfiguration =
