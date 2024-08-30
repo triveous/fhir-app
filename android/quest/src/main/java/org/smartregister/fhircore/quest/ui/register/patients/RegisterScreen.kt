@@ -100,25 +100,15 @@ const val REGISTER_CARD_TEST_TAG = "registerCardListTestTag"
 const val FIRST_TIME_SYNC_DIALOG = "firstTimeSyncTestTag"
 const val FAB_BUTTON_REGISTER_TEST_TAG = "fabTestTag"
 const val TOP_REGISTER_SCREEN_TEST_TAG = "topScreenTestTag"
-const val ALL_PATIENTS_TAB = "ALL CASES"
-const val DRAFT_PATIENTS_TAB = "DRAFT"
-const val UNSYNCED_PATIENTS_TAB = "UN-SYNCED"
-const val ALL_PATIENTS = 0
-const val DRAFT_PATIENTS = 1
-const val UNSYNCED_PATIENTS = 2
 
 
 @Composable
 fun RegisterScreen(
     modifier: Modifier = Modifier,
-    openDrawer: (Boolean) -> Unit,
     viewModel: RegisterViewModel,
     appMainViewModel: AppMainViewModel,
-    onEvent: (RegisterEvent) -> Unit,
     registerUiState: RegisterUiState,
-    searchText: MutableState<String>,
     navController: NavController,
-    toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
 ) {
 
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
@@ -144,22 +134,8 @@ fun RegisterScreen(
                     onSync = {
                         viewModel.appMainEvent = it
                         viewModel.setShowDialog(true)
-                             },
+                    },
                 ) { event ->
-//                    when (event) {
-//                        ToolbarClickEvent.Navigate -> when (toolBarHomeNavigation) {
-//                            ToolBarHomeNavigation.OPEN_DRAWER -> openDrawer(true)
-//                            ToolBarHomeNavigation.NAVIGATE_BACK -> navController.popBackStack()
-//                            ToolBarHomeNavigation.SYNC -> {
-//
-//                            }
-//                        }
-//
-//                        ToolbarClickEvent.FilterData -> {
-//                            onEvent(RegisterEvent.ResetFilterRecordsCount)
-//                            filterActions?.handleClickEvent(navController)
-//                        }
-//                    }
                 }
             }
         },) { innerPadding ->

@@ -62,7 +62,6 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
-import org.smartregister.fhircore.quest.ui.main.AppMainUiState
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
@@ -157,13 +156,9 @@ class RegisterFragment : Fragment(), OnSyncListener {
               .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
               RegisterScreen(
-                openDrawer = openDrawer,
-                onEvent = registerViewModel::onEvent,
                 registerUiState = registerViewModel.registerUiState.value,
-                searchText = registerViewModel.searchText,
                 navController = findNavController(),
                 appMainViewModel = appMainViewModel,
-                toolBarHomeNavigation = registerFragmentArgs.toolBarHomeNavigation,
                 viewModel = registerViewModel
               )
             }

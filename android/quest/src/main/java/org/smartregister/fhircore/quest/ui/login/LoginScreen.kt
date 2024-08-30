@@ -18,7 +18,6 @@
 
 package org.smartregister.fhircore.quest.ui.login
 
-import android.text.InputType
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -48,7 +47,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.Card
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -134,6 +132,7 @@ fun LoginScreen(loginViewModel: LoginViewModel, appVersionPair: Pair<Int, String
   )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LoginPage(
   applicationConfiguration: ApplicationConfiguration,
