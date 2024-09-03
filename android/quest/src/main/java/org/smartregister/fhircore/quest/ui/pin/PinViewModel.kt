@@ -24,8 +24,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.util.Base64
-import javax.inject.Inject
+import io.sentry.Sentry
+import io.sentry.protocol.User
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.ConfigType
@@ -37,6 +37,12 @@ import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.clearPasswordInMemory
 import org.smartregister.fhircore.engine.util.toPasswordHash
+import org.smartregister.fhircore.quest.BuildConfig
+import org.smartregister.fhircore.quest.util.VERSION_CODE
+import org.smartregister.fhircore.quest.util.VERSION_NAME
+import timber.log.Timber
+import java.util.Base64
+import javax.inject.Inject
 
 @HiltViewModel
 class PinViewModel
@@ -79,6 +85,9 @@ constructor(
 
   fun setPinUiState(setupPin: Boolean = false, context: Context) {
     val username = secureSharedPreference.retrieveSessionUsername()
+    if(!username.isNullOrEmpty()){
+      setSentryConfiguration(username)
+    }
     pinUiState.value =
       PinUiState(
         appName = applicationConfiguration.appTitle,
@@ -94,6 +103,19 @@ constructor(
         pinLength = applicationConfiguration.loginConfig.pinLength,
         showLogo = applicationConfiguration.showLogo,
       )
+  }
+
+  private fun setSentryConfiguration(trimmedUsername: String) {
+    try {
+      // Configure Sentry scope
+      Sentry.configureScope { scope ->
+        scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
+        scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
+        scope.user = User().apply { username = trimmedUsername }
+      }
+    } catch (e: Exception) {
+      Timber.e(e)
+    }
   }
 
   fun onPinVerified(validPin: Boolean) {
