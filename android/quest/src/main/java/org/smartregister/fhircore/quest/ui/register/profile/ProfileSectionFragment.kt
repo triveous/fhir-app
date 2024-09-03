@@ -46,10 +46,12 @@ import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
+import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.login.LoginActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
+import org.smartregister.fhircore.quest.util.addReplaceFragment
 import javax.inject.Inject
 
 @ExperimentalMaterialApi
@@ -118,10 +120,13 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
                                 appMainViewModel = appMainViewModel,
                                 viewModel = registerViewModel,
                                 userName = userNameText,
-                            ){
-                                activity?.finish()
-                            }
-                        }
+                                onBackPressed={
+                                    activity?.finish()
+                                },
+                                onClickChangeLanguage = {
+                                    requireActivity().addReplaceFragment(R.id.fragment_container, ChangeLanguageFragment(), addFragment = true, addToBackStack = true)
+                                }
+                            )                        }
                     }
                 }
             }
