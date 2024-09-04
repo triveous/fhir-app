@@ -16,3 +16,13 @@ object LanguageConstants {
     const val TAMIL = "Tamil (தமிழ்)"
     const val URDU = "Urdu (اردو)"
 }
+
+object LanguageCodeConstants {
+    const val ENGLISH_CODE = "en"
+    const val HINDI_CODE = "hi"
+    const val BENGALI_CODE = "bn"
+    const val TELUGU_CODE = "te"
+    const val MARATHI_CODE = "mr"
+    const val TAMIL_CODE = "ta"
+    const val URDU_CODE = "ur"
+}

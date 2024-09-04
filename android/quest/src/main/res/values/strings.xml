@@ -32,9 +32,9 @@
     <string name="audio_uploaded">Audio uploaded</string>
 
 
-    <string name="loading_forms">Loading forms ...</string>
-    <string name="loading_responses">Loading responses ...</string>
-    <string name="loading_patients">Loading cases ...</string>
+    <string name="loading_forms">Loading forms …</string>
+    <string name="loading_responses">Loading responses …</string>
+    <string name="loading_patients">Loading cases …</string>
     <string name="no_test_results_found">No test results found</string>
     <string name="patient_test_results">TEST RESULTS</string>
     <string name="last_test"> Last Test - %1$s</string>
