@@ -1,12 +1,6 @@
 package org.smartregister.fhircore.quest.ui.register.profile
 
 
-//noinspection UsingMaterialAndMaterial3Libraries
-//noinspection UsingMaterialAndMaterial3Libraries
-//noinspection UsingMaterialAndMaterial3Libraries
-//noinspection UsingMaterialAndMaterial3Libraries
-//noinspection UsingMaterialAndMaterial3Libraries
-//noinspection UsingMaterialAndMaterial3Libraries
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
