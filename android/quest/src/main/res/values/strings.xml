@@ -153,8 +153,6 @@
     <string name="loading_followups">Loading cases</string>
     <string name="no_followups">No new cases</string>
     <string name="update_status">UPDATE STATUS</string>
-    <string name="update">UPDATE</string>
-    <string name="select_language">SELECT LANGUAGE</string>
     <string name="cancel">CANCEL</string>
     <string name="close">CLOSE</string>
     <string name="no_cases">No matching recommendations found!</string>
@@ -204,7 +202,6 @@
 
     <!-- Profile-->
     <string name="change_password">Change Password</string>
-    <string name="change_language">Change Language</string>
     <string name="logout">Logout</string>
     <string name="change_pin">Change PIN</string>
     <string name="profile_username">Username: %s</string>

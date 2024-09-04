@@ -87,8 +87,7 @@ fun ProfileSectionScreen(
     registerUiState: RegisterUiState,
     searchText: MutableState<String>,
     userName: String = "",
-    onBackPressed: () -> Unit,
-    onClickChangeLanguage:() -> Unit
+    onBackPressed: () -> Unit
 ) {
 
     val userNameText = viewModel.getUserName()
@@ -203,38 +202,6 @@ fun ProfileSectionScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(id = R.string.change_pin),
-                                    style = bodyMedium(fontSize = 18.sp)
-                                )
-                            }
-                        }
-
-                        Card(
-                            shape = RoundedCornerShape(4.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    horizontal = 16.dp,
-                                    vertical = 4.dp
-                                ), // Set corner radius here
-                            elevation = CardDefaults.cardElevation(2.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onClickChangeLanguage()
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 16.dp)
-                                    .background(Color.White)) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.ic_change_language),
-                                    contentDescription = DRAWER_MENU,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(id = R.string.change_language),
                                     style = bodyMedium(fontSize = 18.sp)
                                 )
                             }
