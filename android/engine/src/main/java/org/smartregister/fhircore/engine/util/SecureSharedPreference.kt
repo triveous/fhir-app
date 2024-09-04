@@ -95,8 +95,11 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
     }
   }
 
-  fun getSiteName(): String? {
-    return secureSharedPreferences.getString(SharedPreferenceKey.SITE_NAME.name, null)
+  fun setChangeLanguage(language: String,languageCode: String) {
+    secureSharedPreferences.edit {
+      putString(SharedPreferenceKey.KEY_LANGUAGE.name, language)
+      putString(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, languageCode)
+    }
   }
 
   fun getFhirBaseUrl(): String {
