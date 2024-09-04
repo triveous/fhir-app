@@ -101,8 +101,7 @@ constructor(
             Timber.i("AppSyncWorker Running within lock sync worker")
             try {
                 setForeground(getForegroundInfo()) // Set the foreground info
-                val allDocUploaded =
-                    performDocumentReferenceUpload(applicationContext, id.toString())
+                val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
 
                 val retries = inputData.getInt("max_retires", 0)
                 // In case it has failed or to be retried, we will send the original result
@@ -128,27 +127,14 @@ constructor(
     }
 
     private suspend fun performDocumentReferenceUpload(context: Context, workerId: String): Boolean {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        // Create notification channel (for Android 8.0 and above)
-        val channel = NotificationChannel(CHANNEL_ID, "Document Upload", NotificationManager.IMPORTANCE_HIGH)
-        notificationManager.createNotificationChannel(channel)
-
-        val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle(context.getString(R.string.uploading_images_title))
-            .setSmallIcon(R.drawable.ic_quest_logo)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-
         val docReferences = openSrpFhirEngine.search<DocumentReference> {}
         val totalDocuments = docReferences.size
         var pendingDocuments = totalDocuments
 
         Timber.i("Found $totalDocuments file(s) to upload")
 
-        notificationBuilder.setProgress(totalDocuments, 0, false)
-            .setContentText(context.getString(R.string.images_pending_text,pendingDocuments))
-        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
+        val notificationManager = createNotificationChannel(context)
+        val notificationBuilder = createNotificationBuilder(context, totalDocuments, pendingDocuments)
 
         val result = docReferences.map {
                 val uriString = it.resource.getExtensionByUrl(UPLOAD_IMAGE_URL)?.value?.asStringValue()
@@ -193,47 +179,55 @@ constructor(
                         "DocumentReference.content.attachment",
                         body)
 
-//                    Timber.i("Received response for upload of document with logicalId: ${docReference.logicalId} - Success: ${response.isSuccessful}")
+                    Timber.i("Received response for upload of document with logicalId: ${docReference.logicalId} - Success: ${response.isSuccessful}")
 
                     if (response.isSuccessful.not()) {
-//                        Timber.e("File upload failed for document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - Message: ${response.message()}")
+                        Timber.e("File upload failed for document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - Message: ${response.message()}")
 
                         // When it is client error, it cannot be retried successfully ever,
                         // so we are going to purge the data
                         if (response.code() == 400 || response.code() == 422 || response.code() == 410) {
 //                            Timber.i("Client error encountered. Purging document with logicalId: ${docReference.logicalId}")
-
                             // Save the changes to document reference
                             openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
-
                             // When the content is uploaded, we will reset the description back to empty so that
                             // it won't be attempted the next time
 //                            context.contentResolver.delete(fileUri, null, null)
                             applicationContext.contentResolver.delete(fileUri, null, null)
                         }
                         return@map false
-                    }
+                    } else {
 
-//                    Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId}")
-                    // Save the changes to document reference
-                    openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+                        Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId}")
+                        // Save the changes to document reference
+                        openSrpFhirEngine.purge(
+                            docReference.resourceType,
+                            docReference.logicalId,
+                            true
+                        )
 
-                    // When the content is uploaded, we will reset the description back to empty so that
-                    // it won't be attempted the next time
+                        // When the content is uploaded, we will reset the description back to empty so that
+                        // it won't be attempted the next time
 //                    context.contentResolver.delete(fileUri, null, null)
-                    applicationContext.contentResolver.delete(fileUri, null, null)
+                        applicationContext.contentResolver.delete(fileUri, null, null)
 
-                    // Update progress
-                    pendingDocuments--
-                    val progress = ((totalDocuments - pendingDocuments) * 100 / totalDocuments).toInt()
-                    notificationBuilder.setProgress(totalDocuments, totalDocuments - pendingDocuments, false)
-                        .setContentText(context.getString(R.string.images_pending_text,pendingDocuments))
-                    notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
+                        // Update progress
+                        pendingDocuments--
+                        val progress =
+                            ((totalDocuments - pendingDocuments) * 100 / totalDocuments).toInt()
+                        updateProgress(
+                            context,
+                            notificationBuilder,
+                            totalDocuments,
+                            pendingDocuments
+                        )
+                        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
 
-                    // Update work progress
-                    setProgressAsync(workDataOf("progress" to progress))
+                        // Update work progress
+                        setProgressAsync(workDataOf("progress" to progress))
 
-                    true
+                        true
+                    }
                 } catch (e: Exception) {
 //                    Timber.e(e, "Exception during document upload: ${docReference.logicalId}")
                     Timber.e(e, "Exception stackTrace: ${e.printStackTrace()}")
@@ -242,6 +236,35 @@ constructor(
             }.all { it }
 
         // Update notification on completion
+        updateNotification(context, notificationManager, notificationBuilder, result)
+        return result
+    }
+
+    private fun updateProgress(context: Context,notificationBuilder: NotificationCompat.Builder, totalDocuments: Int, pendingDocuments: Int) {
+        notificationBuilder.setProgress(totalDocuments, totalDocuments - pendingDocuments, false)
+            .setContentText(context.getString(R.string.images_pending_text, pendingDocuments))
+
+    }
+
+    private fun createNotificationChannel(context: Context): NotificationManager {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(CHANNEL_ID, context.getString(R.string.notification_title_document_upload), NotificationManager.IMPORTANCE_HIGH)
+        notificationManager.createNotificationChannel(channel)
+        return notificationManager
+    }
+
+    private fun createNotificationBuilder(context: Context, totalDocuments: Int, pendingDocuments: Int): NotificationCompat.Builder {
+        val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setContentTitle(context.getString(R.string.uploading_images_title))
+            .setSmallIcon(R.drawable.ic_quest_logo)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setProgress(totalDocuments, 0, false)
+            .setContentText(context.getString(R.string.images_pending_text, pendingDocuments))
+        return notificationBuilder
+    }
+
+    private fun updateNotification(context: Context, notificationManager: NotificationManager, notificationBuilder: NotificationCompat.Builder, result: Boolean) {
         if (result) {
             notificationBuilder.setContentText(context.getString(R.string.upload_success))
                 .setProgress(0, 0, false)
@@ -252,7 +275,5 @@ constructor(
                 .setOngoing(false)
         }
         notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
-
-        return result
     }
 }

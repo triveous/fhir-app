@@ -59,6 +59,7 @@ import org.smartregister.fhircore.engine.util.extension.getCustomJsonParser
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import timber.log.Timber
+import java.net.SocketException
 import java.net.UnknownHostException
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
@@ -252,6 +253,10 @@ class NetworkModule {
           }
         }
         chain.proceed(requestBuilder.build())
+      } catch (e: SocketException) {
+        Timber.e(e, "SocketException occurred, possibly due to a slow network.")
+        // Handle retry logic or notify the user
+        buildErrorResponse(chain, FAILED_TO_COMPLETE_REQUEST_ERROR_CODE, "Network error, please try again.", e)
       } catch (e: Exception) {
         Timber.e(e, "Failed to complete request successfully")
         buildErrorResponse(chain, FAILED_TO_COMPLETE_REQUEST_ERROR_CODE, e.message ?: tokenAuthenticator.context.getString(R.string.failed_to_complete_request_successfully), e)
@@ -317,7 +322,7 @@ class NetworkModule {
   }
 
   companion object {
-    const val TIMEOUT_DURATION = 120L
+    const val TIMEOUT_DURATION = 600L
     const val AUTHORIZATION = "Authorization"
     const val APPLICATION_ID = "App-Id"
     const val COOKIE = "Cookie"

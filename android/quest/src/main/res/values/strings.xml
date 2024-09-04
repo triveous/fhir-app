@@ -229,6 +229,9 @@
     <string name="notification_sync">Syncing…</string>
     <string name="image_left">Image Left: %s</string>
     <string name="okay">Okay</string>
+
+    <!-- Notification -->
     <string name="notification_permission_title">Notification Permission</string>
     <string name="notification_permission_description">Enable notifications to stay informed about the latest data syncs. Ensure your app always has the most current information by allowing timely sync alerts.</string>
+
 </resources>
