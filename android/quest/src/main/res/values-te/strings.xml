@@ -238,4 +238,41 @@
     <string name="okay">సరే</string>
     <string name="notification_permission_title">నోటిఫికేషన్ అనుమతి</string>
     <string name="notification_permission_description">అత్యుత్తమమైన డేటా సింక్‌ల గురించి సమాచారం పొందడానికి నోటిఫికేషన్లు ఆన్ చేయండి. సకాలంలో సింక్ అలర్ట్లను అనుమతించి మీ అప్లికేషన్ ఎప్పుడూ తాజా సమాచారం కలిగి ఉండేలా చేయండి.</string>
+
+    <!-- Menu-->
+    <string name="menu_cases">కేసులు</string>
+    <string name="menu_recommendations">సిఫార్సులు</string>
+    <string name="menu_dashboard">డాష్బోర్డ్</string>
+
+    <!-- Recommendations -->
+    <string name="enter_name_or_phone">పేరు లేదా ఫోన్ ఎంటర్ చేయండి</string>
+    <string name="status_new">కొత్త</string>
+    <string name="status_pending">పెండింగ్</string>
+    <string name="status_completed">పూర్తయింది</string>
+
+    <!-- Dashboard -->
+    <string name="health_center">ఆరోగ్య కేంద్రం</string>
+    <string name="total_screened_cases">మొత్తం స్క్రీన్ చేయబడిన కేసులు</string>
+    <string name="today">ఈ రోజు</string>
+    <string name="this_week">ఈ వారం</string>
+    <string name="this_month">ఈ నెల</string>
+    <string name="dashboard_add_patient">కొత్త కేసు జోడించండి</string>
+
+    <!-- See All-->
+    <string name="view_all_draft">డ్రాఫ్ట్‌లు</string>
+    <string name="view_all_submissions">అన్ని సమర్పణలు</string>
+
+    <!-- View All-->
+    <string name="view_all_urgent_referral">తక్షణ సూచన</string>
+    <string name="view_all_add_investigation">అదనపు దర్యాప్తు</string>
+    <string name="view_all_retake_photo">ఫోటోను మళ్లీ తీసుకోండి</string>
+    <string name="view_all_advice_to_quit">విడిచేయడానికి సలహా</string>
+    <string name="view_all_advice_to_quit_habit">ఆదతిని వదిలివేయడానికి సలహా</string>
+    <string name="view_all_change_status">స్థితి మార్చండి</string>
+    <string name="view_all_phone">ఫోన్ %s</string>
+    <string name="phone_with_space">ఫోన్ </string>
+    <string name="view_all_call">కాల్</string>
+    <string name="view_all_screened_on">స్క్రీన్ చేయబడింది</string>
+    <string name="toolbar_recently_added">ఇటీవలి జోడింపులు</string>
+
 </resources>

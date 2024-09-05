@@ -234,4 +234,44 @@
     <string name="okay">Okay</string>
     <string name="notification_permission_title">Notification Permission</string>
     <string name="notification_permission_description">Enable notifications to stay informed about the latest data syncs. Ensure your app always has the most current information by allowing timely sync alerts.</string>
+
+    <!-- Menu-->
+    <string name="menu_cases">Cases</string>
+    <string name="menu_recommendations">Recommendations</string>
+    <string name="menu_dashboard">Dashboard</string>
+
+    <!-- Recommendations -->
+    <string name="enter_name_or_phone">Enter name or phone</string>
+    <string name="status_new">New</string>
+    <string name="status_pending">Pending</string>
+    <string name="status_completed">Completed</string>
+
+    <!-- Dashboard -->
+    <string name="health_center">Health Center</string>
+    <string name="total_screened_cases">Total screened cases</string>
+    <string name="today">Today</string>
+    <string name="this_week">This Week</string>
+    <string name="this_month">This Month</string>
+    <string name="dashboard_add_patient">Add new case</string>
+
+    <!-- See All-->
+    <string name="view_all_draft">Drafts</string>
+    <string name="view_all_submissions">All submissions</string>
+
+    <!-- View All-->
+    <string name="view_all_urgent_referral">Urgent Referral</string>
+    <string name="view_all_add_investigation">Add. Investigation</string>
+    <string name="view_all_retake_photo">Retake Photo</string>
+    <string name="view_all_advice_to_quit">Advice To Quit</string>
+    <string name="view_all_advice_to_quit_habit">ADVICE TO QUIT HABIT</string>
+    <string name="view_all_change_status">CHANGE STATUS</string>
+    <string name="view_all_phone">Phone %s</string>
+    <string name="phone_with_space">Phone </string>
+    <string name="view_all_call">Call</string>
+    <string name="view_all_screened_on">Screened on</string>
+    <!-- Toolbar-->
+    <string name="toolbar_recently_added">Recently Added</string>
+
+
+
 </resources>

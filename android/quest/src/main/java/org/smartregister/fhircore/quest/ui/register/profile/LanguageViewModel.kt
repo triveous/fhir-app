@@ -67,7 +67,7 @@ class LanguageViewModel @Inject constructor(
         sharedPreferencesHelper.write(SharedPreferenceKey.KEY_LANGUAGE.name, selectedLanguage.value)
         sharedPreferencesHelper.write(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, langCode)
         secureSharedPreference.setChangeLanguage(selectedLanguage.value,langCode)
-        updateResources(appContext,langCode)
+        updateResources(langCode)
     }
 
     private fun getLanguage(): String? {
@@ -78,16 +78,19 @@ class LanguageViewModel @Inject constructor(
         return languages.value.indexOf(selectedLanguage.value).coerceAtLeast(0)
     }
 
-    private fun updateResources(context: Context?, languageCode: String) {
-        context?.let { updateResource(it,languageCode) }
-        AppCompatDelegate.setApplicationLocales(LocaleListCompat.create(Locale(languageCode)))
+    private fun updateResources(languageCode: String) {
+        updateResource(languageCode)
+        val appLocale: LocaleListCompat = LocaleListCompat.forLanguageTags(languageCode)
+//        application.setAppLocale(languageCode)
+        AppCompatDelegate.setApplicationLocales(appLocale)
     }
 
-    private fun updateResource(context: Context, language: String): Context {
-        val locale = Locale(language)
+    private fun updateResource(languageCode: String): Context {
+        val locale = Locale(languageCode)
         Locale.setDefault(locale)
-        val configuration = context.resources.configuration
-        configuration.setLocale(locale)
-        return context.createConfigurationContext(configuration)
+        val localeList = android.os.LocaleList(Locale(languageCode))
+        val configuration = application.resources.configuration
+        configuration.setLocales(localeList)
+        return application.createConfigurationContext(configuration)
     }
 }

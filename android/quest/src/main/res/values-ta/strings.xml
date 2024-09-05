@@ -234,4 +234,41 @@
     <string name="okay">சரி</string>
     <string name="notification_permission_title">அறிக்கையளிக்கும் அனுமதி</string>
     <string name="notification_permission_description">புதிய தரவுகள் ஒத்திசைவுகளைப் பற்றிய தகவல்களைப் பெற அறிக்கைகளை இயக்கவும். நேரம் ஒத்திசைவு எச்சரிக்கைகளை அனுமதித்து உங்கள் பயன்பாட்டுக்கு எப்போதும் தற்போதைய தகவல்களை உறுதி செய்யவும்.</string>
+
+    <!-- Menu-->
+    <string name="menu_cases">வழக்குகள்</string>
+    <string name="menu_recommendations">பரிந்துரைகள்</string>
+    <string name="menu_dashboard">டாஷ்போர்டு</string>
+
+    <!-- Recommendations -->
+    <string name="enter_name_or_phone">பெயர் அல்லது தொலைபேசி எண்ணை உள்ளிடவும்</string>
+    <string name="status_new">புதிய</string>
+    <string name="status_pending">நிலுவையில்</string>
+    <string name="status_completed">முழுமையடைந்தது</string>
+
+    <!-- Dashboard -->
+    <string name="health_center">சுகாதார மையம்</string>
+    <string name="total_screened_cases">மொத்தமாக பரிசோதிக்கப்பட்ட வழக்குகள்</string>
+    <string name="today">இன்று</string>
+    <string name="this_week">இந்த வாரம்</string>
+    <string name="this_month">இந்த மாதம்</string>
+    <string name="dashboard_add_patient">புதிய வழக்கைச் சேர்க்கவும்</string>
+
+    <!-- See All-->
+    <string name="view_all_draft">மசவுகள்</string>
+    <string name="view_all_submissions">அனைத்து சமர்ப்பிப்புகள்</string>
+
+    <!-- View All-->
+    <string name="view_all_urgent_referral">விரைவான பரிந்துரை</string>
+    <string name="view_all_add_investigation">கூடுதல் விசாரணை</string>
+    <string name="view_all_retake_photo">புகைப்படத்தை மீண்டும் எடுக்கவும்</string>
+    <string name="view_all_advice_to_quit">விடுவதற்கான ஆலோசனை</string>
+    <string name="view_all_advice_to_quit_habit">ஆததியை நிறுத்த ஆலோசனை</string>
+    <string name="view_all_change_status">நிலை மாற்றம்</string>
+    <string name="view_all_phone">தொலைபேசி %s</string>
+    <string name="phone_with_space">தொலைபேசி </string>
+    <string name="view_all_call">அழைப்பு</string>
+    <string name="view_all_screened_on">திரட்டப்பட்டது</string>
+    <string name="toolbar_recently_added">சமீபத்தில் சேர்க்கப்பட்டவை</string>
+
 </resources>
