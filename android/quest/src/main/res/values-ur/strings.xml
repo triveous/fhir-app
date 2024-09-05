@@ -235,4 +235,41 @@
     <string name="okay">ٹھیک ہے</string>
     <string name="notification_permission_title">نوٹیفیکیشن کی اجازت</string>
     <string name="notification_permission_description">تازہ ترین ڈیٹا ہم آہنگی کی اطلاع حاصل کرنے کے لیے نوٹیفیکیشنز فعال کریں۔ اس بات کو یقینی بنائیں کہ آپ کا ایپ ہمیشہ تازہ ترین معلومات رکھتا ہے، بروقت ہم آہنگی کے الرٹس کی اجازت دے کر۔</string>
+
+    <!-- Menu-->
+    <string name="menu_cases">کیسز</string>
+    <string name="menu_recommendations">سفارشات</string>
+    <string name="menu_dashboard">ڈیش بورڈ</string>
+
+    <!-- Recommendations -->
+    <string name="enter_name_or_phone">نام یا فون درج کریں</string>
+    <string name="status_new">نیا</string>
+    <string name="status_pending">زیر التواء</string>
+    <string name="status_completed">مکمل</string>
+
+    <!-- Dashboard -->
+    <string name="health_center">صحت مرکز</string>
+    <string name="total_screened_cases">کل اسکرین کیے گئے کیسز</string>
+    <string name="today">آج</string>
+    <string name="this_week">اس ہفتے</string>
+    <string name="this_month">اس ماہ</string>
+    <string name="dashboard_add_patient">نیا کیس شامل کریں</string>
+
+    <!-- See All-->
+    <string name="view_all_draft">ڈرافٹس</string>
+    <string name="view_all_submissions">تمام گذارشات</string>
+
+    <!-- View All-->
+    <string name="view_all_urgent_referral">فوری حوالہ</string>
+    <string name="view_all_add_investigation">اضافی تحقیقات</string>
+    <string name="view_all_retake_photo">تصویر دوبارہ لیں</string>
+    <string name="view_all_advice_to_quit">چھوڑنے کا مشورہ</string>
+    <string name="view_all_advice_to_quit_habit">عادت چھوڑنے کی مشورہ</string>
+    <string name="view_all_change_status">اسٹیٹس تبدیل کریں</string>
+    <string name="view_all_phone">فون %s</string>
+    <string name="phone_with_space">فون </string>
+    <string name="view_all_call">کال</string>
+    <string name="view_all_screened_on">سک्रीन کیا گیا</string>
+    <string name="toolbar_recently_added">حال ہی میں شامل کیا گیا</string>
+
 </resources>

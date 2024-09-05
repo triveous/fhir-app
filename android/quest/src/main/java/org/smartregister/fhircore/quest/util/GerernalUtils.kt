@@ -1,6 +1,8 @@
 package org.smartregister.fhircore.quest.util
 
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import androidx.annotation.IdRes
@@ -76,4 +78,16 @@ fun Activity.hideKeyboard() {
         view.windowToken,
         0
     )
+}
+//fun Activity.restartApp() {
+//    val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
+//    intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+//    startActivity(intent)
+//    Runtime.getRuntime().exit(0)
+//}
+fun Context.restartApp() {
+    val intent = packageManager.getLaunchIntentForPackage(packageName)
+    intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+    startActivity(intent)
+    Runtime.getRuntime().exit(0)
 }
