@@ -1,0 +1,199 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="sync">ہاتھ سے ہم آہنگ کریں</string>
+    <string name="language">زبان</string>
+    <string name="logout_as_user">لاگ آؤٹ کریں</string>
+    <string name="show_overdue">پرانے کو دکھائیں</string>
+    <string name="search_hint">نام یا فون تلاش کریں</string>
+    <string name="scan_bar_code">بارکوڈ اسکین کریں</string>
+    <string name="empty_client_list_message_title">کوئی نتیجہ نہیں</string>
+    <string name="empty_client_list_message_details">معذرت، ہمیں فراہم کردہ نام یا شناختی نمبر کے ساتھ کوئی کلائنٹ نہیں ملا</string>
+    <string name="register_new_client">نیا کلائنٹ رجسٹر کریں</string>
+    <string name="default_app_title" translatable="false">فہر ایپ</string>
+    <string name="app_logo">ایپ کی علامت</string>
+    <string name="powered_by">دوسرے کی طرف سے</string>
+    <string name="app_version">ایپ ورژن %1$d(%2$s)</string>
+    <string name="last_sync">آخری ہم آہنگی %1$s</string>
+    <string name="login_text">لاگ ان</string>
+    <string name="login_call_fail_error_message">سرور سے تصدیق میں ناکامی۔ اپنے انٹرنیٹ کنکشن کو چیک کریں</string>
+    <string name="userinfo_call_fail_error_message">سرور سے صارف کی معلومات حاصل کرنے میں ناکامی۔ اپنے انٹرنیٹ کنکشن کو چیک کریں</string>
+    <string name="select_language">زبان منتخب کریں</string>
+    <string name="logout_user">لاگ آؤٹ کریں %1$s</string>
+    <string name="sync_completed">ہم آہنگی کامیاب</string>
+    <string name="syncing">ہم آہنگ ہو رہا ہے</string>
+    <string name="syncing_up">ہم آہنگی اوپر</string>
+    <string name="syncing_down">ہم آہنگی نیچے</string>
+    <string name="syncing_initiated">ہم آہنگی شروع ہو گئی&#8230;</string>
+    <string name="sync_failed">ہم آہنگی ناکام۔ انٹرنیٹ کنکشن چیک کریں یا بعد میں دوبارہ کوشش کریں</string>
+    <string name="sync_completed_with_errors">ہم آہنگی کچھ وقت میں دوبارہ کوشش کی جائے گی</string>
+    <string name="sync_unauthorised">ہم آہنگی ناکام، کیونکہ تصدیقی تفصیلات غلط ہیں</string>
+    <string name="refresh_token_fail_error_message">سرور سے تفصیلات حاصل کرنے میں ناکامی۔ براہ کرم اپنے انٹرنیٹ کنکشن کو چیک کریں</string>
+    <string name="try_again">دوبارہ کوشش کریں</string>
+    <string name="status_vaccinated">ٹیکہ لگایا گیا</string>
+    <string name="status_overdue">قرض میں</string>
+    <string name="status_received_vaccine">ٹیکہ %1$d \n%2$s</string>
+    <string name="fully_vaccinated">"پورے طور پر ٹیکہ لگایا گیا"</string>
+    <string name="already_fully_vaccinated">"مزید خوراک نہیں لے سکتے۔ پہلے ہی مکمل طور پر ٹیکہ لگایا گیا"</string>
+    <string name="record_vaccine_nl">ریکارڈ کریں\nٹیکہ</string>
+    <string name="date_last_seen">آخری بار دیکھا %1$s</string>
+    <string name="date_last_visited">آخری بار ملاحظہ کیا %1$s</string>
+    <string name="str_save">محفوظ کریں</string>
+    <string name="login_error">لاگ ان کی خرابی: %1$s</string>
+    <string name="str_next">اگلا</string>
+    <string name="str_previous">پچھلا</string>
+    <string name="str_page_info">صفحہ %1$d کا %2$d</string>
+    <string name="search_result">%1$d نتیجہ(ات)</string>
+    <string name="no_results">کوئی نتائج نہیں</string>
+    <string name="no_results_message">معذرت، ہم فراہم کردہ نام یا شناختی نمبر کے ساتھ کوئی شخص نہیں تلاش کر سکتے</string>
+    <string name="male">مرد</string>
+    <string name="female">خاتون</string>
+    <string name="other">دیگر</string>
+    <string name="unknown">نامعلوم</string>
+    <string name="syncing_failed">ہم آہنگی ناکام</string>
+    <string name="syncing_retry">ہم آہنگی دوبارہ کوشش کریں</string>
+    <string name="syncing_in_progress">ہم آہنگی جاری ہے</string>
+    <string name="loading">لوڈ ہو رہا ہے</string>
+    <string name="error_logging_out">لاگ آؤٹ کی خرابی: %1$s</string>
+    <string name="cannot_logout_user">لاگ آؤٹ نہیں کر سکتے: پہلے ہی لاگ آؤٹ ہو چکا ہے یا ڈیوائس آف لائن ہے</string>
+    <string name="error_loading_config_http_error">تشکیل لوڈ کرنے میں ناکامی۔ براہ کرم بعد میں دوبارہ کوشش کریں</string>
+    <string name="error_loading_config_no_internet">تشکیل لوڈ کرنے میں ناکامی۔ براہ کرم اپنے انٹرنیٹ کنکشن کو چیک کریں</string>
+    <string name="error_loading_config_general">سرور سے جڑنے میں خرابی۔ براہ کرم نظام کے منتظم سے رابطہ کریں</string>
+    <string name="error_loading_form">فارم لوڈ کرنے میں خرابی</string>
+    <string name="error_saving_form">فارم محفوظ کرنے میں خرابی</string>
+    <string name="form_progress_message">ڈیٹا پروسیسنگ ہو رہی ہے۔ براہ کرم انتظار کریں</string>
+    <string name="questionnaire_alert_back_pressed_message">کیا آپ واقعی واپس جانا چاہتے ہیں؟</string>
+    <string name="questionnaire_in_progress_alert_back_pressed_message">کیا آپ واقعی جوابات ضائع کرنا چاہتے ہیں؟</string>
+    <string name="questionnaire_alert_back_pressed_title">تبدیلیاں ضائع کریں</string>
+    <string name="questionnaire_alert_back_pressed_button_title">ضائع کریں</string>
+    <string name="questionnaire_alert_back_pressed_save_draft_button_title">جزوی ڈرافٹ محفوظ کریں</string>
+    <string name="questionnaire_alert_neutral_button_title">منسوخ کریں</string>
+    <string name="questionnaire_alert_confirm_button_title">ہاں</string>
+    <string name="questionnaire_alert_invalid_message">دیے گئے تفصیلات میں توثیق کی خرابی ہے۔ غلطیوں کو حل کریں اور دوبارہ جمع کریں</string>
+    <string name="questionnaire_alert_invalid_title">توثیق ناکام</string>
+    <string name="questionnaire_alert_ack_button_title">ٹھیک ہے</string>
+    <string name="username">صارف کا نام</string>
+    <string name="appname">آروگیا آروھن</string>
+    <string name="password">پاس ورڈ</string>
+    <string name="forgot_password">پاس ورڈ بھول گئے</string>
+    <string name="forgot_password_title">پاس ورڈ بھول گئے!</string>
+    <string name="more">مزید</string>
+    <string name="call_supervisor">اپنے سائٹ کوآرڈینیٹر سے رابطہ کریں</string>
+    <string name="cancel" tools:ignore="ButtonCase">منسوخ کریں</string>
+    <string name="dial_number">نمبر ڈائل کریں</string>
+    <string name="register">رجسٹر کریں</string>
+    <string name="visits">دورے</string>
+    <string name="reports">رپورٹس</string>
+    <string name="profile">پروفائل</string>
+    <string name="settings">سیٹنگز</string>
+    <string name="select_register">رجسٹر منتخب کریں</string>
+    <string name="tick">چیک کریں</string>
+    <string name="clients">کلائنٹس</string>
+    <string name="logout">لاگ آؤٹ کریں</string>
+    <string name="application_id">ایپلیکیشن آئی ڈی</string>
+    <string name="app_id_sample" translatable="false">جیسے ecbis، quest، cha</string>
+    <string name="load_configurations">تشکیلات لوڈ کریں</string>
+    <string name="fhir_core_app" translatable="false">FHIRCORE ایپ</string>
+    <string name="remember_app">ایپ یاد رکھیں</string>
+    <string name="done">ختم</string>
+    <string name="replace_photo">تصویر تبدیل کریں</string>
+    <string name="take_photo">تصویر لیں</string>
+    <string name="edit">ترمیم کریں</string>
+    <string name="application_not_supported">ایپلیکیشن %1$s کی ترتیبات لوڈ کرنے میں خرابی</string>
+    <string name="eCBIS_app_name" translatable="false">eCBIS</string>
+    <string name="invalid_login_credentials">موبائل یا پاس ورڈ غلط ہے</string>
+    <string name="invalid_form_id">غلط فارم آئی ڈی منسلک ہے</string>
+    <string name="no">نہیں</string>
+    <string name="yes">ہاں</string>
+    <string name="required_constraint_validation_error_msg">ضروری فیلڈ کے لیے کوئی جواب نہیں ہے۔</string>
+    <string name="set_pin">PIN سیٹ کریں</string>
+    <string name="set_pin_message">%1$s اس PIN کو لاگ ان کرنے کے لیے استعمال کرے گا</string>
+    <string name="enter_pin_for_user">%1$s کے لیے PIN درج کریں</string>
+    <string name="incorrect_pin_please_retry">غلط PIN، براہ کرم دوبارہ کوشش کریں</string>
+    <string name="pin_menu_login">لاگ ان</string>
+    <string name="forgot_pin">PIN بھول گئے؟ لاگ ان کے ذریعے دوبارہ سیٹ کریں</string>
+    <string name="please_contact_supervisor">براہ کرم اپنے نگران سے رابطہ کریں۔</string>
+    <string name="percentage" translatable="false">%</string>
+    <string name="logging_out">لاگ آؤٹ ہو رہا ہے۔ براہ کرم انتظار کریں…</string>
+    <string name="session_expired">سیشن ختم ہو گیا ہے اور دوبارہ لاگ ان کرنا ضروری ہے</string>
+    <string name="sex">جنس</string>
+    <string name="age">عمر</string>
+    <string name="dob">تاریخ پیدائش</string>
+    <string name="id" translatable="false">شناخت: %1$s</string>
+    <string name="see_all">سب دیکھیں</string>
+    <string name="forms">فارمز</string>
+    <string name="medical_history">طبی تاریخ</string>
+    <string name="upcoming_services">آنے والی خدمات</string>
+    <string name="service_card">خدمت کارڈ</string>
+    <string name="other_patients">دیگر مریض</string>
+    <string name="responses">جوابات (%1$s)</string>
+    <string name="multi_user_login_attempt">مختلف فراہم کنندہ کے ساتھ لاگ ان کرنے کی کوشش کی گئی</string>
+    <string name="please_wait">براہ کرم انتظار کریں…</string>
+    <string name="clear_database">ڈیٹا دوبارہ ترتیب دیں</string>
+    <string name="transfer_data">ڈیٹا منتقل کریں</string>
+    <string name="clear_database_title">ڈیٹا بیس دوبارہ ترتیب دیں!</string>
+    <string name="clear_database_message">ڈیٹا بیس کو دوبارہ ترتیب دینے سے آپ کے آلے سے تمام ریکارڈ صاف ہو جائیں گے۔ یہ عمل ناقابل واپسی ہے۔</string>
+    <string name="resetting_app">ایپ دوبارہ ترتیب دی جا رہی ہے…</string>
+    <string name="sync_strategy_careteam_system" translatable="false">https://smartregister.org/care-team-tag-id</string>
+    <string name="sync_strategy_location_system" translatable="false">https://smartregister.org/location-tag-id</string>
+    <string name="sync_strategy_organization_system" translatable="false">https://smartregister.org/organisation-tag-id</string>
+    <string name="sync_strategy_practitioner_system" translatable="false">https://smartregister.org/practitioner-tag-id</string>
+    <string name="sync_strategy_related_entity_location_system" translatable="false">https://smartregister.org/related-entity-location-tag-id</string>
+    <string name="sync_strategy_related_entity_location_display" translatable="false">متعلقہ ادارے کا مقام</string>
+    <string name="sync_strategy_careteam_display" translatable="false">معالج کی دیکھ بھال کی ٹیم</string>
+    <string name="sync_strategy_location_display" translatable="false">معالج کا مقام</string>
+    <string name="sync_strategy_organization_display" translatable="false">معالج کی تنظیم</string>
+    <string name="sync_strategy_practitioner_display" translatable="false">معالج</string>
+    <string name="year">سال</string>
+    <string name="month">مہینہ</string>
+    <string name="weeks">ہفتہ(ے)</string>
+    <string name="days">دن(ے)</string>
+    <string name="initializing">ترتیبات کو شروع کیا جا رہا ہے &#8230;</string>
+    <string name="username_sample" translatable="false">براہ کرم صارف کا نام درج کریں۔</string>
+    <string name="percentage_progress" translatable="false">%1$d%%</string>
+    <string name="error_occurred">کچھ غلط ہو گیا…</string>
+    <string name="integer_format_validation_error_msg"
+            xmlns:ns1="http://your.namespace.uri">عدد <ns1:g id="min_value">%1$s</ns1:g> اور <ns1:g id="max_value">%2$s</ns1:g> کے درمیان ہونا چاہئے</string>
+    <string name="insights">بینشیں</string>
+    <string name="contact_help">مدد سے رابطہ کریں</string>
+    <string name="offline_map">آف لائن نقشے</string>
+    <string name="dismiss">ختم کریں</string>
+    <string name="user_info">صارف کی معلومات</string>
+    <string name="assignment_info">تفویض کی معلومات</string>
+    <string name="app_info">ایپ کی معلومات</string>
+    <string name="device_info">آلہ کی معلومات</string>
+    <string name="refresh">تازہ کریں</string>
+    <string name="unsynced_resources">غیر ہم وقت شدہ وسائل</string>
+    <string name="synced_statistics">ہم وقت شدہ اعداد و شمار</string>
+    <string name="all_data_synced">تمام ڈیٹا ہم وقت شدہ</string>
+    <string name="invalid_offline_login_state">صارف کی سیٹ اپ کی ضرورت ہے۔ اپنے انٹرنیٹ کنکشن کو فعال کریں</string>
+    <string name="select_month">مہینہ منتخب کریں</string>
+    <string name="user">صارف</string>
+    <string name="team">ٹیم</string>
+    <string name="locality">مقامی علاقے</string>
+    <string name="team_organization">ٹیم (تنظیم)</string>
+    <string name="care_team">دیکھ بھال کی ٹیم</string>
+    <string name="location">مقام</string>
+    <string name="app_version_code">ایپ ورژن کوڈ</string>
+    <string name="build_date">بلڈ کی تاریخ</string>
+    <string name="manufacture">تیاری</string>
+    <string name="app_versions">ایپ ورژن</string>
+    <string name="os_version">OS ورژن</string>
+    <string name="device_date">تاریخ</string>
+    <string name="device">آلہ</string>
+    <string name="ok">ٹھیک ہے</string>
+    <string name="add">شامل کریں</string>
+    <string name="data_migration_started">ورژن %1$d سے ڈیٹا مائیگریشن شروع ہوئی</string>
+    <string name="data_migration_completed">ایپلیکیشن کا ڈیٹا ورژن %1$d میں منتقل ہو گیا</string>
+    <string name="select_your_site">اپنی سائٹ منتخب کریں</string>
+    <string name="btn_continue">جاری رکھیں</string>
+    <string name="iisc">IISc</string>
+    <string name="uploading_images_title">تصاویر اپ لوڈ ہو رہی ہیں</string>
+    <string name="images_pending_text">%1$d تصاویر منتظر ہیں</string>
+    <string name="upload_success">تصاویر کامیابی کے ساتھ اپ لوڈ ہو گئیں</string>
+    <string name="upload_failure">کچھ تصاویر اپ لوڈ کرنے میں ناکام رہیں</string>
+    <!--error message-->
+    <string name="failed_to_overwrite_url_request_successfully">URL درخواست کو کامیابی کے ساتھ اوور رائٹ کرنے میں ناکام</string>
+    <string name="unknown_error">نامعلوم خرابی</string>
+    <string name="failed_to_complete_request_successfully">درخواست کو کامیابی کے ساتھ مکمل کرنے میں ناکام</string>
+    <string name="no_internet_connection">کوئی انٹرنیٹ کنکشن نہیں</string>
+
+</resources>
