@@ -1,0 +1,199 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="sync">முதலீட்டு ஒத்திசைவு</string>
+    <string name="language">மொழி</string>
+    <string name="logout_as_user">வெளியேறு </string>
+    <string name="show_overdue">காலவரை நீக்கம்</string>
+    <string name="search_hint">பெயர் அல்லது தொலைபேசி தேடு</string>
+    <string name="scan_bar_code">படிக்குறியை ஸ்கேன் செய்</string>
+    <string name="empty_client_list_message_title">தீர்வுகள் இல்லை</string>
+    <string name="empty_client_list_message_details">கொடுக்கப்பட்ட பெயர் அல்லது ஐடியுடன் ஒத்துப்போகும் வாடிக்கையாளரை நாங்கள் கண்டுபிடிக்க முடியவில்லை</string>
+    <string name="register_new_client">புதிய வாடிக்கையாளரை பதிவு செய்</string>
+    <string name="default_app_title" translatable="false">Fhir App</string>
+    <string name="app_logo">பயன்பாட்டு லோகோ</string>
+    <string name="powered_by">சரமூலம்</string>
+    <string name="app_version">பயன்பாட்டு பதிப்பு %1$d(%2$s)</string>
+    <string name="last_sync">அடுத்த ஒத்திசைவு %1$s</string>
+    <string name="login_text">உள்நுழைவு</string>
+    <string name="login_call_fail_error_message">சர்வரிலிருந்து அங்கீகாரங்களை சரிபார்க்க முடியவில்லை. உங்கள் இணைய இணைப்பைச் சோதிக்கவும்</string>
+    <string name="userinfo_call_fail_error_message">சர்வரிலிருந்து பயனர் தகவலைப் பெற முடியவில்லை. உங்கள் இணைய இணைப்பைச் சோதிக்கவும்</string>
+    <string name="select_language">மொழியைத் தேர்ந்தெடு</string>
+    <string name="logout_user">வெளியேறு %1$s</string>
+    <string name="sync_completed">ஒத்திசைவு வெற்றிகரமாக முடிந்தது</string>
+    <string name="syncing">ஒத்திசைவு செய்கிறேன்</string>
+    <string name="syncing_up">மேலே ஒத்திசைவு செய்கிறேன்</string>
+    <string name="syncing_down">கீழே ஒத்திசைவு செய்கிறேன்</string>
+    <string name="syncing_initiated">ஒத்திசைவு தொடங்கப்பட்டது&#8230;</string>
+    <string name="sync_failed">ஒத்திசைவு தோல்வி. இணைய இணைப்பைச் சோதிக்கவும் அல்லது பிறகு மீண்டும் முயற்சிக்கவும்</string>
+    <string name="sync_completed_with_errors">ஒத்திசைவு சில நேரங்களில் மீண்டும் முயற்சிக்கப்படும்</string>
+    <string name="sync_unauthorised">ஒத்திசைவு தோல்வி, அங்கீகார குறிப்புகள் தவறாக உள்ளன.</string>
+    <string name="refresh_token_fail_error_message">சர்வரிலிருந்து அங்கீகாரங்களைப் பெற முடியவில்லை. உங்கள் இணைய இணைப்பைச் சோதிக்கவும்.</string>
+    <string name="try_again">மீண்டும் முயற்சிக்கவும்</string>
+    <string name="status_vaccinated">காப்பீடு செய்யப்பட்ட</string>
+    <string name="status_overdue">காலவரையற்ற</string>
+    <string name="status_received_vaccine">காப்பீடு %1$d \n%2$s</string>
+    <string name="fully_vaccinated">"முழுமையாக காப்பீடு செய்யப்பட்ட"</string>
+    <string name="already_fully_vaccinated">"மற்றொரு டோசை பெற முடியாது. ஏற்கனவே முழுமையாக காப்பீடு செய்யப்பட்ட"</string>
+    <string name="record_vaccine_nl">பதிவேற்றுக\nகாப்பீடு</string>
+    <string name="date_last_seen">கடைசி நேரம் %1$s</string>
+    <string name="date_last_visited">கடைசி செல்லும் தேதி %1$s</string>
+    <string name="str_save">சேமி</string>
+    <string name="login_error">உள்நுழைவு பிழை: %1$s</string>
+    <string name="str_next">அடுத்தது</string>
+    <string name="str_previous">முந்தையது</string>
+    <string name="str_page_info">பக்கம் %1$d இல் %2$d</string>
+    <string name="search_result">%1$d முடிவுகள்</string>
+    <string name="no_results">முடிவுகள் இல்லை</string>
+    <string name="no_results_message">தரப்பட்ட பெயர் அல்லது ஐடியுடன் நாங்கள் நபரை கண்டுபிடிக்க முடியவில்லை</string>
+    <string name="male">ஆண்</string>
+    <string name="female">பெண்</string>
+    <string name="other">மற்றவை</string>
+    <string name="unknown">தெரியாது</string>
+    <string name="syncing_failed">ஒத்திசைவு தோல்வி</string>
+    <string name="syncing_retry">ஒத்திசைவை மீண்டும் முயற்சிக்கவும்</string>
+    <string name="syncing_in_progress">ஒத்திசைவு நடைபெறுகிறது</string>
+    <string name="loading">ஏற்றுகிறது</string>
+    <string name="error_logging_out">வெளியேறும் பிழை: %1$s</string>
+    <string name="cannot_logout_user">வெளியேற முடியாது: ஏற்கனவே வெளியாகவே தவறாக உள்ளது அல்லது சாதனம் ஆஃப்லைன்.</string>
+    <string name="error_loading_config_http_error">கட்டமைப்பை ஏற்ற முடியவில்லை. பிறகு மீண்டும் முயற்சிக்கவும்</string>
+    <string name="error_loading_config_no_internet">கட்டமைப்பை ஏற்ற முடியவில்லை. உங்கள் இணைய இணைப்பைச் சோதிக்கவும்</string>
+    <string name="error_loading_config_general">சர்வருக்கு இணைக்க முடியவில்லை. கணினி நிர்வாகியுடன் தொடர்பு கொள்ளவும்</string>
+    <string name="error_loading_form">படிவத்தை ஏற்றுவதில் பிழை</string>
+    <string name="error_saving_form">படிவத்தைச் சேமிக்க முடியவில்லை</string>
+    <string name="form_progress_message">தரவை செயலாக்குகிறது. தயவுசெய்து காத்திருங்கள்</string>
+    <string name="questionnaire_alert_back_pressed_message">நீங்கள் முந்தைய பக்கம் செல்ல விரும்புகிறீர்களா?</string>
+    <string name="questionnaire_in_progress_alert_back_pressed_message">உங்களின் பதில்களை நீக்க விரும்புகிறீர்களா?</string>
+    <string name="questionnaire_alert_back_pressed_title">மாற்றங்களை நீக்கு</string>
+    <string name="questionnaire_alert_back_pressed_button_title">நீக்கு</string>
+    <string name="questionnaire_alert_back_pressed_save_draft_button_title">மூ Partial draft சேமி</string>
+    <string name="questionnaire_alert_neutral_button_title">ரத்து செய்</string>
+    <string name="questionnaire_alert_confirm_button_title">ஆம்</string>
+    <string name="questionnaire_alert_invalid_message">தரப்பட்ட விவரங்களில் doğruluk பிழைகள் உள்ளன. பிழைகளை சரிசெய்து மீண்டும் சமர்ப்பிக்கவும்</string>
+    <string name="questionnaire_alert_invalid_title">சரிபார்த்தல் தோல்வி</string>
+    <string name="questionnaire_alert_ack_button_title">சரி</string>
+    <string name="username">பயனர்பெயர்</string>
+    <string name="appname">ஆரோக்யா ஆரோஹன்</string>
+    <string name="password">கடவுச்சொல்</string>
+    <string name="forgot_password">கடவுச்சொல்லை மறந்துவிட்டீர்களா</string>
+    <string name="forgot_password_title">கடவுச்சொல்லை மறந்துவிட்டீர்கள்!</string>
+    <string name="more">மேலும்</string>
+    <string name="call_supervisor">உங்கள் தளம் ஒருங்கிணைப்பாளர் தொடர்பு கொள்ளவும்.</string>
+    <string name="cancel" tools:ignore="ButtonCase">ரத்து செய்</string>
+    <string name="dial_number">எண் அழைக்கவும்</string>
+    <string name="register">பதிவேற்று</string>
+    <string name="visits">விளக்கம்</string>
+    <string name="reports">அறிக்கைகள்</string>
+    <string name="profile">சுயவிவரம்</string>
+    <string name="settings">அமைப்புகள்</string>
+    <string name="select_register">பதிவேற்று தேர்வு செய்</string>
+    <string name="tick">ச்சதிக்க</string>
+    <string name="clients">வாடிக்கையாளர்கள்</string>
+    <string name="logout">வெளியேறு</string>
+    <string name="application_id">ஆவணத்தின் ஐடி</string>
+    <string name="app_id_sample" translatable="false">எ.கா. ecbis, quest, cha</string>
+    <string name="load_configurations">கட்டமைப்புகளை ஏற்று</string>
+    <string name="fhir_core_app" translatable="false">FHIRCORE APP</string>
+    <string name="remember_app">பயன்பாட்டைப் பழுதுபார்க்கவும்</string>
+    <string name="done">முடிந்தது</string>
+    <string name="replace_photo">படத்தை மாற்றவும்</string>
+    <string name="take_photo">படத்தை எடுங்கள்</string>
+    <string name="edit">தொகு</string>
+    <string name="application_not_supported">பயன்பாடு %1$s கட்டமைப்புகளை ஏற்றுவதில் பிழை</string>
+    <string name="eCBIS_app_name" translatable="false">eCBIS</string>
+    <string name="invalid_login_credentials">மொபைல் அல்லது கடவுச்சொல் தவறாக உள்ளது</string>
+    <string name="invalid_form_id">தவறான படிவ ஐடி இணைக்கப்பட்டுள்ளது</string>
+    <string name="no">இல்லை</string>
+    <string name="yes">ஆமாம்</string>
+    <string name="required_constraint_validation_error_msg">தேவையான களத்திற்கு பதிலளிக்கவில்லை.</string>
+    <string name="set_pin">பின் அமைக்கவும்</string>
+    <string name="set_pin_message">%1$s இந்த பின் பயன்படுத்தி உள்நுழைகிறது</string>
+    <string name="enter_pin_for_user">%1$s க்கான பினை உள்ளிடவும்</string>
+    <string name="incorrect_pin_please_retry">தவறான பின், தயவுசெய்து மீண்டும் முயற்சிக்கவும்</string>
+    <string name="pin_menu_login">உள்நுழைவு</string>
+    <string name="forgot_pin">பின் மறந்துவிட்டீர்களா? உள்நுழைவு மூலம் மீட்டமைக்கவும்</string>
+    <string name="please_contact_supervisor">தயவுசெய்து உங்கள் மேற்பார்வையாளர் தொடர்பு கொள்ளவும்.</string>
+    <string name="percentage" translatable="false">%</string>
+    <string name="logging_out">வெளியேறுகிறேன். தயவுசெய்து காத்திருங்கள்…</string>
+    <string name="session_expired">அமர்வுக் காலம் முடிந்துவிட்டது மற்றும் மீண்டும் உள்நுழைய வேண்டும்</string>
+    <string name="sex">பாலினம்</string>
+    <string name="age">வயது</string>
+    <string name="dob">பிறந்த தேதி</string>
+    <string name="id" translatable="false">ஐடி: %1$s</string>
+    <string name="see_all">அனைவரையும் காண்க</string>
+    <string name="forms">படிவங்கள்</string>
+    <string name="medical_history">மருத்துவ வரலாறு</string>
+    <string name="upcoming_services">எதிர்வரும் சேவைகள்</string>
+    <string name="service_card">சேவை அட்டையில்</string>
+    <string name="other_patients">மற்ற நோயாளிகள்</string>
+    <string name="responses">பதில்கள் (%1$s)</string>
+    <string name="multi_user_login_attempt">வேறுபட்ட வழங்குநருடன் உள்நுழைய முயற்சித்தது</string>
+    <string name="please_wait">தயவுசெய்து காத்திருங்கள்…</string>
+    <string name="clear_database">தரவை மீட்டமைக்கவும்</string>
+    <string name="transfer_data">தரவை மாற்றவும்</string>
+    <string name="clear_database_title">தரவை மீட்டமைக்கவும்!</string>
+    <string name="clear_database_message">தரவை மீட்டமைப்பது உங்கள் சாதனத்தில் உள்ள அனைத்து பதிவுகளையும் அழிக்கும். இந்த நடவடிக்கையை திருப்பி செய்ய முடியாது.</string>
+    <string name="resetting_app">பயன்பாட்டை மீட்டமைக்கிறேன்…</string>
+    <string name="sync_strategy_careteam_system" translatable="false">https://smartregister.org/care-team-tag-id</string>
+    <string name="sync_strategy_location_system" translatable="false">https://smartregister.org/location-tag-id</string>
+    <string name="sync_strategy_organization_system" translatable="false">https://smartregister.org/organisation-tag-id</string>
+    <string name="sync_strategy_practitioner_system" translatable="false">https://smartregister.org/practitioner-tag-id</string>
+    <string name="sync_strategy_related_entity_location_system" translatable="false">https://smartregister.org/related-entity-location-tag-id</string>
+    <string name="sync_strategy_related_entity_location_display" translatable="false">சம்பந்தப்பட்ட entity இடம்</string>
+    <string name="sync_strategy_careteam_display" translatable="false">மருத்துவக் குழு</string>
+    <string name="sync_strategy_location_display" translatable="false">மருத்துவக் இடம்</string>
+    <string name="sync_strategy_organization_display" translatable="false">மருத்துவ நிறுவனம்</string>
+    <string name="sync_strategy_practitioner_display" translatable="false">மருத்துவர்</string>
+    <string name="year">ஆண்டு</string>
+    <string name="month">மாதம்</string>
+    <string name="weeks">வாரங்கள்</string>
+    <string name="days">நாட்கள்</string>
+    <string name="initializing">அமைப்புகளை ஆரம்பிக்கிறேன் &#8230;</string>
+    <string name="username_sample" translatable="false">பயனர்பெயரை உள்ளிடவும்.</string>
+    <string name="percentage_progress" translatable="false">%1$d%%</string>
+    <string name="error_occurred">எதோ தவறாக நடந்தது…</string>
+    <string name="integer_format_validation_error_msg"
+            xmlns:ns1="http://your.namespace.uri">எண்கள் <ns1:g id="min_value">%1$s</ns1:g> மற்றும் <ns1:g id="max_value">%2$s</ns1:g> மத்தியில் இருக்க வேண்டும்</string>
+    <string name="insights">ஆழ்வுகள்</string>
+    <string name="contact_help">உதவிக்கு தொடர்பு கொள்ளவும்</string>
+    <string name="offline_map">ஆஃப்லைன் வரைபடங்கள்</string>
+    <string name="dismiss">மறுக்கவும்</string>
+    <string name="user_info">பயனர் தகவல்</string>
+    <string name="assignment_info">அந்த_assignment தகவல்</string>
+    <string name="app_info">பயன்பாட்டு தகவல்</string>
+    <string name="device_info">கருவி தகவல்</string>
+    <string name="refresh">புதுப்பிக்கவும்</string>
+    <string name="unsynced_resources">சிங்கூப் செய்யாத வளங்கள்</string>
+    <string name="synced_statistics">சிங்கூப் செய்யப்பட்ட புள்ளிவிவரங்கள்</string>
+    <string name="all_data_synced">அனைத்து தரவுகளும் சிங்கூப் செய்யப்பட்டுள்ளது</string>
+    <string name="invalid_offline_login_state">பயனர் அமைப்பு தேவை. உங்கள் இன்டர்நெட் இணைப்பை இயக்கவும்</string>
+    <string name="select_month">மாதத்தைத் தேர்வு செய்க</string>
+    <string name="user">பயனர்</string>
+    <string name="team">அணி</string>
+    <string name="locality">உள்ளூர்</string>
+    <string name="team_organization">அணி(அமைப்பு)</string>
+    <string name="care_team">மருத்துவக் குழு</string>
+    <string name="location">இடம்</string>
+    <string name="app_version_code">பயன்பாட்டு பதிப்பு குறியீடு</string>
+    <string name="build_date">கட்டுமான தேதி</string>
+    <string name="manufacture">உற்பத்தி</string>
+    <string name="app_versions">பயன்பாட்டு பதிப்பு</string>
+    <string name="os_version">ஓஎஸ் பதிப்பு</string>
+    <string name="device_date">தேதி</string>
+    <string name="device">கருவி</string>
+    <string name="ok">சரி</string>
+    <string name="add">கூட்டு</string>
+    <string name="data_migration_started">பதிப்பு %1$d இருந்து தரவுப் பரிமாற்றம் துவங்கியது</string>
+    <string name="data_migration_completed">பயன்பாட்டு தரவுகள் பதிப்பு %1$d க்கு மாற்றப்பட்டது</string>
+    <string name="select_your_site">உங்கள் தளத்தைத் தேர்வு செய்க</string>
+    <string name="btn_continue">தொடர்ந்து</string>
+    <string name="iisc">IISc</string>
+    <string name="uploading_images_title">படங்களை ஏற்றுகிறேன்</string>
+    <string name="images_pending_text">%1$d படங்கள் எதிர்பார்க்கப்படுகிறது</string>
+    <string name="upload_success">படங்கள் வெற்றிகரமாக ஏற்றப்பட்டது</string>
+    <string name="upload_failure">சில படங்கள் ஏற்றுவதில் தோல்வி அடைந்தது</string>
+    <!--error message-->
+    <string name="failed_to_overwrite_url_request_successfully">URL கோரிக்கையை வெற்றிகரமாக மீட்டமைக்க முடியவில்லை</string>
+    <string name="unknown_error">அறியமுடியாத பிழை</string>
+    <string name="failed_to_complete_request_successfully">கோரிக்கையை வெற்றிகரமாக நிறைவேற்ற முடியவில்லை</string>
+    <string name="no_internet_connection">இணைய இணைப்பு இல்லை</string>
+
+</resources>
