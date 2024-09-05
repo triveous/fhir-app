@@ -112,7 +112,7 @@ fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit
                         }
                     ) {
                         Text(
-                            text = filter.label,
+                            text = getTabName(filter.label),
                             modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
                             color = if (filter == selectedFilter) Colors.WHITE else Colors.Quartz
                         )
@@ -123,6 +123,15 @@ fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit
                 }
             }
         }
+    }
+}
+
+@Composable
+fun getTabName(labelName:String): String {
+    return if (labelName.equals(FilterType.DRAFTS.label, true)) {
+        stringResource(id = R.string.view_all_draft)
+    } else {
+        stringResource(id = R.string.view_all_submissions)
     }
 }
 
@@ -466,6 +475,7 @@ fun ShowAllDrafts(
                             .padding(horizontal = 16.dp)
                     ) {
                         Text(
+
                             text = "SEE ${allDraftsSize - 3} MORE",
                             color = LightColors.primary,
                             style = MaterialTheme.typography.body2.copy(

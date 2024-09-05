@@ -20,12 +20,11 @@ import android.content.Context
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import java.lang.UnsupportedOperationException
-import java.util.Locale
-import javax.inject.Inject
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.setAppLocale
+import java.util.Locale
+import javax.inject.Inject
 
 /**
  * Base class for all activities used in the app. Every activity should extend this class for
@@ -44,11 +43,10 @@ abstract class BaseMultiLanguageActivity : AppCompatActivity() {
   }
 
   override fun attachBaseContext(baseContext: Context) {
-    val lang =
-      baseContext
-        .getSharedPreferences(SharedPreferencesHelper.PREFS_NAME, Context.MODE_PRIVATE)
-        .getString(SharedPreferenceKey.LANG.name, Locale.ENGLISH.toLanguageTag())
+    val lang = baseContext.getSharedPreferences(SharedPreferencesHelper.PREFS_NAME, Context.MODE_PRIVATE)
+        .getString(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, Locale.ENGLISH.toLanguageTag())
         ?: Locale.ENGLISH.toLanguageTag()
+
     baseContext.setAppLocale(lang).run {
       super.attachBaseContext(baseContext)
       applyOverrideConfiguration(this)

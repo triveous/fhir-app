@@ -234,4 +234,41 @@
     <string name="okay">ঠিক আছে</string>
     <string name="notification_permission_title">নোটিফিকেশন পারমিশন</string>
     <string name="notification_permission_description">সর্বশেষ ডেটা সিঙ্ক সম্পর্কে জানানো হতে নোটিফিকেশন সক্রিয় করুন। সময়মতো সিঙ্ক সতর্কতা প্রদান করে নিশ্চিত করুন যে আপনার অ্যাপ সর্বদা সবচেয়ে বর্তমান তথ্য পায়।</string>
+
+    <!-- Menu-->
+    <string name="menu_cases">মামলা</string>
+    <string name="menu_recommendations">প্রস্তাবনা</string>
+    <string name="menu_dashboard">ড্যাশবোর্ড</string>
+
+    <!-- Recommendations -->
+    <string name="enter_name_or_phone">নাম বা ফোন প্রবেশ করুন</string>
+    <string name="status_new">নতুন</string>
+    <string name="status_pending">অমীমাংসিত</string>
+    <string name="status_completed">সম্পূর্ণ</string>
+
+    <!-- Dashboard -->
+    <string name="health_center">স্বাস্থ্য কেন্দ্র</string>
+    <string name="total_screened_cases">মোট স্ক্রীন করা মামলা</string>
+    <string name="today">আজ</string>
+    <string name="this_week">এই সপ্তাহ</string>
+    <string name="this_month">এই মাস</string>
+    <string name="dashboard_add_patient">নতুন মামলা যোগ করুন</string>
+
+    <!-- See All-->
+    <string name="view_all_draft">ড্রাফটস</string>
+    <string name="view_all_submissions">सभी सबमिशन</string>
+
+    <!-- View All-->
+    <string name="view_all_urgent_referral">জরুরি রেফারেল</string>
+    <string name="view_all_add_investigation">অতিরিক্ত তদন্ত</string>
+    <string name="view_all_retake_photo">ছবি পুনরায় তুলুন</string>
+    <string name="view_all_advice_to_quit">ছাড়ার পরামর্শ</string>
+    <string name="view_all_advice_to_quit_habit">অভ্যাস ছাড়ার পরামর্শ</string>
+    <string name="view_all_change_status">অবস্থা পরিবর্তন করুন</string>
+    <string name="view_all_phone">ফোন %s</string>
+    <string name="phone_with_space">ফোন </string>
+    <string name="view_all_call">কল</string>
+    <string name="view_all_screened_on">স্ক্রীন করা হয়েছে</string>
+    <string name="toolbar_recently_added">সাম্প্রতিকভাবে যোগ করা হয়েছে</string>
+
 </resources>

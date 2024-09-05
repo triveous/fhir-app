@@ -32,73 +32,65 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
-import org.smartregister.fhircore.engine.ui.theme.LightColors
-import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
-import org.smartregister.fhircore.quest.ui.main.components.FILTER
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ModalBottomSheetLayout
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.Scaffold
 import androidx.compose.material.rememberModalBottomSheetState
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonColors
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Task
-import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
+import org.smartregister.fhircore.engine.ui.theme.LightColors
+import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
 
-
-const val URGENT_REFERRAL_TAB = "Urgent Referral"
-const val ADD_INVESTIGATION_TAB = "Add Investigation"
-const val RETAKE_PHOTO_TAB = "Retake Photo Tab"
-const val URGENT_REFERRAL_PATIENTS = 0
-const val ADD_INVESTIGATION_PATIENTS = 1
-const val RETAKE_PHOTO_PATIENTS = 2
 
 enum class FilterType(val label: String) {
   URGENT_REFERRAL("Urgent Referral"),
@@ -117,12 +109,18 @@ fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit
     ) {
     FilterType.entries.forEachIndexed { index, filter ->
       Box(modifier = Modifier
-        .border(width = 0.5.dp, color = (if (filter == selectedFilter) LightColors.primary else Color.LightGray ), shape = RoundedCornerShape(8.dp))
-        .background(if (filter == selectedFilter) LightColors.primary else SearchHeaderColor,
-          shape = RoundedCornerShape(8.dp))
+        .border(
+          width = 0.5.dp,
+          color = (if (filter == selectedFilter) LightColors.primary else Color.LightGray),
+          shape = RoundedCornerShape(8.dp)
+        )
+        .background(
+          if (filter == selectedFilter) LightColors.primary else SearchHeaderColor,
+          shape = RoundedCornerShape(8.dp)
+        )
         .padding(8.dp)) {
         Text(
-          text = filter.label,
+          text = getFilterName(filter.label),
           style = TextStyle(
             fontWeight = FontWeight(600),
             fontSize = 16.sp
@@ -139,6 +137,21 @@ fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit
         Spacer(modifier = Modifier.width(8.dp)) // Horizontal margin
       }
     }
+  }
+}
+
+@Composable
+fun getFilterName(labelName: String): String {
+  return if (labelName.equals(FilterType.ADD_INVESTIGATION.label, true)) {
+    stringResource(id = R.string.view_all_add_investigation)
+  } else if (labelName.equals(FilterType.RETAKE_PHOTO.label, true)) {
+    stringResource(id = R.string.view_all_retake_photo)
+  } else if (labelName.equals(FilterType.ADVICE_TO_QUIT.label, true)) {
+    stringResource(id = R.string.view_all_advice_to_quit)
+  } else if (labelName.equals("ADVICE TO QUIT HABIT", true)) {
+    stringResource(id = R.string.view_all_advice_to_quit)
+  } else {
+    stringResource(id = R.string.view_all_urgent_referral)
   }
 }
 
@@ -368,7 +381,7 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
     Row(modifier = Modifier
       .fillMaxWidth(),
       verticalAlignment = Alignment.CenterVertically) {
-      Text(text = "Screened on ",
+      Text(text = stringResource(id = R.string.view_all_screened_on),
         color = colorResource(id = R.color.subTextGreyBold),
         fontSize = 14.sp,
         fontWeight = FontWeight.Bold)
@@ -390,7 +403,7 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
 
       Row {
         Text(
-          text = "Phone ",
+          text = stringResource(id = R.string.view_all_phone),
           color = colorResource(id = R.color.subTextGreyBold),
           fontSize = 14.sp,
           fontWeight = FontWeight.Bold,
@@ -412,7 +425,7 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
         },
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Text(text = "Call", color = LightColors.primary)
+        Text(text = stringResource(id = R.string.view_all_call), color = LightColors.primary)
 
         Spacer(modifier = Modifier.width(4.dp))
 
@@ -441,25 +454,25 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
       when(task.task.intent){
 
         Task.TaskIntent.PLAN -> {
-          label = "ADD INVESTIGATION"
+          label = getFilterName("ADD INVESTIGATION").uppercase()
           color = Color(0xFFFFF8E0)
           textColor = Color(0xFFFFC800)
         }
 
         Task.TaskIntent.OPTION -> {
-          label = "ADVICE TO QUIT HABIT"
+          label = getFilterName("ADVICE TO QUIT HABIT").uppercase()
           color = Color(0xFFFFF8E0)
           textColor = Color(0xFFFFC800)
         }
 
         Task.TaskIntent.ORDER -> {
-          label = "URGENT REFERRAL"
+          label = getFilterName("URGENT REFERRAL").uppercase()
           color = Color(0xFFFFCDD2)
           textColor = Color(0xFFFF3355)
         }
 
         Task.TaskIntent.PROPOSAL -> {
-          label = "RETAKE PHOTO"
+          label = getFilterName("RETAKE PHOTO").uppercase()
           color = Color.LightGray
           textColor = Color.Gray
         }
@@ -498,7 +511,7 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
         .background(Color.LightGray))
 
       Spacer(modifier = Modifier.height(16.dp))
-      Text(text = "CHANGE STATUS", color = colorResource(id = R.color.subTextGrey), fontSize = 14.sp)
+      Text(text = stringResource(id = R.string.view_all_change_status), color = colorResource(id = R.color.subTextGrey), fontSize = 14.sp)
       Spacer(modifier = Modifier.height(16.dp))
     }
 
@@ -719,13 +732,13 @@ fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewMo
               Text(
                 modifier = Modifier
                   .padding(vertical = 4.dp, horizontal = 4.dp),
-                text = "$name",
+                text = name,
                 fontSize = 18.sp,
                 color = LightColors.primary
               )
               Spacer(modifier = Modifier.height(4.dp))
               Text(
-                text = "Phone ${phone}",
+                text = stringResource(id = R.string.phone)+phone,
                 color = colorResource(id = R.color.subTextGrey),
                 fontSize = 14.sp,
                 modifier = Modifier
@@ -740,25 +753,25 @@ fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewMo
                 when(task.task.intent){
 
                   Task.TaskIntent.PLAN -> {
-                    label = "ADD INVESTIGATION"
+                    label = getFilterName("ADD INVESTIGATION").uppercase()
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                   }
 
                   Task.TaskIntent.OPTION -> {
-                    label = "ADVICE TO QUIT HABIT"
+                    label = getFilterName("ADVICE TO QUIT HABIT").uppercase()
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                   }
 
                   Task.TaskIntent.ORDER -> {
-                    label = "URGENT REFERRAL"
+                    label = getFilterName("URGENT REFERRAL").uppercase()
                     color = Color(0xFFFFCDD2)
                     textColor = Color(0xFFFF3355)
                   }
 
                   Task.TaskIntent.PROPOSAL -> {
-                    label = "RETAKE PHOTO"
+                    label = getFilterName("RETAKE PHOTO").uppercase()
                     color = Color.LightGray
                     textColor = Color.Gray
                   }
