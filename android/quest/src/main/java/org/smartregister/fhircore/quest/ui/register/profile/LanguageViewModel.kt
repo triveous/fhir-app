@@ -88,7 +88,6 @@ class LanguageViewModel @Inject constructor(
         Locale.setDefault(locale)
         val configuration = context.resources.configuration
         configuration.setLocale(locale)
-        configuration.setLayoutDirection(locale)
         return context.createConfigurationContext(configuration)
     }
 }

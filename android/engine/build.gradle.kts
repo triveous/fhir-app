@@ -28,6 +28,7 @@ android {
       "IS_NON_PROXY_APK",
       "${project.hasProperty("isNonProxy") && property("isNonProxy").toString().toBoolean()}",
     )
+    resourceConfigurations += listOf("en", "hi", "bn", "te", "mr", "ta", "ur")
   }
 
   buildTypes {
