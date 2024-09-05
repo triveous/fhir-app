@@ -1,0 +1,237 @@
+<resources xmlns:ns1="http://schemas.android.com/apk/res-auto">
+    <string name="back_to_clients">வாடிக்கையாளர் பட்டியலுக்கு திரும்பு</string>
+    <string name="test_results">சோதனை முடிவுகள்</string>
+
+    <string name="edit_patient_info">தகவலை திருத்து</string>
+
+    <string name="menu_clients">வாடிக்கையாளர்கள்</string>
+    <string name="menu_settings">அமைப்புகள்</string>
+
+    <string name="cannot_find_parent_questionnaire">பெற்றோரும் கேள்விகோவையும் கண்டுபிடிக்க முடியவில்லை!</string>
+    <string name="max_size_file_above_limit_validation_error_msg">பிழை: கோப்பு அளவு %1$s MB க்கு மேலாக உள்ளது</string>
+    <string name="max_size_image_above_limit_validation_error_msg">பிழை: படத்தின் அளவு %1$s MB க்கு மேலாக உள்ளது</string>
+    <string name="max_value_validation_error_msg">அதிகபட்ச மதிப்பு:<ns1:g id="max_value">%1$s</ns1:g> </string>
+    <string name="mime_type_wrong_media_format_validation_error_msg">பிழை: தவறான ஊடக வடிவம்</string>
+    <string name="min_length_validation_error_msg">பதில் அளவுக்குள் அனுமதிக்கப்படும் குறைந்தபட்ச எழுத்துக்களின் எண்ணிக்கை: <ns1:g id="min_length">%1$s</ns1:g> </string>
+    <string name="min_value_validation_error_msg">குறைந்தபட்ச மதிப்பு:<ns1:g id="min_value">%1$s</ns1:g> </string>
+    <string name="multi_select_dialog_subtitle">சரி என்று தேர்ந்தெடுக்கவும்</string>
+    <string name="take_photo">புகைப்படம் எடு</string>
+    <string name="time">நேரம்</string>
+    <string name="upload_audio">ஒலியை பதிவேற்றவும்</string>
+    <string name="upload_document">ஆவணத்தை பதிவேற்றவும்</string>
+    <string name="upload_failed">பதிவேற்றம் தோல்வி</string>
+    <string name="image_capture_failed">படப் பிடித்தல் தோல்வி</string>
+    <string name="upload_file">கோப்பைப் பதிவேற்றவும்</string>
+    <string name="upload_photo">படத்தை பதிவேற்றவும்</string>
+    <string name="upload_video">வீடியோவை பதிவேற்றவும்</string>
+    <string name="uploaded">பதிவேற்றப்பட்டது</string>
+    <string name="video_deleted">வீடியோ நீக்கப்பட்டது</string>
+    <string name="video_uploaded">வீடியோ பதிவேற்றப்பட்டது</string>
+    <string name="audio_deleted">ஒலியினை நீக்கப்பட்டது</string>
+    <string name="audio_uploaded">ஒலியினை பதிவேற்றப்பட்டது</string>
+
+    <string name="loading_forms">படிவங்களை ஏற்றுகிறது…</string>
+    <string name="loading_responses">பதில் வகைகளை ஏற்றுகிறது…</string>
+    <string name="loading_patients">வாடிக்கையாளர் விவரங்களை ஏற்றுகிறது…</string>
+    <string name="no_test_results_found">சோதனை முடிவுகள் காணவில்லை</string>
+    <string name="patient_test_results">சோதனை முடிவுகள்</string>
+    <string name="last_test">கடைசி சோதனை - %1$s</string>
+    <string name="sample_distance" translatable="false">2.4 கி.மீ</string>
+    <string name="hash_sign" translatable="false">#</string>
+    <string name="menu_tasks">பணி</string>
+    <string name="household">அடிப்படை</string>
+    <string name="routine_visit">நடந்துக்கொள்ளும் விஜயம்</string>
+    <string name="anc_visit">ANC விஜயம்</string>
+    <string name="at_risk">அபாயத்தில் உள்ளவர்</string>
+    <string name="no_tasks">பணிகள் இல்லை</string>
+    <string name="add_member">ஆணையைச் சேர்க்கவும்</string>
+    <string name="what_to_do">நீங்கள் என்ன செய்ய விரும்புகிறீர்கள்?</string>
+
+    <!--Overflow menu strings -->
+    <string name="view_profile">சுயவிவரத்தைப் பார்க்கவும்</string>
+    <string name="family_details">குடும்ப விவரங்கள்</string>
+    <string name="change_family_head">குடும்பத் தலைவரை மாற்றவும்</string>
+    <string name="change_primary_caregiver">முதன்மை பராமரிப்பாளரை மாற்றவும்</string>
+    <string name="family_activity">குடும்ப செயல்பாடு</string>
+    <string name="view_past_encounters">முந்தைய சந்திப்புகளைப் பார்க்கவும்</string>
+    <string name="remove_family">குடும்பத்தை நீக்கவும்</string>
+    <string name="family_suffix">%1$s குடும்பம்</string>
+    <string name="remove_this_person">இந்த நபரை நீக்கவும்</string>
+    <string name="individual_details">தனிப்பட்ட விவரங்கள்</string>
+    <string name="view_family">குடும்பத்தைப் பார்க்கவும்</string>
+    <string name="record_sick_child">அசிங்கான குழந்தையை பதிவு செய்யவும்</string>
+
+    <!-- SideMenu option strings-->
+    <string name="device_to_device_sync">அமைப்புக்கிடையிலான ஒத்திகை</string>
+    <string name="anc_clients">ANC வாடிக்கையாளர்கள்</string>
+    <string name="all_clients">அனைத்து வாடிக்கையாளர்கள்</string>
+    <string name="pnc_clients">PNC வாடிக்கையாளர்கள்</string>
+    <string name="hiv_clients">வாடிக்கையாளர்கள் பட்டியல்</string>
+    <string name="phone_tracing_clients">தொலைபேசி கண்டறிதல்</string>
+    <string name="home_tracing_clients">வீட்டு கண்டறிதல்</string>
+    <string name="appointment_clients">நியமனங்கள்</string>
+    <string name="family_planning_clients">குடும்ப திட்டமிடல் வாடிக்கையாளர்கள்</string>
+    <string name="households">குடும்பங்கள்</string>
+    <string name="children">குழந்தைகள்</string>
+
+
+    <!--remove family questionnaire strings-->
+    <string name="remove_family_warning">%1$s ஐ நீக்குவதால், அவர்களின் முழு சுகாதாரப் பதிவும் உங்கள் சாதனத்தில் இருந்து நீக்கப்படும். இந்த செயலை மீட்டமைக்க முடியாது.</string>
+
+    <!--remove family member questionnaire strings-->
+    <string name="remove_family_member_warning">%1$s ஐ இந்த குடும்பத்திலிருந்து நிரந்தரமாக நீக்கப்படும். இந்த செயலை மீட்டமைக்க முடியாது.</string>
+    <string name="remove_member">உறுப்பினரை நீக்கவும்</string>
+
+    <!--Reporting strings -->
+    <string name="date_range">தேதிக்காலம்</string>
+    <string name="change">மாற்றம்</string>
+    <string name="all">அனைத்து</string>
+    <string name="individual">தனியார்</string>
+    <string name="please_wait">தரவேண்டியீர்…</string>
+    <string name="patient">பேஷென்ட்</string>
+    <string name="subject">பொருள்</string>
+    <string name="generate_report">அறிக்கையை உருவாக்கவும்</string>
+    <string name="select_patient">பேஷென்டைப் தேர்ந்தெடுக்கவும்</string>
+    <string name="select_subject">பொருளைப் தேர்ந்தெடுக்கவும்</string>
+    <string name="start_date">ஆரம்ப தேதி</string>
+    <string name="end_date">முடிவு தேதி</string>
+    <string name="select_date">தேதிகளைத் தேர்ந்தெடுக்கவும்</string>
+
+    <!--Change family head strings -->
+    <string name="no_eligible_family_members">குடும்பத் தலைவருக்கான யாரும் தகுதிகரமான குடும்ப உறுப்பினர்களை கண்டுபிடிக்க முடியவில்லை.</string>
+    <string name="label_select_new_head">புதிய குடும்பத் தலைவரைப் தேர்ந்தெடுக்கவும்</string>
+    <string name="label_assign_new_family_head">புதிய குடும்பத் தலைவராக நியமிக்கவும்</string>
+    <string name="alert_message_abort_operation">இந்த செயலை நிறுத்த விரும்புகிறீர்களா?</string>
+
+    <!-- Dialog alert messages-->
+    <string name="unsaved_changes_message_alert">சேமிக்காமல் நீங்கள் வெளியேறினால், உங்கள் திருத்தங்கள் அல்லது மாற்றங்கள் இழக்கப்படும்</string>
+    <string name="visit_due_on">%1$s %2$s அன்று due</string>
+    <string name="visit_due_today">%1$s இன்று due</string>
+    <string name="visit_overdue">%1$s %2$s முந்தையதாக overdue</string>
+    <string name="record_as_anc">ANC ஆக பதிவு செய்யவும்</string>
+    <string name="pregnancy_outcome">கர்ப்ப பரிணாமம்</string>
+    <string name="registers">பதிவு</string>
+
+    <string name="questionnaire_response_name" translatable="false">%1$s (%2$s)</string>
+    <string name="due_on">%1$s அன்று due</string>
+
+    <string name="geo_widget_fragment_destination" translatable="false">GeoWidget Fragment Destination</string>
+
+    <string name="structuremap_failed">%1$s க்கான வளங்களை எடுக்க தோல்வி</string>
+    <string name="structure_map_missing_message">Questionnaire க்கான StructureMap காணவில்லை, QuestionnaireResponse சேமிக்கப்பட்டது</string>
+    <string name="structure_success">%1$s க்கான வளங்களை வெற்றிகரமாக எடுக்கப்பட்டது</string>
+    <string name="reassigned_managing_entity">நிர்வாக ஆட்சி வெற்றிகரமாக மறுவியஜிக்கப்பட்டது</string>
+    <string name="error_fetching_user_details">பயனர் விவரங்களை பெற முடியவில்லை</string>
+    <string name="questionnaire_not_found">Questionnaire காணப்படவில்லை. சரி செய்ய அனைத்து questionnaires ஐ Sync செய்யவும்</string>
+    <string name="no_visits">சந்திப்புகள் இல்லை</string>
+    <string name="questionnaire_response_invalid">Questionnaire பதில் தவறானது</string>
+    <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>
+    <string name="application_version" translatable="false">அப்ளிகேஷன் பதிப்பு</string>
+    <string name="missing_subject_type">Questionnaire இல் பொருள் வகை இல்லை. தீர்வுக்காக Questionnaire.subjectType ஐ வழங்கவும்.</string>
+    <string name="missing_questionnaire_config">QuestionnaireConfig தேவை, ஆனால் காணவில்லை.</string>
+    <string name="error_populating_questionnaire">சில questionnaire துறைகளை நிரப்புவதில் பிழை. தவறான QuestionnaireResponse.</string>
+    <string name="extraction_in_progress">Questionnaire தரவுகளை செயலாக்கம்…</string>
+    <string name="loading_questionnaire">Questionnaire ஏற்றப்படுகிறது…</string>
+    <string name="clear_all">அனைத்தும் அழிக்கவும்</string>
+    <string name="yes">ஆமாம்</string>
+    <string name="no">இல்லை</string>
+
+    <string name="location_permissions_denied">இடத்தை அணுகுதல் மறுக்கப்பட்டது: GPS சமவிகிதங்களை பிடிக்க, உங்கள் சாதன அமைப்புகளில் இடத்தை அனுமதிகளை இயலுமைப்படுத்தவும்.</string>
+    <string name="location_services_disabled">இடவிளையாட்டுப் சேவைகள் செயலற்றுவிட்டன. அவற்றைப் இயக்க விரும்புகிறீர்களா?</string>
+    <string name="copy_text_success_message">Link %1$s வெற்றிகரமாக நகலெடுக்கப்பட்டது</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">வணக்கம் காலியிடம்</string>
+    <string name="required_text_and_new_line">தேவையான புலத்தை நிரப்பவும்</string>
+    <string name="retake">மீண்டும் எடுக்கவும்</string>
+    <string name="done">முடிந்தது</string>
+    <string name="no_unsync_patients">ஒத்திசையாத வழக்குகள் இல்லை.</string>
+    <string name="no_draft_patients">நீங்கள் எந்த சேமிக்கப்பட்ட மசவுகள் இல்லை</string>
+    <string name="no_patients_added">இன்னும் எந்த வழக்குகளும் சமர்ப்பிக்கப்படவில்லை</string>
+    <string name="delete_draft_desc">பதிவை நீக்க விரும்புகிறீர்களா?</string>
+    <string name="delete_draft_title">பதிவை நீக்கு</string>
+    <string name="loading_followups">வழக்குகள் ஏற்றப்படுகிறது</string>
+    <string name="no_followups">புதிய வழக்குகள் இல்லை</string>
+    <string name="update_status">நிலைமை புதுப்பிக்கவும்</string>
+    <string name="update">புதுப்பிக்கவும்</string>
+    <string name="select_language">மொழியைத் தேர்ந்தெடுக்கவும்</string>
+    <string name="cancel">ரத்துச் செய்யவும்</string>
+    <string name="close">மூடவும்</string>
+    <string name="no_cases">மேலொட்டிய பரிந்துரைகள் கிடைக்கவில்லை!</string>
+    <string name="not_contacted">அணுகவில்லை</string>
+    <string name="not_responded">பதில் இல்லை</string>
+    <string name="add_patient">புதிய வழக்கைச் சேர்க்கவும்</string>
+
+    <string name="pending_agreed_not_done">ஒப்புக்கொள்ளப்பட்டது, தொடர்வு செய்யப்படவில்லை</string>
+    <string name="pending_not_agreed">தொடர்வுக்காக ஒப்புக்கொள்ளவில்லை</string>
+    <string name="recenty_submitted_label">சமீபத்தில் சமர்ப்பிக்கப்பட்டது</string>
+    <string name="draft">மசவுகள்</string>
+    <string name="add_case">வழக்கைச் சேர்</string>
+    <string name="not_agrred_empty_label">தொடர்வுக்காக ஒப்புக்கொள்ளாத எதுவும் இல்லை</string>
+    <string name="not_responded_empty_label">பதில் அளிக்காத எதுவும் இல்லை</string>
+    <string name="not_contacted_empty_label">அணுகப்படாத எதுவும் இல்லை</string>
+    <string name="agrred_not_done_empty_label">ஒப்புக்கொள்ளப்பட்டது ஆனால் தொடர்வு செய்யப்படாத எதுவும் இல்லை</string>
+    <string name="completed_empty_label">முடிந்த வழக்குகளில் எதுவும் இல்லை</string>
+
+    <string name="kle_dental_sciences">KLE சமூகம் ந歇ா விடியலைப் பற்றிய நிறுவனம், பெங்களூரு</string>
+    <string name="aiims_delhi">AIIMS, டெல்லி</string>
+    <string name="nci_jhajjar">NCI, ஜாஜ்ஜர்</string>
+    <string name="msmf_bangalore">MSMF, நராயண ஹரிடயலயா ஹெல்த் சிட்டி, பெங்களூரு</string>
+    <string name="msmc_bangalore">MSMC, நராயண ஹரிடயலயா ஹெல்த் சிட்டி, பெங்களூரு</string>
+    <string name="public_health_krishnagiri">பொது சுகாதார வசதிகள், கிருஷ்ணகிரி</string>
+    <string name="public_health_thanjavur">பொது சுகாதார வசதிகள், தஞ்சாவூர்</string>
+    <string name="mpmmcc_varanasi">MPMMCC, வாரணாசி</string>
+    <string name="cachar_cancer_silchar">Cachar புற்றுநோய் மருத்துவமனை மற்றும் ஆராய்ச்சி மையம், சில்சார்</string>
+    <string name="dr_borooah_cancer_guwahati">டாக்டர் பிபானேச்வரா போரூஆஹ் புற்றுநோய் நிறுவனம், குவாகாதி</string>
+
+    <!-- Districts -->
+    <string name="district_bengaluru">பெங்களூரு</string>
+    <string name="district_new_delhi">புதிய டெல்லி</string>
+    <string name="district_bengaluru_rural">பெங்களூரு ஊரக</string>
+    <string name="district_krishnagiri">கிருஷ்ணகிரி</string>
+    <string name="district_thanjavur">தஞ்சாவூர்</string>
+    <string name="district_varanasi">வாரணாசி</string>
+    <string name="district_cachar">சாசார்</string>
+    <string name="district_guwahati">குவாகாதி</string>
+
+
+    <!-- States -->
+    <string name="state_karnataka">கர்நாடகா</string>
+    <string name="state_delhi">டெல்லி</string>
+    <string name="state_tamil_nadu">தமிழ்நாடு</string>
+    <string name="state_uttar_pradesh">உத்தரப் பிரதேசம்</string>
+    <string name="state_assam">அசாம்</string>
+
+    <!-- Profile-->
+    <string name="change_password">கடவுச்சொல்லை மாற்றவும்</string>
+    <string name="change_language">மொழியை மாற்றவும்</string>
+    <string name="logout">பதிவிறக்கவும்</string>
+    <string name="change_pin">PIN ஐ மாற்றவும்</string>
+    <string name="profile_username">பயனர்பெயர்: %s</string>
+
+    <!-- Cases-->
+    <string name="visited">பார்வையிட்டது</string>
+    <string name="cases_sync">ஒத்திசைவு: %s</string>
+    <string name="dynamic_see_more">மேலும் %s காண்க</string>
+    <string name="created">உருவாக்கப்பட்டது</string>
+    <string name="total_submissions">மொத்த சமர்ப்பிப்புகள்: %s</string>
+    <string name="un_synced_submissions">ஒத்திசைக்கப்படாத சமர்ப்பிப்புகள்: %s</string>
+    <string name="synced_submissions">ஒத்திசைக்கப்பட்ட சமர்ப்பிப்புகள்: %s</string>
+    <string name="nothing_in_un_synced">ஒத்திசைக்கப்படாத பகுதியில் எதுவும் இல்லை</string>
+    <string name="cases_no_draft_patients">இன்னும் எந்த வழக்குகளும் சேர்க்கப்படவில்லை. புதிய வழக்குகளைச் சேர்க்க எடுக்க தொடங்குங்கள்.</string>
+
+    <!-- Recommendation-->
+    <string name="phone">தொலைபேசி:</string>
+    <string name="add_investigation">அராய்ச்சி சேர்க்கவும்</string>
+    <string name="urgent_referral">அர்புதமான பரிந்துரை</string>
+    <string name="retake_photo">மீண்டும் புகைப்படம் எடுக்கவும்</string>
+    <string name="image_saved">புகைப்படம் சேமிக்கப்பட்டது</string>
+    <string name="sync_status">ஒத்திசைவு நிலைமை</string>
+    <string name="sync_now">இப்போது ஒத்திசையவும்</string>
+    <string name="notification_sync_failed">ஒத்திசைவு தோல்வி</string>
+    <string name="notification_sync">ஒத்திசைக்கப்படுகிறது…</string>
+    <string name="image_left">முழுவதும் புகைப்படங்கள்: %s</string>
+    <string name="okay">சரி</string>
+    <string name="notification_permission_title">அறிக்கையளிக்கும் அனுமதி</string>
+    <string name="notification_permission_description">புதிய தரவுகள் ஒத்திசைவுகளைப் பற்றிய தகவல்களைப் பெற அறிக்கைகளை இயக்கவும். நேரம் ஒத்திசைவு எச்சரிக்கைகளை அனுமதித்து உங்கள் பயன்பாட்டுக்கு எப்போதும் தற்போதைய தகவல்களை உறுதி செய்யவும்.</string>
+</resources>
