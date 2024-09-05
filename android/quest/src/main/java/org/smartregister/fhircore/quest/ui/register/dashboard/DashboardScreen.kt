@@ -67,6 +67,7 @@ import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.ui.theme.ThinGreyBackground
+import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
@@ -199,7 +200,7 @@ fun DashboardScreen(
             ) {
               Column(modifier = Modifier.padding(8.dp)) {
                 Text(
-                  text = "Health Center",
+                  text = stringResource(id = R.string.health_center),
                   color = GreyTextColor,
                   style = MaterialTheme.typography.h6
                 )
@@ -211,7 +212,7 @@ fun DashboardScreen(
                 .background(Color.White)
             ) {
               Text(
-                text = "Cases",
+                text = stringResource(id = R.string.menu_cases),
                 style = MaterialTheme.typography.h6,
                 modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp)
               )
@@ -227,7 +228,7 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
               ) {
                 Text(
-                  text = "Total screened cases",
+                  text = stringResource(id = R.string.total_screened_cases),
                   modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp),
                   style = TextStyle(
                     fontSize = 16.sp,
@@ -235,7 +236,7 @@ fun DashboardScreen(
                   )
                 )
                 Text(
-                  text = "${dashboardDataStateFlow.totalCases}",
+                  text = dashboardDataStateFlow.totalCases,
                   modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
                   style = TextStyle(
                     fontSize = 32.sp,
@@ -260,14 +261,15 @@ fun DashboardScreen(
                     )
                 ) {
                   Text(
-                    text = "Today", modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
+                    text = stringResource(id = R.string.today),
+                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
                     style = TextStyle(
                       fontSize = 16.sp,
                       fontWeight = FontWeight(400),
                     )
                   )
                   Text(
-                    text = "${dashboardDataStateFlow.todayCases}",
+                    text = dashboardDataStateFlow.todayCases,
                     modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
                     style = TextStyle(
                       fontSize = 16.sp,
@@ -287,7 +289,7 @@ fun DashboardScreen(
                     )
                 ) {
                   Text(
-                    text = "This Week",
+                    text = stringResource(id = R.string.this_week),
                     modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
                     style = TextStyle(
                       fontSize = 16.sp,
@@ -295,7 +297,7 @@ fun DashboardScreen(
                     )
                   )
                   Text(
-                    text = "${dashboardDataStateFlow.thisWeekCases}",
+                    text = dashboardDataStateFlow.thisWeekCases,
                     modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
                     style = TextStyle(
                       fontSize = 16.sp,
@@ -315,7 +317,7 @@ fun DashboardScreen(
                     )
                 ) {
                   Text(
-                    text = "This Month",
+                    text = stringResource(id = R.string.this_month),
                     modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
                     style = TextStyle(
                       fontSize = 14.sp,
@@ -323,7 +325,7 @@ fun DashboardScreen(
                     )
                   )
                   Text(
-                    text = "${dashboardDataStateFlow.thisMonthCases}",
+                    text = dashboardDataStateFlow.thisMonthCases,
                     modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
                     style = TextStyle(
                       fontSize = 16.sp,
@@ -350,7 +352,7 @@ fun DashboardScreen(
                   modifier = Modifier.padding(horizontal = 8.dp)
                 ) {
                   Text(
-                    text = "Add New Case",
+                    text = stringResource(id = R.string.dashboard_add_patient),
                     style = MaterialTheme.typography.h6,
                     color = Color.White
                   )

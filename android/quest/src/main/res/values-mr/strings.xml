@@ -231,4 +231,41 @@
     <string name="okay">ठीक आहे</string>
     <string name="notification_permission_title">सूचना परवानगी</string>
     <string name="notification_permission_description">ताज्या डेटा समन्वयाबद्दल माहिती ठेवण्यासाठी सूचना सक्षम करा. वेळेवर समन्वय अलर्ट्स सक्षम करून आपला अ‍ॅप नेहमीच सर्वात अद्ययावत माहिती ठेवावा याची खात्री करा.</string>
+
+    <!-- Menu-->
+    <string name="menu_cases">प्रकरणे</string>
+    <string name="menu_recommendations">शिफारसी</string>
+    <string name="menu_dashboard">डॅशबोर्ड</string>
+
+    <!-- Recommendations -->
+    <string name="enter_name_or_phone">नाव किंवा फोन प्रविष्ट करा</string>
+    <string name="status_new">नवीन</string>
+    <string name="status_pending">प्रलंबित</string>
+    <string name="status_completed">पूर्ण</string>
+
+    <!-- Dashboard -->
+    <string name="health_center">आरोग्य केंद्र</string>
+    <string name="total_screened_cases">स्क्रीन केलेली एकूण प्रकरणे</string>
+    <string name="today">आज</string>
+    <string name="this_week">या आठवड्यात</string>
+    <string name="this_month">या महिन्यात</string>
+    <string name="dashboard_add_patient">नवीन प्रकरण जोडा</string>
+
+    <!-- See All-->
+    <string name="view_all_draft">मसुदे</string>
+    <string name="view_all_submissions">सर्व सबमिशन</string>
+
+    <!-- View All-->
+    <string name="view_all_urgent_referral">तत्काळ संदर्भ</string>
+    <string name="view_all_add_investigation">अधिक तपासणी</string>
+    <string name="view_all_retake_photo">फोटो पुन्हा घ्या</string>
+    <string name="view_all_advice_to_quit">सोडण्याचा सल्ला</string>
+    <string name="view_all_advice_to_quit_habit">आदत सोडण्याचा सल्ला</string>
+    <string name="view_all_change_status">स्थिती बदला</string>
+    <string name="view_all_phone">फोन %s</string>
+    <string name="phone_with_space">फोन </string>
+    <string name="view_all_call">कॉल</string>
+    <string name="view_all_screened_on">स्क्रीन केलेले</string>
+    <string name="toolbar_recently_added">अलीकडेच जोडलेले</string>
+
 </resources>

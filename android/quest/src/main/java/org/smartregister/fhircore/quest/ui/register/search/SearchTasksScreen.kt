@@ -79,6 +79,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
 import org.smartregister.fhircore.quest.ui.register.tasks.BottomSheetContent
+import org.smartregister.fhircore.quest.ui.register.tasks.getFilterName
 import org.smartregister.fhircore.quest.util.TaskProgressState
 
 
@@ -152,7 +153,9 @@ fun SearchTasksScreen(
     Scaffold(
       modifier = modifier.background(Color.White),
       topBar = {
-        Column(modifier = modifier.background(Color.White).fillMaxWidth()) {
+        Column(modifier = modifier
+          .background(Color.White)
+          .fillMaxWidth()) {
 
           // Top section has toolbar and a results counts view
           val filterActions =
@@ -301,13 +304,13 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
               Text(
                 modifier = Modifier
                   .padding(vertical = 4.dp, horizontal = 4.dp),
-                text = "$name",
+                text = name,
                 fontSize = 18.sp,
                 color = LightColors.primary
               )
               Spacer(modifier = Modifier.height(4.dp))
               Text(
-                text = "Phone ${phone}",
+                text = stringResource(id = R.string.view_all_phone,phone),
                 color = colorResource(id = R.color.subTextGrey),
                 fontSize = 14.sp,
                 modifier = Modifier
@@ -322,25 +325,25 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
                 when(task.task.intent){
 
                   Task.TaskIntent.PLAN -> {
-                    label = "ADD INVESTIGATION"
+                    label = getFilterName("ADD INVESTIGATION")
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                   }
 
                   Task.TaskIntent.OPTION -> {
-                    label = "ADVICE TO QUIT HABIT"
+                    label = getFilterName("ADVICE TO QUIT HABIT")
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                   }
 
                   Task.TaskIntent.ORDER -> {
-                    label = "URGENT REFERRAL"
+                    label = getFilterName("URGENT REFERRAL")
                     color = Color(0xFFFFCDD2)
                     textColor = Color(0xFFFF3355)
                   }
 
                   Task.TaskIntent.PROPOSAL -> {
-                    label = "RETAKE PHOTO"
+                    label = getFilterName("RETAKE PHOTO")
                     color = Color.LightGray
                     textColor = Color.Gray
                   }
@@ -369,13 +372,13 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
                 when(task.task.status){
 
                   TaskStatus.INPROGRESS -> {
-                    statusLabel = "PENDING"
+                    statusLabel = stringResource(id = R.string.status_pending)
                     statusColor = Color(0xFFFFF8E0)
                     statusTextColor = Color(0xFFFFC800)
                   }
 
                   TaskStatus.REQUESTED -> {
-                    statusLabel = "NEW"
+                    statusLabel = stringResource(id = R.string.status_new)
                     statusColor = Color(0xFFFFCDD2)
                     statusTextColor = Color(0xFFFF3355)
                   }

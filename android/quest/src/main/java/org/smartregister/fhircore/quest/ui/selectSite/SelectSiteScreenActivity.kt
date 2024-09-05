@@ -1,6 +1,5 @@
 package org.smartregister.fhircore.quest.ui.selectSite
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -13,6 +12,7 @@ import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
 import org.smartregister.fhircore.quest.QuestApplication
 import org.smartregister.fhircore.quest.di.config.AuthConfigurationHelper
 import org.smartregister.fhircore.quest.ui.selectSite.viewModel.SelectSiteViewModel
+import org.smartregister.fhircore.quest.util.restartApp
 import javax.inject.Inject
 
 
@@ -50,12 +50,6 @@ class SelectSiteScreenActivity : BaseMultiLanguageActivity() {
             restartApp()
 //            launchActivityWithNoBackStackHistory<AppSettingActivity>()
         }) } }
-    }
-    private fun restartApp() {
-        val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
-        intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-        startActivity(intent)
-        Runtime.getRuntime().exit(0)
     }
 }
 
