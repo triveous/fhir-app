@@ -13,9 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Body16Normal
@@ -50,8 +48,8 @@ fun EmptyStateSection(isFetchingPatients: Boolean, textLabel : String, icon: Pai
     }
 }
 
-@Preview
-@Composable
-fun Preview(){
-    EmptyStateSection(false, "No cases to show, start creating", painterResource(id = R.drawable.ic_patient_male))
-}
+//@Preview
+//@Composable
+//fun Preview(){
+//    EmptyStateSection(false, "No cases to show, start creating", painterResource(id = R.drawable.ic_patient_male))
+//}

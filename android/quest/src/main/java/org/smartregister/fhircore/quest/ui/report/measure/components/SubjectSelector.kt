@@ -43,10 +43,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.ui.theme.InfoColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.ui.shared.models.MeasureReportSubjectViewData
 
 const val SUBJECT_NAME_TEST_TAG = "subjectNameTestTag"
@@ -122,19 +120,19 @@ fun SubjectSelector(
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun SelectedSubjectPreview() {
-  SubjectSelector(
-    subjects =
-      setOf(
-        MeasureReportSubjectViewData(ResourceType.Patient, "1", "John Jared"),
-        MeasureReportSubjectViewData(ResourceType.Patient, "2", "Jane Doe"),
-        MeasureReportSubjectViewData(ResourceType.Patient, "3", "John Doe"),
-        MeasureReportSubjectViewData(ResourceType.Patient, "4", "Lorem Ipsm"),
-        MeasureReportSubjectViewData(ResourceType.Patient, "5", "Mary Magdalene"),
-      ),
-    onAddSubject = {},
-    onRemoveSubject = {},
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun SelectedSubjectPreview() {
+//  SubjectSelector(
+//    subjects =
+//      setOf(
+//        MeasureReportSubjectViewData(ResourceType.Patient, "1", "John Jared"),
+//        MeasureReportSubjectViewData(ResourceType.Patient, "2", "Jane Doe"),
+//        MeasureReportSubjectViewData(ResourceType.Patient, "3", "John Doe"),
+//        MeasureReportSubjectViewData(ResourceType.Patient, "4", "Lorem Ipsm"),
+//        MeasureReportSubjectViewData(ResourceType.Patient, "5", "Mary Magdalene"),
+//      ),
+//    onAddSubject = {},
+//    onRemoveSubject = {},
+//  )
+//}

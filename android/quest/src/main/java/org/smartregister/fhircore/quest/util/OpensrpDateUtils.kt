@@ -2,7 +2,6 @@ package org.smartregister.fhircore.quest.util
 
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import org.hl7.fhir.r4.model.Patient
-import org.smartregister.fhircore.engine.util.extension.isToday
 import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -30,7 +29,7 @@ object OpensrpDateUtils {
 
 
     fun convertToDateStringFromString(input: String): String {
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
         val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale.getDefault())
 
         val dateObj: Date? = try {
@@ -44,7 +43,7 @@ object OpensrpDateUtils {
     }
 
     fun convertToDateStringToDate(input: String?): Date? {
-        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX")
+        val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
         val dateObj: Date? = try {
             format.parse(input)
         } catch (exception: Exception) {

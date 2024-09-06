@@ -42,10 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.ui.report.measure.MeasureReportViewModel
 import org.smartregister.fhircore.quest.ui.report.measure.components.DateRangeItem
 import org.smartregister.fhircore.quest.ui.report.measure.components.MeasureReportIndividualResultView
@@ -141,71 +138,71 @@ fun MeasureReportResultPage(
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun MeasureReportResultScreenForIndividualPreview() {
-  MeasureReportResultPage(
-    screenTitle = "First ANC",
-    navController = rememberNavController(),
-    startDate = "25 Nov, 2021",
-    endDate = "29 Nov, 2021",
-    subjectViewData =
-      setOf(
-        MeasureReportSubjectViewData(
-          display = "Jacky Coughlin, F, 27",
-          logicalId = "1920192",
-          type = ResourceType.Patient,
-        ),
-        MeasureReportSubjectViewData(
-          display = "Jane Doe, F, 18",
-          logicalId = "1910192",
-          type = ResourceType.Patient,
-        ),
-      ),
-    measureReportIndividualResult =
-      MeasureReportIndividualResult(status = "True", isMatchedIndicator = true, description = ""),
-    null,
-  )
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun MeasureReportResultScreenForPopulationPreview() {
-  val testResultItem1 =
-    MeasureReportIndividualResult(title = "10 - 15 years", percentage = "10", count = "1/10")
-  val testResultItem2 =
-    MeasureReportIndividualResult(title = "16 - 20 years", percentage = "50", count = "30/60")
-  MeasureReportResultPage(
-    screenTitle = "First ANC",
-    navController = rememberNavController(),
-    startDate = "25 Nov, 2021",
-    endDate = "29 Nov, 2021",
-    subjectViewData =
-      setOf(
-        MeasureReportSubjectViewData(
-          display = "Jacky Coughlin, F, 27",
-          logicalId = "1902912",
-          type = ResourceType.Patient,
-        ),
-        MeasureReportSubjectViewData(
-          display = "Jane Doe, F, 18",
-          logicalId = "1912912",
-          type = ResourceType.Patient,
-        ),
-      ),
-    measureReportIndividualResult = null,
-    measureReportPopulationResult =
-      listOf(
-        MeasureReportPopulationResult(
-          title = "Age Range",
-          count = "1/2",
-          listOf(testResultItem1, testResultItem2),
-        ),
-        MeasureReportPopulationResult(
-          title = "Education Level",
-          count = "2/3",
-          listOf(testResultItem1, testResultItem2),
-        ),
-      ),
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun MeasureReportResultScreenForIndividualPreview() {
+//  MeasureReportResultPage(
+//    screenTitle = "First ANC",
+//    navController = rememberNavController(),
+//    startDate = "25 Nov, 2021",
+//    endDate = "29 Nov, 2021",
+//    subjectViewData =
+//      setOf(
+//        MeasureReportSubjectViewData(
+//          display = "Jacky Coughlin, F, 27",
+//          logicalId = "1920192",
+//          type = ResourceType.Patient,
+//        ),
+//        MeasureReportSubjectViewData(
+//          display = "Jane Doe, F, 18",
+//          logicalId = "1910192",
+//          type = ResourceType.Patient,
+//        ),
+//      ),
+//    measureReportIndividualResult =
+//      MeasureReportIndividualResult(status = "True", isMatchedIndicator = true, description = ""),
+//    null,
+//  )
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun MeasureReportResultScreenForPopulationPreview() {
+//  val testResultItem1 =
+//    MeasureReportIndividualResult(title = "10 - 15 years", percentage = "10", count = "1/10")
+//  val testResultItem2 =
+//    MeasureReportIndividualResult(title = "16 - 20 years", percentage = "50", count = "30/60")
+//  MeasureReportResultPage(
+//    screenTitle = "First ANC",
+//    navController = rememberNavController(),
+//    startDate = "25 Nov, 2021",
+//    endDate = "29 Nov, 2021",
+//    subjectViewData =
+//      setOf(
+//        MeasureReportSubjectViewData(
+//          display = "Jacky Coughlin, F, 27",
+//          logicalId = "1902912",
+//          type = ResourceType.Patient,
+//        ),
+//        MeasureReportSubjectViewData(
+//          display = "Jane Doe, F, 18",
+//          logicalId = "1912912",
+//          type = ResourceType.Patient,
+//        ),
+//      ),
+//    measureReportIndividualResult = null,
+//    measureReportPopulationResult =
+//      listOf(
+//        MeasureReportPopulationResult(
+//          title = "Age Range",
+//          count = "1/2",
+//          listOf(testResultItem1, testResultItem2),
+//        ),
+//        MeasureReportPopulationResult(
+//          title = "Education Level",
+//          count = "2/3",
+//          listOf(testResultItem1, testResultItem2),
+//        ),
+//      ),
+//  )
+//}

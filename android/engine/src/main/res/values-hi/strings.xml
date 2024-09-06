@@ -104,12 +104,12 @@
     <string name="no">नहीं</string>
     <string name="yes">हाँ</string>
     <string name="required_constraint_validation_error_msg">आवश्यक फ़ील्ड के लिए कोई प्रतिक्रिया नहीं है।</string>
-    <string name="set_pin">PIN सेट करें</string>
-    <string name="set_pin_message">%1$s इस PIN का उपयोग लॉगिन के लिए करेगा</string>
-    <string name="enter_pin_for_user">%1$s के लिए PIN दर्ज करें</string>
-    <string name="incorrect_pin_please_retry">गलत PIN, कृपया पुनः प्रयास करें</string>
+    <string name="set_pin">पिन सेट करें</string>
+    <string name="set_pin_message">%1$s इस पिन का उपयोग लॉगिन के लिए करेगा</string>
+    <string name="enter_pin_for_user">%1$s के लिए पिन दर्ज करें</string>
+    <string name="incorrect_pin_please_retry">गलत पिन, कृपया पुनः प्रयास करें</string>
     <string name="pin_menu_login">लॉगिन</string>
-    <string name="forgot_pin">PIN भूल गए? लॉगिन के माध्यम से रीसेट करें</string>
+    <string name="forgot_pin">पिन भूल गए? लॉगिन के माध्यम से रीसेट करें</string>
     <string name="please_contact_supervisor">कृपया अपने पर्यवेक्षक से संपर्क करें।</string>
     <string name="percentage" translatable="false">%</string>
     <string name="logging_out">लॉगआउट हो रहा है। कृपया प्रतीक्षा करें…</string>

@@ -31,7 +31,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 
 const val ERROR_MESSAGE_TAG = "errorMessageTag"
 const val TRY_BUTTON_TAG = "tryButtonTag"
@@ -62,12 +61,12 @@ fun ErrorMessage(message: String, modifier: Modifier = Modifier, onClickRetry: (
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun ErrorMessagePreview() {
-  ErrorMessage(
-    message =
-      "Received result from worker com.google.android.fhir.sync.Result@6e1206f and sending output Data",
-    onClickRetry = {},
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun ErrorMessagePreview() {
+//  ErrorMessage(
+//    message =
+//      "Received result from worker com.google.android.fhir.sync.Result@6e1206f and sending output Data",
+//    onClickRetry = {},
+//  )
+//}

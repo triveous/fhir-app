@@ -263,6 +263,7 @@
     <string name="view_all_submissions">అన్ని సమర్పణలు</string>
 
     <!-- View All-->
+    <string name="view_all">అన్నీ చూడండి</string>
     <string name="view_all_urgent_referral">తక్షణ సూచన</string>
     <string name="view_all_add_investigation">అదనపు దర్యాప్తు</string>
     <string name="view_all_retake_photo">ఫోటోను మళ్లీ తీసుకోండి</string>
@@ -275,4 +276,17 @@
     <string name="view_all_screened_on">స్క్రీన్ చేయబడింది</string>
     <string name="toolbar_recently_added">ఇటీవలి జోడింపులు</string>
 
+    <!-- SnackBar-->
+    <string name="status_updated_successfully">స్థితి విజయవంతంగా నవీకరించబడింది</string>
+    <string name="select_status_to_update">అప్డేట్ చేయడానికి స్థితిని ఎంచుకోండి</string>
+
+    <!-- Screen Title-->
+    <string name="not_agreed_for_followup">ఫాలోఅప్‌కు ఒప్పుకోలేదు</string>
+    <string name="agreed_followup_not_done">ఒప్పుకున్నాడు, ఫాలోఅప్ చేయలేదు</string>
+    <string name="followup_done">ఫాలోఅప్ పూర్తయింది</string>
+    <string name="remove_case">ఒప్పుకోలేదు, కేసును తీసివేయండి</string>
+    <string name="null_status">null</string>
+    <string name="none_status">none</string>
+    <string name="default_status">డిఫాల్ట్</string>
+    <string name="remove_status">తీసివేయండి</string>
 </resources>

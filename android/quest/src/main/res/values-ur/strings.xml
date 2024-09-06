@@ -207,7 +207,7 @@
     <string name="change_password">پاس ورڈ تبدیل کریں</string>
     <string name="change_language">زبان تبدیل کریں</string>
     <string name="logout">لاگ آؤٹ</string>
-    <string name="change_pin">PIN تبدیل کریں</string>
+    <string name="change_pin">پن تبدیل کریں</string>
     <string name="profile_username">صارف کا نام: %s</string>
 
     <!-- Cases-->
@@ -260,6 +260,7 @@
     <string name="view_all_submissions">تمام گذارشات</string>
 
     <!-- View All-->
+    <string name="view_all">سب دیکھیں</string>
     <string name="view_all_urgent_referral">فوری حوالہ</string>
     <string name="view_all_add_investigation">اضافی تحقیقات</string>
     <string name="view_all_retake_photo">تصویر دوبارہ لیں</string>
@@ -272,4 +273,17 @@
     <string name="view_all_screened_on">سک्रीन کیا گیا</string>
     <string name="toolbar_recently_added">حال ہی میں شامل کیا گیا</string>
 
+    <!-- SnackBar-->
+    <string name="status_updated_successfully">اسٹیٹس کامیابی کے ساتھ اپ ڈیٹ ہو گیا</string>
+    <string name="select_status_to_update">اپ ڈیٹ کرنے کے لیے اسٹیٹس منتخب کریں</string>
+
+    <!-- Screen Title-->
+    <string name="not_agreed_for_followup">فالو اپ کے لئے راضی نہیں ہوا</string>
+    <string name="agreed_followup_not_done">متفق، فالو اپ نہیں ہوا</string>
+    <string name="followup_done">فالو اپ مکمل</string>
+    <string name="remove_case">راضی نہیں ہوا، کیس کو ہٹا دیں</string>
+    <string name="null_status">null</string>
+    <string name="none_status">none</string>
+    <string name="default_status">ڈیفالٹ</string>
+    <string name="remove_status">ہٹائیں</string>
 </resources>

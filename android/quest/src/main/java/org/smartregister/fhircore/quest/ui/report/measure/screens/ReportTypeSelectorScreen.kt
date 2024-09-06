@@ -48,8 +48,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -64,17 +62,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.util.Pair
 import androidx.navigation.NavController
-import java.util.Calendar
-import java.util.Date
 import org.hl7.fhir.r4.model.MeasureReport
 import org.hl7.fhir.r4.model.MeasureReport.MeasureReportType
-import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.ui.theme.DefaultColor
 import org.smartregister.fhircore.engine.ui.theme.DividerColor
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
-import org.smartregister.fhircore.engine.util.extension.SDF_YYYY_MM_DD
-import org.smartregister.fhircore.engine.util.extension.parseDate
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.ui.report.measure.MeasureReportEvent
 import org.smartregister.fhircore.quest.ui.report.measure.MeasureReportViewModel
@@ -85,6 +77,7 @@ import org.smartregister.fhircore.quest.ui.report.measure.models.MeasureReportTy
 import org.smartregister.fhircore.quest.ui.report.measure.models.ReportRangeSelectionData
 import org.smartregister.fhircore.quest.ui.shared.models.MeasureReportSubjectViewData
 import org.smartregister.fhircore.quest.util.extensions.conditional
+import java.util.Date
 
 const val SHOW_FIXED_RANGE_TEST_TAG = "SHOW_FIXED_RANGE_TEST_TAG"
 const val SHOW_PROGRESS_INDICATOR_TAG = "SHOW_PROGRESS_INDICATOR_TAG"
@@ -468,110 +461,110 @@ fun GenerateReportButton(
     }
   }
 }
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun SubjectSelectionAllPreview() {
+//  val reportTypeState = remember { mutableStateOf(MeasureReport.MeasureReportType.SUMMARY) }
+//  SubjectSelectionBox(
+//    radioOptions =
+//      listOf(
+//        MeasureReportTypeData(
+//          textResource = R.string.all,
+//          measureReportType = MeasureReport.MeasureReportType.SUMMARY,
+//        ),
+//        MeasureReportTypeData(
+//          textResource = R.string.individual,
+//          measureReportType = MeasureReport.MeasureReportType.INDIVIDUAL,
+//        ),
+//      ),
+//    reportTypeState = reportTypeState,
+//    onReportTypeSelected = {},
+//    onSubjectRemoved = {},
+//    subjects = setOf(),
+//  )
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun SubjectSelectionIndividualPreview() {
+//  val reportTypeState = remember { mutableStateOf(MeasureReport.MeasureReportType.INDIVIDUAL) }
+//  SubjectSelectionBox(
+//    radioOptions =
+//      listOf(
+//        MeasureReportTypeData(
+//          textResource = R.string.all,
+//          measureReportType = MeasureReport.MeasureReportType.SUMMARY,
+//        ),
+//        MeasureReportTypeData(
+//          textResource = R.string.individual,
+//          measureReportType = MeasureReport.MeasureReportType.INDIVIDUAL,
+//        ),
+//      ),
+//    reportTypeState = reportTypeState,
+//    onReportTypeSelected = {},
+//    onSubjectRemoved = {},
+//    subjects =
+//      setOf(
+//        MeasureReportSubjectViewData(ResourceType.Patient, "1", "John Jared"),
+//        MeasureReportSubjectViewData(ResourceType.Patient, "2", "Jane Doe"),
+//        MeasureReportSubjectViewData(ResourceType.Patient, "3", "John Doe"),
+//        MeasureReportSubjectViewData(ResourceType.Patient, "4", "Lorem Ipsm"),
+//        MeasureReportSubjectViewData(ResourceType.Patient, "5", "Mary Magdalene"),
+//      ),
+//  )
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun FixedRangeListPreview() {
+//  val reportType = remember { mutableStateOf(MeasureReportType.SUMMARY) }
+//  val ranges = HashMap<String, List<ReportRangeSelectionData>>()
+//  val months = mutableListOf<ReportRangeSelectionData>()
+//  val range = ReportRangeSelectionData("March", "2022", "2021-12-12".parseDate(SDF_YYYY_MM_DD)!!)
+//  months.add(range)
+//  months.add(range)
+//  months.add(range)
+//  months.add(range)
+//  ranges["2022"] = months
+//  ranges["2021"] = months
+//  ranges["2020"] = months
+//  ranges["2019"] = months
+//  ReportFilterSelector(
+//    screenTitle = "ANC Report",
+//    reportTypeState = reportType,
+//    showFixedRangeSelection = true,
+//    showSubjectSelection = true,
+//    uiState = ReportTypeSelectorUiState(),
+//    dateRange = null,
+//    reportPeriodRange = ranges,
+//    onBackPressed = {},
+//    onSelectReportDate = {},
+//    onDateRangeSelected = {},
+//    onReportTypeSelected = {},
+//    onSubjectRemoved = {},
+//  )
+//}
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun SubjectSelectionAllPreview() {
-  val reportTypeState = remember { mutableStateOf(MeasureReport.MeasureReportType.SUMMARY) }
-  SubjectSelectionBox(
-    radioOptions =
-      listOf(
-        MeasureReportTypeData(
-          textResource = R.string.all,
-          measureReportType = MeasureReport.MeasureReportType.SUMMARY,
-        ),
-        MeasureReportTypeData(
-          textResource = R.string.individual,
-          measureReportType = MeasureReport.MeasureReportType.INDIVIDUAL,
-        ),
-      ),
-    reportTypeState = reportTypeState,
-    onReportTypeSelected = {},
-    onSubjectRemoved = {},
-    subjects = setOf(),
-  )
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun SubjectSelectionIndividualPreview() {
-  val reportTypeState = remember { mutableStateOf(MeasureReport.MeasureReportType.INDIVIDUAL) }
-  SubjectSelectionBox(
-    radioOptions =
-      listOf(
-        MeasureReportTypeData(
-          textResource = R.string.all,
-          measureReportType = MeasureReport.MeasureReportType.SUMMARY,
-        ),
-        MeasureReportTypeData(
-          textResource = R.string.individual,
-          measureReportType = MeasureReport.MeasureReportType.INDIVIDUAL,
-        ),
-      ),
-    reportTypeState = reportTypeState,
-    onReportTypeSelected = {},
-    onSubjectRemoved = {},
-    subjects =
-      setOf(
-        MeasureReportSubjectViewData(ResourceType.Patient, "1", "John Jared"),
-        MeasureReportSubjectViewData(ResourceType.Patient, "2", "Jane Doe"),
-        MeasureReportSubjectViewData(ResourceType.Patient, "3", "John Doe"),
-        MeasureReportSubjectViewData(ResourceType.Patient, "4", "Lorem Ipsm"),
-        MeasureReportSubjectViewData(ResourceType.Patient, "5", "Mary Magdalene"),
-      ),
-  )
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun FixedRangeListPreview() {
-  val reportType = remember { mutableStateOf(MeasureReportType.SUMMARY) }
-  val ranges = HashMap<String, List<ReportRangeSelectionData>>()
-  val months = mutableListOf<ReportRangeSelectionData>()
-  val range = ReportRangeSelectionData("March", "2022", "2021-12-12".parseDate(SDF_YYYY_MM_DD)!!)
-  months.add(range)
-  months.add(range)
-  months.add(range)
-  months.add(range)
-  ranges["2022"] = months
-  ranges["2021"] = months
-  ranges["2020"] = months
-  ranges["2019"] = months
-  ReportFilterSelector(
-    screenTitle = "ANC Report",
-    reportTypeState = reportType,
-    showFixedRangeSelection = true,
-    showSubjectSelection = true,
-    uiState = ReportTypeSelectorUiState(),
-    dateRange = null,
-    reportPeriodRange = ranges,
-    onBackPressed = {},
-    onSelectReportDate = {},
-    onDateRangeSelected = {},
-    onReportTypeSelected = {},
-    onSubjectRemoved = {},
-  )
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun ReportFilterPreview() {
-  val dateRange = remember {
-    mutableStateOf(Pair(Calendar.getInstance().timeInMillis, Calendar.getInstance().timeInMillis))
-  }
-  val reportType = remember { mutableStateOf(MeasureReportType.SUMMARY) }
-  ReportFilterSelector(
-    screenTitle = "ANC Report",
-    reportTypeState = reportType,
-    showFixedRangeSelection = false,
-    showSubjectSelection = true,
-    uiState = ReportTypeSelectorUiState(),
-    dateRange = dateRange,
-    reportPeriodRange = mapOf(),
-    onBackPressed = {},
-    onSelectReportDate = {},
-    onDateRangeSelected = {},
-    onReportTypeSelected = {},
-    onSubjectRemoved = {},
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun ReportFilterPreview() {
+//  val dateRange = remember {
+//    mutableStateOf(Pair(Calendar.getInstance().timeInMillis, Calendar.getInstance().timeInMillis))
+//  }
+//  val reportType = remember { mutableStateOf(MeasureReportType.SUMMARY) }
+//  ReportFilterSelector(
+//    screenTitle = "ANC Report",
+//    reportTypeState = reportType,
+//    showFixedRangeSelection = false,
+//    showSubjectSelection = true,
+//    uiState = ReportTypeSelectorUiState(),
+//    dateRange = dateRange,
+//    reportPeriodRange = mapOf(),
+//    onBackPressed = {},
+//    onSelectReportDate = {},
+//    onDateRangeSelected = {},
+//    onReportTypeSelected = {},
+//    onSubjectRemoved = {},
+//  )
+//}
