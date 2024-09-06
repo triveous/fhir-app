@@ -49,7 +49,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,13 +68,11 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
@@ -586,17 +583,17 @@ fun NoRegisterDataView(
     }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun PreviewNoRegistersView() {
-    NoRegisterDataView(
-        noResults = NoResultsConfig(
-            title = "Title",
-            message = "This is message",
-            actionButton = NavigationMenuConfig(display = "Button Text", id = "1"),
-        ),
-    ) {}
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun PreviewNoRegistersView() {
+//    NoRegisterDataView(
+//        noResults = NoResultsConfig(
+//            title = "Title",
+//            message = "This is message",
+//            actionButton = NavigationMenuConfig(display = "Button Text", id = "1"),
+//        ),
+//    ) {}
+//}
 
 
 @Composable

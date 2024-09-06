@@ -104,12 +104,12 @@
     <string name="no">نہیں</string>
     <string name="yes">ہاں</string>
     <string name="required_constraint_validation_error_msg">ضروری فیلڈ کے لیے کوئی جواب نہیں ہے۔</string>
-    <string name="set_pin">PIN سیٹ کریں</string>
-    <string name="set_pin_message">%1$s اس PIN کو لاگ ان کرنے کے لیے استعمال کرے گا</string>
-    <string name="enter_pin_for_user">%1$s کے لیے PIN درج کریں</string>
-    <string name="incorrect_pin_please_retry">غلط PIN، براہ کرم دوبارہ کوشش کریں</string>
+    <string name="set_pin">پن سیٹ کریں</string>
+    <string name="set_pin_message">%1$s اس پن کو لاگ ان کرنے کے لیے استعمال کرے گا</string>
+    <string name="enter_pin_for_user">%1$s کے لیے پن درج کریں</string>
+    <string name="incorrect_pin_please_retry">غلط پن، براہ کرم دوبارہ کوشش کریں</string>
     <string name="pin_menu_login">لاگ ان</string>
-    <string name="forgot_pin">PIN بھول گئے؟ لاگ ان کے ذریعے دوبارہ سیٹ کریں</string>
+    <string name="forgot_pin">پن بھول گئے؟ لاگ ان کے ذریعے دوبارہ سیٹ کریں</string>
     <string name="please_contact_supervisor">براہ کرم اپنے نگران سے رابطہ کریں۔</string>
     <string name="percentage" translatable="false">%</string>
     <string name="logging_out">لاگ آؤٹ ہو رہا ہے۔ براہ کرم انتظار کریں…</string>

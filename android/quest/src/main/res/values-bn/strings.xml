@@ -259,6 +259,7 @@
     <string name="view_all_submissions">सभी सबमिशन</string>
 
     <!-- View All-->
+    <string name="view_all">সব দেখুন</string>
     <string name="view_all_urgent_referral">জরুরি রেফারেল</string>
     <string name="view_all_add_investigation">অতিরিক্ত তদন্ত</string>
     <string name="view_all_retake_photo">ছবি পুনরায় তুলুন</string>
@@ -271,4 +272,16 @@
     <string name="view_all_screened_on">স্ক্রীন করা হয়েছে</string>
     <string name="toolbar_recently_added">সাম্প্রতিকভাবে যোগ করা হয়েছে</string>
 
+    <!-- SnackBar-->
+    <string name="status_updated_successfully">স্থিতি সফলভাবে আপডেট হয়েছে</string>
+    <string name="select_status_to_update">আপডেট করার জন্য স্থিতি নির্বাচন করুন</string>
+    <!-- Screen Title-->
+    <string name="not_agreed_for_followup">ফলোআপে সম্মত হয়নি</string>
+    <string name="agreed_followup_not_done">সম্মত, ফলোআপ করা হয়নি</string>
+    <string name="followup_done">ফলোআপ করা হয়েছে</string>
+    <string name="remove_case">সম্মত নয়, কেস মুছুন</string>
+    <string name="null_status">null</string>
+    <string name="none_status">none</string>
+    <string name="default_status">ডিফল্ট</string>
+    <string name="remove_status">অপসারণ করুন</string>
 </resources>

@@ -104,12 +104,12 @@
     <string name="no">కాదు</string>
     <string name="yes">అవును</string>
     <string name="required_constraint_validation_error_msg">తనిఖీ చేయాల్సిన ఫీల్డ్‌కు ప్రతిస్పందన లేదు.</string>
-    <string name="set_pin">PIN సెట్ చేయండి</string>
-    <string name="set_pin_message">%1$s ఈ PIN ని లాగిన్ కోసం ఉపయోగిస్తారు</string>
-    <string name="enter_pin_for_user">%1$s కోసం PIN నమోదు చేయండి</string>
-    <string name="incorrect_pin_please_retry">చెల్లని PIN, దయచేసి మళ్లీ ప్రయత్నించండి</string>
+    <string name="set_pin">సెట్ చేయండి</string>
+    <string name="set_pin_message">%1$s ఈ పిన్ ని లాగిన్ కోసం ఉపయోగిస్తారు</string>
+    <string name="enter_pin_for_user">%1$s కోసం పిన్ నమోదు చేయండి</string>
+    <string name="incorrect_pin_please_retry">చెల్లని పిన్, దయచేసి మళ్లీ ప్రయత్నించండి</string>
     <string name="pin_menu_login">లాగిన్</string>
-    <string name="forgot_pin">PIN మర్చిపోయారా? లాగిన్ ద్వారా రీసెట్ చేయండి</string>
+    <string name="forgot_pin">పిన్ మర్చిపోయారా? లాగిన్ ద్వారా రీసెట్ చేయండి</string>
     <string name="please_contact_supervisor">దయచేసి మీ సూపర్‌వైజర్‌ను సంప్రదించండి.</string>
     <string name="percentage" translatable="false">%</string>
     <string name="logging_out">లాగ్ అవుట్ అవుతున్నది. దయచేసి వేచి ఉండండి…</string>

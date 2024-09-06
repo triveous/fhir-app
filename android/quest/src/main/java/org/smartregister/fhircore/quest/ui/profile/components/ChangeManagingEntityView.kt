@@ -54,11 +54,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.profile.ManagingEntityConfig
 import org.smartregister.fhircore.engine.ui.theme.DefaultColor
 import org.smartregister.fhircore.engine.ui.theme.DividerColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.ui.profile.model.EligibleManagingEntity
 
@@ -268,34 +266,34 @@ fun BottomListItem(
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun ChangeManagingEntityViewPreview() {
-  ChangeManagingEntityView(
-    onSaveClick = {},
-    eligibleManagingEntities =
-      listOf(
-        EligibleManagingEntity(
-          groupId = "group-1",
-          logicalId = "patient-1",
-          memberInfo = "Jane Doe",
-        ),
-        EligibleManagingEntity(
-          groupId = "group-1",
-          logicalId = "patient-2",
-          memberInfo = "James Doe",
-        ),
-      ),
-    onDismiss = {},
-    managingEntity =
-      ManagingEntityConfig(
-        nameFhirPathExpression = "Patient.name",
-        eligibilityCriteriaFhirPathExpression = "Patient.active",
-        resourceType = ResourceType.Patient,
-        dialogTitle = "Assign new family head",
-        dialogWarningMessage =
-          "Please assign a new household head, family no longer has a household head",
-        dialogContentMessage = "Select a new family head",
-      ),
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun ChangeManagingEntityViewPreview() {
+//  ChangeManagingEntityView(
+//    onSaveClick = {},
+//    eligibleManagingEntities =
+//      listOf(
+//        EligibleManagingEntity(
+//          groupId = "group-1",
+//          logicalId = "patient-1",
+//          memberInfo = "Jane Doe",
+//        ),
+//        EligibleManagingEntity(
+//          groupId = "group-1",
+//          logicalId = "patient-2",
+//          memberInfo = "James Doe",
+//        ),
+//      ),
+//    onDismiss = {},
+//    managingEntity =
+//      ManagingEntityConfig(
+//        nameFhirPathExpression = "Patient.name",
+//        eligibilityCriteriaFhirPathExpression = "Patient.active",
+//        resourceType = ResourceType.Patient,
+//        dialogTitle = "Assign new family head",
+//        dialogWarningMessage =
+//          "Please assign a new household head, family no longer has a household head",
+//        dialogContentMessage = "Select a new family head",
+//      ),
+//  )
+//}

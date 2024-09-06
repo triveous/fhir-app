@@ -148,8 +148,8 @@ fun getFilterName(labelName: String): String {
     stringResource(id = R.string.view_all_retake_photo)
   } else if (labelName.equals(FilterType.ADVICE_TO_QUIT.label, true)) {
     stringResource(id = R.string.view_all_advice_to_quit)
-  } else if (labelName.equals("ADVICE TO QUIT HABIT", true)) {
-    stringResource(id = R.string.view_all_advice_to_quit)
+  } else if (labelName.equals(stringResource(id = R.string.view_all_advice_to_quit_habit), true)) {
+    stringResource(id = R.string.view_all_advice_to_quit_habit)
   } else {
     stringResource(id = R.string.view_all_urgent_referral)
   }
@@ -170,6 +170,8 @@ fun ViewAllTasksScreen(
   val coroutineScope = rememberCoroutineScope()
   val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
   var selectedTask by remember { mutableStateOf<TasksViewModel.TaskItem?>(null) }
+  val statusUpdateSuccessfully = stringResource(id = R.string.status_updated_successfully)
+  val selectStatusToUpdate = stringResource(id = R.string.select_status_to_update)
 
   Scaffold(
     modifier = modifier.background(SearchHeaderColor),
@@ -224,12 +226,12 @@ fun ViewAllTasksScreen(
             if(taskPriority != TaskProgressState.NONE){
               registerViewModel.updateTask(task.task, status, taskPriority)
               coroutineScope.launch {
-                registerViewModel.emitSnackBarState(SnackBarMessageConfig("Status updated successfully"))
+                registerViewModel.emitSnackBarState(SnackBarMessageConfig(statusUpdateSuccessfully))
                 bottomSheetState.hide()
               }
             }else{
               coroutineScope.launch {
-                registerViewModel.emitSnackBarState(SnackBarMessageConfig("Select the status to update"))
+                registerViewModel.emitSnackBarState(SnackBarMessageConfig(selectStatusToUpdate))
               }
             }
           },
@@ -454,25 +456,25 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
       when(task.task.intent){
 
         Task.TaskIntent.PLAN -> {
-          label = getFilterName("ADD INVESTIGATION").uppercase()
+          label = stringResource(id = R.string.view_all_add_investigation).uppercase()
           color = Color(0xFFFFF8E0)
           textColor = Color(0xFFFFC800)
         }
 
         Task.TaskIntent.OPTION -> {
-          label = getFilterName("ADVICE TO QUIT HABIT").uppercase()
+          label = stringResource(id = R.string.view_all_advice_to_quit_habit).uppercase()
           color = Color(0xFFFFF8E0)
           textColor = Color(0xFFFFC800)
         }
 
         Task.TaskIntent.ORDER -> {
-          label = getFilterName("URGENT REFERRAL").uppercase()
+          label = stringResource(id = R.string.view_all_urgent_referral).uppercase()
           color = Color(0xFFFFCDD2)
           textColor = Color(0xFFFF3355)
         }
 
         Task.TaskIntent.PROPOSAL -> {
-          label = getFilterName("RETAKE PHOTO").uppercase()
+          label = stringResource(id = R.string.view_all_retake_photo).uppercase()
           color = Color.LightGray
           textColor = Color.Gray
         }
@@ -753,25 +755,25 @@ fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewMo
                 when(task.task.intent){
 
                   Task.TaskIntent.PLAN -> {
-                    label = getFilterName("ADD INVESTIGATION").uppercase()
+                    label = stringResource(id = R.string.view_all_add_investigation).uppercase()
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                   }
 
                   Task.TaskIntent.OPTION -> {
-                    label = getFilterName("ADVICE TO QUIT HABIT").uppercase()
+                    label = stringResource(id = R.string.view_all_advice_to_quit_habit).uppercase()
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                   }
 
                   Task.TaskIntent.ORDER -> {
-                    label = getFilterName("URGENT REFERRAL").uppercase()
+                    label = stringResource(id = R.string.view_all_urgent_referral).uppercase()
                     color = Color(0xFFFFCDD2)
                     textColor = Color(0xFFFF3355)
                   }
 
                   Task.TaskIntent.PROPOSAL -> {
-                    label = getFilterName("RETAKE PHOTO").uppercase()
+                    label = stringResource(id = R.string.view_all_retake_photo).uppercase()
                     color = Color.LightGray
                     textColor = Color.Gray
                   }

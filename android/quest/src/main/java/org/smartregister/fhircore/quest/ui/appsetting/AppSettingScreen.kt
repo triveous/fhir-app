@@ -63,7 +63,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.ui.theme.LightColors
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.appVersion
 import org.smartregister.fhircore.quest.ui.login.LOGIN_ERROR_TEXT_TAG
 
@@ -183,26 +182,26 @@ fun AppSettingScreen(
   }
 }
 
-@Composable
-@PreviewWithBackgroundExcludeGenerated
-private fun AppSettingScreenWithErrorPreview() {
-  AppSettingScreen(
-    appId = "",
-    onAppIdChanged = {},
-    fetchConfiguration = {},
-    appVersionPair = Pair(1, "0.0.1"),
-    error = "Application not found",
-  )
-}
+//@Composable
+//@PreviewWithBackgroundExcludeGenerated
+//private fun AppSettingScreenWithErrorPreview() {
+//  AppSettingScreen(
+//    appId = "",
+//    onAppIdChanged = {},
+//    fetchConfiguration = {},
+//    appVersionPair = Pair(1, "0.0.1"),
+//    error = "Application not found",
+//  )
+//}
 
-@Composable
-@PreviewWithBackgroundExcludeGenerated
-private fun AppSettingScreenWithNoErrorPreview() {
-  AppSettingScreen(
-    appId = "",
-    onAppIdChanged = {},
-    fetchConfiguration = {},
-    appVersionPair = Pair(1, "0.0.1"),
-    error = "",
-  )
-}
+//@Composable
+//@PreviewWithBackgroundExcludeGenerated
+//private fun AppSettingScreenWithNoErrorPreview() {
+//  AppSettingScreen(
+//    appId = "",
+//    onAppIdChanged = {},
+//    fetchConfiguration = {},
+//    appVersionPair = Pair(1, "0.0.1"),
+//    error = "",
+//  )
+//}

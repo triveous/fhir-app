@@ -57,18 +57,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.ui.theme.DividerColor
 import org.smartregister.fhircore.engine.ui.theme.LoginDarkColor
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 const val USER_INSIGHT_TOP_APP_BAR = "userInsightToAppBar"
 const val INSIGHT_UNSYNCED_DATA = "insightUnsynceData"
@@ -306,25 +304,25 @@ fun formatTimestamp(timestamp: Long): String {
   val sdf = SimpleDateFormat("MMM dd, yyyy h:mm a", Locale.getDefault())
   return sdf.format(date)
 }
-
-@Preview
-@Composable
-fun UserSettingInsightScreenPreview() {
-  Column {
-    UserSettingInsightScreen(
-      fullName = "Tembo",
-      team = "Team_tembo",
-      locality = "Ps Dev-a",
-      userName = "user_name",
-      organization = "team_organization",
-      careTeam = "care_team",
-      location = "location",
-      appVersionCode = "v2.3.4",
-      appVersion = "119",
-      buildDate = "29 Jan 2023",
-      unsyncedResourcesFlow = MutableSharedFlow(),
-      navController = rememberNavController(),
-      onRefreshRequest = {},
-    )
-  }
-}
+//
+//@Preview
+//@Composable
+//fun UserSettingInsightScreenPreview() {
+//  Column {
+//    UserSettingInsightScreen(
+//      fullName = "Tembo",
+//      team = "Team_tembo",
+//      locality = "Ps Dev-a",
+//      userName = "user_name",
+//      organization = "team_organization",
+//      careTeam = "care_team",
+//      location = "location",
+//      appVersionCode = "v2.3.4",
+//      appVersion = "119",
+//      buildDate = "29 Jan 2023",
+//      unsyncedResourcesFlow = MutableSharedFlow(),
+//      navController = rememberNavController(),
+//      onRefreshRequest = {},
+//    )
+//  }
+//}

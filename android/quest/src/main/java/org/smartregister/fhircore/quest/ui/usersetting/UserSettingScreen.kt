@@ -81,7 +81,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.domain.model.Language
@@ -91,7 +90,6 @@ import org.smartregister.fhircore.engine.ui.theme.DividerColor
 import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
 import org.smartregister.fhircore.engine.ui.theme.LighterBlue
 import org.smartregister.fhircore.engine.ui.theme.LoginDarkColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.appVersion
 import org.smartregister.fhircore.quest.ui.pin.CIRCULAR_PROGRESS_INDICATOR
 
@@ -476,25 +474,25 @@ fun ConfirmClearDatabaseDialog(
   )
 }
 
-@Composable
-@PreviewWithBackgroundExcludeGenerated
-fun UserSettingPreview() {
-  UserSettingScreen(
-    appTitle = "Quest",
-    username = "Jam",
-    fullname = "Jam Kenya",
-    practitionerLocation = "Gateway Remote Location",
-    allowSwitchingLanguages = true,
-    selectedLanguage = java.util.Locale.ENGLISH.toLanguageTag(),
-    languages = listOf(Language("en", "English"), Language("sw", "Swahili")),
-    showDatabaseResetConfirmation = false,
-    progressBarState = Pair(false, R.string.resetting_app),
-    isDebugVariant = true,
-    onEvent = {},
-    mainNavController = rememberNavController(),
-    appVersionPair = Pair(1, "1.0.1"),
-    allowP2PSync = true,
-    lastSyncTime = "05:30 PM, Mar 3",
-    showProgressIndicatorFlow = MutableStateFlow(false),
-  )
-}
+//@Composable
+//@PreviewWithBackgroundExcludeGenerated
+//fun UserSettingPreview() {
+//  UserSettingScreen(
+//    appTitle = "Quest",
+//    username = "Jam",
+//    fullname = "Jam Kenya",
+//    practitionerLocation = "Gateway Remote Location",
+//    allowSwitchingLanguages = true,
+//    selectedLanguage = java.util.Locale.ENGLISH.toLanguageTag(),
+//    languages = listOf(Language("en", "English"), Language("sw", "Swahili")),
+//    showDatabaseResetConfirmation = false,
+//    progressBarState = Pair(false, R.string.resetting_app),
+//    isDebugVariant = true,
+//    onEvent = {},
+//    mainNavController = rememberNavController(),
+//    appVersionPair = Pair(1, "1.0.1"),
+//    allowP2PSync = true,
+//    lastSyncTime = "05:30 PM, Mar 3",
+//    showProgressIndicatorFlow = MutableStateFlow(false),
+//  )
+//}
