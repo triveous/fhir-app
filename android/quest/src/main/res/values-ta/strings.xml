@@ -259,6 +259,7 @@
     <string name="view_all_submissions">அனைத்து சமர்ப்பிப்புகள்</string>
 
     <!-- View All-->
+    <string name="view_all">அனைத்தையும் காண்க</string>
     <string name="view_all_urgent_referral">விரைவான பரிந்துரை</string>
     <string name="view_all_add_investigation">கூடுதல் விசாரணை</string>
     <string name="view_all_retake_photo">புகைப்படத்தை மீண்டும் எடுக்கவும்</string>
@@ -271,4 +272,17 @@
     <string name="view_all_screened_on">திரட்டப்பட்டது</string>
     <string name="toolbar_recently_added">சமீபத்தில் சேர்க்கப்பட்டவை</string>
 
+    <!-- SnackBar-->
+    <string name="status_updated_successfully">நிலை வெற்றிகரமாக புதுப்பிக்கப்பட்டது</string>
+    <string name="select_status_to_update">புதுப்பிக்க நிலையைத் தேர்ந்தெடுக்கவும்</string>
+
+    <!-- Screen Title-->
+    <string name="not_agreed_for_followup">பின்தொடர்வுக்கு ஒப்புக்கொள்ளவில்லை</string>
+    <string name="agreed_followup_not_done">ஒப்புக்கொண்டேன், பின்தொடரவில்லை</string>
+    <string name="followup_done">பின்தொடரப்பட்டது</string>
+    <string name="remove_case">ஒப்புக்கொள்ளவில்லை, வழக்கு நீக்கவும்</string>
+    <string name="null_status">null</string>
+    <string name="none_status">none</string>
+    <string name="default_status">இயல்புநிலை</string>
+    <string name="remove_status">நீக்கவும்</string>
 </resources>

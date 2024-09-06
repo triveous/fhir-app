@@ -32,9 +32,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.ui.theme.SubtitleTextColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.ui.shared.models.MeasureReportSubjectViewData
 
 const val PERSONAL_DETAILS_TEST_TAG = "personalDetailsTestTag"
@@ -73,15 +71,15 @@ fun MeasureReportIndividualResultView(
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun MeasureReportIndividualResultViewPreview() {
-  MeasureReportIndividualResultView(
-    subjectViewData =
-      MeasureReportSubjectViewData(
-        display = "Jacky Coughlin, F, 27",
-        logicalId = "12444",
-        type = ResourceType.Patient,
-      ),
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun MeasureReportIndividualResultViewPreview() {
+//  MeasureReportIndividualResultView(
+//    subjectViewData =
+//      MeasureReportSubjectViewData(
+//        display = "Jacky Coughlin, F, 27",
+//        logicalId = "12444",
+//        type = ResourceType.Patient,
+//      ),
+//  )
+//}

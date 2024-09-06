@@ -261,6 +261,7 @@
     <string name="view_all_submissions">सभी सबमिशन</string>
 
     <!-- View All-->
+    <string name="view_all">सभी देखें</string>
     <string name="view_all_urgent_referral">तत्काल रेफरल</string>
     <string name="view_all_add_investigation">अतिरिक्त जांच</string>
     <string name="view_all_retake_photo">फोटो फिर से लें</string>
@@ -273,4 +274,17 @@
     <string name="view_all_screened_on">स्क्रीन किया गया</string>
     <string name="toolbar_recently_added">हाल ही में जोड़ा गया</string>
 
+    <!-- SnackBar-->
+    <string name="status_updated_successfully">स्थिति सफलतापूर्वक अपडेट की गई</string>
+    <string name="select_status_to_update">अपडेट करने के लिए स्थिति चुनें</string>
+
+    <!-- Screen Title-->
+    <string name="not_agreed_for_followup">फॉलो अप के लिए सहमत नहीं</string>
+    <string name="agreed_followup_not_done">सहमत, फॉलो अप नहीं किया गया</string>
+    <string name="followup_done">फॉलो अप किया गया</string>
+    <string name="remove_case">सहमत नहीं, केस हटाएं</string>
+    <string name="null_status">null</string>
+    <string name="none_status">none</string>
+    <string name="default_status">डिफ़ॉल्ट</string>
+    <string name="remove_status">हटाएं</string>
 </resources>
