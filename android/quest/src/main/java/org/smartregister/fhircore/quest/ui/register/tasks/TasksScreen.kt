@@ -184,10 +184,8 @@ fun FilterRow2(selectedFilter: TabType, onFilterSelected: (TabType) -> Unit) {
 @Composable
 fun getTabName(labelName: String): String {
     return if (labelName.equals(TabType.TASK_COMPLETED_TAB.label, true)) {
-        println("labelName--> $labelName")
         stringResource(id = R.string.status_completed)
     } else if (labelName.equals(TabType.TASK_PENDING_TAB.label, true)) {
-        println("labelName--> $labelName")
         stringResource(id = R.string.status_pending)
     } else {
         stringResource(id = R.string.status_new)
@@ -215,6 +213,8 @@ fun PendingTasksScreen(
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
     var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
     var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
+    val statusUpdateSuccessfully = stringResource(id = R.string.status_updated_successfully)
+    val selectStatusToUpdate = stringResource(id = R.string.select_status_to_update)
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -266,13 +266,14 @@ fun PendingTasksScreen(
 
                     if (taskPriority != TaskProgressState.NONE) {
                         viewModel.updateTask(task.task, status, taskPriority)
+
                         coroutineScope.launch {
-                            viewModel.emitSnackBarState(SnackBarMessageConfig("Status updated successfully"))
+                            viewModel.emitSnackBarState(SnackBarMessageConfig(statusUpdateSuccessfully))
                             bottomSheetState.hide()
                         }
                     } else {
                         coroutineScope.launch {
-                            viewModel.emitSnackBarState(SnackBarMessageConfig("Select the status to update"))
+                            viewModel.emitSnackBarState(SnackBarMessageConfig(selectStatusToUpdate))
                         }
                     }
                 }, onCancel = {
@@ -693,7 +694,7 @@ private fun ShowAllPatients(
                                                 modifier = Modifier.padding(
                                                     vertical = 4.dp, horizontal = 4.dp
                                                 ),
-                                                painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_patient_male),
+                                                painter = painterResource(id = R.drawable.ic_patient_male),
                                                 contentDescription = FILTER,
                                                 tint = LightColors.primary,
                                             )
@@ -718,25 +719,25 @@ private fun ShowAllPatients(
                                             when (task.intent) {
 
                                                 Task.TaskIntent.PLAN -> {
-                                                    label = getFilterName("ADD INVESTIGATION")
+                                                    label = stringResource(id = R.string.view_all_add_investigation).uppercase()
                                                     color = Color(0xFFFFF8E0)
                                                     textColor = Color(0xFFFFC800)
                                                 }
 
                                                 Task.TaskIntent.OPTION -> {
-                                                    label = getFilterName("ADVICE TO QUIT HABIT")
+                                                    label = stringResource(id = R.string.view_all_advice_to_quit_habit).uppercase()
                                                     color = Color(0xFFFFF8E0)
                                                     textColor = Color(0xFFFFC800)
                                                 }
 
                                                 Task.TaskIntent.ORDER -> {
-                                                    label = getFilterName("URGENT REFERRAL")
+                                                    label = stringResource(id = R.string.view_all_urgent_referral).uppercase()
                                                     color = Color(0xFFFFCDD2)
                                                     textColor = Color(0xFFFF3355)
                                                 }
 
                                                 Task.TaskIntent.PROPOSAL -> {
-                                                    label = getFilterName("RETAKE PHOTO")
+                                                    label = stringResource(id = R.string.view_all_retake_photo).uppercase()
                                                     color = Color.LightGray
                                                     textColor = Color.Gray
                                                 }

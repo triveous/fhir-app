@@ -96,7 +96,6 @@ import org.smartregister.fhircore.engine.configuration.app.ApplicationConfigurat
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginDarkColor
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.appVersion
 import org.smartregister.fhircore.quest.BuildConfig
 
@@ -443,42 +442,42 @@ fun ForgotPasswordDialog(
   )
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun LoginScreenPreview() {
-  LoginPage(
-    applicationConfiguration =
-      ApplicationConfiguration(
-        appId = "appId",
-        configType = "application",
-        appTitle = "FHIRCore App",
-      ),
-    username = "",
-    onUsernameChanged = {},
-    password = "",
-    onPasswordChanged = {},
-    forgotPassword = {},
-    onLoginButtonClicked = {},
-    appVersionPair = Pair(1, "0.0.1"),
-  )
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun LoginScreenPreviewDarkMode() {
-  LoginPage(
-    applicationConfiguration =
-      ApplicationConfiguration(
-        appId = "appId",
-        configType = "application",
-        appTitle = "FHIRCore App",
-      ),
-    username = "",
-    onUsernameChanged = {},
-    password = "",
-    onPasswordChanged = {},
-    forgotPassword = {},
-    onLoginButtonClicked = {},
-    appVersionPair = Pair(1, "0.0.1"),
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun LoginScreenPreview() {
+//  LoginPage(
+//    applicationConfiguration =
+//      ApplicationConfiguration(
+//        appId = "appId",
+//        configType = "application",
+//        appTitle = "FHIRCore App",
+//      ),
+//    username = "",
+//    onUsernameChanged = {},
+//    password = "",
+//    onPasswordChanged = {},
+//    forgotPassword = {},
+//    onLoginButtonClicked = {},
+//    appVersionPair = Pair(1, "0.0.1"),
+//  )
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun LoginScreenPreviewDarkMode() {
+//  LoginPage(
+//    applicationConfiguration =
+//      ApplicationConfiguration(
+//        appId = "appId",
+//        configType = "application",
+//        appTitle = "FHIRCore App",
+//      ),
+//    username = "",
+//    onUsernameChanged = {},
+//    password = "",
+//    onPasswordChanged = {},
+//    forgotPassword = {},
+//    onLoginButtonClicked = {},
+//    appVersionPair = Pair(1, "0.0.1"),
+//  )
+//}

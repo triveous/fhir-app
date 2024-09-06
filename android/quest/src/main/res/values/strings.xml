@@ -213,6 +213,8 @@
     <string name="visited">Visited</string>
     <string name="cases_sync">Sync: %s</string>
     <string name="dynamic_see_more">SEE %s MORE</string>
+    <string name="dynamic_total_drafts">TOTAL DRAFTS: %s</string>
+    <string name="dynamic_visited">Visited %s</string>
     <string name="created">Created</string>
     <string name="total_submissions">Total submissions: %s</string>
     <string name="un_synced_submissions">UN-synced submissions: %s</string>
@@ -259,6 +261,7 @@
     <string name="view_all_submissions">All submissions</string>
 
     <!-- View All-->
+    <string name="view_all">VIEW ALL</string>
     <string name="view_all_urgent_referral">Urgent Referral</string>
     <string name="view_all_add_investigation">Add. Investigation</string>
     <string name="view_all_retake_photo">Retake Photo</string>
@@ -272,6 +275,18 @@
     <!-- Toolbar-->
     <string name="toolbar_recently_added">Recently Added</string>
 
+    <!-- SnackBar-->
+    <string name="status_updated_successfully">Status updated successfully</string>
+    <string name="select_status_to_update">Select the status to update</string>
 
+    <!-- Screen Title-->
+    <string name="not_agreed_for_followup">Did n\'t agree for follow up</string>
+    <string name="agreed_followup_not_done">Agreed, follow up not done</string>
+    <string name="followup_done">Follow up done</string>
+    <string name="remove_case">Not agreed, remove case</string>
+    <string name="null_status">null</string>
+    <string name="none_status">none</string>
+    <string name="default_status">Default</string>
+    <string name="remove_status">Remove</string>
 
 </resources>

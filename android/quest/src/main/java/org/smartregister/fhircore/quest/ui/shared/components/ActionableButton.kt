@@ -18,7 +18,6 @@ package org.smartregister.fhircore.quest.ui.shared.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -44,10 +43,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import org.hl7.fhir.r4.model.ResourceType
-import org.smartregister.fhircore.engine.configuration.navigation.ICON_TYPE_LOCAL
-import org.smartregister.fhircore.engine.configuration.navigation.ImageConfig
 import org.smartregister.fhircore.engine.configuration.view.ButtonProperties
 import org.smartregister.fhircore.engine.configuration.view.ButtonType
 import org.smartregister.fhircore.engine.configuration.view.ImageProperties
@@ -55,7 +50,6 @@ import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.ServiceStatus
 import org.smartregister.fhircore.engine.ui.theme.DefaultColor
 import org.smartregister.fhircore.engine.ui.theme.SuccessColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.parseColor
 import org.smartregister.fhircore.quest.util.extensions.conditional
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
@@ -196,87 +190,87 @@ fun ActionableButton(
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun ActionableButtonPreview() {
-  ActionableButton(
-    buttonProperties =
-      ButtonProperties(
-        visible = "true",
-        status = ServiceStatus.IN_PROGRESS.name,
-        text = "ANC Visit",
-      ),
-    resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-    navController = rememberNavController(),
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun ActionableButtonPreview() {
+//  ActionableButton(
+//    buttonProperties =
+//      ButtonProperties(
+//        visible = "true",
+//        status = ServiceStatus.IN_PROGRESS.name,
+//        text = "ANC Visit",
+//      ),
+//    resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//    navController = rememberNavController(),
+//  )
+//}
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun ActionableButtonTinyButtonPreview() {
-  ActionableButton(
-    buttonProperties =
-      ButtonProperties(
-        visible = "true",
-        status = ServiceStatus.COMPLETED.name,
-        text = "ANC Visit",
-        buttonType = ButtonType.TINY,
-      ),
-    resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-    navController = rememberNavController(),
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun ActionableButtonTinyButtonPreview() {
+//  ActionableButton(
+//    buttonProperties =
+//      ButtonProperties(
+//        visible = "true",
+//        status = ServiceStatus.COMPLETED.name,
+//        text = "ANC Visit",
+//        buttonType = ButtonType.TINY,
+//      ),
+//    resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//    navController = rememberNavController(),
+//  )
+//}
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun DisabledActionableButtonPreview() {
-  Row(modifier = Modifier.fillMaxWidth()) {
-    ActionableButton(
-      buttonProperties =
-        ButtonProperties(
-          visible = "true",
-          status = ServiceStatus.UPCOMING.name,
-          text = "Issue household bed-nets",
-          contentColor = "#700f2b",
-          enabled = "false",
-          backgroundOpacity = 0.06f,
-          colorOpacity = 0.6f,
-          buttonType = ButtonType.MEDIUM,
-          startIcon = ImageConfig(reference = "ic_walk", type = ICON_TYPE_LOCAL),
-        ),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun DisabledActionableButtonPreview() {
+//  Row(modifier = Modifier.fillMaxWidth()) {
+//    ActionableButton(
+//      buttonProperties =
+//        ButtonProperties(
+//          visible = "true",
+//          status = ServiceStatus.UPCOMING.name,
+//          text = "Issue household bed-nets",
+//          contentColor = "#700f2b",
+//          enabled = "false",
+//          backgroundOpacity = 0.06f,
+//          colorOpacity = 0.6f,
+//          buttonType = ButtonType.MEDIUM,
+//          startIcon = ImageConfig(reference = "ic_walk", type = ICON_TYPE_LOCAL),
+//        ),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun SmallActionableButtonPreview() {
-  Row(modifier = Modifier.fillMaxWidth()) {
-    ActionableButton(
-      modifier = Modifier.weight(1.0f),
-      buttonProperties =
-        ButtonProperties(
-          status = "DUE",
-          text = "Due Task",
-          fillMaxWidth = true,
-          buttonType = ButtonType.MEDIUM,
-        ),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-    ActionableButton(
-      modifier = Modifier.weight(1.0f),
-      buttonProperties =
-        ButtonProperties(
-          status = "COMPLETED",
-          text = "Completed Task",
-          fillMaxWidth = true,
-          buttonType = ButtonType.TINY,
-        ),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun SmallActionableButtonPreview() {
+//  Row(modifier = Modifier.fillMaxWidth()) {
+//    ActionableButton(
+//      modifier = Modifier.weight(1.0f),
+//      buttonProperties =
+//        ButtonProperties(
+//          status = "DUE",
+//          text = "Due Task",
+//          fillMaxWidth = true,
+//          buttonType = ButtonType.MEDIUM,
+//        ),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//    ActionableButton(
+//      modifier = Modifier.weight(1.0f),
+//      buttonProperties =
+//        ButtonProperties(
+//          status = "COMPLETED",
+//          text = "Completed Task",
+//          fillMaxWidth = true,
+//          buttonType = ButtonType.TINY,
+//        ),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}

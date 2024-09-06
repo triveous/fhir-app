@@ -46,7 +46,6 @@ import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenu
 import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
 import org.smartregister.fhircore.engine.ui.theme.DividerColor
 import org.smartregister.fhircore.engine.ui.theme.StatusTextColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 
 const val REGISTER_BOTTOM_SHEET_LIST = "registerBottomSheetList"
 
@@ -124,28 +123,28 @@ fun RegisterListItem(
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun RegisterListItemPreview() {
-  RegisterListItem(
-    navigationMenuConfig =
-      NavigationMenuConfig(id = "TestFragmentTag", display = "All Clients", showCount = true),
-    menuClickListener = {},
-    onDismiss = {},
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun RegisterListItemPreview() {
+//  RegisterListItem(
+//    navigationMenuConfig =
+//      NavigationMenuConfig(id = "TestFragmentTag", display = "All Clients", showCount = true),
+//    menuClickListener = {},
+//    onDismiss = {},
+//  )
+//}
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun RegisterBottomSheetPreview() {
-  RegisterBottomSheetView(
-    navigationMenuConfigs =
-      listOf(
-        NavigationMenuConfig(id = "TestFragmentTag", display = "All Clients"),
-        NavigationMenuConfig(id = "TestFragmentTag2", display = "Families", showCount = true),
-      ),
-    menuClickListener = {},
-    onDismiss = {},
-    title = "Other Services",
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun RegisterBottomSheetPreview() {
+//  RegisterBottomSheetView(
+//    navigationMenuConfigs =
+//      listOf(
+//        NavigationMenuConfig(id = "TestFragmentTag", display = "All Clients"),
+//        NavigationMenuConfig(id = "TestFragmentTag2", display = "Families", showCount = true),
+//      ),
+//    menuClickListener = {},
+//    onDismiss = {},
+//    title = "Other Services",
+//  )
+//}

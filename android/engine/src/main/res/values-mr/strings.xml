@@ -104,12 +104,12 @@
     <string name="no">नाही</string>
     <string name="yes">होय</string>
     <string name="required_constraint_validation_error_msg">आवश्यक क्षेत्रासाठी उत्तर नाही.</string>
-    <string name="set_pin">PIN सेट करा</string>
-    <string name="set_pin_message">%1$s या PINचा वापर लॉगिनसाठी करेल</string>
-    <string name="enter_pin_for_user">%1$s साठी PIN प्रविष्ट करा</string>
-    <string name="incorrect_pin_please_retry">अयोग्य PIN, कृपया पुन्हा प्रयत्न करा</string>
+    <string name="set_pin">पिन सेट करा</string>
+    <string name="set_pin_message">%1$s या পিন चा वापर लॉगिनसाठी करेल</string>
+    <string name="enter_pin_for_user">%1$s साठी পিন प्रविष्ट करा</string>
+    <string name="incorrect_pin_please_retry">अयोग्य पिन, कृपया पुन्हा प्रयत्न करा</string>
     <string name="pin_menu_login">लॉगिन</string>
-    <string name="forgot_pin">PIN विसरला? लॉगिनद्वारे रिसेट करा</string>
+    <string name="forgot_pin">पिन विसरला? लॉगिनद्वारे रिसेट करा</string>
     <string name="please_contact_supervisor">कृपया आपल्या पर्यवेक्षकाशी संपर्क साधा.</string>
     <string name="percentage" translatable="false">%</string>
     <string name="logging_out">लॉगआउट होत आहे. कृपया थांबा…</string>

@@ -34,7 +34,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.ui.theme.SubtitleTextColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 
 const val DATE_RANGE_TEXT_TEST_TAG = "dateRangeTextTestTag"
 
@@ -63,8 +62,8 @@ fun DateRangeItem(text: String, showBackground: Boolean = true, modifier: Modifi
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun DateRangeItemPreview() {
-  DateRangeItem(text = "Date Range", showBackground = true)
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun DateRangeItemPreview() {
+//  DateRangeItem(text = "Date Range", showBackground = true)
+//}

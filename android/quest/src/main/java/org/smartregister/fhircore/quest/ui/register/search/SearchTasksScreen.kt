@@ -64,22 +64,17 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskStatus
-import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
-import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
-import org.smartregister.fhircore.quest.ui.register.patients.NoRegisterDataView
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
 import org.smartregister.fhircore.quest.ui.register.tasks.BottomSheetContent
-import org.smartregister.fhircore.quest.ui.register.tasks.getFilterName
 import org.smartregister.fhircore.quest.util.TaskProgressState
 
 
@@ -325,25 +320,25 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
                 when(task.task.intent){
 
                   Task.TaskIntent.PLAN -> {
-                    label = getFilterName("ADD INVESTIGATION")
+                    label = stringResource(id = R.string.view_all_add_investigation).uppercase()
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                   }
 
                   Task.TaskIntent.OPTION -> {
-                    label = getFilterName("ADVICE TO QUIT HABIT")
+                    label = stringResource(id = R.string.view_all_advice_to_quit_habit).uppercase()
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                   }
 
                   Task.TaskIntent.ORDER -> {
-                    label = getFilterName("URGENT REFERRAL")
+                    label = stringResource(id = R.string.view_all_urgent_referral).uppercase()
                     color = Color(0xFFFFCDD2)
                     textColor = Color(0xFFFF3355)
                   }
 
                   Task.TaskIntent.PROPOSAL -> {
-                    label = getFilterName("RETAKE PHOTO")
+                    label = stringResource(id = R.string.view_all_retake_photo).uppercase()
                     color = Color.LightGray
                     textColor = Color.Gray
                   }
@@ -416,15 +411,15 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
 
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun PreviewNoRegistersView() {
-  NoRegisterDataView(
-    noResults =
-      NoResultsConfig(
-        title = "Title",
-        message = "This is message",
-        actionButton = NavigationMenuConfig(display = "Button Text", id = "1"),
-      ),
-  ) {}
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun PreviewNoRegistersView() {
+//  NoRegisterDataView(
+//    noResults =
+//      NoResultsConfig(
+//        title = "Title",
+//        message = "This is message",
+//        actionButton = NavigationMenuConfig(display = "Button Text", id = "1"),
+//      ),
+//  ) {}
+//}
