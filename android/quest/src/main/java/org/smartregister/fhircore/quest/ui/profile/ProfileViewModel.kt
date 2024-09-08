@@ -235,6 +235,7 @@ constructor(
             try {
               registerRepository.loadResource(it.entity.extractId(), managingEntity.resourceType!!)
             } catch (resourceNotFoundException: ResourceNotFoundException) {
+              Timber.e(resourceNotFoundException)
               null
             }
           }
