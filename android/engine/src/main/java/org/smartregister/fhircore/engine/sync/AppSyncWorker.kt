@@ -35,15 +35,18 @@ import com.google.android.fhir.sync.ConflictResolver
 import com.google.android.fhir.sync.DownloadWorkManager
 import com.google.android.fhir.sync.FhirSyncWorker
 import com.google.android.fhir.sync.upload.UploadStrategy
+import com.google.gson.Gson
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Resource
 import org.smartregister.fhircore.engine.R
+import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocStatusRequest
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
@@ -65,8 +68,9 @@ constructor(
     private val fhirResourceService: FhirResourceService,
 ) : FhirSyncWorker(appContext, workerParams) {
 
-    companion object{
+    companion object {
         val mutex = Mutex()
+        val uploadImageMutex = Mutex()
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
@@ -82,7 +86,8 @@ constructor(
     override fun getUploadStrategy(): UploadStrategy = UploadStrategy.AllChangesSquashedBundlePut
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        val notification = createNotification(applicationContext) // Your method to create a notification
+        val notification =
+            createNotification(applicationContext) // Your method to create a notification
         return ForegroundInfo(
             NOTIFICATION_ID,
             notification,
@@ -127,12 +132,17 @@ constructor(
         return metaSyncResult
     }
 
-    private suspend fun performDocumentReferenceUpload(context: Context, workerId: String): Boolean {
+    private suspend fun performDocumentReferenceUpload(
+        context: Context,
+        workerId: String
+    ): Boolean {
         Timber.i("Starting document reference upload for worker: $workerId")
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Create notification channel (for Android 8.0 and above)
-        val channel = NotificationChannel(CHANNEL_ID, "Document Upload", NotificationManager.IMPORTANCE_HIGH)
+        val channel =
+            NotificationChannel(CHANNEL_ID, "Document Upload", NotificationManager.IMPORTANCE_HIGH)
         notificationManager.createNotificationChannel(channel)
 
         val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -163,73 +173,118 @@ constructor(
             val fileUri = it.second ?: return@map false
 
             try {
-                Timber.d("Processing document reference with logicalId: ${docReference.logicalId}")
-                val docReferenceJson = FhirContext.forR4Cached().newJsonParser().encodeResourceToString(docReference as Resource)
-                val docReferenceBytes = docReferenceJson.encodeToByteArray()
+                uploadImageMutex.withLock {
+                    Timber.d("Processing document reference with logicalId: ${docReference.logicalId}")
+                    val docReferenceJson = FhirContext.forR4Cached().newJsonParser()
+                        .encodeResourceToString(docReference as Resource)
+                    val docReferenceBytes = docReferenceJson.encodeToByteArray()
 
-                val refBody = docReferenceBytes.toRequestBody(HEADER_APPLICATION_JSON.toMediaType())
+                    val refBody =
+                        docReferenceBytes.toRequestBody(HEADER_APPLICATION_JSON.toMediaType())
 
-                Timber.i("Inserting document reference with logicalId: ${docReference.logicalId}")
-                fhirResourceService.insertResource(docReference.fhirType(), docReference.logicalId, refBody)
-                Timber.i("Successfully inserted document reference with logicalId: ${docReference.logicalId}")
+                    Timber.i("Inserting document reference with logicalId: ${docReference.logicalId}")
+                    fhirResourceService.insertResource(
+                        docReference.fhirType(),
+                        docReference.logicalId,
+                        refBody
+                    )
+                    Timber.i("Successfully inserted document reference with logicalId: ${docReference.logicalId}")
 
-                val docContentType = docReference.content.first().attachment.contentType
+                    val docContentType = docReference.content.first().attachment.contentType
 
-                Timber.d("Retrieving file bytes for document with logicalId: ${docReference.logicalId}")
-                val bytes = runCatching {
-                    context.contentResolver.openInputStream(fileUri)?.use { it.buffered().readBytes() }
-                }.getOrNull() ?: run {
-                    Timber.e("Failed to retrieve file bytes for document with logicalId: ${docReference.logicalId}")
-                    return@map false
-                }
-
-                Timber.d("Successfully retrieved file bytes for document with logicalId: ${docReference.logicalId}")
-
-                val body = bytes.toRequestBody(docContentType.toMediaType())
-
-                Timber.i("Uploading file for document with logicalId: ${docReference.logicalId}")
-                val response = fhirResourceService.uploadFile(
-                    docReference.fhirType(),
-                    docReference.logicalId,
-                    "DocumentReference.content.attachment",
-                    body
-                )
-
-                if (response.isSuccessful) {
-                    Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId}")
-                    docReference.docStatus = DocumentReference.ReferredDocumentStatus.FINAL
-                    fhirResourceService.updateResource(docReference.fhirType(), docReference.logicalId, refBody)
-                } else {
-                    Timber.e("File upload failed for document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - Message: ${response.message()}")
-
-                    if (response.code() == 400 || response.code() == 422 || response.code() == 410) {
-                        Timber.w("Client error encountered. Purging document with logicalId: ${docReference.logicalId}")
-                        openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
-                        applicationContext.contentResolver.delete(fileUri, null, null)
+                    Timber.d("Retrieving file bytes for document with logicalId: ${docReference.logicalId}")
+                    val bytes = runCatching {
+                        context.contentResolver.openInputStream(fileUri)
+                            ?.use { it.buffered().readBytes() }
+                    }.getOrNull() ?: run {
+                        Timber.e("Failed to retrieve file bytes for document with logicalId: ${docReference.logicalId}")
+                        return@map false
                     }
-                    return@map false
+
+                    Timber.d("Successfully retrieved file bytes for document with logicalId: ${docReference.logicalId}")
+
+                    val body = bytes.toRequestBody(docContentType.toMediaType())
+
+                    Timber.i("Uploading file for document with logicalId: ${docReference.logicalId}")
+                    val response = fhirResourceService.uploadFile(
+                        docReference.fhirType(),
+                        docReference.logicalId,
+                        "DocumentReference.content.attachment",
+                        body
+                    )
+
+                    if (response.isSuccessful.not()) {
+                        Timber.e("File upload failed for document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - Message: ${response.message()}")
+
+                        if (response.code() == 422 || response.code() == 410) {
+                            Timber.w("Client error encountered. Purging document with logicalId: ${docReference.logicalId}")
+                            openSrpFhirEngine.purge(
+                                docReference.resourceType,
+                                docReference.logicalId,
+                                true
+                            )
+                            applicationContext.contentResolver.delete(fileUri, null, null)
+                        }
+
+                        if (response.code() == 400) {
+                            println("400 --> ${Gson().toJson(refBody)}")
+                            fhirResourceService.updateResource(
+                                docReference.fhirType(),
+                                docReference.logicalId,
+                                refBody
+                            )
+                        }
+
+                        return@map false
+                    } else {
+                        Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId}")
+                        fhirResourceService.updateResource(
+                            docReference.fhirType(),
+                            docReference.logicalId,
+                            Gson().toJson(listOf(DocStatusRequest("replace","/docStatus",DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()))).toRequestBody(
+                                "application/json-patch+json".toMediaTypeOrNull()
+                            )
+                        )
+
+                        // Save the changes to document reference
+                        openSrpFhirEngine.purge(
+                            docReference.resourceType,
+                            docReference.logicalId,
+                            true
+                        )
+
+                        // Delete the file
+                        applicationContext.contentResolver.delete(fileUri, null, null)
+
+                        // Update progress
+                        pendingDocuments--
+                        val progress =
+                            ((totalDocuments - pendingDocuments) * 100 / totalDocuments).toInt()
+                        notificationBuilder.setProgress(
+                            totalDocuments,
+                            totalDocuments - pendingDocuments,
+                            false
+                        )
+                            .setContentText(
+                                context.getString(
+                                    R.string.images_pending_text,
+                                    pendingDocuments
+                                )
+                            )
+                        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
+
+                        // Update work progress
+                        setProgressAsync(workDataOf("progress" to progress))
+
+                        Timber.d("Completed processing for document with logicalId: ${docReference.logicalId}")
+                        true
+                    }
                 }
-
-                // Save the changes to document reference
-                openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
-
-                // Delete the file
-                applicationContext.contentResolver.delete(fileUri, null, null)
-
-                // Update progress
-                pendingDocuments--
-                val progress = ((totalDocuments - pendingDocuments) * 100 / totalDocuments).toInt()
-                notificationBuilder.setProgress(totalDocuments, totalDocuments - pendingDocuments, false)
-                    .setContentText(context.getString(R.string.images_pending_text, pendingDocuments))
-                notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
-
-                // Update work progress
-                setProgressAsync(workDataOf("progress" to progress))
-
-                Timber.d("Completed processing for document with logicalId: ${docReference.logicalId}")
-                true
             } catch (e: Exception) {
-                Timber.e(e, "Exception while processing document with logicalId: ${docReference.logicalId}")
+                Timber.e(
+                    e,
+                    "Exception while processing document with logicalId: ${docReference.logicalId}"
+                )
                 false
             }
         }.all { it }
