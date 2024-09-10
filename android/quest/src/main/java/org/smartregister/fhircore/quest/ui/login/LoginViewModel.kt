@@ -285,6 +285,7 @@ constructor(
       }
     } catch (httpException: HttpException) {
       onFetchUserInfo(Result.failure(httpException))
+      Timber.e(httpException)
     } catch (unknownHostException: UnknownHostException) {
       onFetchUserInfo(Result.failure(unknownHostException))
       Timber.e(unknownHostException, "An error occurred fetching the practitioner details")

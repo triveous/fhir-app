@@ -55,6 +55,7 @@ import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
+import timber.log.Timber
 import java.io.File
 import java.math.BigDecimal
 import java.util.Date
@@ -355,7 +356,7 @@ internal object CustomAttachmentViewHolderFactory :
                                 displaySnackBarOnUpload(view, attachmentMimeType)
                             }
                         } catch (e: Exception) {
-                            e.printStackTrace()
+                            Timber.e(e, "CustomAttachment")
                         }
                     } else {
                         displaySnackBar(view, R.string.image_capture_failed)
@@ -536,7 +537,7 @@ internal object CustomAttachmentViewHolderFactory :
                             )
                         }
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Timber.e(e, "CustomAttachment")
                     }
                 }
             }
@@ -691,7 +692,7 @@ internal object CustomAttachmentViewHolderFactory :
                 attachment = Attachment().apply { contentType = mimeType }
             }
             date = Date()
-            docStatus = DocumentReference.ReferredDocumentStatus.FINAL
+            docStatus = DocumentReference.ReferredDocumentStatus.PRELIMINARY
             status = Enumerations.DocumentReferenceStatus.CURRENT
         }
         return doc

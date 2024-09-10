@@ -172,7 +172,9 @@ constructor(
       } catch (unknownHostException: UnknownHostException) {
         _error.postValue(context.getString(R.string.error_loading_config_no_internet))
         showProgressBar.postValue(false)
+        Timber.e(unknownHostException)
       } catch (httpException: HttpException) {
+        Timber.e(httpException)
         if ((400..503).contains(httpException.response()!!.code())) {
           _error.postValue(context.getString(R.string.error_loading_config_general))
         } else {
