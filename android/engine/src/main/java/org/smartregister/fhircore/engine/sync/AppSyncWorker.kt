@@ -50,6 +50,9 @@ import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocStatusReq
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.CONTENT_TYPE
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
@@ -215,7 +218,7 @@ constructor(
 
                     if (response.isSuccessful.not()) {
                         Timber.e("File upload failed for document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - Message: ${response.message()}")
-
+                        // 400 mean bad request
                         if (response.code() == 422 || response.code() == 410) {
                             Timber.w("Client error encountered. Purging document with logicalId: ${docReference.logicalId}")
                             openSrpFhirEngine.purge(
@@ -225,24 +228,14 @@ constructor(
                             )
                             applicationContext.contentResolver.delete(fileUri, null, null)
                         }
-
-                        if (response.code() == 400) {
-                            println("400 --> ${Gson().toJson(refBody)}")
-                            fhirResourceService.updateResource(
-                                docReference.fhirType(),
-                                docReference.logicalId,
-                                refBody
-                            )
-                        }
-
                         return@map false
                     } else {
                         Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId}")
                         fhirResourceService.updateResource(
                             docReference.fhirType(),
                             docReference.logicalId,
-                            Gson().toJson(listOf(DocStatusRequest("replace","/docStatus",DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()))).toRequestBody(
-                                "application/json-patch+json".toMediaTypeOrNull()
+                            Gson().toJson(listOf(DocStatusRequest(REPLACE,DOC_STATUS,DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()))).toRequestBody(
+                                CONTENT_TYPE.toMediaTypeOrNull()
                             )
                         )
 
