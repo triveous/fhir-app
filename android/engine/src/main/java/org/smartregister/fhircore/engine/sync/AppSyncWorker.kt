@@ -99,7 +99,7 @@ constructor(
     }
 
     override suspend fun doWork(): Result {
-        Timber.e("AppSyncWorker Running sync worker")
+        Timber.i("AppSyncWorker Running sync worker")
         if (mutex.isLocked) {
             Timber.e("AppSyncWorker is locked. Returning failure")
             return Result.failure()
@@ -149,7 +149,7 @@ constructor(
         val result = docReferences.map {
             val uriString = it.resource.getExtensionByUrl(UPLOAD_IMAGE_URL)?.value?.asStringValue()
             if (uriString.isNullOrBlank()) {
-                Timber.w("Empty or null URI string for document: ${it.resource.logicalId}")
+                Timber.e(Exception("Empty or null URI string for document: ${it.resource.logicalId} - $pendingDocuments pending"))
                 return@map it.resource to null
             }
             it.resource to uriString.toUri()
@@ -159,7 +159,7 @@ constructor(
 
             try {
                 uploadImageMutex.withLock {
-                    Timber.d("Processing document reference with logicalId: ${docReference.logicalId}")
+                    Timber.i("Processing document reference with logicalId: ${docReference.logicalId}")
                     val docReferenceJson = FhirContext.forR4Cached().newJsonParser()
                         .encodeResourceToString(docReference as Resource)
                     val docReferenceBytes = docReferenceJson.encodeToByteArray()
@@ -177,16 +177,14 @@ constructor(
 
                     val docContentType = docReference.content.first().attachment.contentType
 
-                    Timber.d("Retrieving file bytes for document with logicalId: ${docReference.logicalId}")
+                    Timber.i("Retrieving file bytes for document with logicalId: ${docReference.logicalId}")
                     val bytes = runCatching {
                         context.contentResolver.openInputStream(fileUri)
                             ?.use { it.buffered().readBytes() }
                     }.getOrNull() ?: run {
-                        Timber.e("Failed to retrieve file bytes for document with logicalId: ${docReference.logicalId}")
+                        Timber.e(Exception("Failed to retrieve file bytes for document with logicalId: ${docReference.logicalId}"))
                         return@map false
                     }
-
-                    Timber.d("Successfully retrieved file bytes for document with logicalId: ${docReference.logicalId}")
 
                     val body = bytes.toRequestBody(docContentType.toMediaType())
 
@@ -199,10 +197,15 @@ constructor(
                     )
 
                     if (response.isSuccessful.not()) {
-                        Timber.e("File upload failed for document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - Message: ${response.message()}")
+                        val customException = ImageUploadAPIException(
+                            documentId = docReference.logicalId,
+                            responseCode = response.code(),
+                            responseMessage = response.message(),
+                            pendingDocuments = pendingDocuments
+                        )
+                        Timber.e(customException)
                         // 400 mean bad request
                         if (response.code() == 422 || response.code() == 410) {
-                            Timber.w("Client error encountered. Purging document with logicalId: ${docReference.logicalId}")
                             openSrpFhirEngine.purge(
                                 docReference.resourceType,
                                 docReference.logicalId,
@@ -212,7 +215,7 @@ constructor(
                         }
                         return@map false
                     } else {
-                        Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId}")
+                        Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - $pendingDocuments pending")
                         fhirResourceService.updateResource(
                             docReference.fhirType(),
                             docReference.logicalId,
@@ -230,6 +233,7 @@ constructor(
 
                         // Delete the file
                         applicationContext.contentResolver.delete(fileUri, null, null)
+                        Timber.i("Purged documentRef with logicalId: ${docReference.logicalId}")
 
                         // Update progress
                         pendingDocuments--
@@ -246,15 +250,12 @@ constructor(
                         // Update work progress
                         setProgressAsync(workDataOf("progress" to progress))
 
-                        Timber.d("Completed processing for document with logicalId: ${docReference.logicalId}")
+                        Timber.i("Completed processing for document with logicalId: ${docReference.logicalId}")
                         true
                     }
                 }
             } catch (e: Exception) {
-                Timber.e(
-                    e,
-                    "Exception while processing document with logicalId: ${docReference.logicalId}"
-                )
+                Timber.e(e, "Exception while processing document with logicalId: ${docReference.logicalId} - $pendingDocuments pending")
                 false
             }
         }.all { it }
