@@ -77,11 +77,11 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.lifecycle.lifecycleScope
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Task
-import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
@@ -157,6 +157,9 @@ fun ViewAllTasksScreen(
   val coroutineScope = rememberCoroutineScope()
   val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
   var selectedTask by remember { mutableStateOf<TasksViewModel.TaskItem?>(null) }
+  var selectedFilter by remember { mutableStateOf(FilterType.URGENT_REFERRAL) }
+  val filteredTasks by viewModel.filteredTasksStateFlow.collectAsState()
+  val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
 
   Scaffold(
     modifier = modifier.background(SearchHeaderColor),
@@ -178,42 +181,48 @@ fun ViewAllTasksScreen(
       sheetState = bottomSheetState,
       sheetContent = {
         selectedTask?.let { task ->
-          TasksBottomSheetContent(task = task, onStatusUpdate = {taskProgressState ->
-            var status : TaskStatus = TaskStatus.NULL
-            when(taskProgressState){
+          TasksBottomSheetContent(task = task, onStatusUpdate = { taskProgressState ->
+            var status: TaskStatus = task.task.status
+            var taskPriorityState = taskProgressState
+            when (taskProgressState) {
               TaskProgressState.FOLLOWUP_DONE -> {
                 status = TaskStatus.COMPLETED
               }
-              TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
-                status = TaskStatus.INPROGRESS
-              }
+
               TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
                 status = TaskStatus.INPROGRESS
               }
-              TaskProgressState.NOT_CONTACTED -> {
-                status = TaskStatus.REQUESTED
+
+              TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
+                status = TaskStatus.INPROGRESS
               }
-              TaskProgressState.NOT_RESPONDED -> {
-                status = TaskStatus.REQUESTED
+
+              TaskProgressState.NONE -> {
+                //taskPriority = TaskProgressState.FOLLOWUP_DONE
+                //status = TaskStatus.REJECTED
               }
-              TaskProgressState.DEFAULT -> {
-                status = TaskStatus.REQUESTED
-              }
+
               TaskProgressState.REMOVE -> {
+                taskPriorityState = TaskProgressState.REMOVE
                 status = TaskStatus.REJECTED
               }
-              else -> {
-                status = TaskStatus.REQUESTED
 
+              TaskProgressState.NOT_RESPONDED -> {
+                //Status remain same only moves Not contacted to no responded section
+                taskPriorityState = TaskProgressState.NOT_RESPONDED
+                status = task.task.status
               }
+
+              else -> {}
             }
 
-            if(taskPriority != TaskProgressState.NONE){
-              registerViewModel.updateTask(task.task, status, taskPriority)
+            if(taskPriorityState != TaskProgressState.NONE){
+              registerViewModel.updateTask(task.task, status, taskPriorityState)
               coroutineScope.launch {
                 registerViewModel.emitSnackBarState(SnackBarMessageConfig("Status updated successfully"))
                 bottomSheetState.hide()
               }
+              viewModel.getFilteredTasks(selectedFilter, taskStatus, taskPriority)
             }else{
               coroutineScope.launch {
                 registerViewModel.emitSnackBarState(SnackBarMessageConfig("Select the status to update"))
@@ -236,10 +245,6 @@ fun ViewAllTasksScreen(
             .background(SearchHeaderColor)
         )
         {
-          var selectedFilter by remember { mutableStateOf(FilterType.URGENT_REFERRAL) }
-          val filteredTasks by viewModel.filteredTasksStateFlow.collectAsState()
-          val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
-
           LaunchedEffect(key1 = selectedFilter, key2 = allLatestTasksStateFlow) {
             viewModel.getFilteredTasks(selectedFilter, taskStatus, taskPriority)
           }
