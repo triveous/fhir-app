@@ -287,5 +287,7 @@
     <string name="submit_questionnaire">सबमिट करा</string>
     <string name="button_pagination_next">पुढील</string>
     <string name="button_pagination_previous">मागील</string>
+    <string name="dynamic_total_drafts">एकूण ड्राफ्ट: %s</string>
+    <string name="dynamic_visited">पाहिले %s</string>
 
 </resources>

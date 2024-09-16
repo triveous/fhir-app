@@ -195,5 +195,6 @@
     <string name="unknown_error">نامعلوم خرابی</string>
     <string name="failed_to_complete_request_successfully">درخواست کو کامیابی کے ساتھ مکمل کرنے میں ناکام</string>
     <string name="no_internet_connection">کوئی انٹرنیٹ کنکشن نہیں</string>
+    <string name="notification_title_document_upload">دستاویز اپ لوڈ</string>
 
 </resources>
