@@ -97,7 +97,7 @@ fun LanguageSelectionScreen(viewModel: LanguageViewModel, onClick: () -> Unit) {
             text = stringResource(id = R.string.select_language),
             style = body14Medium(),
             color = Colors.CRAYOLA_LIGHT,
-            modifier = Modifier.padding(bottom = 16.dp,top=6.dp)
+            modifier = Modifier.padding(bottom = 16.dp, top = 6.dp)
         )
 
         languages.forEach { language ->

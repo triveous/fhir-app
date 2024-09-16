@@ -276,22 +276,6 @@ fun RegisterScreen(
                                                         modifier,
                                                         section.patients,
                                                         viewModel,
-                                                        onDeleteResponse = { id, isShowDeleteDialogue ->
-                                                            deleteDraftId = id
-                                                            showDeleteDialog = isShowDeleteDialogue
-                                                        },
-                                                        onEditResponse = {
-                                                            registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
-                                                                val bundle = Bundle()
-                                                                bundle.putString(
-                                                                    QUESTIONNAIRE_RESPONSE_PREFILL,
-                                                                    it
-                                                                )
-                                                                noResultConfig.actionButton?.actions?.handleClickEvent(
-                                                                    navController, bundle = bundle
-                                                                )
-                                                            }
-                                                        },
                                                         allPatientsSize = allSyncedPatients.size
                                                     )
                                                 }
@@ -465,8 +449,6 @@ private fun ShowAllPatients(
     modifier: Modifier,
     patients: List<RegisterViewModel.AllPatientsResourceData>,
     viewModel: RegisterViewModel,
-    onDeleteResponse: (String, Boolean) -> Unit,
-    onEditResponse: (String) -> Unit,
     allPatientsSize: Int,
 ) {
 

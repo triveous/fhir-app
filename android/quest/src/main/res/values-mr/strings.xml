@@ -17,6 +17,7 @@
     <string name="multi_select_dialog_subtitle">सर्व लागू असलेले निवडा</string>
     <string name="take_photo">फोटो काढा</string>
     <string name="time">वेळ</string>
+    <string name="add_photo">फोटो जोडा</string>
     <string name="upload_audio">ऑडिओ अपलोड करा</string>
     <string name="upload_document">कागदपत्र अपलोड करा</string>
     <string name="upload_failed">अपलोड अयशस्वी</string>
@@ -282,5 +283,9 @@
     <string name="none_status">none</string>
     <string name="default_status">डिफॉल्ट</string>
     <string name="remove_status">काढा</string>
+
+    <string name="submit_questionnaire">सबमिट करा</string>
+    <string name="button_pagination_next">पुढील</string>
+    <string name="button_pagination_previous">मागील</string>
 
 </resources>

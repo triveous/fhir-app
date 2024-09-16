@@ -131,11 +131,13 @@ constructor(
     if (configCacheMap.contains(configKey) && paramsMap?.isEmpty() == true) {
       return configCacheMap[configKey] as T
     }
+    val lang=Locale(sharedPreferencesHelper.read(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, Locale.ENGLISH.toLanguageTag())?:Locale.ENGLISH.toLanguageTag())
+    println("1 retrieveConfiguration--> lang-->$lang")
     val decodedConfig =
       localizationHelper
         .parseTemplate(
           bundleName = LocalizationHelper.STRINGS_BASE_BUNDLE_NAME,
-          locale = Locale.getDefault(),
+          locale = lang,
           template = getConfigValueWithParam(paramsMap, configKey),
         )
         .decodeJson<T>(jsonInstance = json)
@@ -143,8 +145,10 @@ constructor(
     return decodedConfig
   }
 
-  inline fun <reified T : Configuration> retrieveConfigurations(configType: ConfigType): List<T> =
-    configsJsonMap.values
+  inline fun <reified T : Configuration> retrieveConfigurations(configType: ConfigType): List<T> {
+    val lang=Locale(sharedPreferencesHelper.read(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, Locale.ENGLISH.toLanguageTag())?:Locale.ENGLISH.toLanguageTag())
+    println("2 retrieveConfigurations --> lang-->$lang")
+    return configsJsonMap.values
       .filter {
         try {
           JSONObject(it).getString(CONFIG_TYPE).equals(configType.name, ignoreCase = true)
@@ -157,11 +161,12 @@ constructor(
         localizationHelper
           .parseTemplate(
             bundleName = LocalizationHelper.STRINGS_BASE_BUNDLE_NAME,
-            locale = Locale.getDefault(),
+            locale = lang,
             template = it,
           )
           .decodeJson()
       }
+  }
 
   /**
    * This function interpolates the value for the given [configKey] by replacing the string
@@ -319,9 +324,7 @@ constructor(
         // File names in asset should match the configType/id (MUST be unique) in the config JSON
         if (!fileName.equals(String.format(COMPOSITION_CONFIG_PATH, appId), ignoreCase = true)) {
           val configKey =
-            fileName
-              .lowercase(Locale.ENGLISH)
-              .substring(
+            fileName.lowercase().substring(
                 fileName.indexOfLast { it == '/' }.plus(1),
                 fileName.lastIndexOf(CONFIG_SUFFIX),
               )

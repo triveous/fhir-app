@@ -48,7 +48,7 @@ data class QuestionnaireConfig(
   val eventWorkflows: List<EventWorkflow> = emptyList(),
   val readOnlyLinkIds: List<String>? = emptyList(),
   val configRules: List<RuleConfig>? = null,
-  val extraParams: List<ActionParameter>? = null,
+  var extraParams: List<ActionParameter>? = null,
   val onSubmitActions: List<ActionConfig>? = null,
   val barcodeLinkId: String? = "patient-barcode",
   val extractedResourceUniquePropertyExpressions: List<ExtractedResourceUniquePropertyExpression>? =

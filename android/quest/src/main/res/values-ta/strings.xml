@@ -17,6 +17,7 @@
     <string name="multi_select_dialog_subtitle">சரி என்று தேர்ந்தெடுக்கவும்</string>
     <string name="take_photo">புகைப்படம் எடு</string>
     <string name="time">நேரம்</string>
+    <string name="add_photo">படத்தைச் சேர்க்கவும்</string>
     <string name="upload_audio">ஒலியை பதிவேற்றவும்</string>
     <string name="upload_document">ஆவணத்தை பதிவேற்றவும்</string>
     <string name="upload_failed">பதிவேற்றம் தோல்வி</string>
@@ -285,4 +286,8 @@
     <string name="none_status">none</string>
     <string name="default_status">இயல்புநிலை</string>
     <string name="remove_status">நீக்கவும்</string>
+
+    <string name="submit_questionnaire">சமர்ப்பிக்கவும்</string>
+    <string name="button_pagination_next">அடுத்தது</string>
+    <string name="button_pagination_previous">முந்தையது</string>
 </resources>
