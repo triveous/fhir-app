@@ -289,4 +289,6 @@
     <string name="submit_questionnaire">জমা দিন</string>
     <string name="button_pagination_next">পরবর্তী</string>
     <string name="button_pagination_previous">পূর্ববর্তী</string>
+    <string name="dynamic_total_drafts">মোট ড্রাফট: %s</string>
+    <string name="dynamic_visited">পরিদর্শন করা হয়েছে %s</string>
 </resources>
