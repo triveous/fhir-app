@@ -10,7 +10,10 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentTransaction
 import androidx.lifecycle.MutableLiveData
-import org.smartregister.fhircore.quest.R
+import org.hl7.fhir.r4.model.Enumerations
+import org.hl7.fhir.r4.model.Extension
+import org.hl7.fhir.r4.model.StringType
+import org.smartregister.fhircore.engine.domain.model.ActionParameter
 
 /**
  * Created by Jeetesh Surana.
@@ -22,13 +25,44 @@ fun <T> mutableLiveData(defaultValue: T? = null): MutableLiveData<T> {
     return data
 }
 
-fun FragmentActivity.loadFragment(fragment: Fragment) {
-    val fragmentManager = supportFragmentManager
-    val transaction = fragmentManager.beginTransaction()
-    transaction.add(R.id.fragment_container, fragment) // Replace with your container ID
-    transaction.commit()
+fun languageExtension(languageCode: String): Extension {
+    return Extension().apply {
+        url = "http://hl7.org/fhir/StructureDefinition/translation"
+        addExtension("url", StringType("http://hl7.org/fhir/StructureDefinition/translation"))
+        addExtension("valueCode", StringType(languageCode))
+        addExtension("language", StringType(languageCode))
+    }
 }
 
+fun languageExtensionToActionParameters(languageCode: String): List<ActionParameter> {
+    val extension = languageExtension(languageCode)
+
+    return extension.extension.map { ext ->
+        ActionParameter(
+            key = ext.url,  // Using the extension URL as the key
+            dataType = Enumerations.DataType.STRING,  // Assuming the data type is STRING
+            value = ext.value.toString(),  // Convert value to String
+            linkId = null,  // Assuming no linkId for this case
+            resourceType = null  // Assuming no specific resourceType
+        )
+    }
+}
+
+fun extensionToMap(extension: Extension): HashMap<String, String> {
+    val map = HashMap<String, String>()
+
+    // Add the main extension URL
+    map["url"] = extension.url
+
+    // Iterate over nested extensions and add them to the map
+    extension.extension.forEach {
+        val key = it.url
+        val value = it.value.toString()
+        map[key] = value
+    }
+
+    return map
+}
 
 /**
  * Add replace fragment

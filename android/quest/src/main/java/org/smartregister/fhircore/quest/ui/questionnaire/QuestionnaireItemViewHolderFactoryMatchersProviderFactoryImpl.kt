@@ -22,6 +22,7 @@ import com.google.android.fhir.datacapture.contrib.views.barcode.BarCodeReaderVi
 import com.google.android.fhir.datacapture.contrib.views.locationwidget.LocationGpsCoordinateViewHolderFactory
 import com.google.android.fhir.datacapture.contrib.views.locationwidget.LocationWidgetViewHolderFactory
 import com.google.android.fhir.datacapture.extensions.asStringValue
+import org.hl7.fhir.r4.model.Bundle
 import org.smartregister.fhircore.quest.ui.register.customui.CustomAttachmentViewHolderFactory
 import org.smartregister.fhircore.quest.ui.register.customui.CustomDatePickerViewHolderFactory
 import org.smartregister.fhircore.quest.ui.register.customui.CustomEditTextStringViewHolderFactory

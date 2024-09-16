@@ -17,6 +17,7 @@
     <string name="multi_select_dialog_subtitle">सभी लागू करें चुनें</string>
     <string name="take_photo">फोटो लें</string>
     <string name="time">समय</string>
+    <string name="add_photo">फोटो जोड़ें</string>
     <string name="upload_audio">ऑडियो अपलोड करें</string>
     <string name="upload_document">दस्तावेज़ अपलोड करें</string>
     <string name="upload_failed">अपलोड विफल</string>
@@ -287,4 +288,8 @@
     <string name="none_status">none</string>
     <string name="default_status">डिफ़ॉल्ट</string>
     <string name="remove_status">हटाएं</string>
+
+    <string name="submit_questionnaire">जमा करें</string>
+    <string name="button_pagination_next">अगला</string>
+    <string name="button_pagination_previous">पिछला</string>
 </resources>
