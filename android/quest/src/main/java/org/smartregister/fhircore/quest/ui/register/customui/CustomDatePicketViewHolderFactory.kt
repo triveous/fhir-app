@@ -35,6 +35,7 @@ import org.smartregister.fhircore.quest.extensions.canonicalizeDatePattern
 import org.smartregister.fhircore.quest.extensions.format
 import org.smartregister.fhircore.quest.extensions.getDateSeparator
 import org.smartregister.fhircore.quest.extensions.parseDate
+import timber.log.Timber
 import java.text.ParseException
 import java.time.Instant
 import java.time.LocalDate
@@ -196,8 +197,10 @@ internal object CustomDatePickerViewHolderFactory :
             setQuestionnaireItemViewItemAnswer(localDate)
           } catch (e: ParseException) {
             questionnaireViewItem.setDraftAnswer(dateToDisplay)
+            Timber.e(e)
           } catch (e: DateTimeParseException) {
             questionnaireViewItem.setDraftAnswer(dateToDisplay)
+            Timber.e(e)
           }
         }
 

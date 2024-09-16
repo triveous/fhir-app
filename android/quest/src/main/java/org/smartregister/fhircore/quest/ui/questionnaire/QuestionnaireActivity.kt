@@ -264,6 +264,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
 
           registerFragmentResultListener()
         } catch (nullPointerException: NullPointerException) {
+          Timber.e(nullPointerException, "questionnaire_not_found")
           showToast(getString(R.string.questionnaire_not_found))
           finish()
         } finally {

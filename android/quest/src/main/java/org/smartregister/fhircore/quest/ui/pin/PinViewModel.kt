@@ -23,10 +23,13 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.fhir.FhirEngine
+import com.google.android.fhir.search.search
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.sentry.Sentry
 import io.sentry.protocol.User
 import kotlinx.coroutines.launch
+import org.hl7.fhir.r4.model.DocumentReference
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
@@ -38,6 +41,7 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.clearPasswordInMemory
 import org.smartregister.fhircore.engine.util.toPasswordHash
 import org.smartregister.fhircore.quest.BuildConfig
+import org.smartregister.fhircore.quest.util.IMAGES_LEFT
 import org.smartregister.fhircore.quest.util.VERSION_CODE
 import org.smartregister.fhircore.quest.util.VERSION_NAME
 import timber.log.Timber
@@ -52,7 +56,8 @@ constructor(
   val secureSharedPreference: SecureSharedPreference,
   val configurationRegistry: ConfigurationRegistry,
   val dispatcherProvider: DispatcherProvider,
-) : ViewModel() {
+  val openSrpFhirEngine: FhirEngine
+  ) : ViewModel() {
 
   private val _launchDialPad: MutableLiveData<String?> = MutableLiveData(null)
   val launchDialPad
@@ -107,11 +112,19 @@ constructor(
 
   private fun setSentryConfiguration(trimmedUsername: String) {
     try {
-      // Configure Sentry scope
-      Sentry.configureScope { scope ->
-        scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
-        scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
-        scope.user = User().apply { username = trimmedUsername }
+      viewModelScope.launch {
+        val docReferences = openSrpFhirEngine.search<DocumentReference> {}.size
+        // Configure Sentry scope
+        Sentry.configureScope { scope ->
+          scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
+          scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
+          val user = User().apply {
+            username = trimmedUsername
+            data = data ?: mutableMapOf()
+            data?.put(IMAGES_LEFT,  "$docReferences")
+          }
+          scope.user = user
+        }
       }
     } catch (e: Exception) {
       Timber.e(e)

@@ -63,6 +63,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterFilterState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.model.practitioner.FhirPractitionerDetails
+import timber.log.Timber
 import java.time.LocalDate
 import java.util.Date
 import java.util.UUID
@@ -672,7 +673,7 @@ constructor(
 
         return Patient2(name ?: "", gender ?: "", "", 0)
       } catch (e: Exception) {
-        e.printStackTrace()
+        Timber.e(e, "Patient Parser error")
         return null
       }
     }
@@ -699,7 +700,7 @@ constructor(
 
       return DraftPatient(name ?: "", gender ?: "")
     } catch (e: Exception) {
-      e.printStackTrace()
+      Timber.e(e, "Patient Parser error")
       return null
     }
   }

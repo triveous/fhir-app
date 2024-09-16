@@ -182,6 +182,7 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
       lifecycleScope.launch {
 //        retrieveAppMainUiState()
         if (isDeviceOnline()) {
+          appMainViewModel.setSentryUserProperties()
           syncBroadcaster.schedulePeriodicSync(applicationConfiguration.syncInterval)
         } else {
           showToast(

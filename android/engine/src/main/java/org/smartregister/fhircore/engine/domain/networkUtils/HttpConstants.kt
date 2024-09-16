@@ -13,3 +13,9 @@ object ErrorCodes {
     const val UNKNOWN_ERROR_CODE = 902
     const val NO_INTERNET_CONNECTION_ERROR_CODE = 903
 }
+
+object WorkerConstants {
+    const val REPLACE = "replace"
+    const val DOC_STATUS = "/docStatus"
+    const val CONTENT_TYPE = "application/json-patch+json"
+}
