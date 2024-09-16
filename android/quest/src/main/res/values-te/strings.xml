@@ -17,6 +17,7 @@
     <string name="multi_select_dialog_subtitle">అనువర్తించే అన్ని ఎంపికలు ఎంచుకోండి</string>
     <string name="take_photo">ఫోటో తీసుకోండి</string>
     <string name="time">సమయం</string>
+    <string name="add_photo">ఫోటో జోడించు</string>
     <string name="upload_audio">ఆడియో అప్లోడ్ చేయండి</string>
     <string name="upload_document">డాక్యుమెంట్ అప్లోడ్ చేయండి</string>
     <string name="upload_failed">అప్లోడ్ విఫలమైంది</string>
@@ -289,4 +290,8 @@
     <string name="none_status">none</string>
     <string name="default_status">డిఫాల్ట్</string>
     <string name="remove_status">తీసివేయండి</string>
+
+    <string name="submit_questionnaire">సమర్పించు</string>
+    <string name="button_pagination_next">తరువాత</string>
+    <string name="button_pagination_previous">మునుపటి</string>
 </resources>

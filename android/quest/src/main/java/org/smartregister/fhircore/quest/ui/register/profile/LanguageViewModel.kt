@@ -79,10 +79,10 @@ class LanguageViewModel @Inject constructor(
     }
 
     private fun updateResources(languageCode: String) {
+        // Update the app's locale settings
         updateResource(languageCode)
-        val appLocale: LocaleListCompat = LocaleListCompat.forLanguageTags(languageCode)
-//        application.setAppLocale(languageCode)
-        AppCompatDelegate.setApplicationLocales(appLocale)
+        // Apply the new locale to the app
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(languageCode))
     }
 
     private fun updateResource(languageCode: String): Context {

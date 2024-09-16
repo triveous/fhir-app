@@ -1,5 +1,6 @@
 package org.smartregister.fhircore.quest.ui.register.customui
 
+import android.annotation.SuppressLint
 import android.icu.number.NumberFormatter
 import android.icu.text.DecimalFormat
 import android.os.Build
@@ -16,6 +17,7 @@ import com.google.android.material.textfield.TextInputLayout
 import org.hl7.fhir.r4.model.IntegerType
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.smartregister.fhircore.quest.QuestApplication
 import org.smartregister.fhircore.quest.R
 import java.util.Locale
 
@@ -54,7 +56,7 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
                 isMandatoryQuestion = "*"
             }
             textInputLayout.hint = "${questionnaireViewItem.questionText} $isMandatoryQuestion"
-            textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, questionnaireViewItem.validationResult)
+            textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, questionnaireViewItem.validationResult,(textInputEditText.context.applicationContext as QuestApplication).sharedPreferencesHelper)
         }
 
         override suspend fun handleInput(
@@ -78,6 +80,7 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
             }
         }
 
+        @SuppressLint("SetTextI18n")
         fun updateUI(
             questionnaireViewItem: QuestionnaireViewItem,
             textInputEditText: TextInputEditText,

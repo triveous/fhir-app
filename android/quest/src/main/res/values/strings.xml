@@ -19,6 +19,7 @@
     <string name="take_photo">Take Photo</string>
     <string name="time">Time</string>
     <string name="upload_audio">Upload Audio</string>
+    <string name="add_photo">Add photo</string>
     <string name="upload_document">Upload Document</string>
     <string name="upload_failed">Upload failed</string>
     <string name="image_capture_failed">Image capture failed</string>
@@ -288,5 +289,8 @@
     <string name="none_status">none</string>
     <string name="default_status">Default</string>
     <string name="remove_status">Remove</string>
+    <string name="submit_questionnaire">Submit</string>
+    <string name="button_pagination_next">Submit</string>
+    <string name="button_pagination_previous">Submit</string>
 
 </resources>
