@@ -292,4 +292,6 @@
     <string name="submit_questionnaire">जमा करें</string>
     <string name="button_pagination_next">अगला</string>
     <string name="button_pagination_previous">पिछला</string>
+    <string name="dynamic_total_drafts">कुल ड्राफ्ट: %s</string>
+    <string name="dynamic_visited">देखा %s</string>
 </resources>

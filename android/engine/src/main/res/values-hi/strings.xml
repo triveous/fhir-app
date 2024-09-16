@@ -195,5 +195,6 @@
     <string name="unknown_error">अज्ञात त्रुटि</string>
     <string name="failed_to_complete_request_successfully">अनुरोध को सफलतापूर्वक पूरा करने में विफल</string>
     <string name="no_internet_connection">कोई इंटरनेट कनेक्शन नहीं</string>
+    <string name="notification_title_document_upload">दस्तावेज़ अपलोड</string>
 
 </resources>

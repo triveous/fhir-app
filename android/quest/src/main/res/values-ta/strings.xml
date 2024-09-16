@@ -290,4 +290,7 @@
     <string name="submit_questionnaire">சமர்ப்பிக்கவும்</string>
     <string name="button_pagination_next">அடுத்தது</string>
     <string name="button_pagination_previous">முந்தையது</string>
+    <string name="dynamic_total_drafts">மொத்த மேசுகளை: %s</string>
+    <string name="dynamic_visited">பார்வையிட்டது %s</string>
+
 </resources>

@@ -291,4 +291,6 @@
     <string name="submit_questionnaire">جمع کریں</string>
     <string name="button_pagination_next">اگلا</string>
     <string name="button_pagination_previous">پچھلا</string>
+    <string name="dynamic_total_drafts">کل ڈرافٹس: %s</string>
+    <string name="dynamic_visited">دیکھا %s</string>
 </resources>

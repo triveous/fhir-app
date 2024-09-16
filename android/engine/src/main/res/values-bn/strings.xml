@@ -195,4 +195,6 @@
     <string name="unknown_error">অজানা ত্রুটি</string>
     <string name="failed_to_complete_request_successfully">অনুরোধ সফলভাবে সম্পন্ন করতে ব্যর্থ হয়েছে</string>
     <string name="no_internet_connection">ইন্টারনেট সংযোগ নেই</string>
+    <string name="notification_title_document_upload">ডকুমেন্ট আপলোড</string>
+
 </resources>
