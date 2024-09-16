@@ -74,6 +74,7 @@ import org.smartregister.fhircore.engine.domain.model.RuleConfig
 import org.smartregister.fhircore.engine.domain.model.SortConfig
 import org.smartregister.fhircore.engine.rulesengine.ConfigRulesExecutor
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.asReference
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
@@ -89,6 +90,7 @@ import org.smartregister.fhircore.engine.util.extension.updateLastUpdated
 import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import timber.log.Timber
 import java.util.LinkedList
+import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
@@ -320,6 +322,7 @@ constructor(
       address = newPatient.address
       gender = newPatient.gender
       patient = newPatient.asReference()
+      language = sharedPreferencesHelper.read(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, Locale.ENGLISH.toLanguageTag())?: Locale.ENGLISH.toLanguageTag()
       relationshipFirstRep.codingFirstRep.system = relationshipCode?.system
       relationshipFirstRep.codingFirstRep.code = relationshipCode?.code
       relationshipFirstRep.codingFirstRep.display = relationshipCode?.display

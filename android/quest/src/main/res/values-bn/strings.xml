@@ -14,6 +14,7 @@
     <string name="multi_select_dialog_subtitle">যা প্রযোজ্য তা নির্বাচন করুন</string>
     <string name="take_photo">ছবি তুলুন</string>
     <string name="time">সময়</string>
+    <string name="add_photo">ছবি যোগ করুন</string>
     <string name="upload_audio">অডিও আপলোড করুন</string>
     <string name="upload_document">দস্তাবেজ আপলোড করুন</string>
     <string name="upload_failed">আপলোড ব্যর্থ হয়েছে</string>
@@ -284,4 +285,8 @@
     <string name="none_status">none</string>
     <string name="default_status">ডিফল্ট</string>
     <string name="remove_status">অপসারণ করুন</string>
+
+    <string name="submit_questionnaire">জমা দিন</string>
+    <string name="button_pagination_next">পরবর্তী</string>
+    <string name="button_pagination_previous">পূর্ববর্তী</string>
 </resources>

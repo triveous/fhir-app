@@ -27,6 +27,7 @@ import kotlinx.serialization.SerializationException
 import org.smartregister.fhircore.engine.util.extension.decodeJson
 import org.smartregister.fhircore.engine.util.extension.encodeJson
 import timber.log.Timber
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -152,6 +153,10 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
 
     fun getFhirBaseUrlWithoutDefaultValue(): String? {
         return prefs.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null)
+    }
+
+    fun getLanguageCode(): String {
+        return prefs.getString(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, Locale.ENGLISH.toLanguageTag())?: Locale.ENGLISH.toLanguageTag()
     }
 
     fun getOauthBaseUrl(): String {

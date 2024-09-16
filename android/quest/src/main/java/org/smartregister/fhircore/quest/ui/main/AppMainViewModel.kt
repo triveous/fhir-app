@@ -60,7 +60,6 @@ import org.smartregister.fhircore.engine.util.extension.decodeToBitmap
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.engine.util.extension.getActivity
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
-import org.smartregister.fhircore.engine.util.extension.refresh
 import org.smartregister.fhircore.engine.util.extension.setAppLocale
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.engine.util.extension.tryParse
@@ -133,7 +132,7 @@ constructor(
         sharedPreferencesHelper.write(SharedPreferenceKey.LANG.name, event.language.tag)
         event.context.run {
           setAppLocale(event.language.tag)
-          getActivity()?.refresh()
+//          getActivity()?.refresh()
         }
       }
       is AppMainEvent.SyncData -> {
@@ -216,7 +215,7 @@ constructor(
 
   private fun loadCurrentLanguage() =
     Locale.forLanguageTag(
-        sharedPreferencesHelper.read(SharedPreferenceKey.LANG.name, Locale.ENGLISH.toLanguageTag())
+        sharedPreferencesHelper.read(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, Locale.ENGLISH.toLanguageTag())
           ?: Locale.ENGLISH.toLanguageTag(),
       )
       .displayName
