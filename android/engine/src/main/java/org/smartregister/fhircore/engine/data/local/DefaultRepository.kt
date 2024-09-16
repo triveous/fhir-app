@@ -545,7 +545,7 @@ constructor(
           }
         }
     } catch (e: Exception) {
-      e.printStackTrace()
+      Timber.e(e, "Exception Search.count: ${e.printStackTrace()}")
     }
   }
 

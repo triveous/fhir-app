@@ -112,7 +112,7 @@ constructor(
         },
       )
     } catch (e: Exception) {
-      e.printStackTrace()
+      Timber.e(e, "Exception countRegisterData")
     }
     return count
   }

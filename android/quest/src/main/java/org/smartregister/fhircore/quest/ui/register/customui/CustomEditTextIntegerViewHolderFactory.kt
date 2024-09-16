@@ -102,6 +102,7 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
                 textInputEditText.setText(draftAnswer)
             }
 
+            textInputEditText.inputType = InputType.TYPE_CLASS_NUMBER
             // Update error message if draft answer present
 //            if (draftAnswer != null) {
 //                textInputLayout.error =

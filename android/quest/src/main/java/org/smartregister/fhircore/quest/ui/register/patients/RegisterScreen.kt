@@ -131,6 +131,7 @@ fun RegisterScreen(
                     onSync = {
                         viewModel.appMainEvent = it
                         viewModel.setShowDialog(true)
+                        viewModel.setSentryUserProperties()
                     },
                 ) { event ->
                 }

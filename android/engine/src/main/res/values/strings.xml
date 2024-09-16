@@ -195,4 +195,7 @@
     <string name="unknown_error">Unknown error</string>
     <string name="failed_to_complete_request_successfully">Failed to complete request successfully</string>
     <string name="no_internet_connection">No internet connection</string>
+    <!-- Notification -->
+    <string name="notification_title_document_upload">Document Upload</string>
+
 </resources>

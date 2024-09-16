@@ -25,11 +25,16 @@ import androidx.navigation.NavController
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.google.android.fhir.FhirEngine
+import com.google.android.fhir.search.search
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.sentry.Sentry
+import io.sentry.protocol.User
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.model.Binary
+import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.ResourceType
@@ -63,11 +68,15 @@ import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.setAppLocale
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.engine.util.extension.tryParse
+import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.report.measure.worker.MeasureReportMonthPeriodWorker
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
+import org.smartregister.fhircore.quest.util.IMAGES_LEFT
+import org.smartregister.fhircore.quest.util.VERSION_CODE
+import org.smartregister.fhircore.quest.util.VERSION_NAME
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.schedulePeriodically
 import timber.log.Timber
@@ -91,6 +100,7 @@ constructor(
   val dispatcherProvider: DispatcherProvider,
   val workManager: WorkManager,
   val fhirCarePlanGenerator: FhirCarePlanGenerator,
+  val fhirEngine: FhirEngine,
 ) : ViewModel() {
 
   private val simpleDateFormat = SimpleDateFormat(SYNC_TIMESTAMP_OUTPUT_FORMAT, Locale.getDefault())
@@ -125,6 +135,28 @@ constructor(
       }
   }
 
+  fun setSentryUserProperties() {
+    val userName = secureSharedPreference.retrieveSessionUsername()
+    try {
+      viewModelScope.launch {
+        val docReferences = fhirEngine.search<DocumentReference> {}.size
+        // Configure Sentry scope
+        Sentry.configureScope { scope ->
+          scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
+          scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
+          val user = User().apply {
+            username = userName
+            data = data ?: mutableMapOf()
+            data?.put(IMAGES_LEFT,  "$docReferences")
+          }
+          scope.user = user
+        }
+      }
+    } catch (e: Exception) {
+      Timber.e(e)
+    }
+  }
+
   fun onEvent(event: AppMainEvent,isForeground:Boolean=false) {
 //    Timber.e("TAG onEvent --> isForeground -->$isForeground ")
     when (event) {
@@ -138,6 +170,7 @@ constructor(
       is AppMainEvent.SyncData -> {
         Timber.e("TAG SyncData onEvent --> isForeground -->$isForeground event--> ${event}")
         if (event.context.isDeviceOnline()) {
+          setSentryUserProperties()
           if (!isForeground) {
             viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
           } else {
