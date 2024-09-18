@@ -159,7 +159,7 @@ constructor(
   }
 
   fun onEvent(event: AppMainEvent,isForeground:Boolean=false) {
-//    Timber.e("TAG onEvent --> isForeground -->$isForeground ")
+    Timber.e("TAG onEvent --> event -->$event ")
     when (event) {
       is AppMainEvent.SwitchLanguage -> {
         sharedPreferencesHelper.write(SharedPreferenceKey.LANG.name, event.language.tag)
@@ -169,7 +169,7 @@ constructor(
         }
       }
       is AppMainEvent.SyncData -> {
-        Timber.e("TAG SyncData onEvent --> isForeground -->$isForeground event--> ${event}")
+        Timber.e("TAG SyncData onEvent --> isForeground -->$isForeground event--> $event")
         if (event.context.isDeviceOnline()) {
           setSentryUserProperties()
           if (!isForeground) {

@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Scaffold
-import androidx.compose.material.SnackbarDuration
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -47,11 +46,8 @@ import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
-import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
-import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
@@ -66,6 +62,7 @@ import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
 import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
+import org.smartregister.fhircore.quest.util.manageSyncMessage
 import javax.inject.Inject
 
 @ExperimentalMaterialApi
@@ -175,14 +172,10 @@ class SearchTasksFragment : Fragment(), OnSyncListener {
     }
 
     override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
+        requireActivity().manageSyncMessage(registerViewModel,syncJobStatus)
         when (syncJobStatus) {
             is CurrentSyncJobStatus.Running ->
                 if (syncJobStatus.inProgressSyncJob is SyncJobStatus.Started) {
-                    lifecycleScope.launch {
-                        registerViewModel.emitSnackBarState(
-                            SnackBarMessageConfig(message = getString(R.string.syncing)),
-                        )
-                    }
                 } else {
                     emitPercentageProgress(
                         syncJobStatus.inProgressSyncJob as SyncJobStatus.InProgress,
@@ -191,33 +184,12 @@ class SearchTasksFragment : Fragment(), OnSyncListener {
                     )
                 }
             is CurrentSyncJobStatus.Succeeded -> {
-                refreshRegisterData()
-                lifecycleScope.launch {
-                    registerViewModel.emitSnackBarState(
-                        SnackBarMessageConfig(
-                            message = getString(R.string.sync_completed),
-                            //actionLabel = getString(R.string.ok).uppercase(),
-                            duration = SnackbarDuration.Short,
-                        ),
-                    )
-                }
                 registerViewModel.getAllPatients()
                 registerViewModel.getAllDraftResponses()
                 registerViewModel.getAllUnSyncedPatients()
             }
             is CurrentSyncJobStatus.Failed -> {
-                refreshRegisterData()
                 syncJobStatus.toString()
-                // Show error message in snackBar message
-                lifecycleScope.launch {
-                    registerViewModel.emitSnackBarState(
-                        SnackBarMessageConfig(
-                            message = getString(R.string.sync_completed_with_errors),
-                            duration = SnackbarDuration.Short,
-                            //actionLabel = getString(R.string.ok).uppercase(),
-                        ),
-                    )
-                }
             }
             else -> {
                 // Do nothing
@@ -225,24 +197,6 @@ class SearchTasksFragment : Fragment(), OnSyncListener {
         }
     }
 
-    fun refreshRegisterData(questionnaireResponse: QuestionnaireResponse? = null) {
-        /*with(registerFragmentArgs) {
-          registerViewModel.run {
-            if (questionnaireResponse != null) {
-              updateRegisterFilterState(registerId, questionnaireResponse)
-            }
-
-            pagesDataCache.clear()
-
-            retrieveRegisterUiState(
-              registerId = registerId,
-              screenTitle = screenTitle,
-              params = params,
-              clearCache = false,
-            )
-          }
-        }*/
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         /*viewLifecycleOwner.lifecycleScope.launch {
@@ -264,12 +218,9 @@ class SearchTasksFragment : Fragment(), OnSyncListener {
         if (questionnaireSubmission.questionnaireConfig.saveQuestionnaireResponse) {
             appMainViewModel.run {
                 onQuestionnaireSubmission(questionnaireSubmission)
-//                retrieveAppMainUiState(refreshAll = false) // Update register counts
             }
 
             val (questionnaireConfig, _) = questionnaireSubmission
-
-            refreshRegisterData()
 
             questionnaireConfig.snackBarMessage?.let { snackBarMessageConfig ->
                 registerViewModel.emitSnackBarState(snackBarMessageConfig)
@@ -277,7 +228,7 @@ class SearchTasksFragment : Fragment(), OnSyncListener {
 
             questionnaireConfig.onSubmitActions?.handleClickEvent(navController = findNavController())
         } else {
-            refreshRegisterData(questionnaireSubmission.questionnaireResponse)
+
         }
     }
 

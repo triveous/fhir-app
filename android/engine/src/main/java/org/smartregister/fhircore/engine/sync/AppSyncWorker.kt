@@ -23,6 +23,7 @@ import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.hilt.work.HiltWorker
+import androidx.lifecycle.MutableLiveData
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -73,6 +74,7 @@ constructor(
 
     companion object {
         val mutex = Mutex()
+        val isUploading = MutableLiveData(UploadingStatus.NONE)
         val uploadImageMutex = Mutex()
     }
 
@@ -101,6 +103,7 @@ constructor(
     override suspend fun doWork(): Result {
         Timber.i("AppSyncWorker Running sync worker")
         if (mutex.isLocked) {
+            isUploading.postValue(UploadingStatus.LOCKED)
             Timber.e("AppSyncWorker is locked. Returning failure")
             return Result.failure()
         }
@@ -110,7 +113,7 @@ constructor(
             try {
                 setForeground(getForegroundInfo()) // Set the foreground info
                 val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
-
+                isUploading.postValue(UploadingStatus.STARTED)
                 val retries = inputData.getInt("max_retires", 0)
                 // In case it has failed or to be retried, we will send the original result
                 if (metaSyncResult.javaClass === Result.success().javaClass) {
@@ -119,12 +122,18 @@ constructor(
                             Result.success()
                         }
 
-                        false -> if (retries > runAttemptCount) Result.retry() else Result.failure(
-                            workDataOf(
-                                "error" to Exception::class.java.name,
-                                "reason" to "Failed to upload all files"
+                        false -> if (retries > runAttemptCount) {
+                            isUploading.postValue(UploadingStatus.RETRY)
+                            Result.retry()
+                        } else {
+                            isUploading.postValue(UploadingStatus.FAILED)
+                            Result.failure(
+                                workDataOf(
+                                    "error" to Exception::class.java.name,
+                                    "reason" to "Failed to upload all files"
+                                )
                             )
-                        )
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -146,19 +155,23 @@ constructor(
         val notificationManager = createNotificationChannel(context)
         val notificationBuilder = createNotificationBuilder(context, totalDocuments, pendingDocuments)
 
-        val result = docReferences.map {
+        val list = docReferences.map {
             val uriString = it.resource.getExtensionByUrl(UPLOAD_IMAGE_URL)?.value?.asStringValue()
             if (uriString.isNullOrBlank()) {
                 Timber.e(Exception("Empty or null URI string for document: ${it.resource.logicalId} - $pendingDocuments pending"))
                 return@map it.resource to null
             }
             it.resource to uriString.toUri()
-        }.filter { it.second !== null }.map {
+        }.filter { it.second !== null }
+
+        val result = list.mapIndexed { index, it->
+
             val docReference = it.first
-            val fileUri = it.second ?: return@map false
+            val fileUri = it.second ?: return@mapIndexed false
 
             try {
                 uploadImageMutex.withLock {
+                    if (index==0) isUploading.postValue(UploadingStatus.UPLOADING)
                     Timber.i("Processing document reference with logicalId: ${docReference.logicalId}")
                     val docReferenceJson = FhirContext.forR4Cached().newJsonParser()
                         .encodeResourceToString(docReference as Resource)
@@ -183,7 +196,7 @@ constructor(
                             ?.use { it.buffered().readBytes() }
                     }.getOrNull() ?: run {
                         Timber.e(Exception("Failed to retrieve file bytes for document with logicalId: ${docReference.logicalId}"))
-                        return@map false
+                        return@mapIndexed false
                     }
 
                     val body = bytes.toRequestBody(docContentType.toMediaType())
@@ -213,7 +226,7 @@ constructor(
                             )
                             applicationContext.contentResolver.delete(fileUri, null, null)
                         }
-                        return@map false
+                        return@mapIndexed false
                     } else {
                         Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - $pendingDocuments pending")
                         fhirResourceService.updateResource(
@@ -251,6 +264,7 @@ constructor(
                         setProgressAsync(workDataOf("progress" to progress))
 
                         Timber.i("Completed processing for document with logicalId: ${docReference.logicalId}")
+                        if (index==list.size-1) isUploading.postValue(UploadingStatus.UPLOADED)
                         true
                     }
                 }

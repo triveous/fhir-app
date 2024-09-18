@@ -928,10 +928,12 @@ constructor(
   }
   fun getAllUnSyncedPatientsImages(){
     viewModelScope.launch(Dispatchers.IO) {
-      _allUnSyncedImages.value = fhirEngine.search<DocumentReference> {}.count()
+      _allUnSyncedImages.value = getUnUploadedImageCount()
       imageCount = allUnSyncedImages.value
     }
   }
+
+  suspend fun getUnUploadedImageCount() = fhirEngine.search<DocumentReference> {}.count()
 
   fun deleteIfNotOldDraft(resourceId: String){
     viewModelScope.launch(Dispatchers.IO) {

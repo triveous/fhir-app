@@ -24,5 +24,5 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
  */
 interface OnSyncListener {
   /** Callback method invoked to handle sync [CurrentSyncJobStatus] */
-  fun onSync(syncJobStatus: CurrentSyncJobStatus)
+  fun onSync(syncJobStatus: CurrentSyncJobStatus){}
 }

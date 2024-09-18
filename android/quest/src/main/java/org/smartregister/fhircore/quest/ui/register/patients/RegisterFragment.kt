@@ -68,6 +68,7 @@ import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
 import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
+import org.smartregister.fhircore.quest.util.manageSyncMessage
 import javax.inject.Inject
 
 @ExperimentalMaterialApi
@@ -186,14 +187,10 @@ class RegisterFragment : Fragment(), OnSyncListener {
   }
 
   override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
+    requireActivity().manageSyncMessage(registerViewModel,syncJobStatus)
     when (syncJobStatus) {
       is CurrentSyncJobStatus.Running ->
         if (syncJobStatus.inProgressSyncJob is SyncJobStatus.Started) {
-          lifecycleScope.launch {
-            registerViewModel.emitSnackBarState(
-              SnackBarMessageConfig(message = getString(R.string.syncing)),
-            )
-          }
         } else {
           emitPercentageProgress(
             syncJobStatus.inProgressSyncJob as SyncJobStatus.InProgress,
@@ -204,13 +201,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
       is CurrentSyncJobStatus.Succeeded -> {
         refreshRegisterData()
         lifecycleScope.launch {
-          registerViewModel.emitSnackBarState(
-            SnackBarMessageConfig(
-              message = getString(R.string.sync_completed),
-              //actionLabel = getString(R.string.ok).uppercase(),
-              duration = SnackbarDuration.Short,
-            ),
-          )
           delay(200)
           registerViewModel.getAllPatients()
           registerViewModel.getAllSyncedPatients()
@@ -222,16 +212,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
       is CurrentSyncJobStatus.Failed -> {
         refreshRegisterData()
         syncJobStatus.toString()
-        // Show error message in snackBar message
-        lifecycleScope.launch {
-          registerViewModel.emitSnackBarState(
-            SnackBarMessageConfig(
-              message = getString(R.string.sync_completed_with_errors),
-              duration = SnackbarDuration.Short,
-              //actionLabel = getString(R.string.ok).uppercase(),
-            ),
-          )
-        }
       }
       else -> {
         // Do nothing

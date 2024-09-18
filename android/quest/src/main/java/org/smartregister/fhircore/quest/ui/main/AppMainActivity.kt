@@ -109,7 +109,9 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
     val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
     bottomNavigationView?.setOnNavigationItemSelectedListener { item ->
       val navController = navHostFragment.navController
+
       when (item.itemId) {
+
         R.id.navigation_register -> {
           navController.popBackStack(R.id.registerFragment, true)
           navController.navigate(R.id.registerFragment, bundleOf(
@@ -118,28 +120,12 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
           ))
           true
         }
+
         R.id.navigation_tasks -> {
           navController.popBackStack(R.id.tasksFragment, true)
           navController.navigate(R.id.tasksFragment)
           true
         }
-
-        /*R.id.navigation_profile -> {
-          appMainViewModel.appMainUiState.value.username
-          navController.popBackStack(R.id.profileSectionFragment, true)
-
-          *//*val args = bundleOf(
-            NavigationArg.PROFILE_ID to "",
-            NavigationArg.RESOURCE_ID to "",
-            NavigationArg.RESOURCE_CONFIG to "",
-          )
-          navController.navigate(MainNavigationScreen.Profile.route, args = args)*//*
-
-          navController.navigate(R.id.profileSectionFragment, bundleOf(
-            NavigationArg.USER_NAME to appMainViewModel.appMainUiState.value.username
-          ))
-          true
-        }*/
 
         R.id.navigation_dashboard -> {
 //          appMainViewModel.appMainUiState.value.username
@@ -150,12 +136,6 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
         else -> false
       }
     }
-
-/*    supportFragmentManager
-      .beginTransaction()
-      .replace(R.id.nav_host_fragment, navHostFragment)
-      .setPrimaryNavigationFragment(navHostFragment)
-      .commit()*/
 
     geoWidgetViewModel.geoWidgetEventLiveData.observe(this) { geoWidgetEvent ->
       when (geoWidgetEvent) {
@@ -180,7 +160,6 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
     // Setup the drawer and schedule jobs
     appMainViewModel.run {
       lifecycleScope.launch {
-//        retrieveAppMainUiState()
         if (isDeviceOnline()) {
           appMainViewModel.setSentryUserProperties()
           syncBroadcaster.schedulePeriodicSync(applicationConfiguration.syncInterval)

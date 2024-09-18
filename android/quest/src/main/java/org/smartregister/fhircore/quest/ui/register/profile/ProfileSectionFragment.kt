@@ -38,7 +38,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
-import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.AndroidEntryPoint
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
@@ -137,10 +136,6 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
     override fun onStop() {
         super.onStop()
         //registerViewModel.searchText.value = "" // Clear the search term
-    }
-
-    override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
-
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

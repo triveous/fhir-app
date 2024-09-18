@@ -34,11 +34,9 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.AndroidEntryPoint
 import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
 import org.smartregister.fhircore.engine.configuration.workflow.ApplicationWorkflow
-import javax.inject.Inject
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
@@ -49,6 +47,7 @@ import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.util.extensions.interpolateActionParamsValue
+import javax.inject.Inject
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
@@ -177,10 +176,6 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
   override fun onStop() {
     super.onStop()
     //tasksViewModel.searchText.value = "" // Clear the search term
-  }
-
-  override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
-
   }
 
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
