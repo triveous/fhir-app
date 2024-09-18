@@ -292,7 +292,7 @@
     <string name="default_status">Default</string>
     <string name="remove_status">Remove</string>
     <string name="submit_questionnaire">Submit</string>
-    <string name="button_pagination_next">Submit</string>
-    <string name="button_pagination_previous">Submit</string>
+    <string name="button_pagination_next">Next</string>
+    <string name="button_pagination_previous">Previous</string>
 
 </resources>
