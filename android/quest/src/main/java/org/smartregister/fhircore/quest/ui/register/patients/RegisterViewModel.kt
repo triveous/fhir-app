@@ -55,6 +55,7 @@ import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskStatus
+import org.json.JSONException
 import org.json.JSONObject
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
@@ -1091,12 +1092,28 @@ constructor(
       return null
     }
   }
+    private fun isResourceTypePatient(jsonString: String): Boolean {
+        if (jsonString.isEmpty() || !isJsonObject(jsonString)) return false
+        var jsonObject: JSONObject?=null
+        try {
+            jsonObject = JSONObject(jsonString)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return jsonString.isNotEmpty() && jsonObject?.optString("resourceType").equals("Patient", true)
+    }
 
-  private fun isResourceTypePatient(jsonString: String): Boolean {
-    if (jsonString.isEmpty()) return false
-    val jsonObject = JSONObject(jsonString)
-    return jsonString.isNotEmpty() && jsonObject.optString("resourceType").equals("Patient",true)
-  }
+    private fun isJsonObject(jsonString: String): Boolean {
+        if (jsonString.isEmpty() || jsonString.isBlank() ) {
+            return false // Not a valid JSON object
+        }
+        try {
+            JSONObject(jsonString)
+            return true // Valid JSONObject
+        } catch (e: JSONException) {
+            return false // Not a valid JSONObject
+        }
+    }
 
   fun parseQuestionnaireResponseJson(json: String): DraftPatient? {
     val gson = Gson()
