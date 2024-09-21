@@ -91,6 +91,8 @@ class NetworkModule {
       )
       .connectTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
       .readTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
+      .protocols(listOf(Protocol.HTTP_1_1))
+      .retryOnConnectionFailure(true)
       .callTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
       .build()
 
@@ -111,7 +113,8 @@ class NetworkModule {
       .connectTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
       .readTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
       .callTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
-      .retryOnConnectionFailure(false) // Avoid silent retries sometimes before token is provided
+      .protocols(listOf(Protocol.HTTP_1_1))
+      .retryOnConnectionFailure(true) // Avoid silent retries sometimes before token is provided
       .build()
   }
 
@@ -248,6 +251,7 @@ class NetworkModule {
         val requestBuilder = chain.request().newBuilder()
         if (accessToken.isNotEmpty()) {
           requestBuilder.addHeader(AUTHORIZATION, "Bearer $accessToken")
+          requestBuilder.header("Connection", "close")
           sharedPreferencesHelper.retrieveApplicationId()?.let {
             requestBuilder.addHeader(APPLICATION_ID, it)
           }
