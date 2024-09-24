@@ -38,7 +38,6 @@ import androidx.navigation.findNavController
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.BuildConfig
 import org.smartregister.fhircore.engine.R
@@ -49,6 +48,7 @@ import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
 import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class UserSettingFragment : Fragment(), OnSyncListener {
@@ -93,7 +93,7 @@ class UserSettingFragment : Fragment(), OnSyncListener {
                 androidx.compose.ui.Modifier.padding(it).testTag(USER_SETTING_SCREEN_BOX_TAG),
             ) {
               UserSettingScreen(
-                appTitle = appMainViewModel.appMainUiState.value.appTitle,
+                appTitle = "",
                 username = userSettingViewModel.retrieveUsername(),
                 practitionerLocation = userSettingViewModel.practitionerLocation(),
                 fullname = userSettingViewModel.retrieveUserInfo()?.name,

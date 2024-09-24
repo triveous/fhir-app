@@ -129,7 +129,7 @@ class ProfileFragment : Fragment() {
       // Perform optional on submit actions
       val onSubmitActions = questionnaireConfig.onSubmitActions
       if (onSubmitActions != null) {
-        appMainViewModel.retrieveAppMainUiState(refreshAll = false)
+//        appMainViewModel.retrieveAppMainUiState(refreshAll = false)
         onSubmitActions.handleClickEvent(
           navController = findNavController(),
           resourceData = profileViewModel.profileUiState.value.resourceData,

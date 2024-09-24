@@ -130,7 +130,7 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
 
     override fun onResume() {
         super.onResume()
-        //registerViewModel.getAllLatestTasks()
+//        registerViewModel.getAllUnSyncedPatientsImages()
         //registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL, taskStatus, taskPriority)
     }
 

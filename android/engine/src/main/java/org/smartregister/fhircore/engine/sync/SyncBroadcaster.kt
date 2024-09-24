@@ -60,13 +60,18 @@ constructor(
   val dispatcherProvider: DispatcherProvider,
   @ApplicationContext val context: Context,
 ) {
-
+  val workTag=AppSyncWorker::class.java.name+"-oneTimeSync"
+  val periodicWorkTag=AppSyncWorker::class.java.name+"-periodicSync"
   /**
    * Run one time sync. The [SyncJobStatus] will be broadcast to all the registered [OnSyncListener]
    * 's
    */
   suspend fun runOneTimeSync() = coroutineScope {
     Timber.i("Running one time sync...")
+    if (AppSyncWorker.mutex.isLocked) {
+      Timber.e("mutex is locked")
+      return@coroutineScope
+    }
     Sync.oneTimeSync<AppSyncWorker>(context).handleOneTimeSyncJobStatus(this)
   }
 
@@ -76,6 +81,10 @@ constructor(
    */
   suspend fun runOneTimeSync(expedited: OutOfQuotaPolicy? = null) = coroutineScope {
     Timber.i("Running one time sync with expedited...")
+    if (AppSyncWorker.mutex.isLocked) {
+      Timber.e("mutex is locked")
+      return@coroutineScope
+    }
     Sync.oneTimeSync<AppSyncWorker>(context, expedited = expedited).handleOneTimeSyncJobStatus(this)
   }
 
