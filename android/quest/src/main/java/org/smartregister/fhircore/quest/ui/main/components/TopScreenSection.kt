@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.DarkColors
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.event.ToolbarClickEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.register.patients.GenericActivity
@@ -70,12 +69,7 @@ const val SEARCH_FIELD_TEST_TAG = "searchFieldTestTag"
 fun TopScreenSection(
   modifier: Modifier = Modifier,
   title: String = stringResource(id = R.string.appname),
-  searchText: String,
-  filteredRecordsCount: Long? = null,
-  searchPlaceholder: String? = null,
   toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
-  onSearchTextChanged: (String) -> Unit,
-  isFilterIconEnabled: Boolean = false,
   onSync: (AppMainEvent) -> Unit,
   onClick: (ToolbarClickEvent) -> Unit,
 ) {
@@ -135,7 +129,7 @@ fun TopScreenSection(
         )
         Spacer(modifier = Modifier.width(12.dp))
         Icon(
-          painter = painterResource(id = R.drawable.ic_sync),
+          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_cases_sync),
           contentDescription = FILTER,
           tint = Color.White,
           modifier =
@@ -147,48 +141,4 @@ fun TopScreenSection(
       }
     }
   }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun TopScreenSectionWithFilterItemOverNinetyNinePreview() {
-  TopScreenSection(
-    title = "All Clients",
-    searchText = "Eddy",
-    filteredRecordsCount = 120,
-    onSearchTextChanged = {},
-    toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-    isFilterIconEnabled = true,
-    onSync = {},
-    onClick = {},
-  )
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun TopScreenSectionWithFilterCountNinetyNinePreview() {
-  TopScreenSection(
-    title = "All Clients",
-    searchText = "Eddy",
-    filteredRecordsCount = 99,
-    onSearchTextChanged = {},
-    toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-    isFilterIconEnabled = true,
-    onSync = {},
-    onClick = {},
-  )
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun TopScreenSectionNoFilterIconPreview() {
-  TopScreenSection(
-    title = "All Clients",
-    searchText = "Eddy",
-    onSearchTextChanged = {},
-    toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-    isFilterIconEnabled = false,
-    onSync = {},
-    onClick = {},
-  )
 }

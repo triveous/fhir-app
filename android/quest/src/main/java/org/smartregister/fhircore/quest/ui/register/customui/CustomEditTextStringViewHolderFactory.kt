@@ -1,14 +1,8 @@
 package org.smartregister.fhircore.quest.ui.register.customui
 
-import android.content.Context
 import android.text.Editable
 import android.text.InputType
 import android.view.View
-import com.google.android.fhir.datacapture.extensions.asStringValue
-import com.google.android.fhir.datacapture.validation.Invalid
-import com.google.android.fhir.datacapture.validation.NotValidated
-import com.google.android.fhir.datacapture.validation.Valid
-import com.google.android.fhir.datacapture.validation.ValidationResult
 import com.google.android.fhir.datacapture.views.HeaderView
 import com.google.android.fhir.datacapture.views.QuestionnaireViewItem
 import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemEditTextViewHolderDelegate
@@ -48,16 +42,29 @@ class EditTextStringViewHolderDelegate :
     textInputEditText = itemView.findViewById(R.id.text_input_edit_text)
   }
 
-  override fun bind(questionnaireViewItem: QuestionnaireViewItem) {
-    super.bind(questionnaireViewItem)
+  override fun updateInputTextUI(
+    questionnaireViewItem: QuestionnaireViewItem,
+    textInputEditText: TextInputEditText
+  ) {
     header.visibility = View.GONE
+
+    val text = questionnaireViewItem.answers.singleOrNull()?.valueStringType?.value ?: ""
+    if ((text != textInputEditText.text.toString())) {
+      textInputEditText.setText(text)
+    }
+  }
+
+  override fun updateValidationTextUI(
+    questionnaireViewItem: QuestionnaireViewItem,
+    textInputLayout: TextInputLayout
+  ) {
     var isMandatoryQuestion = ""
     if (questionnaireViewItem.questionnaireItem.required){
       isMandatoryQuestion = "*"
     }
 
-    textInputLayout.hint = "${questionnaireViewItem.questionText} ${isMandatoryQuestion}"
-    displayValidationResult(questionnaireViewItem.validationResult)
+    textInputLayout.hint = "${questionnaireViewItem.questionText} $isMandatoryQuestion"
+    textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, questionnaireViewItem.validationResult)
   }
 
 
@@ -85,19 +92,13 @@ class EditTextStringViewHolderDelegate :
     }
   }
 
-  override fun updateUI(
+  fun updateUI(
     questionnaireViewItem: QuestionnaireViewItem,
-    textInputEditText: TextInputEditText,
-    textInputLayout: TextInputLayout,
-  ) {
+    textInputEditText: TextInputEditText, ) {
     val text = questionnaireViewItem.answers.singleOrNull()?.valueStringType?.value ?: ""
     if ((text != textInputEditText.text.toString())) {
       textInputEditText.setText(text)
     }
-  }
-
-  private fun displayValidationResult(validationResult: ValidationResult) {
-    textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, validationResult)
   }
 }
 

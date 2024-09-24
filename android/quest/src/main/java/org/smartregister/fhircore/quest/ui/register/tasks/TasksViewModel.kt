@@ -16,7 +16,6 @@
 
 package org.smartregister.fhircore.quest.ui.register.tasks
 
-import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -25,14 +24,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import com.google.android.fhir.FhirEngine
-import com.google.android.fhir.logicalId
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,7 +44,6 @@ import org.hl7.fhir.r4.model.Enumerations.DataType
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
@@ -64,12 +61,13 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterFilterState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
-import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.TaskProgressState
-import org.smartregister.model.practitioner.PractitionerDetails
+import org.smartregister.model.practitioner.FhirPractitionerDetails
+import timber.log.Timber
 import java.time.LocalDate
 import java.util.Date
 import java.util.UUID
+import javax.inject.Inject
 
 @HiltViewModel
 class TasksViewModel
@@ -210,8 +208,8 @@ constructor(
     }
   }
 
-  fun getPractitionerDetails() : PractitionerDetails? {
-      return sharedPreferencesHelper.read<PractitionerDetails>(
+  private fun getPractitionerDetails() : FhirPractitionerDetails? {
+      return sharedPreferencesHelper.read<FhirPractitionerDetails>(
         key = SharedPreferenceKey.PRACTITIONER_DETAILS.name,
         decodeWithGson = true,
       )
@@ -276,12 +274,16 @@ constructor(
       FilterType.RETAKE_PHOTO -> newTasks = newTasks.filter {
         it.task.intent == Task.TaskIntent.PROPOSAL
       }
+      FilterType.ADVICE_TO_QUIT -> newTasks = newTasks.filter {
+        it.task.intent == Task.TaskIntent.OPTION
+      }
     }
 
 
     newTasks = newTasks.filter {
       it.task.status != TaskStatus.REJECTED
-    }.distinctBy { it.task.logicalId }
+    }.distinctBy { it.task.logicalId
+    }.sortedByDescending { it?.task?.meta?.lastUpdated }
 
     _filteredTasksStateFlow.value = newTasks
   }
@@ -671,7 +673,7 @@ constructor(
 
         return Patient2(name ?: "", gender ?: "", "", 0)
       } catch (e: Exception) {
-        e.printStackTrace()
+        Timber.e(e, "Patient Parser error")
         return null
       }
     }
@@ -698,7 +700,7 @@ constructor(
 
       return DraftPatient(name ?: "", gender ?: "")
     } catch (e: Exception) {
-      e.printStackTrace()
+      Timber.e(e, "Patient Parser error")
       return null
     }
   }

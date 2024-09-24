@@ -36,9 +36,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
@@ -48,9 +46,9 @@ import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.GenericActivityArg
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
-import org.smartregister.fhircore.quest.util.SectionTitles
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
+import javax.inject.Inject
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint

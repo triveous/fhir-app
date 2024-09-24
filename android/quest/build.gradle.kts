@@ -1,11 +1,12 @@
+
 import com.android.build.api.variant.FilterConfiguration.FilterType
+import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.FileReader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import org.gradle.api.tasks.testing.logging.TestLogEvent
-import org.json.JSONArray
-import org.json.JSONObject
 
 plugins {
   `jacoco-report`
@@ -60,6 +61,7 @@ android {
   defaultConfig {
     applicationId = BuildConfigs.applicationId
     minSdk = BuildConfigs.minSdk
+    targetSdk = BuildConfigs.targetSdk
     versionCode = BuildConfigs.versionCode
     versionName = BuildConfigs.versionName
     multiDexEnabled = true
@@ -91,9 +93,8 @@ android {
       enableV2Signing = true
       keyAlias = System.getenv("KEYSTORE_ALIAS") ?: """${project.extra["KEYSTORE_ALIAS"]}"""
       keyPassword = System.getenv("KEY_PASSWORD") ?: """${project.extra["KEY_PASSWORD"]}"""
-      storePassword =
-        System.getenv("KEYSTORE_PASSWORD") ?: """${project.extra["KEYSTORE_PASSWORD"]}"""
-      storeFile = file(System.getProperty("user.home") + "/fhircore.keystore.jks")
+      storePassword = System.getenv("KEYSTORE_PASSWORD") ?: """${project.extra["KEYSTORE_PASSWORD"]}"""
+      storeFile = file("opensrp.jks")
     }
   }
 
@@ -320,6 +321,9 @@ dependencies {
   kaptAndroidTest(libs.dagger.hilt.android.compiler)
 
   androidTestUtil(libs.orchestrator)
+
+  //Splash
+  implementation(libs.core.splashscreen)
 
   // Android test dependencies
   androidTestImplementation(libs.bundles.junit.test)

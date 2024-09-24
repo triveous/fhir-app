@@ -28,7 +28,6 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.res.stringResource
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
@@ -39,6 +38,7 @@ import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.ui.login.AccountAuthenticator
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class AppSettingActivity : AppCompatActivity() {
@@ -53,8 +53,12 @@ class AppSettingActivity : AppCompatActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    val appSettingActivity = this@AppSettingActivity
-    appSettingActivity.applyWindowInsetListener()
+    initializeUI()
+    handleAppConfiguration()
+  }
+
+  private fun initializeUI() {
+    this.applyWindowInsetListener()
     setContent {
       AppTheme {
         val error by appSettingViewModel.error.observeAsState("")
@@ -65,34 +69,46 @@ class AppSettingActivity : AppCompatActivity() {
         }
       }
     }
-    val existingAppId =
-      sharedPreferencesHelper.read(SharedPreferenceKey.APP_ID.name, null)?.trimEnd()
+  }
 
-    // If app exists load the configs otherwise fetch from the server
-    if (!existingAppId.isNullOrEmpty()) {
-      appSettingViewModel.run {
-        onApplicationIdChanged(existingAppId)
-        loadConfigurations(appSettingActivity)
-      }
-    } else if (!BuildConfig.OPENSRP_APP_ID.isNullOrEmpty()) {
-      // this part simulates what the user would have done manually via the text field and button
-      appSettingViewModel.onApplicationIdChanged(BuildConfig.OPENSRP_APP_ID)
-      appSettingViewModel.fetchConfigurations(appSettingActivity)
-    } else {
-      setContent {
-        AppTheme {
-          val appId by appSettingViewModel.appId.observeAsState("")
-          val showProgressBar by appSettingViewModel.showProgressBar.observeAsState(false)
-          val error by appSettingViewModel.error.observeAsState("")
+  private fun handleAppConfiguration() {
+    val existingAppId = sharedPreferencesHelper.read(SharedPreferenceKey.APP_ID.name, null)?.trimEnd()
 
-          AppSettingScreen(
-            appId = appId,
-            onAppIdChanged = appSettingViewModel::onApplicationIdChanged,
-            fetchConfiguration = appSettingViewModel::fetchConfigurations,
-            showProgressBar = showProgressBar,
-            error = error,
-          )
-        }
+    when {
+      !existingAppId.isNullOrEmpty() -> loadExistingConfiguration(existingAppId)
+      BuildConfig.OPENSRP_APP_ID.isNotEmpty() -> fetchDefaultConfiguration()
+      else -> displayAppSettingScreen()
+    }
+  }
+
+  private fun loadExistingConfiguration(appId: String) {
+    appSettingViewModel.run {
+      onApplicationIdChanged(appId)
+      loadConfigurations(this@AppSettingActivity)
+    }
+  }
+
+  private fun fetchDefaultConfiguration() {
+    appSettingViewModel.run {
+      onApplicationIdChanged(BuildConfig.OPENSRP_APP_ID)
+      fetchConfigurations(this@AppSettingActivity)
+    }
+  }
+
+  private fun displayAppSettingScreen() {
+    setContent {
+      AppTheme {
+        val appId by appSettingViewModel.appId.observeAsState("")
+        val showProgressBar by appSettingViewModel.showProgressBar.observeAsState(false)
+        val error by appSettingViewModel.error.observeAsState("")
+
+        AppSettingScreen(
+          appId = appId,
+          onAppIdChanged = appSettingViewModel::onApplicationIdChanged,
+          fetchConfiguration = appSettingViewModel::fetchConfigurations,
+          showProgressBar = showProgressBar,
+          error = error,
+        )
       }
     }
   }

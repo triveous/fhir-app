@@ -22,7 +22,6 @@ import ca.uhn.fhir.parser.IParser
 import ca.uhn.fhir.rest.gclient.ReferenceClientParam
 import com.google.android.fhir.datacapture.extensions.createQuestionnaireResponseItem
 import com.google.android.fhir.get
-import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.search
 import java.time.Duration
 import java.time.temporal.ChronoUnit
@@ -533,3 +532,12 @@ fun List<RepositoryResourceData>.filterByFhirPathExpression(
     }
   }
 }
+
+/**
+ * The logical (unqualified) part of the ID. For example, if the ID is
+ * "http://example.com/fhir/Patient/123/_history/456", then this value would be "123".
+ */
+val Resource.logicalId: String
+  get() {
+    return this.idElement?.idPart.orEmpty()
+  }

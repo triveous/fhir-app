@@ -22,12 +22,12 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import javax.inject.Inject
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.smartregister.fhircore.quest.robolectric.RobolectricTest
+import javax.inject.Inject
 
 @HiltAndroidTest
 class QuestConfigServiceTest : RobolectricTest() {
@@ -44,7 +44,7 @@ class QuestConfigServiceTest : RobolectricTest() {
 
   @Test
   fun testProvideAuthConfigurationShouldReturnConfigs() {
-    val authConfiguration = configService.provideAuthConfiguration()
+    val authConfiguration = configService.provideAuthConfiguration(configService.baseUrlsHolder)
 
     Assert.assertNotNull(authConfiguration)
     Assert.assertEquals(BuildConfig.FHIR_BASE_URL, authConfiguration.fhirServerBaseUrl)
