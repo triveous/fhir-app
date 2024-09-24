@@ -46,7 +46,6 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.QuestionnaireResponse
@@ -62,7 +61,6 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.isIn
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
-import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.tasks.ViewAllTasksFragment
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
@@ -72,6 +70,7 @@ import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
 import org.smartregister.fhircore.quest.util.extensions.interpolateActionParamsValue
 import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
+import javax.inject.Inject
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
@@ -171,7 +170,7 @@ class DashboardFragment : Fragment(), OnSyncListener {
         super.onResume()
         registerViewModel.getDashboardCasedData()
         syncListenerManager.registerSyncListener(this, lifecycle)
-
+        registerViewModel.getAllUnSyncedPatientsImages()
         //registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL, taskStatus, taskPriority)
     }
 
@@ -305,7 +304,7 @@ class DashboardFragment : Fragment(), OnSyncListener {
         if (questionnaireSubmission.questionnaireConfig.saveQuestionnaireResponse) {
             appMainViewModel.run {
                 onQuestionnaireSubmission(questionnaireSubmission)
-                retrieveAppMainUiState(refreshAll = false) // Update register counts
+//                retrieveAppMainUiState(refreshAll = false) // Update register counts
             }
 
             val (questionnaireConfig, _) = questionnaireSubmission

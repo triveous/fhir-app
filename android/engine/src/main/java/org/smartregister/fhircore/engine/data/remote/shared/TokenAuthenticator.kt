@@ -164,10 +164,13 @@ constructor(
       saveToken(username = username, password = password, oAuthResponse = oAuthResponse)
       Result.success(oAuthResponse)
     } catch (httpException: HttpException) {
+      Timber.e(httpException, "fetchAccessToken")
       Result.failure(httpException)
     } catch (unknownHostException: UnknownHostException) {
+      Timber.e(unknownHostException, "fetchAccessToken")
       Result.failure(unknownHostException)
     } catch (sslHandShakeException: SSLHandshakeException) {
+      Timber.e(sslHandShakeException, "fetchAccessToken")
       Result.failure(sslHandShakeException)
     }
   }
@@ -191,8 +194,10 @@ constructor(
           Result.success(true)
         } else Result.success(false)
       } catch (httpException: HttpException) {
+        Timber.e(httpException, "fetchAccessToken")
         Result.failure(httpException)
       } catch (unknownHostException: UnknownHostException) {
+        Timber.e(unknownHostException, "fetchAccessToken")
         Result.failure(unknownHostException)
       }
     }
