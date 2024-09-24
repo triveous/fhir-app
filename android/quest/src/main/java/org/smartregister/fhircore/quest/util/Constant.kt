@@ -6,6 +6,7 @@ package org.smartregister.fhircore.quest.util
 
 const val VERSION_CODE="versionCode"
 const val VERSION_NAME="versionName"
+const val IMAGES_LEFT="imagesLeft"
 
 object LanguageConstants {
     const val ENGLISH = "English"
