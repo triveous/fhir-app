@@ -30,6 +30,7 @@ import androidx.work.workDataOf
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.sentry.Sentry
 import io.sentry.protocol.User
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.model.ResourceType
@@ -52,6 +53,8 @@ import org.smartregister.fhircore.engine.util.extension.getActivity
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.BuildConfig
+import org.smartregister.fhircore.quest.util.VERSION_CODE
+import org.smartregister.fhircore.quest.util.VERSION_NAME
 import org.smartregister.model.location.LocationHierarchy
 import org.smartregister.model.practitioner.PractitionerDetails
 import retrofit2.HttpException
@@ -124,7 +127,7 @@ constructor(
       val trimmedUsername = username.value!!.trim()
       val passwordAsCharArray = password.value!!.trim().toCharArray()
 
-      viewModelScope.launch(dispatcherProvider.io()) {
+      viewModelScope.launch(Dispatchers.IO) {
         if (context.getActivity()!!.isDeviceOnline()) {
           fetchToken(
             username = trimmedUsername,
@@ -138,6 +141,7 @@ constructor(
             },
             onFetchPractitioner = { bundleResult, userInfo ->
               if (bundleResult.isSuccess) {
+                setSentryConfiguration(trimmedUsername)
                 val bundle = bundleResult.getOrDefault(FhirR4ModelBundle())
                 savePractitionerDetails(bundle, userInfo) {
                   _showProgressBar.postValue(false)
@@ -155,19 +159,8 @@ constructor(
           if (secureSharedPreference.retrieveSessionUsername() == null) {
             _showProgressBar.postValue(false)
             _loginErrorState.postValue(LoginErrorState.INVALID_OFFLINE_STATE)
-          } else if (
-            accountAuthenticator.validateLoginCredentials(trimmedUsername, passwordAsCharArray)
-          ) {
-            try {
-              // Configure Sentry scope
-              Sentry.configureScope { scope ->
-                scope.setTag("versionCode", BuildConfig.VERSION_CODE.toString())
-                scope.setTag("versionName", BuildConfig.VERSION_NAME)
-                scope.user = User().apply { username = trimmedUsername }
-              }
-            } catch (e: Exception) {
-              Timber.e(e)
-            }
+          } else if (accountAuthenticator.validateLoginCredentials(trimmedUsername, passwordAsCharArray)) {
+            setSentryConfiguration(trimmedUsername)
             _showProgressBar.postValue(false)
             updateNavigateHome(true)
           } else {
@@ -177,6 +170,19 @@ constructor(
         }
         clearPasswordInMemory(passwordAsCharArray)
       }
+    }
+  }
+
+  private fun setSentryConfiguration(trimmedUsername: String) {
+    try {
+      // Configure Sentry scope
+      Sentry.configureScope { scope ->
+        scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
+        scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
+        scope.user = User().apply { username = trimmedUsername }
+      }
+    } catch (e: Exception) {
+      Timber.e(e)
     }
   }
 
@@ -213,13 +219,7 @@ constructor(
     } else {
       // Prevent user from logging in with different credentials
       val existingCredentials = secureSharedPreference.retrieveCredentials()
-      if (
-        existingCredentials != null &&
-          !username.equals(
-            existingCredentials.username,
-            true,
-          )
-      ) {
+      if (existingCredentials != null && !username.equals(existingCredentials.username, true)) {
         _showProgressBar.postValue(false)
         _loginErrorState.postValue(LoginErrorState.MULTI_USER_LOGIN_ATTEMPT)
       } else {
@@ -285,6 +285,7 @@ constructor(
       }
     } catch (httpException: HttpException) {
       onFetchUserInfo(Result.failure(httpException))
+      Timber.e(httpException)
     } catch (unknownHostException: UnknownHostException) {
       onFetchUserInfo(Result.failure(unknownHostException))
       Timber.e(unknownHostException, "An error occurred fetching the practitioner details")
@@ -303,7 +304,7 @@ constructor(
     postProcess: () -> Unit,
   ) {
     if (bundle.entry.isNullOrEmpty()) return
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       bundle.entry.forEach { entry ->
         val practitionerDetails = entry.resource as PractitionerDetails
 
@@ -317,7 +318,7 @@ constructor(
           practitionerDetails.fhirPractitionerDetails?.locationHierarchyList ?: listOf()
 
         val careTeamIds =
-          withContext(dispatcherProvider.io()) {
+          withContext(Dispatchers.IO) {
             defaultRepository.createRemote(false, *careTeams.toTypedArray()).run {
               careTeams.map { it.id.extractLogicalIdUuid() }
             }
