@@ -20,7 +20,6 @@ import android.Manifest
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -77,13 +76,11 @@ import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
-import org.smartregister.fhircore.quest.event.ToolbarClickEvent
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
 import org.smartregister.fhircore.quest.theme.body14Medium
 import org.smartregister.fhircore.quest.theme.bodyNormal
-import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
@@ -103,76 +100,43 @@ const val REGISTER_CARD_TEST_TAG = "registerCardListTestTag"
 const val FIRST_TIME_SYNC_DIALOG = "firstTimeSyncTestTag"
 const val FAB_BUTTON_REGISTER_TEST_TAG = "fabTestTag"
 const val TOP_REGISTER_SCREEN_TEST_TAG = "topScreenTestTag"
-const val ALL_PATIENTS_TAB = "ALL CASES"
-const val DRAFT_PATIENTS_TAB = "DRAFT"
-const val UNSYNCED_PATIENTS_TAB = "UN-SYNCED"
-const val ALL_PATIENTS = 0
-const val DRAFT_PATIENTS = 1
-const val UNSYNCED_PATIENTS = 2
 
 
 @Composable
 fun RegisterScreen(
     modifier: Modifier = Modifier,
-    openDrawer: (Boolean) -> Unit,
     viewModel: RegisterViewModel,
     appMainViewModel: AppMainViewModel,
-    onEvent: (RegisterEvent) -> Unit,
     registerUiState: RegisterUiState,
-    searchText: MutableState<String>,
     navController: NavController,
-    toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
 ) {
-    var showDialog by remember { mutableStateOf(false) }
-    var appMainEvent : AppMainEvent?=null
-    var imageCount =1
-    var totalImageLeftCountData = getSyncImagelist(imageCount)
+
+    val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
+    var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
     var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
-
-
-    val permissionGranted = remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
-        permissionGranted.value = isGranted
+        viewModel.setPermissionGranted(isGranted)
+        if (isGranted){
+            viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+        }
     }
-
 
     Scaffold(
         topBar = {
             Column {
-                val filterActions =
-                    registerUiState.registerConfiguration?.registerFilter?.dataFilterActions
                 TopScreenSection(
                     modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
                     title = stringResource(id = R.string.appname),
-                    searchText = searchText.value,
-                    filteredRecordsCount = registerUiState.filteredRecordsCount,
-                    searchPlaceholder = registerUiState.registerConfiguration?.searchBar?.display,
                     toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
                     onSync = {
-                        appMainEvent=it
-                        showDialog = true },
-                    onSearchTextChanged = { searchText ->
-                        onEvent(RegisterEvent.SearchRegister(searchText = searchText))
+                        viewModel.appMainEvent = it
+                        viewModel.setShowDialog(true)
+                        viewModel.setSentryUserProperties()
                     },
-                    isFilterIconEnabled = filterActions?.isNotEmpty() ?: false,
                 ) { event ->
-                    when (event) {
-                        ToolbarClickEvent.Navigate -> when (toolBarHomeNavigation) {
-                            ToolBarHomeNavigation.OPEN_DRAWER -> openDrawer(true)
-                            ToolBarHomeNavigation.NAVIGATE_BACK -> navController.popBackStack()
-                            ToolBarHomeNavigation.SYNC -> {
-
-                            }
-                        }
-
-                        ToolbarClickEvent.FilterData -> {
-                            onEvent(RegisterEvent.ResetFilterRecordsCount)
-                            filterActions?.handleClickEvent(navController)
-                        }
-                    }
                 }
             }
         },) { innerPadding ->
@@ -195,15 +159,14 @@ fun RegisterScreen(
             registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
                 val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
                 val savedRes by viewModel.allSavedDraftResponse.collectAsState()
-                val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
-                val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
                 val isFetching by viewModel.isFetching.collectAsState()
                 var deleteDraftId by remember { mutableStateOf("") }
                 var showDeleteDialog by remember { mutableStateOf(false) }
 
-                imageCount = unSyncedImagesCount
-                totalImageLeftCountData = getSyncImagelist(imageCount)
-                totalImageLeft = totalImageLeftCountData
+                    viewModel.imageCount = unSyncedImagesCount
+                    totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                    totalImageLeft = totalImageLeftCountData
+
                 if (allSyncedPatients.isEmpty() && savedRes.isEmpty()) {
                     Column(
                         modifier = Modifier
@@ -390,37 +353,32 @@ fun RegisterScreen(
             }
 
             ForegroundSyncDialog(
-                showDialog = showDialog,
+                showDialog = viewModel.showDialog.value,
                 title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
                 content = totalImageLeft,
-                imageCount,
+                viewModel.imageCount,
                 confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
                 dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
                 onDismiss = {
-                    showDialog = false
+                    viewModel.setShowDialog(false)
                 },
                 onConfirm = {
-                    Log.e("TAG","ForegroundSyncDialog --> onConfirm --> ")
-                    showDialog = false
-                    if (!permissionGranted.value) {
+                    viewModel.setShowDialog(false)
+                    if (!viewModel.permissionGranted.value) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         } else {
-                            permissionGranted.value = true
-                            appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                            viewModel.setPermissionGranted(true)
+                            viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
                         }
                     }else{
-                        appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                        viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
                     }
                 }
             )
         }
     }
 }
-
-@Composable
-private fun getSyncImagelist(imageCount: Int) =
-    stringResource(id = org.smartregister.fhircore.quest.R.string.image_left, imageCount.toString())
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable

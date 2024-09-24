@@ -62,7 +62,8 @@ import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterFilterState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.util.TaskProgressState
-import org.smartregister.model.practitioner.PractitionerDetails
+import org.smartregister.model.practitioner.FhirPractitionerDetails
+import timber.log.Timber
 import java.time.LocalDate
 import java.util.Date
 import java.util.UUID
@@ -207,8 +208,8 @@ constructor(
     }
   }
 
-  fun getPractitionerDetails() : PractitionerDetails? {
-      return sharedPreferencesHelper.read<PractitionerDetails>(
+  private fun getPractitionerDetails() : FhirPractitionerDetails? {
+      return sharedPreferencesHelper.read<FhirPractitionerDetails>(
         key = SharedPreferenceKey.PRACTITIONER_DETAILS.name,
         decodeWithGson = true,
       )
@@ -230,7 +231,7 @@ constructor(
       val tasksWithPatient = allTasks.mapNotNull { task ->
 
         val taskOwnerId = task.owner?.reference?.toString()?.substringAfterLast("/") ?: ""
-        val patientId = task.`for`?.reference?.toString()?.substringAfter("/") ?: return@mapNotNull null
+        val patientId = task?.`for`?.reference?.toString()?.substringAfter("/") ?: return@mapNotNull null
         if (taskOwnerId == practitionerId && task.status != TaskStatus.REJECTED && patients.containsKey(patientId)) {
           TaskItem(task = task, patient = patients[patientId]?.patient)
         } else {
@@ -273,12 +274,16 @@ constructor(
       FilterType.RETAKE_PHOTO -> newTasks = newTasks.filter {
         it.task.intent == Task.TaskIntent.PROPOSAL
       }
+      FilterType.ADVICE_TO_QUIT -> newTasks = newTasks.filter {
+        it.task.intent == Task.TaskIntent.OPTION
+      }
     }
 
 
     newTasks = newTasks.filter {
       it.task.status != TaskStatus.REJECTED
-    }.distinctBy { it.task.logicalId }
+    }.distinctBy { it.task.logicalId
+    }.sortedByDescending { it?.task?.meta?.lastUpdated }
 
     _filteredTasksStateFlow.value = newTasks
   }
@@ -668,7 +673,7 @@ constructor(
 
         return Patient2(name ?: "", gender ?: "", "", 0)
       } catch (e: Exception) {
-        e.printStackTrace()
+        Timber.e(e, "Patient Parser error")
         return null
       }
     }
@@ -695,7 +700,7 @@ constructor(
 
       return DraftPatient(name ?: "", gender ?: "")
     } catch (e: Exception) {
-      e.printStackTrace()
+      Timber.e(e, "Patient Parser error")
       return null
     }
   }

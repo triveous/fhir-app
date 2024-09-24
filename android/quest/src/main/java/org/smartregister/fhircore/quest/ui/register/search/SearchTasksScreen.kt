@@ -327,6 +327,12 @@ fun CardItemView(task: RegisterViewModel.TaskItem, onSelectTask : (RegisterViewM
                     textColor = Color(0xFFFFC800)
                   }
 
+                  Task.TaskIntent.OPTION -> {
+                    label = "ADVICE TO QUIT HABIT"
+                    color = Color(0xFFFFF8E0)
+                    textColor = Color(0xFFFFC800)
+                  }
+
                   Task.TaskIntent.ORDER -> {
                     label = "URGENT REFERRAL"
                     color = Color(0xFFFFCDD2)

@@ -17,8 +17,8 @@
 package org.smartregister.fhircore.quest.ui.register.patients
 
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -33,7 +33,8 @@ import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineScope
+import io.sentry.Sentry
+import io.sentry.protocol.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
@@ -44,7 +45,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.DocumentReference
@@ -55,6 +55,8 @@ import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskStatus
+import org.json.JSONException
+import org.json.JSONObject
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.register.RegisterConfiguration
@@ -80,15 +82,19 @@ import org.smartregister.fhircore.engine.util.extension.isToday
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.monthsPassed
 import org.smartregister.fhircore.engine.util.extension.valueToString
+import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
-import org.smartregister.fhircore.quest.util.DraftsUtils
+import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import org.smartregister.fhircore.quest.util.DraftsUtils.removeDraftFromBundle
 import org.smartregister.fhircore.quest.util.DraftsUtils.saveBundleToSharedPreferences
+import org.smartregister.fhircore.quest.util.IMAGES_LEFT
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.TaskProgressState
+import org.smartregister.fhircore.quest.util.VERSION_CODE
+import org.smartregister.fhircore.quest.util.VERSION_NAME
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import org.smartregister.model.practitioner.FhirPractitionerDetails
 import timber.log.Timber
@@ -96,7 +102,6 @@ import java.time.LocalDate
 import java.util.Date
 import java.util.UUID
 import javax.inject.Inject
-import kotlin.math.ceil
 
 @HiltViewModel
 class RegisterViewModel
@@ -120,8 +125,7 @@ constructor(
     MutableStateFlow(emptyFlow())
   val pagesDataCache = mutableMapOf<Int, Flow<PagingData<ResourceData>>>()
   val registerFilterState = mutableStateOf(RegisterFilterState())
-  private val _totalRecordsCount = mutableLongStateOf(0L)
-  private val _filteredRecordsCount = mutableLongStateOf(-1L)
+
   private lateinit var registerConfiguration: RegisterConfiguration
   private var allPatientRegisterData: Flow<PagingData<ResourceData>>? = null
   private val _percentageProgress: MutableSharedFlow<Int> = MutableSharedFlow(0)
@@ -175,6 +179,15 @@ constructor(
   private var _allUnSyncedImages = MutableStateFlow<Int>(0)
   val allUnSyncedImages: StateFlow<Int> = _allUnSyncedImages
 
+  private var _showDialog = mutableStateOf(false)
+  val showDialog: State<Boolean> = _showDialog
+
+  private var _permissionGranted = mutableStateOf(false)
+  val permissionGranted: State<Boolean> = _permissionGranted
+
+  var appMainEvent : AppMainEvent?=null
+  var imageCount = 0
+
   /**
    * This function paginates the register data. An optional [clearCache] resets the data in the
    * cache (this is necessary after a questionnaire has been submitted to refresh the register with
@@ -193,6 +206,28 @@ constructor(
       pagesDataCache.getOrPut(currentPage.value) {
         getPager(registerId, loadAll).flow.cachedIn(viewModelScope)
       }
+  }
+
+  fun setSentryUserProperties() {
+    val userName = secureSharedPreference.retrieveSessionUsername()
+    try {
+      viewModelScope.launch {
+        val docReferences = fhirEngine.search<DocumentReference> {}.size
+        // Configure Sentry scope
+        Sentry.configureScope { scope ->
+          scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
+          scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
+          val user = User().apply {
+            username = userName
+            data = data ?: mutableMapOf()
+            data?.put(IMAGES_LEFT,  "$docReferences")
+          }
+          scope.user = user
+        }
+      }
+    } catch (e: Exception) {
+      Timber.e(e)
+    }
   }
 
   fun logout(){
@@ -267,7 +302,9 @@ constructor(
         currentPage.value.let { if (it > 0) currentPage.value = it.minus(1) }
         paginateRegisterData(registerUiState.value.registerId)
       }
-      RegisterEvent.ResetFilterRecordsCount -> _filteredRecordsCount.longValue = -1
+      else -> {
+
+      }
     }
 
   fun filterRegisterData(event: RegisterEvent.SearchRegister) {
@@ -289,7 +326,7 @@ constructor(
   }
 
   fun updateTask(task : Task, status: TaskStatus, taskOutput: TaskProgressState){
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
 
       val value = CodeableConcept()
       value.text = taskOutput.text
@@ -316,7 +353,7 @@ constructor(
 
   fun getAllTasks() {
     _isFetchingTasks.value = true
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       val practitionerDetails = getPractitionerDetails()
       val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
 
@@ -353,7 +390,7 @@ constructor(
   }
 
   fun getAllLatestTasks() {
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO)  {
       val practitionerDetails = getPractitionerDetails()
       val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
 
@@ -386,7 +423,7 @@ constructor(
     val allTasksWithPatients = _allLatestTasksStateFlow.value
     val matchedTasksWithPatientList = mutableListOf<TaskItem>()
 
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       allTasksWithPatients.forEach { taskItem ->
         val patient = taskItem.patient
         patient?.let {
@@ -653,21 +690,8 @@ constructor(
   ) {
     if (registerId.isNotEmpty()) {
       val paramsMap: Map<String, String> = params.toParamDataMap()
-      viewModelScope.launch(dispatcherProvider.io()) {
+      viewModelScope.launch(Dispatchers.IO) {
         val currentRegisterConfiguration = retrieveRegisterConfiguration(registerId, paramsMap)
-
-        _totalRecordsCount.longValue =
-          registerRepository.countRegisterData(registerId = registerId, paramsMap = paramsMap)
-
-        // Only count filtered data when queries are updated
-        if (registerFilterState.value.fhirResourceConfig != null) {
-          _filteredRecordsCount.longValue =
-            registerRepository.countRegisterData(
-              registerId = registerId,
-              paramsMap = paramsMap,
-              fhirResourceConfig = registerFilterState.value.fhirResourceConfig,
-            )
-        }
 
         paginateRegisterData(registerId, loadAll = false, clearCache = clearCache)
 
@@ -677,20 +701,9 @@ constructor(
             isFirstTimeSync =
             sharedPreferencesHelper
               .read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null)
-              .isNullOrEmpty() && _totalRecordsCount.longValue == 0L,
+              .isNullOrEmpty(),
             registerConfiguration = currentRegisterConfiguration,
             registerId = registerId,
-            totalRecordsCount = _totalRecordsCount.longValue,
-            filteredRecordsCount = _filteredRecordsCount.longValue,
-            pagesCount =
-            ceil(
-              (if (registerFilterState.value.fhirResourceConfig != null) {
-                _filteredRecordsCount.longValue
-              } else _totalRecordsCount.longValue)
-                .toDouble()
-                .div(currentRegisterConfiguration.pageSize.toLong()),
-            )
-              .toInt(),
             progressPercentage = _percentageProgress,
             isSyncUpload = _isUploadSync,
             params = paramsMap,
@@ -710,7 +723,7 @@ constructor(
 
   fun getDashboardCasedData(){
 
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       val patients = fhirEngine.search<Patient> {
         // ... your search criteria
       }.map {
@@ -765,9 +778,8 @@ constructor(
   }
 
   fun getAllPatients() {
-
     _isFetching.value = true
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO)  {
       val userName = getUserName()
 
       // Fetching patients
@@ -818,9 +830,10 @@ constructor(
     }
   }
 
+  //TODO: check the error java.lang.NullPointerException: null cannot be cast to non-null type kotlin.collections.Map<*, *>
   fun getAllSyncedPatients(){
     _isFetching.value = true
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       val userName = getUserName()
 
       // Fetching patients
@@ -866,7 +879,7 @@ constructor(
   }
 
   fun getAllDraftResponses() {
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       val allResponses = mutableListOf<QuestionnaireResponse>()
       try {
         val parser = FhirContext.forR4Cached().newJsonParser()
@@ -898,7 +911,7 @@ constructor(
 
   fun getAllUnSyncedPatients() {
     val patients = mutableListOf<Patient2>()
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       val data = fhirEngine.getUnsyncedLocalChanges()
       data.forEachIndexed { index, localChange ->
         val patient = parsePatientJson(localChange.payload)
@@ -909,19 +922,20 @@ constructor(
         }
       }
       patients.reverse()
-      CoroutineScope(Dispatchers.Main).launch {
+//      CoroutineScope(Dispatchers.Main).launch {
         _allUnSyncedStateFlow.value = patients
-      }
+//      }
     }
   }
   fun getAllUnSyncedPatientsImages(){
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       _allUnSyncedImages.value = fhirEngine.search<DocumentReference> {}.count()
+      imageCount = allUnSyncedImages.value
     }
   }
 
   fun deleteIfNotOldDraft(resourceId: String){
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       try {
         val parser = FhirContext.forR4Cached().newJsonParser()
         val draftResponsesJson = getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
@@ -939,7 +953,7 @@ constructor(
   }
 
   fun softDeleteDraft(resourceId: String) {
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       try {
         val parser = FhirContext.forR4Cached().newJsonParser()
 
@@ -1040,28 +1054,37 @@ constructor(
 
   }
 
-  fun parsePatientJson(json: String): Patient2? {
+  private fun parsePatientJson(json: String): Patient2? {
+    if (!isResourceTypePatient(json)) return null
     val gson = Gson()
     try {
       val patientData = gson.fromJson(json, Map::class.java)
 
-      val nameList = patientData["name"] as List<*>?
-      val name = if (nameList != null && nameList.isNotEmpty()) {
-        val firstName = (nameList[0] as Map<*, *>)["given"] as List<*>?
-        if (firstName != null && firstName.isNotEmpty()) {
-          firstName[0] as String
-        } else {
-          null
+      var name: String?=""
+      if(patientData.keys.contains("name")) {
+        val patientDataName = patientData["name"]
+        if (patientDataName != null) {
+          val nameList = patientDataName as? List<*>?
+          name = if (nameList != null && nameList.isNotEmpty()) {
+            val firstName = (nameList[0] as? Map<*, *>)?.get("given") as? List<*>?
+            if (firstName != null && firstName.isNotEmpty()) {
+              firstName[0] as String
+            } else {
+              null
+            }
+          } else {
+            null
+          }
         }
       } else {
-        null
+        return null
       }
 
-      val id = patientData["id"] as String? ?: ""
-      val lastUpdated = (patientData["meta"] as Map<*, *>) ["lastUpdated"] as String? ?: ""
-      val gender = patientData["gender"] as String?
-      val telecomData = patientData["telecom"] as List<*>?
-      val mobile = (telecomData?.get(0) as Map<*, *>)["value"].toString()
+      val id = patientData["id"] as? String? ?: ""
+      val lastUpdated = (patientData["meta"] as? Map<*, *>)?.get("lastUpdated") as? String? ?: ""
+      val gender = patientData["gender"] as? String?
+      val telecomData = patientData["telecom"] as? List<*>?
+      val mobile = (telecomData?.get(0) as? Map<*, *>)?.get("value").toString()?:""
 
       return Patient2(id = id, name ?: "", lastUpdated = lastUpdated, gender ?: "", mobile, 0)
     } catch (e: Exception) {
@@ -1069,6 +1092,28 @@ constructor(
       return null
     }
   }
+    private fun isResourceTypePatient(jsonString: String): Boolean {
+        if (jsonString.isEmpty() || !isJsonObject(jsonString)) return false
+        var jsonObject: JSONObject?=null
+        try {
+            jsonObject = JSONObject(jsonString)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return jsonString.isNotEmpty() && jsonObject?.optString("resourceType").equals("Patient", true)
+    }
+
+    private fun isJsonObject(jsonString: String): Boolean {
+        if (jsonString.isEmpty() || jsonString.isBlank() ) {
+            return false // Not a valid JSON object
+        }
+        try {
+            JSONObject(jsonString)
+            return true // Valid JSONObject
+        } catch (e: JSONException) {
+            return false // Not a valid JSONObject
+        }
+    }
 
   fun parseQuestionnaireResponseJson(json: String): DraftPatient? {
     val gson = Gson()
@@ -1131,7 +1176,6 @@ constructor(
     return secureSharedPreference.retrieveSessionUsername() ?: "Guest"
   }
 
-
   // ResourceData class with all three types and meta information
   data class AllPatientsResourceData(
     val id: String,
@@ -1149,5 +1193,11 @@ constructor(
     Patient2
   }
 
+  fun setShowDialog(value: Boolean) {
+    _showDialog.value = value
+  }
 
+  fun setPermissionGranted(value: Boolean) {
+    _permissionGranted.value = value
+  }
 }
