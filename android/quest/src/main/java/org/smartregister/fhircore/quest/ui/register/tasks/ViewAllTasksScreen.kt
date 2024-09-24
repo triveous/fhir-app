@@ -103,7 +103,8 @@ const val RETAKE_PHOTO_PATIENTS = 2
 enum class FilterType(val label: String) {
   URGENT_REFERRAL("Urgent Referral"),
   ADD_INVESTIGATION("Add. Investigation"),
-  RETAKE_PHOTO("Retake photo")
+  RETAKE_PHOTO("Retake Photo"),
+  ADVICE_TO_QUIT("Advice To Quit")
 }
 
 @Composable
@@ -445,6 +446,12 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
           textColor = Color(0xFFFFC800)
         }
 
+        Task.TaskIntent.OPTION -> {
+          label = "ADVICE TO QUIT HABIT"
+          color = Color(0xFFFFF8E0)
+          textColor = Color(0xFFFFC800)
+        }
+
         Task.TaskIntent.ORDER -> {
           label = "URGENT REFERRAL"
           color = Color(0xFFFFCDD2)
@@ -734,6 +741,12 @@ fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewMo
 
                   Task.TaskIntent.PLAN -> {
                     label = "ADD INVESTIGATION"
+                    color = Color(0xFFFFF8E0)
+                    textColor = Color(0xFFFFC800)
+                  }
+
+                  Task.TaskIntent.OPTION -> {
+                    label = "ADVICE TO QUIT HABIT"
                     color = Color(0xFFFFF8E0)
                     textColor = Color(0xFFFFC800)
                   }

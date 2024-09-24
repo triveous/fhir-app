@@ -16,6 +16,10 @@
 
 package org.smartregister.fhircore.quest.ui.pin
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -43,6 +47,7 @@ import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
@@ -52,10 +57,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -63,11 +71,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.ui.components.CircularProgressBar
 import org.smartregister.fhircore.engine.ui.components.PinInput
 import org.smartregister.fhircore.engine.ui.theme.DangerColor
 import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
+import org.smartregister.fhircore.quest.theme.body18Medium
+import org.smartregister.fhircore.quest.theme.bodyMedium
+import org.smartregister.fhircore.quest.theme.bodyNormal
+import org.smartregister.fhircore.quest.util.notificationHelper.hasNotificationPermission
 
 const val CIRCULAR_PROGRESS_INDICATOR = "progress_indicator"
 const val PIN_LOGO_IMAGE = "pin_logo_image"
@@ -106,6 +119,33 @@ fun PinLoginPage(
   val bringIntoViewRequester = remember { BringIntoViewRequester() }
 
   LaunchedEffect(Unit) { bringIntoViewRequester.bringIntoView() }
+
+  val context = LocalContext.current
+  val scope = rememberCoroutineScope()
+  var isShowNotificationDialog by remember { mutableStateOf(true) }
+  var askNotificationPermission by remember { mutableStateOf(false) }
+
+  val launcher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.RequestPermission(),
+    onResult = { isGranted: Boolean ->
+      askNotificationPermission = (isGranted)
+    }
+  )
+
+  if (isShowNotificationDialog && !context.hasNotificationPermission()) {
+    NotificationPermissionDialog(isShowNotificationDialog, onDismiss = {
+      isShowNotificationDialog = false
+    }, onConfirm = {
+      scope.launch {
+        isShowNotificationDialog = false
+        if (!askNotificationPermission) {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+          }
+        }
+      }
+    })
+  }
 
   Scaffold(
     topBar = {
@@ -375,4 +415,47 @@ private fun PinLoginPreview() {
     forgotPin = {},
     onPinEntered = { _: CharArray, _: (Boolean) -> Unit -> },
   )
+}
+
+
+@Composable
+fun NotificationPermissionDialog(
+  showDialog: Boolean,
+  onDismiss: () -> Unit,
+  onConfirm: () -> Unit
+) {
+  if (showDialog) {
+    AlertDialog(
+      shape = RectangleShape,
+      onDismissRequest = onDismiss,
+      title = {
+        androidx.compose.material.Text(
+          stringResource(id = org.smartregister.fhircore.quest.R.string.notification_permission_title),
+          style = body18Medium()
+        )
+      },
+      text = {
+        androidx.compose.material3.Text(
+          text = stringResource(id = org.smartregister.fhircore.quest.R.string.notification_permission_description),
+          style = bodyNormal(14.sp)
+        )
+      },
+      confirmButton = {
+        TextButton(onClick = onConfirm) {
+          androidx.compose.material.Text(
+            stringResource(id = R.string.yes),
+            style = bodyMedium(16.sp)
+          )
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = onDismiss) {
+          androidx.compose.material.Text(
+            stringResource(id = R.string.no),
+            style = bodyMedium(16.sp)
+          )
+        }
+      }
+    )
+  }
 }

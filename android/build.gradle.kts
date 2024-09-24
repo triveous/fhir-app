@@ -45,6 +45,11 @@ allprojects {
     maven(url = "https://oss.sonatype.org/content/repositories/snapshots")
     maven(url = "https://jcenter.bintray.com/")
     apply(plugin = "org.owasp.dependencycheck")
+    maven {
+      url = uri("https://maven.pkg.github.com/midas-in/android-fhir")
+      credentials {
+      }
+    }
     tasks.dependencyCheckAggregate{
       dependencyCheck.formats.add("XML")
     }

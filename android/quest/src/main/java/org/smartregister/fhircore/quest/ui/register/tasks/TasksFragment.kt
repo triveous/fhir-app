@@ -31,7 +31,6 @@ import androidx.compose.material.SnackbarDuration
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -49,7 +48,6 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.QuestionnaireResponse
@@ -61,7 +59,6 @@ import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.event.EventBus
-import org.smartregister.fhircore.quest.ui.main.AppMainUiState
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
@@ -69,6 +66,7 @@ import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.hookSnackBar
 import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
+import javax.inject.Inject
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
@@ -93,15 +91,7 @@ class TasksFragment : Fragment(), OnSyncListener {
       setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
       setContent {
         val appConfig = appMainViewModel.applicationConfiguration
-        val scope = rememberCoroutineScope()
         val scaffoldState = rememberScaffoldState()
-        val uiState: AppMainUiState = appMainViewModel.appMainUiState.value
-        val openDrawer: (Boolean) -> Unit = { open: Boolean ->
-          scope.launch {
-            if (open) scaffoldState.drawerState.open() else scaffoldState.drawerState.close()
-          }
-        }
-
         // Close side menu (drawer) when activity is not in foreground
         val lifecycleEvent = rememberLifecycleEvent()
         LaunchedEffect(lifecycleEvent) {
@@ -149,12 +139,9 @@ class TasksFragment : Fragment(), OnSyncListener {
               .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
               PendingTasksScreen(
-                openDrawer = openDrawer,
                 onEvent = registerViewModel::onEvent,
                 registerUiState = registerViewModel.registerUiState.value,
                 searchText = registerViewModel.searchText,
-                currentPage = registerViewModel.currentPage,
-                pagingItems = pagingItems,
                 navController = findNavController(),
                 appMainViewModel = appMainViewModel,
                 viewModel = registerViewModel
@@ -169,6 +156,7 @@ class TasksFragment : Fragment(), OnSyncListener {
   override fun onResume() {
     super.onResume()
     registerViewModel.getAllTasks()
+    registerViewModel.getAllUnSyncedPatientsImages()
     syncListenerManager.registerSyncListener(this, lifecycle)
   }
 
@@ -268,7 +256,7 @@ class TasksFragment : Fragment(), OnSyncListener {
     if (questionnaireSubmission.questionnaireConfig.saveQuestionnaireResponse) {
       appMainViewModel.run {
         onQuestionnaireSubmission(questionnaireSubmission)
-        retrieveAppMainUiState(refreshAll = false) // Update register counts
+//        retrieveAppMainUiState(refreshAll = false) // Update register counts
       }
 
       val (questionnaireConfig, _) = questionnaireSubmission

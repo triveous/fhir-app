@@ -18,28 +18,23 @@ package org.smartregister.fhircore.quest.ui.main
 
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.core.os.bundleOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.google.android.fhir.FhirEngine
+import com.google.android.fhir.search.search
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.text.SimpleDateFormat
-import java.time.OffsetDateTime
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
-import javax.inject.Inject
-import kotlin.time.Duration
+import io.sentry.Sentry
+import io.sentry.protocol.User
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.model.Binary
+import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.ResourceType
@@ -52,9 +47,7 @@ import org.smartregister.fhircore.engine.configuration.app.ApplicationConfigurat
 import org.smartregister.fhircore.engine.configuration.geowidget.GeoWidgetConfiguration
 import org.smartregister.fhircore.engine.configuration.navigation.ICON_TYPE_REMOTE
 import org.smartregister.fhircore.engine.configuration.navigation.NavigationConfiguration
-import org.smartregister.fhircore.engine.configuration.navigation.NavigationMenuConfig
 import org.smartregister.fhircore.engine.configuration.report.measure.MeasureReportConfiguration
-import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
 import org.smartregister.fhircore.engine.data.local.register.RegisterRepository
 import org.smartregister.fhircore.engine.domain.model.ActionParameter
 import org.smartregister.fhircore.engine.domain.model.ActionParameterType
@@ -70,20 +63,31 @@ import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.decodeToBitmap
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
-import org.smartregister.fhircore.engine.util.extension.fetchLanguages
 import org.smartregister.fhircore.engine.util.extension.getActivity
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.refresh
 import org.smartregister.fhircore.engine.util.extension.setAppLocale
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.engine.util.extension.tryParse
+import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.report.measure.worker.MeasureReportMonthPeriodWorker
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
+import org.smartregister.fhircore.quest.util.IMAGES_LEFT
+import org.smartregister.fhircore.quest.util.VERSION_CODE
+import org.smartregister.fhircore.quest.util.VERSION_NAME
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.schedulePeriodically
+import timber.log.Timber
+import java.text.SimpleDateFormat
+import java.time.OffsetDateTime
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import javax.inject.Inject
+import kotlin.time.Duration
 
 @HiltViewModel
 class AppMainViewModel
@@ -97,19 +101,10 @@ constructor(
   val dispatcherProvider: DispatcherProvider,
   val workManager: WorkManager,
   val fhirCarePlanGenerator: FhirCarePlanGenerator,
+  val fhirEngine: FhirEngine,
 ) : ViewModel() {
-  val appMainUiState: MutableState<AppMainUiState> =
-    mutableStateOf(
-      appMainUiStateOf(
-        navigationConfiguration =
-          NavigationConfiguration(
-            sharedPreferencesHelper.read(SharedPreferenceKey.APP_ID.name, "")!!,
-          ),
-      ),
-    )
 
   private val simpleDateFormat = SimpleDateFormat(SYNC_TIMESTAMP_OUTPUT_FORMAT, Locale.getDefault())
-  private val registerCountMap: SnapshotStateMap<String, Long> = mutableStateMapOf()
 
   val applicationConfiguration: ApplicationConfiguration by lazy {
     configurationRegistry.retrieveConfiguration(ConfigType.Application, paramsMap = emptyMap())
@@ -141,30 +136,30 @@ constructor(
       }
   }
 
-  suspend fun retrieveAppMainUiState(refreshAll: Boolean = true) {
-    if (refreshAll) {
-      appMainUiState.value =
-        appMainUiStateOf(
-          appTitle = applicationConfiguration.appTitle,
-          currentLanguage = loadCurrentLanguage(),
-          username = secureSharedPreference.retrieveSessionUsername() ?: "",
-          lastSyncTime = retrieveLastSyncTimestamp() ?: "",
-          languages = configurationRegistry.fetchLanguages(),
-          navigationConfiguration = navigationConfiguration,
-          registerCountMap = registerCountMap,
-        )
-    }
-
-    // Count data for configured registers by populating the register count map
-    viewModelScope.launch {
-      navigationConfiguration.run {
-        clientRegisters.countRegisterData()
-        bottomSheetRegisters?.registers?.countRegisterData()
+  fun setSentryUserProperties() {
+    val userName = secureSharedPreference.retrieveSessionUsername()
+    try {
+      viewModelScope.launch {
+        val docReferences = fhirEngine.search<DocumentReference> {}.size
+        // Configure Sentry scope
+        Sentry.configureScope { scope ->
+          scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
+          scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
+          val user = User().apply {
+            username = userName
+            data = data ?: mutableMapOf()
+            data?.put(IMAGES_LEFT,  "$docReferences")
+          }
+          scope.user = user
+        }
       }
+    } catch (e: Exception) {
+      Timber.e(e)
     }
   }
 
-  fun onEvent(event: AppMainEvent) {
+  fun onEvent(event: AppMainEvent,isForeground:Boolean=false) {
+//    Timber.e("TAG onEvent --> isForeground -->$isForeground ")
     when (event) {
       is AppMainEvent.SwitchLanguage -> {
         sharedPreferencesHelper.write(SharedPreferenceKey.LANG.name, event.language.tag)
@@ -174,8 +169,15 @@ constructor(
         }
       }
       is AppMainEvent.SyncData -> {
+        Timber.e("TAG SyncData onEvent --> isForeground -->$isForeground event--> ${event}")
         if (event.context.isDeviceOnline()) {
-          viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
+          setSentryUserProperties()
+          if (!isForeground) {
+            viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
+          } else {
+            Timber.e("TAG syncBroadcaster.runOneTimeSync--> start")
+            viewModelScope.launch { syncBroadcaster.runOneTimeSync(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) }
+          }
         } else {
           event.context.showToast(event.context.getString(R.string.sync_failed), Toast.LENGTH_LONG)
         }
@@ -187,7 +189,6 @@ constructor(
             SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name,
             formatLastSyncTimestamp(event.state.timestamp),
           )
-          viewModelScope.launch { retrieveAppMainUiState() }
         }
       }
       is AppMainEvent.TriggerWorkflow ->
@@ -212,7 +213,6 @@ constructor(
     (event.navController.context.getActivity())?.let { activity ->
       RegisterBottomSheetFragment(
           navigationMenuConfigs = event.registersList,
-          registerCountMap = appMainUiState.value.registerCountMap,
           menuClickListener = {
             onEvent(AppMainEvent.TriggerWorkflow(navController = event.navController, navMenu = it))
           },
@@ -245,19 +245,6 @@ constructor(
         )
       }
     }
-  }
-
-  private suspend fun List<NavigationMenuConfig>.countRegisterData() {
-    // Set count for registerId against its value. Use action Id; otherwise default to menu id
-    return this.filter { it.showCount }
-      .forEach { menuConfig ->
-        val countAction =
-          menuConfig.actions?.find { actionConfig ->
-            actionConfig.trigger == ActionTrigger.ON_COUNT
-          }
-        registerCountMap[countAction?.id ?: menuConfig.id] =
-          registerRepository.countRegisterData(menuConfig.id)
-      }
   }
 
   private fun loadCurrentLanguage() =

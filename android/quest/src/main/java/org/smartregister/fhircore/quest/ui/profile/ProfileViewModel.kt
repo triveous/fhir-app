@@ -23,7 +23,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.fhir.db.ResourceNotFoundException
-import com.google.android.fhir.logicalId
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -235,6 +235,7 @@ constructor(
             try {
               registerRepository.loadResource(it.entity.extractId(), managingEntity.resourceType!!)
             } catch (resourceNotFoundException: ResourceNotFoundException) {
+              Timber.e(resourceNotFoundException)
               null
             }
           }
