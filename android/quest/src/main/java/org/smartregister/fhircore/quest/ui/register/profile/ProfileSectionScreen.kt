@@ -315,20 +315,12 @@ fun ProfileSectionScreen(
                             modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 16.dp)
-                            .clickable {
-                                viewModel.logout()
-                            }
                         ) {
                             Icon(
                                 Icons.Filled.PermDeviceInformation,
                                 contentDescription = DRAWER_MENU,
                                 tint = Color.Gray,
-                                modifier =
-                                modifier
-                                    .clickable {
-
-                                    }
-                                    .testTag(TOP_ROW_ICON_TEST_TAG),
+                                modifier = modifier.testTag(TOP_ROW_ICON_TEST_TAG),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = stringResource(
