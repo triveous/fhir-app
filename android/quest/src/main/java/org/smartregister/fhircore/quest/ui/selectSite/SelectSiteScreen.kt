@@ -67,6 +67,7 @@ import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
 import org.smartregister.fhircore.engine.util.extension.appVersion
+import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
 import org.smartregister.fhircore.quest.theme.Theme.getBackground
@@ -216,7 +217,7 @@ fun SelectSiteScreen(
                     }
 
                     Text(
-                        text = stringResource(id = R.string.app_version, versionCode, versionName),
+                        text = stringResource(id = R.string.app_version, BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME),
                         style = body14Medium(),
                         color = CRAYOLA_LIGHT,
                         fontWeight = FontWeight(400),
