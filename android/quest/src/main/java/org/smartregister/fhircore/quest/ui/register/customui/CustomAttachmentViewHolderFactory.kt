@@ -1,23 +1,16 @@
 package org.smartregister.fhircore.quest.ui.register.customui
 
-import android.app.Dialog
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.view.Gravity
 import android.view.View
-import android.view.Window
-import android.view.WindowManager
 import android.widget.Button
-import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.os.bundleOf
 import androidx.lifecycle.lifecycleScope
@@ -87,7 +80,6 @@ internal object CustomAttachmentViewHolderFactory :
             private lateinit var photoConfidence: TextView
             private lateinit var photoDeleteButton: Button
             private lateinit var photoDeleteButton2: ImageView
-            private lateinit var photoView: ImageView
             private lateinit var filePreview: ConstraintLayout
             private lateinit var fileIcon: ImageView
             private lateinit var fileTitle: TextView
@@ -95,7 +87,7 @@ internal object CustomAttachmentViewHolderFactory :
             private lateinit var context: AppCompatActivity
             private lateinit var fhirEngine: FhirEngine
             private var sharedPreferencesHelper: SharedPreferencesHelper? = null
-            private var documentReference: DocumentReference? = null
+
             override fun init(itemView: View) {
 
                 header = itemView.findViewById(R.id.header)
@@ -114,7 +106,7 @@ internal object CustomAttachmentViewHolderFactory :
                 photoTitle = itemView.findViewById(R.id.photo_title)
                 photoDeleteButton = itemView.findViewById(R.id.photo_delete)
                 photoDeleteButton2 = itemView.findViewById(R.id.photo_delete2)
-                photoView = itemView.findViewById(R.id.photo_view)filePreview = itemView.findViewById(R.id.file_preview)
+                filePreview = itemView.findViewById(R.id.file_preview)
                 fileIcon = itemView.findViewById(R.id.file_icon)
                 fileTitle = itemView.findViewById(R.id.file_title)
                 fileDeleteButton = itemView.findViewById(R.id.file_delete)
@@ -169,12 +161,7 @@ internal object CustomAttachmentViewHolderFactory :
                     )
                 }
                 photoDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
-                photoDeleteButton2.setOnClickListener { view ->
-                    questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
-                    questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
-                    onDeleteClicked(view)
-                }
-                photoView.setOnClickListener { view -> onViewPhotoClicked(view) }
+                photoDeleteButton2.setOnClickListener { view -> onDeleteClicked(view) }
                 fileDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
                 displayValidationResult(questionnaireViewItem.validationResult)
 
@@ -205,7 +192,7 @@ internal object CustomAttachmentViewHolderFactory :
                 fileDeleteButton.isEnabled = !isReadOnly
             }
 
-            private fun displayOrClearInitialPreview() {
+            private fun displayOrClearInitialPreview(questionnaireItem: Questionnaire.QuestionnaireItemComponent) {
                 val answer = questionnaireViewItem.answers.firstOrNull()
 
                 // Clear preview if there is no answer to prevent showing old previews in views that have
@@ -221,6 +208,7 @@ internal object CustomAttachmentViewHolderFactory :
                         attachmentType = getMimeType(attachment.contentType),
                         attachmentTitle = attachment.title,
                         attachmentByteArray = attachment.data,
+                        questionnaireItem = questionnaireItem
                     )
                 }
             }
@@ -255,7 +243,7 @@ internal object CustomAttachmentViewHolderFactory :
                 }
             }
 
-            private fun displayAttachmentPreview(questionnaireViewItem: QuestionnaireViewItem) {
+            private fun displayAttachmentPreview(questionnaireViewItem: QuestionnaireViewItem,questionnaireItem: Questionnaire.QuestionnaireItemComponent) {
                 // Check if the answer contains an attachment
                 val answer = questionnaireViewItem.answers.firstOrNull()
                 answer?.valueAttachment?.let { attachment ->
@@ -263,7 +251,7 @@ internal object CustomAttachmentViewHolderFactory :
                     when (getMimeType(attachment.contentType)) {
                         MimeType.IMAGE.value -> {
                             // If it's an image attachment, display the preview
-                            displayImagePreview(attachment)
+                            displayImagePreview(attachment,questionnaireItem)
                         }
                         // Handle other attachment types if needed
                         else -> {
@@ -277,11 +265,11 @@ internal object CustomAttachmentViewHolderFactory :
                 }
             }
 
-            private fun displayImagePreview(attachment: Attachment) {
+            private fun displayImagePreview(attachment: Attachment,questionnaireItem: Questionnaire.QuestionnaireItemComponent) {
                 // Display image preview logic
                 val attachmentTitle = attachment.title ?: ""
                 val attachmentUri = getFileUri(attachment.title ?: "")
-                loadPhotoPreview(attachmentUri, attachmentTitle)
+                loadPhotoPreview(attachmentUri, attachmentTitle,questionnaireItem)
             }
 
             fun getFileUri(imageFileName: String): Uri {
@@ -335,21 +323,17 @@ internal object CustomAttachmentViewHolderFactory :
 
                             // Create a document reference to store the file later and use the document ref
                             // permanent link in attachment url
-
-                            documentReference =
-                                createDocumentReference(
-                                    attachmentUri,
-                                    attachmentMimeTypeWithSubType
-                                )
+                            val doc = createDocumentReference(
+                                attachmentUri,
+                                attachmentMimeTypeWithSubType
+                            )
                             val answer =
                                 QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
                                     .apply {
                                         value =
                                             Attachment().apply {
                                                 contentType = attachmentMimeTypeWithSubType
-                                                url = documentReference?.getUrl(
-                                                    sharedPreferencesHelper
-                                                )
+                                                url = doc.getUrl(sharedPreferencesHelper)
                                                 title = capturedFile.name
                                                 creation = Date()
                                             }
@@ -357,30 +341,31 @@ internal object CustomAttachmentViewHolderFactory :
 
                             //Suspicious/NonSuspicious
                             questionnaireItem.addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL,StringType(predictionResult))
+                            questionnaireItem.getExtensionsByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL)
 
                             //Confidence percentage
                             questionnaireItem.addExtension(CONFIDENCE_PERCENTAGE_URL,StringType(confidence))
 
                             context.lifecycleScope.launch {
-                                documentReference?.let {FhirEngineProvider.getInstance(context.applicationContext)
-                                    .create(it)
-                                }
+                                FhirEngineProvider.getInstance(context.applicationContext)
+                                    .create(doc)
                                 questionnaireViewItem.setAnswer(answer)
                                 divider.visibility = View.VISIBLE
                                 displayPreview(
                                     attachmentType = attachmentMimeType,
                                     attachmentTitle = "RESULT : $predictionResult",
-                                    attachmentUri = attachmentUri
+                                    attachmentUri = attachmentUri,
+                                    questionnaireItem = questionnaireItem
                                 )
                                 setAnswerFromAI(predictionResult,confidence)
-                                displaySnackBarOnUpload(view, attachmentMimeType)
+                                displaySnackbarOnUpload(view, attachmentMimeType)
                             }
                         } catch (e: Exception) {
                             Timber.i("TAG", "error --> " + e.printStackTrace())
-                            Timber.e(e, "CustomAttachment")
+                            e.printStackTrace()
                         }
                     } else {
-                        displaySnackBar(view, R.string.image_capture_failed)
+                        displaySnackbar(view, R.string.image_capture_failed)
                     }
                 }
 
@@ -410,7 +395,7 @@ internal object CustomAttachmentViewHolderFactory :
                             R.string.max_size_file_above_limit_validation_error_msg,
                             questionnaireItem.maxSizeInMiBs,
                         )
-                        displaySnackBar(view, R.string.upload_failed)
+                        displaySnackbar(view, R.string.upload_failed)
                         return@setFragmentResultListener
                     }
 
@@ -418,30 +403,27 @@ internal object CustomAttachmentViewHolderFactory :
                     val attachmentMimeType = getMimeType(attachmentMimeTypeWithSubType)
                     if (!questionnaireItem.hasMimeType(attachmentMimeType)) {
                         displayError(R.string.mime_type_wrong_media_format_validation_error_msg)
-                        displaySnackBar(view, R.string.upload_failed)
+                        displaySnackbar(view, R.string.upload_failed)
                         return@setFragmentResultListener
                     }
 
                     val attachmentTitle = getFileName(attachmentUri)
                     // Create a document reference to store the file later and use the document ref
                     // permanent link in attachment url
-                    documentReference =
-                        createDocumentReference(attachmentUri, attachmentMimeTypeWithSubType)
+                    val doc = createDocumentReference(attachmentUri, attachmentMimeTypeWithSubType)
                     val answer =
                         QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
                             value =
                                 Attachment().apply {
                                     contentType = attachmentMimeTypeWithSubType
-                                    url = documentReference?.getUrl(sharedPreferencesHelper)
+                                    url = doc.getUrl(sharedPreferencesHelper)
                                     title = attachmentTitle
                                     creation = Date()
+                                    language=""
                                 }
                         }
                     context.lifecycleScope.launch {
-                        documentReference?.let {
-                            FhirEngineProvider.getInstance(context.applicationContext).create(it)
-                        }
-
+                        FhirEngineProvider.getInstance(context.applicationContext).create(doc)
                         questionnaireViewItem.setAnswer(answer)
 
                         divider.visibility = View.VISIBLE
@@ -449,8 +431,9 @@ internal object CustomAttachmentViewHolderFactory :
                             attachmentType = attachmentMimeType,
                             attachmentTitle = attachmentTitle,
                             attachmentUri = attachmentUri,
+                            questionnaireItem = questionnaireItem
                         )
-                        displaySnackBarOnUpload(view, attachmentMimeType)
+                        displaySnackbarOnUpload(view, attachmentMimeType)
                     }
                 }
 
@@ -470,6 +453,7 @@ internal object CustomAttachmentViewHolderFactory :
                 attachmentTitle: String,
                 attachmentByteArray: ByteArray? = null,
                 attachmentUri: Uri? = null,
+                questionnaireItem: Questionnaire.QuestionnaireItemComponent? = null,
             ) {
                 when (attachmentType) {
                     MimeType.AUDIO.value -> {
@@ -492,7 +476,7 @@ internal object CustomAttachmentViewHolderFactory :
                         if (attachmentByteArray != null) {
                             loadPhotoPreview(attachmentByteArray, attachmentTitle)
                         } else if (attachmentUri != null) {
-                            loadPhotoPreview(attachmentUri, attachmentTitle)
+                            loadPhotoPreview(attachmentUri, attachmentTitle,questionnaireItem)
                         }
                         clearFilePreview()
                     }
@@ -552,94 +536,31 @@ internal object CustomAttachmentViewHolderFactory :
                 photoTitle.text = ""
             }
 
-            //TODO: remove the documentation reference while remove the attachment
             private fun onDeleteClicked(view: View) {
                 context.lifecycleScope.launch {
-
                     questionnaireViewItem.clearAnswer()
                     divider.visibility = View.GONE
                     clearPhotoPreview()
                     clearFilePreview()
-                    displaySnackBarOnDelete(
+                    displaySnackbarOnDelete(
                         view,
                         getMimeType(questionnaireViewItem.answers.first().valueAttachment.contentType),
                     )
-
-                    try {
-                        documentReference?.let {
-                            fhirEngine.delete(
-                                documentReference?.resourceType!!,
-                                documentReference?.id ?: ""
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Timber.e(e, "CustomAttachment")
-                    }
                 }
             }
 
-            fun showFullScreenImageDialog(context: Context, imageUri: Uri) {
-        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.window?.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-
-        val rootLayout = FrameLayout(context)
-
-        val imageView = ImageView(context).apply {
-          adjustViewBounds = true
-          scaleType = ImageView.ScaleType.FIT_CENTER
-        }
-
-        val closeButton = ImageButton(context).apply {
-          setImageDrawable(ContextCompat.getDrawable(context, android.R.drawable.ic_menu_close_clear_cancel))
-          background = null
-          setPadding(20, 20, 20, 20)
-        }
-
-        val closeButtonParams = FrameLayout.LayoutParams(
-          FrameLayout.LayoutParams.WRAP_CONTENT,
-          FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-          gravity = Gravity.TOP or Gravity.END
-          topMargin = 20
-          rightMargin = 20
-        }
-
-        rootLayout.addView(imageView)
-        rootLayout.addView(closeButton, closeButtonParams)
-
-        dialog.setContentView(rootLayout)
-
-        Glide.with(context)
-          .load(imageUri)
-          .into(imageView)
-
-        closeButton.setOnClickListener {
-          dialog.dismiss()
-        }
-
-        dialog.show()
-      }
-
-      private fun onViewPhotoClicked(view: View) {
-        context.lifecycleScope.launch {
-          val attachmentUri = getFileUri(questionnaireViewItem.answers.first().valueAttachment.title ?: "")
-          showFullScreenImageDialog(context, attachmentUri)
-        }
-      }
-
-      private fun displaySnackBar(view: View, @StringRes textResource: Int) {
+            private fun displaySnackbar(view: View, @StringRes textResource: Int) {
                 Snackbar.make(view, context.getString(textResource), Snackbar.LENGTH_SHORT).show()
             }
 
-            private fun displaySnackBarOnUpload(view: View, attachmentType: String) {
+            private fun displaySnackbarOnUpload(view: View, attachmentType: String) {
                 when (attachmentType) {
                     MimeType.AUDIO.value -> {
-                        displaySnackBar(view, R.string.audio_uploaded)
+                        displaySnackbar(view, R.string.audio_uploaded)
                     }
 
                     MimeType.DOCUMENT.value -> {
-                        displaySnackBar(
+                        displaySnackbar(
                             view,
                             com.google.android.fhir.datacapture.R.string.file_uploaded
                         )
@@ -647,37 +568,37 @@ internal object CustomAttachmentViewHolderFactory :
 
                     MimeType.IMAGE.value -> {
 //            displaySnackbar(view, com.google.android.fhir.datacapture.R.string.image_uploaded)
-                        displaySnackBar(view, R.string.image_saved)
+                        displaySnackbar(view, R.string.image_saved)
                     }
 
                     MimeType.VIDEO.value -> {
-                        displaySnackBar(view, R.string.video_uploaded)
+                        displaySnackbar(view, R.string.video_uploaded)
                     }
                 }
             }
 
-            private fun displaySnackBarOnDelete(view: View, attachmentType: String) {
+            private fun displaySnackbarOnDelete(view: View, attachmentType: String) {
                 when (attachmentType) {
                     MimeType.AUDIO.value -> {
-                        displaySnackBar(view, R.string.audio_deleted)
+                        displaySnackbar(view, R.string.audio_deleted)
                     }
 
                     MimeType.DOCUMENT.value -> {
-                        displaySnackBar(
+                        displaySnackbar(
                             view,
                             com.google.android.fhir.datacapture.R.string.file_deleted
                         )
                     }
 
                     MimeType.IMAGE.value -> {
-                        displaySnackBar(
+                        displaySnackbar(
                             view,
                             com.google.android.fhir.datacapture.R.string.image_deleted
                         )
                     }
 
                     MimeType.VIDEO.value -> {
-                        displaySnackBar(view, R.string.video_deleted)
+                        displaySnackbar(view, R.string.video_deleted)
                     }
                 }
             }
@@ -728,7 +649,7 @@ internal object CustomAttachmentViewHolderFactory :
                 attachment = Attachment().apply { contentType = mimeType }
             }
             date = Date()
-            docStatus = DocumentReference.ReferredDocumentStatus.PRELIMINARY
+            docStatus = DocumentReference.ReferredDocumentStatus.FINAL
             status = Enumerations.DocumentReferenceStatus.CURRENT
         }
         return doc
