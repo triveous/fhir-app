@@ -27,7 +27,6 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Scaffold
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -38,7 +37,6 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.AndroidEntryPoint
-import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
@@ -51,7 +49,6 @@ import org.smartregister.fhircore.quest.ui.register.patients.GenericActivityArg
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
-import org.smartregister.fhircore.quest.util.extensions.rememberLifecycleEvent
 import javax.inject.Inject
 
 @ExperimentalMaterialApi
@@ -103,51 +100,16 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                //val appConfig = appMainViewModel.applicationConfiguration
-                //val scope = rememberCoroutineScope()
                 val scaffoldState = rememberScaffoldState()
-                //val uiState: AppMainUiState = appMainViewModel.appMainUiState.value
-                /*val openDrawer: (Boolean) -> Unit = { open: Boolean ->
-                  scope.launch {
-                    if (open) scaffoldState.drawerState.open() else scaffoldState.drawerState.close()
-                  }
-                }*/
-
-                // Close side menu (drawer) when activity is not in foreground
-                val lifecycleEvent = rememberLifecycleEvent()
-                LaunchedEffect(lifecycleEvent) {
-                    //if (lifecycleEvent == Lifecycle.Event.ON_PAUSE) scaffoldState.drawerState.close()
-                }
-
-                LaunchedEffect(Unit) {
-                    /*registerViewModel.snackBarStateFlow.hookSnackBar(
-                      scaffoldState = scaffoldState,
-                      resourceData = null,
-                      navController = findNavController(),
-                    )*/
-                }
 
                 AppTheme {
-
                     // Register screen provides access to the side navigation
                     Scaffold(
                         modifier = Modifier.background(SearchHeaderColor),
-                        //drawerGesturesEnabled = scaffoldState.drawerState.isOpen,
                         scaffoldState = scaffoldState,
-                        topBar = {
-
-                        },
-                        bottomBar = {
-
-                        },
-                        snackbarHost = { snackBarHostState ->
-                            /*SnackBarMessage(
-                              snackBarHostState = snackBarHostState,
-                              backgroundColorHex = appConfig.snackBarTheme.backgroundColor,
-                              actionColorHex = appConfig.snackBarTheme.actionTextColor,
-                              contentColorHex = appConfig.snackBarTheme.messageTextColor,
-                            )*/
-                        },
+                        topBar = {},
+                        bottomBar = {},
+                        snackbarHost = { snackBarHostState -> },
                     ) { innerPadding ->
                         Box(
                             modifier = Modifier
@@ -200,165 +162,20 @@ class ViewAllTasksFragment : Fragment(), OnSyncListener {
     override fun onResume() {
         super.onResume()
         tasksViewModel.getAllLatestTasks()
-        //registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL, taskStatus, taskPriority)
     }
 
     override fun onStop() {
         super.onStop()
-        //tasksViewModel.searchText.value = "" // Clear the search term
     }
 
     override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
-        /*when (syncJobStatus) {
-          is CurrentSyncJobStatus.Running ->
-            if (syncJobStatus.inProgressSyncJob is SyncJobStatus.Started) {
-              lifecycleScope.launch {
-                registerViewModel.emitSnackBarState(
-                  SnackBarMessageConfig(message = getString(R.string.syncing)),
-                )
-              }
-            } else {
-              emitPercentageProgress(
-                syncJobStatus.inProgressSyncJob as SyncJobStatus.InProgress,
-                (syncJobStatus.inProgressSyncJob as SyncJobStatus.InProgress).syncOperation ==
-                  SyncOperation.UPLOAD,
-              )
-            }
-          is CurrentSyncJobStatus.Succeeded -> {
-            refreshRegisterData()
-            lifecycleScope.launch {
-              registerViewModel.emitSnackBarState(
-                SnackBarMessageConfig(
-                  message = getString(R.string.sync_completed),
-                  //actionLabel = getString(R.string.ok).uppercase(),
-                  duration = SnackbarDuration.Short,
-                ),
-              )
-            }
-            registerViewModel.getAllPatients()
-            registerViewModel.getAllDraftResponses()
-            registerViewModel.getAllUnSyncedPatients()
-          }
-          is CurrentSyncJobStatus.Failed -> {
-            refreshRegisterData()
-            syncJobStatus.toString()
-            // Show error message in snackBar message
-            lifecycleScope.launch {
-              registerViewModel.emitSnackBarState(
-                SnackBarMessageConfig(
-                  message = getString(R.string.sync_completed_with_errors),
-                  duration = SnackbarDuration.Short,
-                  //actionLabel = getString(R.string.ok).uppercase(),
-                ),
-              )
-            }
-          }
-          else -> {
-            // Do nothing
-          }
-        }*/
-    }
 
-    fun refreshRegisterData(questionnaireResponse: QuestionnaireResponse? = null) {
-        /*with(registerFragmentArgs) {
-          registerViewModel.run {
-            if (questionnaireResponse != null) {
-              updateRegisterFilterState(registerId, questionnaireResponse)
-            }
-
-            pagesDataCache.clear()
-
-            retrieveRegisterUiState(
-              registerId = registerId,
-              screenTitle = screenTitle,
-              params = params,
-              clearCache = false,
-            )
-          }
-        }*/
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        /*viewLifecycleOwner.lifecycleScope.launch {
-          viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.CREATED) {
-            // Each register should have unique eventId
-            eventBus.events
-              .getFor(MainNavigationScreen.Home.eventId(registerFragmentArgs.registerId))
-              .onEach { appEvent ->
-                if (appEvent is AppEvent.OnSubmitQuestionnaire) {
-                  handleQuestionnaireSubmission(appEvent.questionnaireSubmission)
-                }
-              }
-              .launchIn(lifecycleScope)
-          }
-        }*/
+
     }
 
-    /*
-      suspend fun handleQuestionnaireSubmission(questionnaireSubmission: QuestionnaireSubmission) {
-        if (questionnaireSubmission.questionnaireConfig.saveQuestionnaireResponse) {
-          appMainViewModel.run {
-            onQuestionnaireSubmission(questionnaireSubmission)
-            retrieveAppMainUiState(refreshAll = false) // Update register counts
-          }
-
-          val (questionnaireConfig, _) = questionnaireSubmission
-
-          refreshRegisterData()
-
-          questionnaireConfig.snackBarMessage?.let { snackBarMessageConfig ->
-            registerViewModel.emitSnackBarState(snackBarMessageConfig)
-          }
-
-          questionnaireConfig.onSubmitActions?.handleClickEvent(navController = findNavController())
-        } else {
-          refreshRegisterData(questionnaireSubmission.questionnaireResponse)
-        }
-      }
-    */
-
-    /*  fun emitPercentageProgress(
-        progressSyncJobStatus: SyncJobStatus.InProgress,
-        isUploadSync: Boolean,
-      ) {
-        lifecycleScope.launch {
-          val percentageProgress: Int = calculateActualPercentageProgress(progressSyncJobStatus)
-          registerViewModel.emitPercentageProgressState(percentageProgress, isUploadSync)
-        }
-      }
-
-      private fun getSyncProgress(completed: Int, total: Int) =
-        completed * 100 / if (total > 0) total else 1
-
-      private fun calculateActualPercentageProgress(
-        progressSyncJobStatus: SyncJobStatus.InProgress,
-      ): Int {
-        val totalRecordsOverall =
-          registerViewModel.sharedPreferencesHelper.read(
-            SharedPreferencesHelper.PREFS_SYNC_PROGRESS_TOTAL +
-              progressSyncJobStatus.syncOperation.name,
-            1L,
-          )
-        val isProgressTotalLess = progressSyncJobStatus.total <= totalRecordsOverall
-        val currentProgress: Int
-        val currentTotalRecords =
-          if (isProgressTotalLess) {
-            currentProgress =
-              totalRecordsOverall.toInt() - progressSyncJobStatus.total +
-                progressSyncJobStatus.completed
-            totalRecordsOverall.toInt()
-          } else {
-            registerViewModel.sharedPreferencesHelper.write(
-              SharedPreferencesHelper.PREFS_SYNC_PROGRESS_TOTAL +
-                progressSyncJobStatus.syncOperation.name,
-              progressSyncJobStatus.total.toLong(),
-            )
-            currentProgress = progressSyncJobStatus.completed
-            progressSyncJobStatus.total
-          }
-
-        return getSyncProgress(currentProgress, currentTotalRecords)
-      }*/
 
     companion object {
         fun newInstance(bundle: Bundle) = ViewAllTasksFragment().apply {
