@@ -42,13 +42,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ModalBottomSheetLayout
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.Scaffold
 import androidx.compose.material.rememberModalBottomSheetState
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonColors
@@ -70,7 +67,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -99,38 +95,74 @@ enum class FilterType(val label: String) {
   ADVICE_TO_QUIT("Advice To Quit")
 }
 
+enum class TaskCode(val code: String) {
+  URGENT_REFER_TO_HOSPITAL("urgent-refer-to-hospital"),
+  ADDITIONAL_INVESTIGATION_NEEDED("additional-investigation-needed"),
+  QUIT_HABIT("quit-habit"),
+  RETAKE_IMAGE("retake-image");
+
+  companion object {
+//    fun fromCode(code: String): TaskCode? = values().find { it.code == code }
+    fun fromCode(code: String): TaskCode? {
+      // Normalize the code by replacing underscores with hyphens
+      val normalizedCode = code.replace("_", "-")
+      return values().find { it.code == normalizedCode }
+    }
+  }
+}
+
+enum class TaskCodes(val codes: List<String>) {
+  URGENT_REFER_TO_HOSPITAL(listOf("urgent-refer-to-hospital", "urgent_referral")),
+  ADDITIONAL_INVESTIGATION_NEEDED(listOf("additional-investigation-needed", "add_investigation_needed")),
+  QUIT_HABIT(listOf("quit-habit", "quit_habit")),
+  RETAKE_IMAGE(listOf("retake-image", "retake_photo"));
+
+  companion object {
+    // Find TaskCode by matching any of the possible codes
+    fun fromCode(code: String): TaskCodes? {
+      return entries.find { taskCode ->
+        taskCode.codes.any { it.equals(code,true) }
+      }
+    }
+  }
+}
+
 @Composable
-fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit) {
+fun FilterRow(
+  viewModel: TasksViewModel,
+  selectedFilter: Pair<String,String>,
+  onFilterSelected: (Pair<String,String>) -> Unit
+) {
   Row(modifier = Modifier
     .fillMaxWidth()
     .horizontalScroll(rememberScrollState())
     .padding(16.dp),
     horizontalArrangement = Arrangement.SpaceBetween
     ) {
-    FilterType.entries.forEachIndexed { index, filter ->
+    val allTaskCodeWithValues = viewModel.allTaskCodeWithValues.collectAsState()
+    allTaskCodeWithValues.value.forEachIndexed { index, filter ->
       Box(modifier = Modifier
         .border(
           width = 0.5.dp,
-          color = (if (filter == selectedFilter) LightColors.primary else Color.LightGray),
+          color = (if (filter.first == selectedFilter.first) LightColors.primary else Color.LightGray),
           shape = RoundedCornerShape(8.dp)
         )
         .background(
-          if (filter == selectedFilter) LightColors.primary else SearchHeaderColor,
+          if (filter.first == selectedFilter.first) LightColors.primary else SearchHeaderColor,
           shape = RoundedCornerShape(8.dp)
         )
-        .padding(8.dp)) {
+        .padding(8.dp)
+        .clickable {
+          onFilterSelected(filter)
+        }) {
         Text(
-          text = getFilterName(filter.label),
+          text = filter.second.uppercase(),
           style = TextStyle(
             fontWeight = FontWeight(600),
             fontSize = 16.sp
           ),
-          modifier = Modifier
-            .padding(4.dp)
-            .clickable {
-              onFilterSelected(filter)
-            },
-          color = if (filter == selectedFilter) Color.White else Color.Black
+          modifier = Modifier.padding(4.dp),
+          color = if (filter.first == selectedFilter.first) Color.White else Color.Black
         )
       }
       if (index < FilterType.entries.size - 1) {
@@ -193,29 +225,22 @@ fun ViewAllTasksScreen(
       sheetState = bottomSheetState,
       sheetContent = {
         selectedTask?.let { task ->
-          TasksBottomSheetContent(task = task, onStatusUpdate = {taskProgressState ->
+          TasksBottomSheetContent(viewModel,task = task, onStatusUpdate = {taskProgressState ->
             var status : TaskStatus = TaskStatus.NULL
             when(taskProgressState){
               TaskProgressState.FOLLOWUP_DONE -> {
                 status = TaskStatus.COMPLETED
               }
-              TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
+              TaskProgressState.NOT_AGREED_FOR_FOLLOWUP,TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
                 status = TaskStatus.INPROGRESS
               }
-              TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
-                status = TaskStatus.INPROGRESS
-              }
-              TaskProgressState.NOT_CONTACTED -> {
-                status = TaskStatus.REQUESTED
-              }
-              TaskProgressState.NOT_RESPONDED -> {
-                status = TaskStatus.REQUESTED
-              }
-              TaskProgressState.DEFAULT -> {
-                status = TaskStatus.REQUESTED
-              }
+
               TaskProgressState.REMOVE -> {
                 status = TaskStatus.REJECTED
+              }
+
+              TaskProgressState.DEFAULT,TaskProgressState.NOT_RESPONDED,TaskProgressState.NOT_CONTACTED -> {
+                status = TaskStatus.REQUESTED
               }
               else -> {
                 status = TaskStatus.REQUESTED
@@ -251,7 +276,7 @@ fun ViewAllTasksScreen(
             .background(SearchHeaderColor)
         )
         {
-          var selectedFilter by remember { mutableStateOf(FilterType.URGENT_REFERRAL) }
+          var selectedFilter by remember { mutableStateOf(Pair(TaskCode.URGENT_REFER_TO_HOSPITAL.code,"")) }
           val filteredTasks by viewModel.filteredTasksStateFlow.collectAsState()
           val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
 
@@ -268,7 +293,7 @@ fun ViewAllTasksScreen(
 
             Row(modifier = Modifier
               .fillMaxWidth()) {
-              FilterRow(selectedFilter) { filter ->
+              FilterRow(viewModel,selectedFilter) { filter ->
                 selectedFilter = filter
               }
             }
@@ -310,7 +335,7 @@ fun ViewAllTasksScreen(
                         .padding(horizontal = 8.dp)
                         .background(SearchHeaderColor)
                     ) {
-                      SearchCardItemView(task) {
+                      SearchCardItemView(viewModel,task) {
                         selectedTask = task
                         coroutineScope.launch { bottomSheetState.show() }
                       }
@@ -328,7 +353,12 @@ fun ViewAllTasksScreen(
 
 
 @Composable
-fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (TaskProgressState) -> Unit, onCancel: () -> Unit) {
+fun TasksBottomSheetContent(
+  viewModel: TasksViewModel,
+  task: TasksViewModel.TaskItem,
+  onStatusUpdate: (TaskProgressState) -> Unit,
+  onCancel: () -> Unit
+) {
 
   var name = ""
   var phone = ""
@@ -405,7 +435,7 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
 
       Row {
         Text(
-          text = stringResource(id = R.string.view_all_phone),
+          text = stringResource(id = R.string.phone_with_space),
           color = colorResource(id = R.color.subTextGreyBold),
           fontSize = 14.sp,
           fontWeight = FontWeight.Bold,
@@ -446,64 +476,11 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
       }
     }
 
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Row(modifier = Modifier.padding(vertical = 4.dp)) {
-      var label = ""
-      var textColor = Color.Black
-      var color = Color.Black
-
-      when(task.task.intent){
-
-        Task.TaskIntent.PLAN -> {
-          label = stringResource(id = R.string.view_all_add_investigation).uppercase()
-          color = Color(0xFFFFF8E0)
-          textColor = Color(0xFFFFC800)
-        }
-
-        Task.TaskIntent.OPTION -> {
-          label = stringResource(id = R.string.view_all_advice_to_quit_habit).uppercase()
-          color = Color(0xFFFFF8E0)
-          textColor = Color(0xFFFFC800)
-        }
-
-        Task.TaskIntent.ORDER -> {
-          label = stringResource(id = R.string.view_all_urgent_referral).uppercase()
-          color = Color(0xFFFFCDD2)
-          textColor = Color(0xFFFF3355)
-        }
-
-        Task.TaskIntent.PROPOSAL -> {
-          label = stringResource(id = R.string.view_all_retake_photo).uppercase()
-          color = Color.LightGray
-          textColor = Color.Gray
-        }
-
-        else -> {
-          label = ""
-          color = Color.LightGray
-          textColor = Color.Gray
-        }
-      }
-
-      Row(modifier = Modifier
-        .background(color, shape = MaterialTheme.shapes.small)
-        .fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
-      ) {
-        Text(
-          text = label,
-          color = textColor,
-          fontWeight = FontWeight.Bold,
-          textAlign = TextAlign.Center,
-          modifier = Modifier
-            .padding(horizontal = 8.dp, vertical = 8.dp)
-            .fillMaxWidth(),
-        )
-      }
-    }
-
     Spacer(modifier = Modifier.height(16.dp))
+
+    MultiRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
+
+    Spacer(modifier = Modifier.height(8.dp))
 
 
     if (task.task.status != TaskStatus.COMPLETED){
@@ -685,119 +662,8 @@ fun getPatientAddress(patient: Patient?): String {
 }
 
 @Composable
-fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewModel.TaskItem) -> Unit) {
-  Box(
-    modifier = Modifier
-      .fillMaxWidth()
-      .padding(vertical = 8.dp, horizontal = 16.dp)
-      .background(Color.White, shape = RoundedCornerShape(8.dp))
-      .clickable {
-        onSelectTask(task)
-        //viewModel.updateTask(task, Task.TaskStatus.INPROGRESS, Task.TaskPriority.ROUTINE)
-      }
-  ) {
-    Card(
-      modifier = Modifier
-        .fillMaxWidth()
-        .background(Color.White, shape = RoundedCornerShape(8.dp)),
-      elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-    ) {
-      Box(
-        modifier = Modifier
-          .background(Color.White)
-      ) {
-        Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = 16.dp)
-            .background(Color.White)
-        ) {
-          var name = ""
-          var phone = ""
-          if (task.patient?.name?.isNotEmpty() == true && task.patient?.name?.get(0)?.given?.isNotEmpty() == true){
-            name = task.patient?.name?.get(0)?.given?.get(0)?.value.toString()
-            phone = task.patient?.telecom?.get(0)?.value.toString()
-          }
-          Row(modifier = Modifier.padding(vertical = 4.dp)) {
-
-            androidx.compose.material.Icon(
-              modifier = Modifier.padding(
-                vertical = 4.dp,
-                horizontal = 4.dp
-              ),
-              painter = painterResource(id = R.drawable.ic_patient_male),
-              contentDescription = FILTER,
-              tint = LightColors.primary,
-            )
-
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-              Text(
-                modifier = Modifier
-                  .padding(vertical = 4.dp, horizontal = 4.dp),
-                text = name,
-                fontSize = 18.sp,
-                color = LightColors.primary
-              )
-              Spacer(modifier = Modifier.height(4.dp))
-              Text(
-                text = stringResource(id = R.string.phone)+phone,
-                color = colorResource(id = R.color.subTextGrey),
-                fontSize = 14.sp,
-                modifier = Modifier
-                  .padding(horizontal = 4.dp, vertical = 4.dp)
-              )
-              Spacer(modifier = Modifier.height(4.dp))
-              Row(modifier = Modifier.padding(vertical = 4.dp)) {
-                var label = ""
-                var textColor = Color.Black
-                var color = Color.Black
-
-                when(task.task.intent){
-
-                  Task.TaskIntent.PLAN -> {
-                    label = stringResource(id = R.string.view_all_add_investigation).uppercase()
-                    color = Color(0xFFFFF8E0)
-                    textColor = Color(0xFFFFC800)
-                  }
-
-                  Task.TaskIntent.OPTION -> {
-                    label = stringResource(id = R.string.view_all_advice_to_quit_habit).uppercase()
-                    color = Color(0xFFFFF8E0)
-                    textColor = Color(0xFFFFC800)
-                  }
-
-                  Task.TaskIntent.ORDER -> {
-                    label = stringResource(id = R.string.view_all_urgent_referral).uppercase()
-                    color = Color(0xFFFFCDD2)
-                    textColor = Color(0xFFFF3355)
-                  }
-
-                  Task.TaskIntent.PROPOSAL -> {
-                    label = stringResource(id = R.string.view_all_retake_photo).uppercase()
-                    color = Color.LightGray
-                    textColor = Color.Gray
-                  }
-
-                  else -> {
-                    label = ""
-                    color = Color.LightGray
-                    textColor = Color.Gray
-                  }
-                }
-
-                Text(
-                  text = label,
-                  color = textColor,
-                  fontSize = 14.sp,
-                  modifier = Modifier
-                    .background(color, shape = MaterialTheme.shapes.small)
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
-                )
-              }
-            }
-          }
-        }
-      }
-    }
+fun SearchCardItemView(viewModel: TasksViewModel,task: TasksViewModel.TaskItem, onSelectTask: (TasksViewModel.TaskItem) -> Unit) {
+  CardItemViewAllTask(viewModel,task){
+    onSelectTask(task)
   }
 }

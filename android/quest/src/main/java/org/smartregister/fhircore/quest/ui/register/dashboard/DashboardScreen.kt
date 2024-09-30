@@ -114,41 +114,42 @@ fun DashboardScreen(
     sheetState = bottomSheetState,
     sheetContent = {
       selectedTask?.let { task ->
-        BottomSheetContent(task = task, onStatusUpdate = {
-          var status: TaskStatus = TaskStatus.NULL
-          /*when (it) {
+        BottomSheetContent(viewModel = viewModel, task = task,
+            onStatusUpdate = {
+              var status: TaskStatus = TaskStatus.NULL
+              /*when (it) {
 
-            TaskPriority.ROUTINE -> {
-              status = TaskStatus.COMPLETED
-            }
+                TaskPriority.ROUTINE -> {
+                  status = TaskStatus.COMPLETED
+                }
 
-            TaskPriority.URGENT -> {
-              status = TaskStatus.INPROGRESS
-            }
+                TaskPriority.URGENT -> {
+                  status = TaskStatus.INPROGRESS
+                }
 
-            TaskPriority.STAT -> {
-              status = TaskStatus.INPROGRESS
-            }
+                TaskPriority.STAT -> {
+                  status = TaskStatus.INPROGRESS
+                }
 
-            TaskPriority.ASAP -> {
-              status = TaskStatus.INPROGRESS
-            }
+                TaskPriority.ASAP -> {
+                  status = TaskStatus.INPROGRESS
+                }
 
-            TaskPriority.NULL -> {
-              status = TaskStatus.INPROGRESS
-            }
-          }*/
+                TaskPriority.NULL -> {
+                  status = TaskStatus.INPROGRESS
+                }
+              }*/
 
-          viewModel.updateTask(task.task, status, it)
-          coroutineScope.launch {
-            bottomSheetState.hide()
-          }
-        },
-          onCancel = {
-            coroutineScope.launch {
-              bottomSheetState.hide()
-            }
-          })
+              viewModel.updateTask(task.task, status, it)
+              coroutineScope.launch {
+                bottomSheetState.hide()
+              }
+            },
+            onCancel = {
+              coroutineScope.launch {
+                bottomSheetState.hide()
+              }
+            })
       }
     }
   ) {

@@ -24,7 +24,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import com.google.android.fhir.FhirEngine
-import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,9 +57,11 @@ import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterFilterState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel.TaskItem
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.model.practitioner.FhirPractitionerDetails
 import timber.log.Timber
@@ -130,6 +131,8 @@ constructor(
   val unSyncedStateFlow: StateFlow<List<Patient2>> = _unSyncedStateFlow
 
 
+  private val _allTaskCodeWithValues = MutableStateFlow<List<Pair<String,String>>>(emptyList())
+  val allTaskCodeWithValues: StateFlow<List<Pair<String,String>>> = _allTaskCodeWithValues
 
   fun updateTask(task : Task, status: TaskStatus, taskOutput: TaskProgressState){
     viewModelScope.launch {
@@ -239,17 +242,29 @@ constructor(
         }
       }.distinctBy { it.task.logicalId }
 
+      val allCodeAndDisplay = tasksWithPatient.mapNotNull { taskWithPatient ->
+        getTaskCodeWithValue(taskWithPatient)
+      }.flatten().distinctBy { it.first }.sortedByDescending { it.second }
+      _allTaskCodeWithValues.value = allCodeAndDisplay
+      println("allCodeAndDisplay --> ${Gson().toJson(allCodeAndDisplay)}")
+
       _allLatestTasksStateFlow.value = tasksWithPatient.distinctBy { it.task.logicalId }
     }
   }
 
-  fun getFilteredTasks(filter: FilterType, status: TaskStatus, priority: TaskProgressState){
+  fun getFilteredTasks(filter:Pair<String,String>,status: TaskStatus, priority: TaskProgressState){
     val tasks = _allLatestTasksStateFlow.value
-
     var newTasks : List<TaskItem> = emptyList<TaskItem>()
 
-    newTasks = tasks.filter {
-      it.task.status == status
+    newTasks = tasks.filter { task ->
+      // Get the list of pairs for the task (assuming this returns a list of pairs or null)
+      val list = getTaskCodeWithValue(task)
+
+      // Filter the list to check if any element's 'first' matches 'filter.first'
+      val filteredList = list?.filter { it.first == filter.first } ?: emptyList()
+
+      // Keep the task if the filtered list is not empty
+      filteredList.isNotEmpty()
     }
 
     newTasks = newTasks.filter {
@@ -264,28 +279,46 @@ constructor(
       }
     }
 
-    when(filter){
-      FilterType.URGENT_REFERRAL -> newTasks = newTasks.filter {
-        it.task.intent == Task.TaskIntent.ORDER
-      }
-      FilterType.ADD_INVESTIGATION -> newTasks = newTasks.filter {
-        it.task.intent == Task.TaskIntent.PLAN
-      }
-      FilterType.RETAKE_PHOTO -> newTasks = newTasks.filter {
-        it.task.intent == Task.TaskIntent.PROPOSAL
-      }
-      FilterType.ADVICE_TO_QUIT -> newTasks = newTasks.filter {
-        it.task.intent == Task.TaskIntent.OPTION
-      }
-    }
-
-
     newTasks = newTasks.filter {
       it.task.status != TaskStatus.REJECTED
     }.distinctBy { it.task.logicalId
-    }.sortedByDescending { it?.task?.meta?.lastUpdated }
+    }.sortedByDescending { it.task.meta?.lastUpdated }
 
     _filteredTasksStateFlow.value = newTasks
+  }
+  private var previousCode = ""
+
+  internal fun getTaskCodeWithValue(taskWithPatient: TaskItem): List<Pair<String, String>>? {
+    return taskWithPatient.task.input?.mapIndexedNotNull { index, input ->
+      var codes = input.value?.getNamedProperty("code")?.values?.mapNotNull { code ->
+        code.valueToString()
+      }
+
+      var displays = input.value?.getNamedProperty("display")?.values?.mapNotNull { display ->
+        display.valueToString()
+      }
+
+      if (codes == null && displays == null) {
+        val data = input.value.valueToString()
+        if (previousCode.isEmpty()) {
+          val taskCode = TaskCodes.fromCode(data)
+          val code = taskCode?.codes?.firstOrNull()
+          previousCode = code?.lowercase()?:""
+        }
+        if (!data.contains("_") && previousCode.isNotEmpty()) {
+          codes = listOf(previousCode)
+          displays = listOf(data)
+        }
+      }
+
+      // Combine codes and displays into pairs
+      if (codes != null && displays != null && codes.size == displays.size) {
+        previousCode=""
+        codes.zip(displays)  // This will create a list of (code, display) pairs
+      } else {
+        null  // Handle any mismatch or null values
+      }
+    }?.flatten()?.distinctBy { it.first }
   }
 
   fun searchTasks(searchText: String) {

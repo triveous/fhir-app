@@ -100,48 +100,49 @@ fun SearchTasksScreen(
     sheetState = bottomSheetState,
     sheetContent = {
       selectedTask?.let { task ->
-        BottomSheetContent(task = task, onStatusUpdate = { priority ->
-          var status : TaskStatus = task.task.status
-          var taskPriority = priority
-          when(priority){
-            TaskProgressState.FOLLOWUP_DONE -> {
-              status = TaskStatus.COMPLETED
-            }
-            TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
-              status = TaskStatus.INPROGRESS
-            }
-            TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
-              status = TaskStatus.INPROGRESS
-            }
+        BottomSheetContent(viewModel = viewModel, task = task,
+            onStatusUpdate = { priority ->
+              var status : TaskStatus = task.task.status
+              var taskPriority = priority
+              when(priority){
+                TaskProgressState.FOLLOWUP_DONE -> {
+                  status = TaskStatus.COMPLETED
+                }
+                TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
+                  status = TaskStatus.INPROGRESS
+                }
+                TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
+                  status = TaskStatus.INPROGRESS
+                }
 
-            TaskProgressState.NONE -> {
-              //taskPriority = TaskProgressState.FOLLOWUP_DONE
-              //status = TaskStatus.REJECTED
-            }
-            TaskProgressState.REMOVE -> {
-              taskPriority = TaskProgressState.REMOVE
-              status = TaskStatus.REJECTED
-            }
+                TaskProgressState.NONE -> {
+                  //taskPriority = TaskProgressState.FOLLOWUP_DONE
+                  //status = TaskStatus.REJECTED
+                }
+                TaskProgressState.REMOVE -> {
+                  taskPriority = TaskProgressState.REMOVE
+                  status = TaskStatus.REJECTED
+                }
 
-            TaskProgressState.NOT_RESPONDED -> {
-              //Status remain same only moves Not contacted to no responded section
-              taskPriority = TaskProgressState.NOT_RESPONDED
-              status = task.task.status
-            }
+                TaskProgressState.NOT_RESPONDED -> {
+                  //Status remain same only moves Not contacted to no responded section
+                  taskPriority = TaskProgressState.NOT_RESPONDED
+                  status = task.task.status
+                }
 
-            else -> { }
-          }
+                else -> { }
+              }
 
-          viewModel.updateTask(task.task, status, taskPriority)
-          coroutineScope.launch {
-            bottomSheetState.hide()
-          }
-        },
-          onCancel = {
-            coroutineScope.launch {
-              bottomSheetState.hide()
-            }
-          })
+              viewModel.updateTask(task.task, status, taskPriority)
+              coroutineScope.launch {
+                bottomSheetState.hide()
+              }
+            },
+            onCancel = {
+              coroutineScope.launch {
+                bottomSheetState.hide()
+              }
+            })
       }
     }
   ) {

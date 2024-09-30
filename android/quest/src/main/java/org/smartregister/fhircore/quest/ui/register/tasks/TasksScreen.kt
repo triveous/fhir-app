@@ -102,12 +102,7 @@ import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
-import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
 import org.smartregister.fhircore.quest.theme.Colors.Quartz
-import org.smartregister.fhircore.quest.theme.body14Medium
-import org.smartregister.fhircore.quest.theme.body18Medium
-import org.smartregister.fhircore.quest.theme.bodyExtraBold
-import org.smartregister.fhircore.quest.theme.bodyNormal
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
@@ -229,7 +224,7 @@ fun PendingTasksScreen(
         sheetState = bottomSheetState,
         sheetContent = {
             selectedTask?.let { task ->
-                BottomSheetContent(task = task, onStatusUpdate = { priority ->
+                BottomSheetContent(viewModel,task = task, onStatusUpdate = { priority ->
                     var status: TaskStatus = task.task.status
                     var taskPriority = priority
                     when (priority) {
@@ -268,7 +263,11 @@ fun PendingTasksScreen(
                         viewModel.updateTask(task.task, status, taskPriority)
 
                         coroutineScope.launch {
-                            viewModel.emitSnackBarState(SnackBarMessageConfig(statusUpdateSuccessfully))
+                            viewModel.emitSnackBarState(
+                                SnackBarMessageConfig(
+                                    statusUpdateSuccessfully
+                                )
+                            )
                             bottomSheetState.hide()
                         }
                     } else {
@@ -418,7 +417,7 @@ fun PendingTasksScreen(
                                         sectionsList.forEach { section ->
                                             item {
                                                 Box {
-                                                    SectionView(section = section,
+                                                    SectionView(viewModel, section = section,
                                                         isExpanded = true,
                                                         onSeeMoreCasesClicked = { title, status, priority ->
                                                             val intent = Intent(
@@ -493,7 +492,7 @@ fun PendingTasksScreen(
                                         sectionsList.forEach { section ->
                                             item {
                                                 Box {
-                                                    SectionView(section = section,
+                                                    SectionView(viewModel, section = section,
                                                         isExpanded = true,
                                                         onSeeMoreCasesClicked = { title, status, priority ->
                                                             val intent = Intent(
@@ -532,7 +531,7 @@ fun PendingTasksScreen(
 
                             TabType.TASK_COMPLETED_TAB -> {
                                 Spacer(modifier = Modifier.height(8.dp))
-                                ShowUnSyncedPatients(modifier, completedTasks) {
+                                ShowUnSyncedPatients(viewModel, modifier, completedTasks) {
                                     selectedTask = it
                                     coroutineScope.launch { bottomSheetState.show() }
                                 }
@@ -578,6 +577,7 @@ fun PendingTasksScreen(
 
 @Composable
 private fun ShowUnSyncedPatients(
+    viewModel: RegisterViewModel,
     modifier: Modifier,
     completedTasks: List<RegisterViewModel.TaskItem>,
     onSelectTask: (RegisterViewModel.TaskItem) -> Unit
@@ -605,7 +605,7 @@ private fun ShowUnSyncedPatients(
             ) {
                 LazyColumn {
                     items(completedTasks) { task ->
-                        CardItemView(task = task) {
+                        CardItemView(viewModel, task = task) {
                             onSelectTask(it)
                         }
                     }
@@ -719,25 +719,29 @@ private fun ShowAllPatients(
                                             when (task.intent) {
 
                                                 Task.TaskIntent.PLAN -> {
-                                                    label = stringResource(id = R.string.view_all_add_investigation).uppercase()
+                                                    label =
+                                                        stringResource(id = R.string.view_all_add_investigation).uppercase()
                                                     color = Color(0xFFFFF8E0)
                                                     textColor = Color(0xFFFFC800)
                                                 }
 
                                                 Task.TaskIntent.OPTION -> {
-                                                    label = stringResource(id = R.string.view_all_advice_to_quit_habit).uppercase()
+                                                    label =
+                                                        stringResource(id = R.string.view_all_advice_to_quit_habit).uppercase()
                                                     color = Color(0xFFFFF8E0)
                                                     textColor = Color(0xFFFFC800)
                                                 }
 
                                                 Task.TaskIntent.ORDER -> {
-                                                    label = stringResource(id = R.string.view_all_urgent_referral).uppercase()
+                                                    label =
+                                                        stringResource(id = R.string.view_all_urgent_referral).uppercase()
                                                     color = Color(0xFFFFCDD2)
                                                     textColor = Color(0xFFFF3355)
                                                 }
 
                                                 Task.TaskIntent.PROPOSAL -> {
-                                                    label = stringResource(id = R.string.view_all_retake_photo).uppercase()
+                                                    label =
+                                                        stringResource(id = R.string.view_all_retake_photo).uppercase()
                                                     color = Color.LightGray
                                                     textColor = Color.Gray
                                                 }
@@ -772,6 +776,7 @@ private fun ShowAllPatients(
 
 @Composable
 fun BottomSheetContent(
+    viewModel: RegisterViewModel,
     task: RegisterViewModel.TaskItem,
     onStatusUpdate: (TaskProgressState) -> Unit,
     onCancel: () -> Unit
@@ -884,7 +889,10 @@ fun BottomSheetContent(
                         })
                     }, verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = stringResource(id = R.string.view_all_call), color = LightColors.primary)
+                Text(
+                    text = stringResource(id = R.string.view_all_call),
+                    color = LightColors.primary
+                )
 
                 Spacer(modifier = Modifier.width(4.dp))
 
@@ -903,65 +911,11 @@ fun BottomSheetContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(modifier = Modifier.padding(vertical = 4.dp)) {
-            var label = ""
-            var textColor = Color.Black
-            var color = Color.Black
-
-            when (task.task.intent) {
-
-                Task.TaskIntent.PLAN -> {
-                    label = getFilterName("ADD INVESTIGATION")
-                    color = Color(0xFFFFF8E0)
-                    textColor = Color(0xFFFFC800)
-                }
-
-                Task.TaskIntent.OPTION -> {
-                    label = getFilterName("ADVICE TO QUIT HABIT")
-                    color = Color(0xFFFFF8E0)
-                    textColor = Color(0xFFFFC800)
-                }
-
-                Task.TaskIntent.ORDER -> {
-                    label = getFilterName("URGENT REFERRAL")
-                    color = Color(0xFFFFCDD2)
-                    textColor = Color(0xFFFF3355)
-                }
-
-                Task.TaskIntent.PROPOSAL -> {
-                    label = getFilterName("RETAKE PHOTO")
-                    color = Color.LightGray
-                    textColor = Color.Gray
-                }
-
-                else -> {
-                    label = ""
-                    color = Color.LightGray
-                    textColor = Color.Gray
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .background(color, shape = MaterialTheme.shapes.small)
-                    .fillMaxWidth(), horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = label,
-                    color = textColor,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp, vertical = 8.dp)
-                        .fillMaxWidth(),
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
 
+        MultiRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (task.task.status != TaskStatus.COMPLETED) {
             Spacer(
@@ -980,8 +934,6 @@ fun BottomSheetContent(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-
-        //val taskImportance = remember { mutableStateOf(TaskPriority.NULL) }
 
         val listOfOutput = mutableListOf<Task.TaskOutputComponent>()
         val op = TaskOutputComponent()
@@ -1142,6 +1094,7 @@ fun BottomSheetContent(
 
 @Composable
 fun SectionView(
+    viewModel: RegisterViewModel,
     section: Section,
     isExpanded: Boolean,
     onSeeMoreCasesClicked: (String, TaskStatus, TaskProgressState) -> Unit,
@@ -1176,7 +1129,7 @@ fun SectionView(
                 section.items.forEachIndexed { index, task ->
                     //Show max 3 elements
                     if (index <= 2) {
-                        CardItemView(task = task) {
+                        CardItemView(viewModel, task = task) {
                             onSelectTask(it)
                         }
                     }
@@ -1287,104 +1240,21 @@ fun SectionView(
 
 @Composable
 fun CardItemView(
-    task: RegisterViewModel.TaskItem, onSelectTask: (RegisterViewModel.TaskItem) -> Unit
+    viewModel: RegisterViewModel,
+    task: RegisterViewModel.TaskItem,
+    onSelectTask: (RegisterViewModel.TaskItem) -> Unit
 ) {
-    Card(
-        onClick = { onSelectTask(task) },
-        shape = RoundedCornerShape(4.dp),
-        colors = CardDefaults.cardColors().copy(Color.White, Color.White, Color.White, Color.White),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .background(Color.White)
-        ) {
-            var name = ""
-            var phone = ""
-            if (task.patient?.name?.isNotEmpty() == true && task.patient.name?.get(0)?.given?.isNotEmpty() == true) {
-                name = task.patient.name?.get(0)?.given?.get(0)?.value.toString()
-                phone = task.patient.telecom?.get(0)?.value.toString()
-            }
-            Row {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_patient_male),
-                    contentDescription = FILTER
-                )
+    var name = ""
+    var phone = ""
+    if (task.patient?.name?.isNotEmpty() == true && task.patient.name?.get(0)?.given?.isNotEmpty() == true) {
+        name = task.patient.name?.get(0)?.given?.get(0)?.value.toString()
+        phone = task.patient.telecom?.get(0)?.value.toString()
+    }
+    val taskStatusList = viewModel.getTaskCodeWithValue(task)
+    println("CardItemView getTaskStatusList--> $taskStatusList")
 
-                Column(modifier = Modifier.padding(horizontal = 12.dp)) {
-                    Text(
-                        text = name, style = body18Medium(), color = BRANDEIS_BLUE
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.Center) {
-                        Text(
-                            text = stringResource(id = R.string.phone),
-                            style = bodyExtraBold(14.sp),
-                            color = CRAYOLA_LIGHT
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = phone,
-                            style = bodyNormal(14.sp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row {
-                        var label = ""
-                        var textColor = Color.Black
-                        var color = Color.Black
-
-                        when (task.task.intent) {
-                            Task.TaskIntent.PLAN -> {
-                                label = stringResource(id = R.string.add_investigation)
-                                color = Color(0xFFFFF8E0)
-                                textColor = Color(0xFFFFC800)
-                            }
-
-                            Task.TaskIntent.OPTION -> {
-                                label = getFilterName("ADVICE TO QUIT HABIT")
-                                color = Color(0xFFFFF8E0)
-                                textColor = Color(0xFFFFC800)
-                            }
-
-                            Task.TaskIntent.ORDER -> {
-                                label = stringResource(id = R.string.urgent_referral)
-                                color = Color(0xFFFFCDD2)
-                                textColor = Color(0xFFFF3355)
-                            }
-
-                            Task.TaskIntent.PROPOSAL -> {
-                                label = stringResource(id = R.string.retake_photo)
-                                color = Color.LightGray
-                                textColor = Color.Gray
-                            }
-
-                            else -> {
-                                label = ""
-                                color = Color.LightGray
-                                textColor = Color.Gray
-                            }
-                        }
-
-                        Text(
-                            text = label,
-                            color = textColor,
-                            style = body14Medium(),
-                            modifier = Modifier
-                                .background(
-                                    color, shape = MaterialTheme.shapes.small
-                                )
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-        }
+    RecommendationItem(name, phone, taskStatusList) {
+        onSelectTask(task)
     }
 }
 
