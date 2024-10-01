@@ -15,6 +15,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.appcompat.widget.AppCompatImageButton
@@ -190,7 +191,11 @@ class CameraxLauncherFragment : DialogFragment() {
                 startCamera()
             } else {
                 // Permission denied, dismiss fragment
-                Timber.d("Camera permission not granted")
+                Toast.makeText(
+                    requireActivity(),
+                    getString(R.string.camera_permissions_denied),
+                    Toast.LENGTH_SHORT,
+                ).show()
                 dismiss()
             }
         }.launch(Manifest.permission.CAMERA)
@@ -297,7 +302,7 @@ class CameraxLauncherFragment : DialogFragment() {
                     }
 
                     override fun onError(exception: ImageCaptureException) {
-                        Timber.e("Photo exception = {ImageCaptureException@35501} \"androidx.camera.core.ImageCaptureException: Failed to write temp file\"capture failed: ${exception.message}")
+                        Timber.e(exception,"Photo exception = {ImageCaptureException@35501} \"androidx.camera.core.ImageCaptureException: Failed to write temp file\"capture failed: ${exception.message}")
                         dismiss()
                     }
                 }
@@ -319,7 +324,9 @@ class CameraxLauncherFragment : DialogFragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        cameraExecutor.shutdown()
+        if(this::cameraExecutor.isInitialized){
+            cameraExecutor.shutdown()
+        }
     }
 
     companion object {
