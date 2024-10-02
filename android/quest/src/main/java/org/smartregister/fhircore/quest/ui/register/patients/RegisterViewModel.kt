@@ -20,6 +20,13 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.util.fastAny
+import androidx.compose.ui.util.fastDistinctBy
+import androidx.compose.ui.util.fastFilter
+import androidx.compose.ui.util.fastForEach
+import androidx.compose.ui.util.fastMap
+import androidx.compose.ui.util.fastMapIndexedNotNull
+import androidx.compose.ui.util.fastMapNotNull
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -377,15 +384,15 @@ constructor(
             val tasksDeferred = async { fhirEngine.search<Task> { } }
             val patientsDeferred = async { fhirEngine.search<Patient> { } }
 
-            val allTasks = tasksDeferred.await().map { it.resource }
-            val patients = patientsDeferred.await().map { it.resource.toResourceData() }
+            val allTasks = tasksDeferred.await().fastMap { it.resource }
+            val patients = patientsDeferred.await().fastMap { it.resource.toResourceData() }
                 .associateBy { it.patient?.logicalId } // Use associateBy to create map with ID as key
 
-            val tasksWithPatient = allTasks.mapNotNull { task ->
+            val tasksWithPatient = allTasks.fastMapNotNull { task ->
 
                 val taskOwnerId = task.owner?.reference?.toString()?.substringAfterLast("/") ?: ""
                 val patientId = task?.`for`?.reference?.toString()?.substringAfter("/")
-                    ?: return@mapNotNull null
+                    ?: return@fastMapNotNull null
                 if (taskOwnerId == practitionerId && task.status != TaskStatus.REJECTED && patients.containsKey(
                         patientId
                     )
@@ -394,21 +401,21 @@ constructor(
                 } else {
                     null
                 }
-            }.distinctBy { it.task.logicalId }
+            }.fastDistinctBy { it.task.logicalId }
 
             _newTasksStateFlow.value =
-                tasksWithPatient.filter { it.task.status == TaskStatus.REQUESTED }
+                tasksWithPatient.fastFilter { it.task.status == TaskStatus.REQUESTED }
                     .sortedByDescending { it.task.meta.lastUpdated }
 
             _pendingTasksStateFlow.value =
-                tasksWithPatient.filter { it.task.status == TaskStatus.INPROGRESS }
+                tasksWithPatient.fastFilter { it.task.status == TaskStatus.INPROGRESS }
                     .sortedByDescending { it.task.meta.lastUpdated }
 
             _completedTasksStateFlow.value =
-                tasksWithPatient.filter { it.task.status == TaskStatus.COMPLETED }
+                tasksWithPatient.fastFilter { it.task.status == TaskStatus.COMPLETED }
                     .sortedByDescending { it.task.meta.lastUpdated }
 
-            val allCodeAndDisplay = tasksWithPatient.mapNotNull { taskWithPatient ->
+            val allCodeAndDisplay = tasksWithPatient.fastMapNotNull { taskWithPatient ->
                 getTaskCodeWithValue(taskWithPatient)
             }.flatten().distinct()
 
@@ -421,12 +428,12 @@ constructor(
 
     private var previousCode = ""
     internal fun getTaskCodeWithValue(taskWithPatient: TaskItem): List<Pair<String, String>>? {
-        return taskWithPatient.task.input?.mapIndexedNotNull { index, input ->
-            var codes = input.value?.getNamedProperty("code")?.values?.mapNotNull { code ->
+        return taskWithPatient.task.input?.fastMapIndexedNotNull { index, input ->
+            var codes = input.value?.getNamedProperty("code")?.values?.fastMapNotNull { code ->
                 code.valueToString()
             }
 
-            var displays = input.value?.getNamedProperty("display")?.values?.mapNotNull { display ->
+            var displays = input.value?.getNamedProperty("display")?.values?.fastMapNotNull { display ->
                 display.valueToString()
             }
 
@@ -450,7 +457,7 @@ constructor(
             } else {
                 null  // Handle any mismatch or null values
             }
-        }?.flatten()?.distinctBy { it.first }
+        }?.flatten()?.fastDistinctBy { it.first }
     }
 
     fun getAllLatestTasks() {
@@ -462,15 +469,15 @@ constructor(
             val tasksDeferred = async { fhirEngine.search<Task> { } }
             val patientsDeferred = async { fhirEngine.search<Patient> { } }
 
-            val allTasks = tasksDeferred.await().map { it.resource }
-            val patients = patientsDeferred.await().map { it.resource.toResourceData() }
+            val allTasks = tasksDeferred.await().fastMap { it.resource }
+            val patients = patientsDeferred.await().fastMap { it.resource.toResourceData() }
                 .associateBy { it.patient?.logicalId } // Use associateBy to create map with ID as key
 
-            val tasksWithPatient = allTasks.mapNotNull { task ->
+            val tasksWithPatient = allTasks.fastMapNotNull { task ->
 
                 val taskOwnerId = task.owner?.reference?.toString()?.substringAfterLast("/") ?: ""
                 val patientId = task?.`for`?.reference?.toString()?.substringAfter("/")
-                    ?: return@mapNotNull null
+                    ?: return@fastMapNotNull null
                 if (taskOwnerId == practitionerId && task.status != TaskStatus.REJECTED && patients.containsKey(
                         patientId
                     )
@@ -479,9 +486,9 @@ constructor(
                 } else {
                     null
                 }
-            }.distinctBy { it.task.logicalId }
+            }.fastDistinctBy { it.task.logicalId }
 
-            _allLatestTasksStateFlow.value = tasksWithPatient.distinctBy { it.task.logicalId }
+            _allLatestTasksStateFlow.value = tasksWithPatient.fastDistinctBy { it.task.logicalId }
         }
     }
 
@@ -492,7 +499,7 @@ constructor(
         val matchedTasksWithPatientList = mutableListOf<TaskItem>()
 
         viewModelScope.launch(Dispatchers.IO) {
-            allTasksWithPatients.forEach { taskItem ->
+            allTasksWithPatients.fastForEach { taskItem ->
                 val patient = taskItem.patient
                 patient?.let {
                     if (isPhoneNumber) {
@@ -513,7 +520,7 @@ constructor(
                 }
             }
             _searchedTasksStateFlow.value =
-                matchedTasksWithPatientList.distinctBy { it.task.logicalId }
+                matchedTasksWithPatientList.fastDistinctBy { it.task.logicalId }
         }
     }
 
@@ -523,45 +530,45 @@ constructor(
 
     fun getNotContactedNewTasks(tasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
 
-        return tasks.filter {
+        return tasks.fastFilter {
             (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }
                 ?.get(0)?.value.valueToString() != TaskProgressState.NOT_RESPONDED.text)
 
             //(it.task.priority != TaskPriority.ASAP && it.task.status == status)
-        }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
+        }.sortedByDescending { it.task.meta.lastUpdated }.fastDistinctBy { it.task.logicalId }
     }
 
     fun getNotRespondedNewTasks(tasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
-        return tasks.filter { it ->
+        return tasks.fastFilter { it ->
             (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }
                 ?.get(0)?.value.valueToString() == TaskProgressState.NOT_RESPONDED.text)
 
 
             //(it.task.priority == TaskPriority.ASAP && it.task.status == status)
-        }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
+        }.sortedByDescending { it.task.meta.lastUpdated }.fastDistinctBy { it.task.logicalId }
     }
 
     fun getPendingAgreedButNotDoneTasks(
         newTasks: List<TaskItem>,
         status: TaskStatus
     ): List<TaskItem> {
-        return newTasks.filter {
+        return newTasks.fastFilter {
             (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }
                 ?.get(0)?.value.valueToString() == TaskProgressState.AGREED_FOLLOWUP_NOT_DONE.text)
 
 
             //(it.task.priority == TaskPriority.STAT && it.task.status == status)
-        }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
+        }.sortedByDescending { it.task.meta.lastUpdated }.fastDistinctBy { it.task.logicalId }
     }
 
     fun getPendingNotAgreedTasks(newTasks: List<TaskItem>, status: TaskStatus): List<TaskItem> {
-        return newTasks.filter {
+        return newTasks.fastFilter {
             (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }
                 ?.get(0)?.value.valueToString() == TaskProgressState.NOT_AGREED_FOR_FOLLOWUP.text)
 
 
             //(it.task.priority == TaskPriority.URGENT && it.task.status == status)
-        }.sortedByDescending { it.task.meta.lastUpdated }.distinctBy { it.task.logicalId }
+        }.sortedByDescending { it.task.meta.lastUpdated }.fastDistinctBy { it.task.logicalId }
     }
 
 
@@ -630,7 +637,7 @@ constructor(
         qrItemMap: Map<String, QuestionnaireResponse.QuestionnaireResponseItemComponent>,
     ): List<ResourceConfig> {
         val newRelatedResources =
-            relatedResources.map {
+            relatedResources.fastMap {
                 val newDataQueries =
                     createQueriesForRegisterFilter(
                         registerDataFilterFieldsMap?.get(it.filterId)?.dataQueries,
@@ -653,11 +660,11 @@ constructor(
         dataQueries: List<DataQuery>?,
         qrItemMap: Map<String, QuestionnaireResponse.QuestionnaireResponseItemComponent>,
     ) =
-        dataQueries?.map {
+        dataQueries?.fastMap {
             val newFilterCriteria = mutableListOf<FilterCriterionConfig>()
-            it.filterCriteria.forEach { filterCriterionConfig ->
+            it.filterCriteria.fastForEach { filterCriterionConfig ->
                 val answerComponent = qrItemMap[filterCriterionConfig.dataFilterLinkId]
-                answerComponent?.answer?.forEach { itemAnswerComponent ->
+                answerComponent?.answer?.fastForEach { itemAnswerComponent ->
                     val criterion =
                         convertAnswerToFilterCriterion(itemAnswerComponent, filterCriterionConfig)
                     if (criterion != null) newFilterCriteria.add(criterion)
@@ -822,14 +829,14 @@ constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val patients = fhirEngine.search<Patient> {
                 // ... your search criteria
-            }.map {
+            }.fastMap {
                 it.resource
-            }.filter { patient ->
+            }.fastFilter { patient ->
                 (patient?.generalPractitioner?.firstOrNull()?.reference?.toString()
                     ?.substringAfter("/").orEmpty()).equals(getUserName(), true)
             }
 
-            val todayCases = patients.filter {
+            val todayCases = patients.fastFilter {
                 val extension = it?.extension?.find {
                     it.url?.substringAfterLast("/").equals("patient-registraion-date")
                 }
@@ -841,7 +848,7 @@ constructor(
                 }
             }.size
 
-            val thisWeek = patients.filter {
+            val thisWeek = patients.fastFilter {
 
                 val extension = it?.extension?.find {
                     it.url?.substringAfterLast("/").equals("patient-registraion-date")
@@ -858,7 +865,7 @@ constructor(
                 }
             }.size
 
-            val thisMonth = patients.filter {
+            val thisMonth = patients.fastFilter {
                 val extension = it?.extension?.find {
                     it.url?.substringAfterLast("/").equals("patient-registraion-date")
                 }
@@ -887,10 +894,10 @@ constructor(
 
             // Fetching patients
             val patients = fhirEngine.search<Patient> {
-            }.map {
+            }.fastMap {
                 it.resource.toResourceData()
             }
-                .filter {
+                .fastFilter {
                     (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()
                         ?.substringAfter("/") ?: "").equals(userName, true)
 
@@ -911,7 +918,7 @@ constructor(
             // Fetching unsynced patients
             val unsyncedPatients = mutableListOf<AllPatientsResourceData>()
             val data = fhirEngine.getUnsyncedLocalChanges()
-            data.forEach { localChange ->
+            data.fastForEach { localChange ->
                 val patient = parsePatientJson(localChange.payload)
                 patient?.let {
                     patient?.let {
@@ -948,7 +955,7 @@ constructor(
             // Fetching unsynced patients
             val unsyncedPatients = mutableListOf<AllPatientsResourceData>()
             val data = fhirEngine.getUnsyncedLocalChanges()
-            data.forEach { localChange ->
+            data.fastForEach { localChange ->
                 val patient = parsePatientJson(localChange.payload)
                 patient?.let {
                     patient?.let {
@@ -960,9 +967,9 @@ constructor(
             }
 
             val patients = fhirEngine.search<Patient> {
-            }.map {
+            }.fastMap {
                 it.resource.toResourceData()
-            }.filter {
+            }.fastFilter {
                 (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()
                     ?.substringAfter("/") ?: "").equals(userName, true)
             }
@@ -998,7 +1005,7 @@ constructor(
                     getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
                 if (!draftResponsesJson.isNullOrEmpty()) {
                     val allDrafts = parseDraftResponses(parser, draftResponsesJson)
-                    allDrafts?.entry?.forEach {
+                    allDrafts?.entry?.fastForEach {
                         allResponses.add(it.resource as QuestionnaireResponse)
                     }
                     allResponses.sortedByDescending { it?.meta?.lastUpdated }
@@ -1009,9 +1016,9 @@ constructor(
 
             val userName = getUserName()
             val responses = fhirEngine.search<QuestionnaireResponse> {
-            }.map {
+            }.fastMap {
                 it.resource
-            }.filter {
+            }.fastFilter {
                 (it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS) &&
                         (it.author?.reference?.toString() ?: "").contains(userName, true)
             }
@@ -1056,7 +1063,7 @@ constructor(
 
                 val allDrafts = parseDraftResponses(parser, draftResponsesJson)
 
-                if (allDrafts?.entry?.any { it.resource?.id == resourceId } == true) {
+                if (allDrafts?.entry?.fastAny { it.resource?.id == resourceId } == true) {
                     removeDraftFromBundle(allDrafts, resourceId)
                     saveBundleToSharedPreferences(sharedPreferencesHelper, parser, allDrafts)
                 }
@@ -1076,7 +1083,7 @@ constructor(
 
                 val allDrafts = parseDraftResponses(parser, draftResponsesJson)
 
-                if (allDrafts?.entry?.any { it.resource?.id == resourceId } == true) {
+                if (allDrafts?.entry?.fastAny { it.resource?.id == resourceId } == true) {
                     saveBundleToSharedPreferences(
                         sharedPreferencesHelper,
                         parser,
