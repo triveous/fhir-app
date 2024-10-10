@@ -102,12 +102,7 @@ import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
-import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
 import org.smartregister.fhircore.quest.theme.Colors.Quartz
-import org.smartregister.fhircore.quest.theme.body14Medium
-import org.smartregister.fhircore.quest.theme.body18Medium
-import org.smartregister.fhircore.quest.theme.bodyExtraBold
-import org.smartregister.fhircore.quest.theme.bodyNormal
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
@@ -132,9 +127,7 @@ import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 
 enum class TabType(val label: String) {
-    TASK_NEW_TAB("New"),
-    TASK_PENDING_TAB("Pending"),
-    TASK_COMPLETED_TAB("Completed")
+    TASK_NEW_TAB("New"), TASK_PENDING_TAB("Pending"), TASK_COMPLETED_TAB("Completed")
 }
 
 data class Section(val title: String, val items: List<RegisterViewModel.TaskItem>)
@@ -164,13 +157,11 @@ fun FilterRow2(selectedFilter: TabType, onFilterSelected: (TabType) -> Unit) {
                 )
                 .padding(4.dp)
                 .align(Alignment.CenterVertically)
-                .weight(1f)
-            ) {
+                .weight(1f)) {
                 Text(
-                    text = filter.label,
+                    text = getTabName(filter.label),
                     style = TextStyle(
-                        fontWeight = FontWeight(600),
-                        fontSize = 16.sp
+                        fontWeight = FontWeight(600), fontSize = 16.sp
                     ),
                     modifier = Modifier
                         .padding(horizontal = 4.dp, vertical = 4.dp)
@@ -182,6 +173,17 @@ fun FilterRow2(selectedFilter: TabType, onFilterSelected: (TabType) -> Unit) {
                 Spacer(modifier = Modifier.width(8.dp)) // Horizontal margin
             }
         }
+    }
+}
+
+@Composable
+fun getTabName(labelName: String): String {
+    return if (labelName.equals(TabType.TASK_COMPLETED_TAB.label, true)) {
+        stringResource(id = R.string.status_completed)
+    } else if (labelName.equals(TabType.TASK_PENDING_TAB.label, true)) {
+        stringResource(id = R.string.status_pending)
+    } else {
+        stringResource(id = R.string.status_new)
     }
 }
 
@@ -199,30 +201,30 @@ fun PendingTasksScreen(
     val lazyListState: LazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val bottomSheetState = rememberModalBottomSheetState(
-        initialValue = ModalBottomSheetValue.Hidden,
-        skipHalfExpanded = true
+        initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true
     )
     var selectedTask by remember { mutableStateOf<RegisterViewModel.TaskItem?>(null) }
 
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
     var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
     var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
+    val statusUpdateSuccessfully = stringResource(id = R.string.status_updated_successfully)
+    val selectStatusToUpdate = stringResource(id = R.string.select_status_to_update)
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         viewModel.setPermissionGranted(isGranted)
-        if (isGranted){
-            viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+        if (isGranted) {
+            viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent, true) }
         }
     }
 
-    ModalBottomSheetLayout(
-        sheetGesturesEnabled = false,
+    ModalBottomSheetLayout(sheetGesturesEnabled = false,
         sheetState = bottomSheetState,
         sheetContent = {
             selectedTask?.let { task ->
-                BottomSheetContent(task = task, onStatusUpdate = { priority ->
+                BottomSheetContent(viewModel,task = task, onStatusUpdate = { priority ->
                     var status: TaskStatus = task.task.status
                     var taskPriority = priority
                     when (priority) {
@@ -259,24 +261,27 @@ fun PendingTasksScreen(
 
                     if (taskPriority != TaskProgressState.NONE) {
                         viewModel.updateTask(task.task, status, taskPriority)
+
                         coroutineScope.launch {
-                            viewModel.emitSnackBarState(SnackBarMessageConfig("Status updated successfully"))
+                            viewModel.emitSnackBarState(
+                                SnackBarMessageConfig(
+                                    statusUpdateSuccessfully
+                                )
+                            )
                             bottomSheetState.hide()
                         }
                     } else {
                         coroutineScope.launch {
-                            viewModel.emitSnackBarState(SnackBarMessageConfig("Select the status to update"))
+                            viewModel.emitSnackBarState(SnackBarMessageConfig(selectStatusToUpdate))
                         }
                     }
-                },
-                    onCancel = {
-                        coroutineScope.launch {
-                            bottomSheetState.hide()
-                        }
-                    })
+                }, onCancel = {
+                    coroutineScope.launch {
+                        bottomSheetState.hide()
+                    }
+                })
             }
-        }
-    ) {
+        }) {
         Scaffold(
             modifier = modifier
                 .background(Color.White)
@@ -287,7 +292,7 @@ fun PendingTasksScreen(
                         modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
                         title = stringResource(id = org.smartregister.fhircore.engine.R.string.appname),
                         onSync = {
-                            viewModel.appMainEvent=it
+                            viewModel.appMainEvent = it
                             viewModel.setShowDialog(true)
                         },
                         toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
@@ -299,16 +304,14 @@ fun PendingTasksScreen(
                             .padding(all = 16.dp)
                             .clickable {
                                 navController.navigate(R.id.searchTasksFragment)
-                            }
-                    ) {
+                            }) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
                                 .padding(vertical = 4.dp)
                                 .border(
-                                    width = 1.dp,
-                                    color = Colors.CRAYOLA_LIGHT
+                                    width = 1.dp, color = Colors.CRAYOLA_LIGHT
                                 )
                                 .background(Color.White, shape = RoundedCornerShape(8.dp)),
                             verticalAlignment = Alignment.CenterVertically,
@@ -322,7 +325,7 @@ fun PendingTasksScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Enter name or phone",
+                                text = stringResource(id = R.string.enter_name_or_phone),
                                 color = Color.Gray,
                                 fontSize = 16.sp,
                                 textAlign = TextAlign.Start
@@ -362,10 +365,8 @@ fun PendingTasksScreen(
                     totalImageLeft = totalImageLeftCountData
 
                     Box(
-                        modifier = modifier
-                            .background(SearchHeaderColor)
-                    )
-                    {
+                        modifier = modifier.background(SearchHeaderColor)
+                    ) {
 
                         Box(modifier = Modifier.padding(bottom = 16.dp)) {
                             FilterRow2(selectedTabType.value) {
@@ -382,19 +383,19 @@ fun PendingTasksScreen(
 
                                 Box(
                                     modifier = modifier
-                                        .padding(top = 72.dp, start = 16.dp, end = 16.dp)
+                                        .padding(
+                                            top = 72.dp, start = 16.dp, end = 16.dp
+                                        )
                                         .fillMaxHeight()
                                         .fillMaxWidth()
                                         .background(SearchHeaderColor)
                                 ) {
 
                                     val notContactedTasks = viewModel.getNotContactedNewTasks(
-                                        newTasks,
-                                        TaskStatus.REQUESTED
+                                        newTasks, TaskStatus.REQUESTED
                                     )
                                     val notRespondedTasks = viewModel.getNotRespondedNewTasks(
-                                        newTasks,
-                                        TaskStatus.REQUESTED
+                                        newTasks, TaskStatus.REQUESTED
                                     )
 
                                     val sectionsList: MutableList<Section> = mutableListOf()
@@ -416,13 +417,11 @@ fun PendingTasksScreen(
                                         sectionsList.forEach { section ->
                                             item {
                                                 Box {
-                                                    SectionView(
-                                                        section = section,
+                                                    SectionView(viewModel, section = section,
                                                         isExpanded = true,
                                                         onSeeMoreCasesClicked = { title, status, priority ->
                                                             val intent = Intent(
-                                                                context,
-                                                                GenericActivity::class.java
+                                                                context, GenericActivity::class.java
                                                             ).apply {
                                                                 putExtra(ARG_FROM, "tasks")
                                                                 putExtra(
@@ -439,8 +438,7 @@ fun PendingTasksScreen(
                                                                 )
                                                                 putExtra(TASK_STATUS, status.name)
                                                                 putExtra(
-                                                                    TASK_PRIORITY,
-                                                                    priority.name
+                                                                    TASK_PRIORITY, priority.name
                                                                 )
                                                             }
                                                             context.startActivity(intent)
@@ -461,7 +459,9 @@ fun PendingTasksScreen(
 
                                 Box(
                                     modifier = modifier
-                                        .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+                                        .padding(
+                                            top = 64.dp, start = 16.dp, end = 16.dp
+                                        )
                                         .fillMaxHeight()
                                         .fillMaxWidth()
                                         .background(SearchHeaderColor)
@@ -469,12 +469,10 @@ fun PendingTasksScreen(
 
                                     val pendingAgreedButNotDoneTasks =
                                         viewModel.getPendingAgreedButNotDoneTasks(
-                                            pendingTasks,
-                                            TaskStatus.INPROGRESS
+                                            pendingTasks, TaskStatus.INPROGRESS
                                         )
                                     val pendingNotAgreedTasks = viewModel.getPendingNotAgreedTasks(
-                                        pendingTasks,
-                                        TaskStatus.INPROGRESS
+                                        pendingTasks, TaskStatus.INPROGRESS
                                     )
 
                                     val sectionsList: MutableList<Section> = mutableListOf()
@@ -494,13 +492,11 @@ fun PendingTasksScreen(
                                         sectionsList.forEach { section ->
                                             item {
                                                 Box {
-                                                    SectionView(
-                                                        section = section,
+                                                    SectionView(viewModel, section = section,
                                                         isExpanded = true,
                                                         onSeeMoreCasesClicked = { title, status, priority ->
                                                             val intent = Intent(
-                                                                context,
-                                                                GenericActivity::class.java
+                                                                context, GenericActivity::class.java
                                                             ).apply {
                                                                 putExtra(ARG_FROM, "tasks")
                                                                 putExtra(
@@ -517,8 +513,7 @@ fun PendingTasksScreen(
                                                                 )
                                                                 putExtra(TASK_STATUS, status.name)
                                                                 putExtra(
-                                                                    TASK_PRIORITY,
-                                                                    priority.name
+                                                                    TASK_PRIORITY, priority.name
                                                                 )
                                                             }
                                                             context.startActivity(intent)
@@ -536,7 +531,7 @@ fun PendingTasksScreen(
 
                             TabType.TASK_COMPLETED_TAB -> {
                                 Spacer(modifier = Modifier.height(8.dp))
-                                ShowUnSyncedPatients(modifier, completedTasks) {
+                                ShowUnSyncedPatients(viewModel, modifier, completedTasks) {
                                     selectedTask = it
                                     coroutineScope.launch { bottomSheetState.show() }
                                 }
@@ -545,8 +540,7 @@ fun PendingTasksScreen(
                     }
                 }
 
-                ForegroundSyncDialog(
-                    showDialog = viewModel.showDialog.value,
+                ForegroundSyncDialog(showDialog = viewModel.showDialog.value,
                     title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
                     content = totalImageLeft,
                     viewModel.imageCount,
@@ -562,13 +556,20 @@ fun PendingTasksScreen(
                                 launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             } else {
                                 viewModel.setPermissionGranted(true)
-                                viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                                viewModel.appMainEvent?.let { mainEvent ->
+                                    appMainViewModel.onEvent(
+                                        mainEvent, true
+                                    )
+                                }
                             }
-                        }else{
-                            viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                        } else {
+                            viewModel.appMainEvent?.let { mainEvent ->
+                                appMainViewModel.onEvent(
+                                    mainEvent, true
+                                )
+                            }
                         }
-                    }
-                )
+                    })
             }
         }
     }
@@ -576,6 +577,7 @@ fun PendingTasksScreen(
 
 @Composable
 private fun ShowUnSyncedPatients(
+    viewModel: RegisterViewModel,
     modifier: Modifier,
     completedTasks: List<RegisterViewModel.TaskItem>,
     onSelectTask: (RegisterViewModel.TaskItem) -> Unit
@@ -603,7 +605,7 @@ private fun ShowUnSyncedPatients(
             ) {
                 LazyColumn {
                     items(completedTasks) { task ->
-                        CardItemView(task = task) {
+                        CardItemView(viewModel, task = task) {
                             onSelectTask(it)
                         }
                     }
@@ -637,8 +639,7 @@ private fun ShowAllPatients(
                 modifier = modifier
                     .background(SearchHeaderColor)
                     .padding(top = 48.dp)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth(), contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = modifier
@@ -663,17 +664,15 @@ private fun ShowAllPatients(
             ) {
                 LazyColumn {
                     items(newTasks) { task ->
-                        Box(
-                            modifier = modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .background(Color.White)
-                                .clickable {
-                                    onSelectTask(task)
-                                    //viewModel.updateTask(task, Task.TaskStatus.INPROGRESS, Task.TaskPriority.ROUTINE)
-                                    task.input
-                                }
-                        ) {
+                        Box(modifier = modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .background(Color.White)
+                            .clickable {
+                                onSelectTask(task)
+                                //viewModel.updateTask(task, Task.TaskStatus.INPROGRESS, Task.TaskPriority.ROUTINE)
+                                task.input
+                            }) {
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -681,8 +680,7 @@ private fun ShowAllPatients(
                                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                             ) {
                                 Box(
-                                    modifier = modifier
-                                        .background(Color.White)
+                                    modifier = modifier.background(Color.White)
                                 ) {
                                     Column(
                                         modifier = Modifier
@@ -694,10 +692,9 @@ private fun ShowAllPatients(
 
                                             androidx.compose.material.Icon(
                                                 modifier = Modifier.padding(
-                                                    vertical = 4.dp,
-                                                    horizontal = 4.dp
+                                                    vertical = 4.dp, horizontal = 4.dp
                                                 ),
-                                                painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_patient_male),
+                                                painter = painterResource(id = R.drawable.ic_patient_male),
                                                 contentDescription = FILTER,
                                                 tint = LightColors.primary,
                                             )
@@ -722,25 +719,29 @@ private fun ShowAllPatients(
                                             when (task.intent) {
 
                                                 Task.TaskIntent.PLAN -> {
-                                                    label = "ADD INVESTIGATION"
+                                                    label =
+                                                        stringResource(id = R.string.view_all_add_investigation).uppercase()
                                                     color = Color(0xFFFFF8E0)
                                                     textColor = Color(0xFFFFC800)
                                                 }
 
                                                 Task.TaskIntent.OPTION -> {
-                                                    label = "ADVICE TO QUIT HABIT"
+                                                    label =
+                                                        stringResource(id = R.string.view_all_advice_to_quit_habit).uppercase()
                                                     color = Color(0xFFFFF8E0)
                                                     textColor = Color(0xFFFFC800)
                                                 }
 
                                                 Task.TaskIntent.ORDER -> {
-                                                    label = "URGENT REFERRAL"
+                                                    label =
+                                                        stringResource(id = R.string.view_all_urgent_referral).uppercase()
                                                     color = Color(0xFFFFCDD2)
                                                     textColor = Color(0xFFFF3355)
                                                 }
 
                                                 Task.TaskIntent.PROPOSAL -> {
-                                                    label = "RETAKE PHOTO"
+                                                    label =
+                                                        stringResource(id = R.string.view_all_retake_photo).uppercase()
                                                     color = Color.LightGray
                                                     textColor = Color.Gray
                                                 }
@@ -757,8 +758,7 @@ private fun ShowAllPatients(
                                                 color = textColor,
                                                 modifier = Modifier
                                                     .background(
-                                                        color,
-                                                        shape = MaterialTheme.shapes.small
+                                                        color, shape = MaterialTheme.shapes.small
                                                     )
                                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                                             )
@@ -776,6 +776,7 @@ private fun ShowAllPatients(
 
 @Composable
 fun BottomSheetContent(
+    viewModel: RegisterViewModel,
     task: RegisterViewModel.TaskItem,
     onStatusUpdate: (TaskProgressState) -> Unit,
     onCancel: () -> Unit
@@ -834,12 +835,10 @@ fun BottomSheetContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Screened on ",
+                text = stringResource(id = R.string.view_all_screened_on),
                 color = colorResource(id = R.color.subTextGreyBold),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
@@ -857,15 +856,14 @@ fun BottomSheetContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
 
             Row {
                 Text(
-                    text = "Phone ",
+                    text = stringResource(id = R.string.phone_with_space),
                     color = colorResource(id = R.color.subTextGreyBold),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
@@ -889,10 +887,12 @@ fun BottomSheetContent(
                         context.startActivity(Intent(Intent.ACTION_DIAL).apply {
                             data = Uri.parse("tel:$phone")
                         })
-                    },
-                verticalAlignment = Alignment.CenterVertically
+                    }, verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Call", color = LightColors.primary)
+                Text(
+                    text = stringResource(id = R.string.view_all_call),
+                    color = LightColors.primary
+                )
 
                 Spacer(modifier = Modifier.width(4.dp))
 
@@ -911,66 +911,11 @@ fun BottomSheetContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(modifier = Modifier.padding(vertical = 4.dp)) {
-            var label = ""
-            var textColor = Color.Black
-            var color = Color.Black
-
-            when (task.task.intent) {
-
-                Task.TaskIntent.PLAN -> {
-                    label = "ADD INVESTIGATION"
-                    color = Color(0xFFFFF8E0)
-                    textColor = Color(0xFFFFC800)
-                }
-
-                Task.TaskIntent.OPTION -> {
-                    label = "ADVICE TO QUIT HABIT"
-                    color = Color(0xFFFFF8E0)
-                    textColor = Color(0xFFFFC800)
-                }
-
-                Task.TaskIntent.ORDER -> {
-                    label = "URGENT REFERRAL"
-                    color = Color(0xFFFFCDD2)
-                    textColor = Color(0xFFFF3355)
-                }
-
-                Task.TaskIntent.PROPOSAL -> {
-                    label = "RETAKE PHOTO"
-                    color = Color.LightGray
-                    textColor = Color.Gray
-                }
-
-                else -> {
-                    label = ""
-                    color = Color.LightGray
-                    textColor = Color.Gray
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .background(color, shape = MaterialTheme.shapes.small)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = label,
-                    color = textColor,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(horizontal = 8.dp, vertical = 8.dp)
-                        .fillMaxWidth(),
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
 
+        MultiRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (task.task.status != TaskStatus.COMPLETED) {
             Spacer(
@@ -982,15 +927,13 @@ fun BottomSheetContent(
 
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "CHANGE STATUS",
+                text = stringResource(id = R.string.view_all_change_status),
                 color = colorResource(id = R.color.subTextGrey),
                 fontSize = 14.sp
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-
-        //val taskImportance = remember { mutableStateOf(TaskPriority.NULL) }
 
         val listOfOutput = mutableListOf<Task.TaskOutputComponent>()
         val op = TaskOutputComponent()
@@ -1125,11 +1068,10 @@ fun BottomSheetContent(
                     .fillMaxHeight()
                     .weight(1f) // Equally divide width
                     .padding(horizontal = 4.dp)
-                    .background(LightColors.primary),
-                    onClick = {
-                        onStatusUpdate(selectedPriority.value)
-                        selectedPriority.value = TaskProgressState.NONE
-                    }) {
+                    .background(LightColors.primary), onClick = {
+                    onStatusUpdate(selectedPriority.value)
+                    selectedPriority.value = TaskProgressState.NONE
+                }) {
                     Text(text = stringResource(id = R.string.update_status), color = Color.White)
                 }
             }
@@ -1152,6 +1094,7 @@ fun BottomSheetContent(
 
 @Composable
 fun SectionView(
+    viewModel: RegisterViewModel,
     section: Section,
     isExpanded: Boolean,
     onSeeMoreCasesClicked: (String, TaskStatus, TaskProgressState) -> Unit,
@@ -1159,14 +1102,15 @@ fun SectionView(
 ) {
     var expanded by remember { mutableStateOf(isExpanded) }
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Row(verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 16.dp)
                 .clickable { expanded = !expanded }) {
             Text(
-                text = section.title, fontSize = 14.sp, modifier = Modifier.weight(1f),
+                text = section.title,
+                fontSize = 14.sp,
+                modifier = Modifier.weight(1f),
                 color = colorResource(
                     id = R.color.subTextGrey
                 )
@@ -1185,7 +1129,7 @@ fun SectionView(
                 section.items.forEachIndexed { index, task ->
                     //Show max 3 elements
                     if (index <= 2) {
-                        CardItemView(task = task) {
+                        CardItemView(viewModel, task = task) {
                             onSelectTask(it)
                         }
                     }
@@ -1194,23 +1138,26 @@ fun SectionView(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val itemsLabel: String = if (section.items.size > 3) {
-                    "See ${section.items.size - 3} more"
+                    stringResource(
+                        id = R.string.dynamic_see_more,
+                        "${section.items.size - 3}"
+                    ).uppercase()
                 } else {
                     ""
                 }
 
-                val context = LocalContext.current
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.Center
+                        .padding(vertical = 8.dp), horizontalArrangement = Arrangement.Center
                 ) {
 
                     Box {
                         Text(
-                            text = itemsLabel, fontSize = 14.sp, modifier = Modifier
+                            text = itemsLabel,
+                            fontSize = 14.sp,
+                            modifier = Modifier
                                 .padding(vertical = 4.dp)
                                 .clickable {
 
@@ -1238,9 +1185,7 @@ fun SectionView(
                                     }
 
                                     onSeeMoreCasesClicked(
-                                        section.title,
-                                        section.items[0].task.status,
-                                        priority
+                                        section.title, section.items[0].task.status, priority
                                     )
                                 },
                             color = LightColors.primary
@@ -1284,9 +1229,7 @@ fun SectionView(
             }
 
             EmptyStateSection(
-                false,
-                textLabel = emptyString,
-                icon = icon
+                false, textLabel = emptyString, icon = icon
             )
         }
 
@@ -1297,104 +1240,21 @@ fun SectionView(
 
 @Composable
 fun CardItemView(
+    viewModel: RegisterViewModel,
     task: RegisterViewModel.TaskItem,
     onSelectTask: (RegisterViewModel.TaskItem) -> Unit
 ) {
-    Card(
-        onClick = {onSelectTask(task)},
-        shape = RoundedCornerShape(4.dp),
-        colors = CardDefaults.cardColors().copy(Color.White, Color.White, Color.White, Color.White),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .background(Color.White)
-        ) {
-            var name = ""
-            var phone = ""
-            if (task.patient?.name?.isNotEmpty() == true && task.patient.name?.get(0)?.given?.isNotEmpty() == true) {
-                name = task.patient.name?.get(0)?.given?.get(0)?.value.toString()
-                phone = task.patient.telecom?.get(0)?.value.toString()
-            }
-            Row {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_patient_male),
-                    contentDescription = FILTER
-                )
+    var name = ""
+    var phone = ""
+    if (task.patient?.name?.isNotEmpty() == true && task.patient.name?.get(0)?.given?.isNotEmpty() == true) {
+        name = task.patient.name?.get(0)?.given?.get(0)?.value.toString()
+        phone = task.patient.telecom?.get(0)?.value.toString()
+    }
+    val taskStatusList = viewModel.getTaskCodeWithValue(task)
+    println("CardItemView getTaskStatusList--> $taskStatusList")
 
-                Column(modifier = Modifier.padding(horizontal = 12.dp)) {
-                    Text(text = name,
-                        style = body18Medium(),
-                        color = BRANDEIS_BLUE
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.Center) {
-                        Text(
-                            text = stringResource(id = R.string.phone),
-                            style = bodyExtraBold(14.sp),
-                            color = CRAYOLA_LIGHT
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = phone,
-                            style = bodyNormal(14.sp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row {
-                        var label = ""
-                        var textColor = Color.Black
-                        var color = Color.Black
-
-                        when (task.task.intent) {
-                            Task.TaskIntent.PLAN -> {
-                                label = stringResource(id = R.string.add_investigation)
-                                color = Color(0xFFFFF8E0)
-                                textColor = Color(0xFFFFC800)
-                            }
-
-                            Task.TaskIntent.OPTION -> {
-                                label = "ADVICE TO QUIT HABIT"
-                                color = Color(0xFFFFF8E0)
-                                textColor = Color(0xFFFFC800)
-                            }
-
-                            Task.TaskIntent.ORDER -> {
-                                label = stringResource(id = R.string.urgent_referral)
-                                color = Color(0xFFFFCDD2)
-                                textColor = Color(0xFFFF3355)
-                            }
-
-                            Task.TaskIntent.PROPOSAL -> {
-                                label = stringResource(id = R.string.retake_photo)
-                                color = Color.LightGray
-                                textColor = Color.Gray
-                            }
-
-                            else -> {
-                                label = ""
-                                color = Color.LightGray
-                                textColor = Color.Gray
-                            }
-                        }
-
-                        Text(
-                            text = label,
-                            color = textColor,
-                            style = body14Medium(),
-                            modifier = Modifier
-                                .background(color, shape = MaterialTheme.shapes.small)
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-        }
+    RecommendationItem(name, phone, taskStatusList) {
+        onSelectTask(task)
     }
 }
 
@@ -1402,8 +1262,7 @@ fun CardItemView(
 @Composable
 private fun PreviewNoRegistersView() {
     NoRegisterDataView(
-        noResults =
-        NoResultsConfig(
+        noResults = NoResultsConfig(
             title = "Title",
             message = "This is message",
             actionButton = NavigationMenuConfig(display = "Button Text", id = "1"),

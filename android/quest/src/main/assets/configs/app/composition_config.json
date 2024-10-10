@@ -215,6 +215,54 @@
           }
         },
         {
+          "title": "Translation Bengali",
+          "focus": {
+            "identifier": {
+              "value": "strings_bn"
+            }
+          }
+        },
+        {
+          "title": "Translation Telugu",
+          "focus": {
+            "identifier": {
+              "value": "strings_te"
+            }
+          }
+        },
+        {
+          "title": "Translation Hindi",
+          "focus": {
+            "identifier": {
+              "value": "strings_hi"
+            }
+          }
+        },
+        {
+          "title": "Translation Marathi",
+          "focus": {
+            "identifier": {
+              "value": "strings_mr"
+            }
+          }
+        },
+        {
+          "title": "Translation Tamil",
+          "focus": {
+            "identifier": {
+              "value": "strings_ta"
+            }
+          }
+        },
+        {
+          "title": "Translation Urdu",
+          "focus": {
+            "identifier": {
+              "value": "strings_ur"
+            }
+          }
+        },
+        {
           "title": "Translation French",
           "focus": {
             "reference": "Binary/43e6c036-bb83-481e-8ffd-f8fdb7ee54a0e",
@@ -239,7 +287,21 @@
           },
           "mode": "working"
         }
-      ]
+      ],
+      "extension": [
+        {
+          "extension": [
+            {
+              "url": "lang",
+              "valueCode": "hi"
+            },
+            {
+              "url": "lang",
+              "valueCode": "mr"
+            }
+          ],
+          "url": "http://hl7.org/fhir/StructureDefinition/translation"
+        }]
     }
   ]
 }

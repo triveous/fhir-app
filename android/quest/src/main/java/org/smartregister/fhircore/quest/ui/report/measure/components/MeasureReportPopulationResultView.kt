@@ -34,9 +34,6 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
-import org.smartregister.fhircore.quest.R
-import org.smartregister.fhircore.quest.ui.report.measure.models.MeasureReportIndividualResult
 import org.smartregister.fhircore.quest.ui.report.measure.models.MeasureReportPopulationResult
 
 const val POPULATION_RESULT_VIEW_CONTAINER_TEST_TAG = "populationResultViewContainer"
@@ -108,28 +105,28 @@ private fun PopulationResultCard(
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun MeasureReportPopulationResultPreview() {
-  val dataList =
-    listOf(
-      MeasureReportPopulationResult(
-        title = "Population Title",
-        count = "2",
-        measureReportDenominator = "4",
-        indicatorTitle = "Still birth",
-        dataList =
-          listOf(
-            MeasureReportIndividualResult(
-              status = "Test Status",
-              isMatchedIndicator = false,
-              description = "This is sample description",
-              title = "Title Individual Result",
-              percentage = "50.0",
-              count = "1",
-            ),
-          ),
-      ),
-    )
-  MeasureReportPopulationResultView(dataList = dataList)
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//fun MeasureReportPopulationResultPreview() {
+//  val dataList =
+//    listOf(
+//      MeasureReportPopulationResult(
+//        title = "Population Title",
+//        count = "2",
+//        measureReportDenominator = "4",
+//        indicatorTitle = "Still birth",
+//        dataList =
+//          listOf(
+//            MeasureReportIndividualResult(
+//              status = "Test Status",
+//              isMatchedIndicator = false,
+//              description = "This is sample description",
+//              title = "Title Individual Result",
+//              percentage = "50.0",
+//              count = "1",
+//            ),
+//          ),
+//      ),
+//    )
+//  MeasureReportPopulationResultView(dataList = dataList)
+//}

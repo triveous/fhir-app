@@ -36,6 +36,8 @@ enum class SharedPreferenceKey {
   SITE_NAME,
   OAUTH_BASE_URL,
   DRAFTS,
+  KEY_LANGUAGE,
+  KEY_LANGUAGE_CODE,
 }
 
 const val STAGING_FHIR_BASE_URL = "https://staging.arogyam-midas.iisc.ac.in/fhir/"

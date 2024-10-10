@@ -60,8 +60,7 @@ constructor(
   val dispatcherProvider: DispatcherProvider,
   @ApplicationContext val context: Context,
 ) {
-  val workTag=AppSyncWorker::class.java.name+"-oneTimeSync"
-  val periodicWorkTag=AppSyncWorker::class.java.name+"-periodicSync"
+
   /**
    * Run one time sync. The [SyncJobStatus] will be broadcast to all the registered [OnSyncListener]
    * 's

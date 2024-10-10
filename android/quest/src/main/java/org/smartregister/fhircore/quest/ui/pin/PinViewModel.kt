@@ -99,7 +99,7 @@ constructor(
         setupPin = setupPin,
         message =
           if (setupPin) {
-            "$username will use this PIN to login."
+            context.getString(R.string.set_pin_message,username)
             //applicationConfiguration.loginConfig.pinLoginMessage
               ?: context.getString(R.string.set_pin_message)
           } else {

@@ -19,6 +19,7 @@
     <string name="take_photo">Take Photo</string>
     <string name="time">Time</string>
     <string name="upload_audio">Upload Audio</string>
+    <string name="add_photo">Add photo</string>
     <string name="upload_document">Upload Document</string>
     <string name="upload_failed">Upload failed</string>
     <string name="image_capture_failed">Image capture failed</string>
@@ -32,9 +33,9 @@
     <string name="audio_uploaded">Audio uploaded</string>
 
 
-    <string name="loading_forms">Loading forms ...</string>
-    <string name="loading_responses">Loading responses ...</string>
-    <string name="loading_patients">Loading cases ...</string>
+    <string name="loading_forms">Loading forms …</string>
+    <string name="loading_responses">Loading responses …</string>
+    <string name="loading_patients">Loading cases …</string>
     <string name="no_test_results_found">No test results found</string>
     <string name="patient_test_results">TEST RESULTS</string>
     <string name="last_test"> Last Test - %1$s</string>
@@ -154,6 +155,8 @@
     <string name="loading_followups">Loading cases</string>
     <string name="no_followups">No new cases</string>
     <string name="update_status">UPDATE STATUS</string>
+    <string name="update">UPDATE</string>
+    <string name="select_language">SELECT LANGUAGE</string>
     <string name="cancel">CANCEL</string>
     <string name="close">CLOSE</string>
     <string name="no_cases">No matching recommendations found!</string>
@@ -203,6 +206,7 @@
 
     <!-- Profile-->
     <string name="change_password">Change Password</string>
+    <string name="change_language">Change Language</string>
     <string name="logout">Logout</string>
     <string name="change_pin">Change PIN</string>
     <string name="profile_username">Username: %s</string>
@@ -211,6 +215,8 @@
     <string name="visited">Visited</string>
     <string name="cases_sync">Sync: %s</string>
     <string name="dynamic_see_more">SEE %s MORE</string>
+    <string name="dynamic_total_drafts">TOTAL DRAFTS: %s</string>
+    <string name="dynamic_visited">Visited %s</string>
     <string name="created">Created</string>
     <string name="total_submissions">Total submissions: %s</string>
     <string name="un_synced_submissions">UN-synced submissions: %s</string>
@@ -234,5 +240,60 @@
     <!-- Notification -->
     <string name="notification_permission_title">Notification Permission</string>
     <string name="notification_permission_description">Enable notifications to stay informed about the latest data syncs. Ensure your app always has the most current information by allowing timely sync alerts.</string>
+
+    <!-- Menu-->
+    <string name="menu_cases">Cases</string>
+    <string name="menu_recommendations">Recommendations</string>
+    <string name="menu_dashboard">Dashboard</string>
+
+    <!-- Recommendations -->
+    <string name="enter_name_or_phone">Enter name or phone</string>
+    <string name="status_new">New</string>
+    <string name="status_pending">Pending</string>
+    <string name="status_completed">Completed</string>
+
+    <!-- Dashboard -->
+    <string name="health_center">Health Center</string>
+    <string name="total_screened_cases">Total screened cases</string>
+    <string name="today">Today</string>
+    <string name="this_week">This Week</string>
+    <string name="this_month">This Month</string>
+    <string name="dashboard_add_patient">Add new case</string>
+
+    <!-- See All-->
+    <string name="view_all_draft">Drafts</string>
+    <string name="view_all_submissions">All submissions</string>
+
+    <!-- View All-->
+    <string name="view_all">VIEW ALL</string>
+    <string name="view_all_urgent_referral">Urgent Referral</string>
+    <string name="view_all_add_investigation">Add. Investigation</string>
+    <string name="view_all_retake_photo">Retake Photo</string>
+    <string name="view_all_advice_to_quit">Advice To Quit</string>
+    <string name="view_all_advice_to_quit_habit">ADVICE TO QUIT HABIT</string>
+    <string name="view_all_change_status">CHANGE STATUS</string>
+    <string name="view_all_phone">Phone %s</string>
+    <string name="phone_with_space">Phone </string>
+    <string name="view_all_call">Call</string>
+    <string name="view_all_screened_on">Screened on</string>
+    <!-- Toolbar-->
+    <string name="toolbar_recently_added">Recently Added</string>
+
+    <!-- SnackBar-->
+    <string name="status_updated_successfully">Status updated successfully</string>
+    <string name="select_status_to_update">Select the status to update</string>
+
+    <!-- Screen Title-->
+    <string name="not_agreed_for_followup">Did n\'t agree for follow up</string>
+    <string name="agreed_followup_not_done">Agreed, follow up not done</string>
+    <string name="followup_done">Follow up done</string>
+    <string name="remove_case">Not agreed, remove case</string>
+    <string name="null_status">null</string>
+    <string name="none_status">none</string>
+    <string name="default_status">Default</string>
+    <string name="remove_status">Remove</string>
+    <string name="submit_questionnaire">Submit</string>
+    <string name="button_pagination_next">Next</string>
+    <string name="button_pagination_previous">Previous</string>
 
 </resources>

@@ -146,118 +146,118 @@ fun List(
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ListWithHorizontalOrientationPreview() {
-  Column(modifier = Modifier.fillMaxWidth()) {
-    List(
-      modifier = Modifier,
-      viewProperties =
-        ListProperties(
-          viewType = ViewType.LIST,
-          orientation = ListOrientation.HORIZONTAL,
-          backgroundColor = "#FFFFFF",
-          fillMaxWidth = true,
-          id = "listId",
-          padding = 8,
-          borderRadius = 10,
-          emptyList = NoResultsConfig(message = ""),
-          resources =
-            listOf(ListResource(id = "carePlanList", resourceType = ResourceType.CarePlan)),
-          fillMaxHeight = true,
-          registerCard =
-            RegisterCardConfig(
-              views =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Malaria",
-                    primaryTextColor = "#DF0E1A",
-                    primaryTextBackgroundColor = "#F9CFD1",
-                    padding = 8,
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "ANC Danger Signs",
-                    primaryTextColor = "#D2760D",
-                    primaryTextBackgroundColor = "#FFECD6",
-                    padding = 8,
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "TB Danger Signs",
-                    primaryTextColor = "#D2760D",
-                    primaryTextBackgroundColor = "#FFECD6",
-                    padding = 8,
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "HIV Danger Signs",
-                    primaryTextColor = "#D2760D",
-                    primaryTextBackgroundColor = "#FFECD6",
-                    padding = 8,
-                  ),
-                ),
-            ),
-        ),
-      navController = rememberNavController(),
-      resourceData =
-        ResourceData(
-          baseResourceId = "baseId",
-          baseResourceType = ResourceType.Patient,
-          computedValuesMap = emptyMap(),
-        ),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ListWithVerticalOrientationPreview() {
-  Column(modifier = Modifier.fillMaxWidth()) {
-    List(
-      modifier = Modifier,
-      viewProperties =
-        ListProperties(
-          viewType = ViewType.LIST,
-          backgroundColor = "#FCFCFC",
-          orientation = ListOrientation.VERTICAL,
-          id = "listId",
-          padding = 8,
-          borderRadius = 10,
-          emptyList = NoResultsConfig(message = "No care Plans"),
-          resources =
-            listOf(ListResource(id = "carePlanList", resourceType = ResourceType.CarePlan)),
-          fillMaxWidth = true,
-          registerCard =
-            RegisterCardConfig(
-              views =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Family Planning",
-                    primaryTextColor = "#508BE8",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Malaria",
-                    primaryTextColor = "#508BE8",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "HIV",
-                    primaryTextColor = "#508BE8",
-                  ),
-                ),
-            ),
-        ),
-      navController = rememberNavController(),
-      resourceData =
-        ResourceData(
-          baseResourceId = "baseId",
-          baseResourceType = ResourceType.Patient,
-          computedValuesMap = emptyMap(),
-        ),
-    )
-  }
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ListWithHorizontalOrientationPreview() {
+//  Column(modifier = Modifier.fillMaxWidth()) {
+//    List(
+//      modifier = Modifier,
+//      viewProperties =
+//        ListProperties(
+//          viewType = ViewType.LIST,
+//          orientation = ListOrientation.HORIZONTAL,
+//          backgroundColor = "#FFFFFF",
+//          fillMaxWidth = true,
+//          id = "listId",
+//          padding = 8,
+//          borderRadius = 10,
+//          emptyList = NoResultsConfig(message = ""),
+//          resources =
+//            listOf(ListResource(id = "carePlanList", resourceType = ResourceType.CarePlan)),
+//          fillMaxHeight = true,
+//          registerCard =
+//            RegisterCardConfig(
+//              views =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Malaria",
+//                    primaryTextColor = "#DF0E1A",
+//                    primaryTextBackgroundColor = "#F9CFD1",
+//                    padding = 8,
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "ANC Danger Signs",
+//                    primaryTextColor = "#D2760D",
+//                    primaryTextBackgroundColor = "#FFECD6",
+//                    padding = 8,
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "TB Danger Signs",
+//                    primaryTextColor = "#D2760D",
+//                    primaryTextBackgroundColor = "#FFECD6",
+//                    padding = 8,
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "HIV Danger Signs",
+//                    primaryTextColor = "#D2760D",
+//                    primaryTextBackgroundColor = "#FFECD6",
+//                    padding = 8,
+//                  ),
+//                ),
+//            ),
+//        ),
+//      navController = rememberNavController(),
+//      resourceData =
+//        ResourceData(
+//          baseResourceId = "baseId",
+//          baseResourceType = ResourceType.Patient,
+//          computedValuesMap = emptyMap(),
+//        ),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ListWithVerticalOrientationPreview() {
+//  Column(modifier = Modifier.fillMaxWidth()) {
+//    List(
+//      modifier = Modifier,
+//      viewProperties =
+//        ListProperties(
+//          viewType = ViewType.LIST,
+//          backgroundColor = "#FCFCFC",
+//          orientation = ListOrientation.VERTICAL,
+//          id = "listId",
+//          padding = 8,
+//          borderRadius = 10,
+//          emptyList = NoResultsConfig(message = "No care Plans"),
+//          resources =
+//            listOf(ListResource(id = "carePlanList", resourceType = ResourceType.CarePlan)),
+//          fillMaxWidth = true,
+//          registerCard =
+//            RegisterCardConfig(
+//              views =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Family Planning",
+//                    primaryTextColor = "#508BE8",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Malaria",
+//                    primaryTextColor = "#508BE8",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "HIV",
+//                    primaryTextColor = "#508BE8",
+//                  ),
+//                ),
+//            ),
+//        ),
+//      navController = rememberNavController(),
+//      resourceData =
+//        ResourceData(
+//          baseResourceId = "baseId",
+//          baseResourceType = ResourceType.Patient,
+//          computedValuesMap = emptyMap(),
+//        ),
+//    )
+//  }
+//}

@@ -32,8 +32,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -46,8 +44,6 @@ import androidx.core.util.Pair
 import com.google.android.material.datepicker.CalendarConstraints
 import com.google.android.material.datepicker.DateValidatorPointBackward
 import com.google.android.material.datepicker.MaterialDatePicker
-import java.util.Calendar
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.getActivity
 import org.smartregister.fhircore.quest.R
 
@@ -133,16 +129,16 @@ fun showDateRangePicker(
     }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun DateRangeSelectedPreview() {
-  val dateRange = remember {
-    mutableStateOf(Pair(Calendar.getInstance().timeInMillis, Calendar.getInstance().timeInMillis))
-  }
-  DateSelectionBox(
-    startDate = "Start date",
-    endDate = "End date",
-    onDateRangeSelected = {},
-    dateRange = dateRange,
-  )
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun DateRangeSelectedPreview() {
+//  val dateRange = remember {
+//    mutableStateOf(Pair(Calendar.getInstance().timeInMillis, Calendar.getInstance().timeInMillis))
+//  }
+//  DateSelectionBox(
+//    startDate = "Start date",
+//    endDate = "End date",
+//    onDateRangeSelected = {},
+//    dateRange = dateRange,
+//  )
+//}

@@ -76,7 +76,6 @@ import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.ui.components.CircularProgressBar
 import org.smartregister.fhircore.engine.ui.components.PinInput
 import org.smartregister.fhircore.engine.ui.theme.DangerColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.theme.body18Medium
 import org.smartregister.fhircore.quest.theme.bodyMedium
 import org.smartregister.fhircore.quest.theme.bodyNormal
@@ -353,69 +352,69 @@ fun ForgotPinDialog(
   )
 }
 
-@Composable
-@PreviewWithBackgroundExcludeGenerated
-private fun PinSetupPreview() {
-  PinLoginPage(
-    showError = false,
-    pinUiState =
-      PinUiState(
-        message = "CHA will use this PIN to login",
-        appName = "MOH eCBIS",
-        setupPin = true,
-        pinLength = 4,
-        showLogo = true,
-      ),
-    onSetPin = {},
-    onMenuLoginClicked = {},
-    onShowPinError = {},
-    forgotPin = {},
-    onPinEntered = { _: CharArray, _: (Boolean) -> Unit -> },
-  )
-}
-
-@Composable
-@PreviewWithBackgroundExcludeGenerated
-private fun PinSetupPreviewWithProgress() {
-  PinLoginPage(
-    showError = false,
-    pinUiState =
-      PinUiState(
-        message = "CHA will use this PIN to login",
-        appName = "MOH eCBIS",
-        setupPin = true,
-        pinLength = 4,
-        showLogo = true,
-        showProgressBar = true,
-      ),
-    onSetPin = {},
-    onMenuLoginClicked = {},
-    onShowPinError = {},
-    forgotPin = {},
-    onPinEntered = { _: CharArray, _: (Boolean) -> Unit -> },
-  )
-}
-
-@Composable
-@PreviewWithBackgroundExcludeGenerated
-private fun PinLoginPreview() {
-  PinLoginPage(
-    showError = false,
-    pinUiState =
-      PinUiState(
-        message = "Enter PIN for ecbis",
-        appName = "MOH eCBIS",
-        setupPin = false,
-        pinLength = 4,
-        showLogo = true,
-      ),
-    onSetPin = {},
-    onMenuLoginClicked = {},
-    onShowPinError = {},
-    forgotPin = {},
-    onPinEntered = { _: CharArray, _: (Boolean) -> Unit -> },
-  )
-}
+//@Composable
+//@PreviewWithBackgroundExcludeGenerated
+//private fun PinSetupPreview() {
+//  PinLoginPage(
+//    showError = false,
+//    pinUiState =
+//      PinUiState(
+//        message = "CHA will use this PIN to login",
+//        appName = "MOH eCBIS",
+//        setupPin = true,
+//        pinLength = 4,
+//        showLogo = true,
+//      ),
+//    onSetPin = {},
+//    onMenuLoginClicked = {},
+//    onShowPinError = {},
+//    forgotPin = {},
+//    onPinEntered = { _: CharArray, _: (Boolean) -> Unit -> },
+//  )
+//}
+//
+//@Composable
+//@PreviewWithBackgroundExcludeGenerated
+//private fun PinSetupPreviewWithProgress() {
+//  PinLoginPage(
+//    showError = false,
+//    pinUiState =
+//      PinUiState(
+//        message = "CHA will use this PIN to login",
+//        appName = "MOH eCBIS",
+//        setupPin = true,
+//        pinLength = 4,
+//        showLogo = true,
+//        showProgressBar = true,
+//      ),
+//    onSetPin = {},
+//    onMenuLoginClicked = {},
+//    onShowPinError = {},
+//    forgotPin = {},
+//    onPinEntered = { _: CharArray, _: (Boolean) -> Unit -> },
+//  )
+//}
+//
+//@Composable
+//@PreviewWithBackgroundExcludeGenerated
+//private fun PinLoginPreview() {
+//  PinLoginPage(
+//    showError = false,
+//    pinUiState =
+//      PinUiState(
+//        message = "Enter PIN for ecbis",
+//        appName = "MOH eCBIS",
+//        setupPin = false,
+//        pinLength = 4,
+//        showLogo = true,
+//      ),
+//    onSetPin = {},
+//    onMenuLoginClicked = {},
+//    onShowPinError = {},
+//    forgotPin = {},
+//    onPinEntered = { _: CharArray, _: (Boolean) -> Unit -> },
+//  )
+//}
 
 
 @Composable

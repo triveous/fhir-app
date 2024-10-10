@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.DateType
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.smartregister.fhircore.quest.QuestApplication
 import org.smartregister.fhircore.quest.extensions.canonicalizeDatePattern
 import org.smartregister.fhircore.quest.extensions.format
 import org.smartregister.fhircore.quest.extensions.getDateSeparator
@@ -209,6 +210,7 @@ internal object CustomDatePickerViewHolderFactory :
             textInputLayout.context,
             questionnaireViewItem,
             validationResult,
+            (textInputLayout.context.applicationContext as QuestApplication).sharedPreferencesHelper
           )
       }
 
