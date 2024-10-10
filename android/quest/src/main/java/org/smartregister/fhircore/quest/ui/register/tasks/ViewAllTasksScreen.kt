@@ -227,6 +227,8 @@ fun ViewAllTasksScreen(
         selectedTask?.let { task ->
           TasksBottomSheetContent(viewModel,task = task, onStatusUpdate = {taskProgressState ->
             var status : TaskStatus = TaskStatus.NULL
+            var taskPriorityState = taskProgressState
+
             when(taskProgressState){
               TaskProgressState.FOLLOWUP_DONE -> {
                 status = TaskStatus.COMPLETED
@@ -236,20 +238,27 @@ fun ViewAllTasksScreen(
               }
 
               TaskProgressState.REMOVE -> {
+                taskPriorityState = TaskProgressState.REMOVE
                 status = TaskStatus.REJECTED
               }
 
-              TaskProgressState.DEFAULT,TaskProgressState.NOT_RESPONDED,TaskProgressState.NOT_CONTACTED -> {
+              TaskProgressState.NOT_RESPONDED -> {
+                taskPriorityState = TaskProgressState.NOT_RESPONDED
                 status = TaskStatus.REQUESTED
               }
+
+              TaskProgressState.DEFAULT, TaskProgressState.NOT_CONTACTED -> {
+                status = TaskStatus.REQUESTED
+              }
+
               else -> {
                 status = TaskStatus.REQUESTED
 
               }
             }
 
-            if(taskPriority != TaskProgressState.NONE){
-              registerViewModel.updateTask(task.task, status, taskPriority)
+            if(taskPriorityState != TaskProgressState.NONE){
+              registerViewModel.updateTask(task.task, status, taskPriorityState)
               coroutineScope.launch {
                 registerViewModel.emitSnackBarState(SnackBarMessageConfig(statusUpdateSuccessfully))
                 bottomSheetState.hide()
