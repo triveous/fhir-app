@@ -31,16 +31,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import org.hl7.fhir.r4.model.ResourceType
-import org.smartregister.fhircore.engine.configuration.view.ButtonProperties
 import org.smartregister.fhircore.engine.configuration.view.CardViewProperties
-import org.smartregister.fhircore.engine.configuration.view.ColumnProperties
-import org.smartregister.fhircore.engine.configuration.view.CompoundTextProperties
 import org.smartregister.fhircore.engine.configuration.view.TextCase
 import org.smartregister.fhircore.engine.domain.model.ResourceData
-import org.smartregister.fhircore.engine.domain.model.ViewType
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.parseColor
 import org.smartregister.fhircore.quest.util.extensions.conditional
 
@@ -108,95 +101,95 @@ fun CardView(
   }
 }
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun CardViewWithoutPaddingPreview() {
-  Column(modifier = Modifier.fillMaxWidth()) {
-    CardView(
-      viewProperties =
-        CardViewProperties(
-          viewType = ViewType.CARD,
-          content =
-            listOf(
-              CompoundTextProperties(
-                primaryText = "Richard Brown, M, 21",
-                primaryTextColor = "#000000",
-              ),
-            ),
-          header =
-            CompoundTextProperties(
-              primaryText = "Immunizations at 10 weeks",
-              fontSize = 18.0f,
-              primaryTextColor = "#6F7274",
-            ),
-          headerAction =
-            CompoundTextProperties(
-              primaryText = "Record All",
-              primaryTextColor = "infoColor",
-              clickable = "true",
-              visible = "true",
-            ),
-        ),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun CardViewWithoutPaddingPreview() {
+//  Column(modifier = Modifier.fillMaxWidth()) {
+//    CardView(
+//      viewProperties =
+//        CardViewProperties(
+//          viewType = ViewType.CARD,
+//          content =
+//            listOf(
+//              CompoundTextProperties(
+//                primaryText = "Richard Brown, M, 21",
+//                primaryTextColor = "#000000",
+//              ),
+//            ),
+//          header =
+//            CompoundTextProperties(
+//              primaryText = "Immunizations at 10 weeks",
+//              fontSize = 18.0f,
+//              primaryTextColor = "#6F7274",
+//            ),
+//          headerAction =
+//            CompoundTextProperties(
+//              primaryText = "Record All",
+//              primaryTextColor = "infoColor",
+//              clickable = "true",
+//              visible = "true",
+//            ),
+//        ),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun CardViewWithPaddingPreview() {
-  Column(modifier = Modifier.fillMaxWidth()) {
-    CardView(
-      viewProperties =
-        CardViewProperties(
-          viewType = ViewType.CARD,
-          padding = 16,
-          content =
-            listOf(
-              ColumnProperties(
-                viewType = ViewType.COLUMN,
-                children =
-                  listOf(
-                    ButtonProperties(
-                      status = "OVERDUE",
-                      viewType = ViewType.BUTTON,
-                      text = "Sick child followup",
-                    ),
-                    ButtonProperties(
-                      status = "COMPLETED",
-                      viewType = ViewType.BUTTON,
-                      text = "COVID Vaccination",
-                    ),
-                  ),
-              ),
-            ),
-          header = null,
-        ),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun CardViewWithPaddingPreview() {
+//  Column(modifier = Modifier.fillMaxWidth()) {
+//    CardView(
+//      viewProperties =
+//        CardViewProperties(
+//          viewType = ViewType.CARD,
+//          padding = 16,
+//          content =
+//            listOf(
+//              ColumnProperties(
+//                viewType = ViewType.COLUMN,
+//                children =
+//                  listOf(
+//                    ButtonProperties(
+//                      status = "OVERDUE",
+//                      viewType = ViewType.BUTTON,
+//                      text = "Sick child followup",
+//                    ),
+//                    ButtonProperties(
+//                      status = "COMPLETED",
+//                      viewType = ViewType.BUTTON,
+//                      text = "COVID Vaccination",
+//                    ),
+//                  ),
+//              ),
+//            ),
+//          header = null,
+//        ),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun CardViewWithoutPaddingAndHeaderPreview() {
-  Column(modifier = Modifier.fillMaxWidth()) {
-    CardView(
-      viewProperties =
-        CardViewProperties(
-          viewType = ViewType.CARD,
-          content =
-            listOf(
-              CompoundTextProperties(
-                primaryText = "Richard Brown, M, 21",
-                primaryTextColor = "#000000",
-              ),
-            ),
-        ),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun CardViewWithoutPaddingAndHeaderPreview() {
+//  Column(modifier = Modifier.fillMaxWidth()) {
+//    CardView(
+//      viewProperties =
+//        CardViewProperties(
+//          viewType = ViewType.CARD,
+//          content =
+//            listOf(
+//              CompoundTextProperties(
+//                primaryText = "Richard Brown, M, 21",
+//                primaryTextColor = "#000000",
+//              ),
+//            ),
+//        ),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}

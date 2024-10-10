@@ -12,6 +12,7 @@ import com.google.android.material.textfield.TextInputLayout
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.StringType
+import org.smartregister.fhircore.quest.QuestApplication
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.util.KEYBOARD_NUMERIC
 import timber.log.Timber
@@ -72,7 +73,7 @@ class EditTextStringViewHolderDelegate :
     }
 
     textInputLayout.hint = "${questionnaireViewItem.questionText} $isMandatoryQuestion"
-    textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, questionnaireViewItem.validationResult)
+    textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, questionnaireViewItem.validationResult,(textInputLayout.context.applicationContext as QuestApplication).sharedPreferencesHelper)
   }
 
 

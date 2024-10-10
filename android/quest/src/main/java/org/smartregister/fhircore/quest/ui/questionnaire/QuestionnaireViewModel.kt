@@ -96,8 +96,10 @@ import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
+import org.smartregister.fhircore.quest.util.languageExtensionToActionParameters
 import timber.log.Timber
 import java.util.Date
+import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
@@ -130,6 +132,10 @@ constructor(
       ?.extractLogicalIdUuid()
   }
 
+  val languageCode: String by lazy {
+    sharedPreferencesHelper.read(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, Locale.ENGLISH.toLanguageTag()) ?: Locale.ENGLISH.toLanguageTag()
+  }
+
   private val _questionnaireProgressStateLiveData = MutableLiveData<QuestionnaireProgressState?>()
   val questionnaireProgressStateLiveData: LiveData<QuestionnaireProgressState?>
     get() = _questionnaireProgressStateLiveData
@@ -155,6 +161,7 @@ constructor(
   suspend fun retrieveQuestionnaire(
     questionnaireConfig: QuestionnaireConfig,
     actionParameters: List<ActionParameter>?,
+    languageCode: String
   ): Questionnaire? {
     if (questionnaireConfig.id.isEmpty() || questionnaireConfig.id.isBlank()) return null
 
@@ -164,11 +171,18 @@ constructor(
         resourceDataRulesExecutor.computeResourceDataRules(it, null, emptyMap())
       } ?: emptyMap()
 
-    val allActionParameters =
+    var allActionParameters =
       actionParameters?.plus(
         questionnaireConfig.extraParams?.map { it.interpolate(questionnaireComputedValues) }
           ?: emptyList(),
       )
+
+
+    if (questionnaireConfig.extraParams.isNullOrEmpty() && allActionParameters.isNullOrEmpty()){
+      allActionParameters = languageExtensionToActionParameters(languageCode)
+      questionnaireConfig.extraParams = allActionParameters
+    }
+
 
     val questionnaire =
       defaultRepository.loadResource<Questionnaire>(questionnaireConfig.id)?.apply {
@@ -657,7 +671,7 @@ constructor(
                 addEntry(entity)
               }
             }else{
-              draftResBundle?.addEntry(entity)
+              draftResBundle.addEntry(entity)
             }
           }
 

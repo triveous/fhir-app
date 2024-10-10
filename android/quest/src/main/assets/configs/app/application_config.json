@@ -9,7 +9,13 @@
   "languages": [
     "en",
     "sw",
-    "fr"
+    "fr",
+    "hi",
+    "bn",
+    "te",
+    "mr",
+    "ta",
+    "ur"
   ],
   "useDarkTheme": false,
   "syncInterval": 30,
