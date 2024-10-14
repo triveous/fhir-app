@@ -18,6 +18,10 @@
 
 package org.smartregister.fhircore.quest.ui.login
 
+import android.graphics.Bitmap
+import android.view.ViewGroup
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,6 +41,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -54,8 +59,10 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.TopAppBar
 import androidx.compose.material.contentColorFor
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
@@ -89,6 +96,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
@@ -148,6 +158,8 @@ fun LoginPage(
 ) {
   var showPassword by remember { mutableStateOf(false) }
   var showForgotPasswordDialog by remember { mutableStateOf(false) }
+  var privacyPolicyAccepted by remember { mutableStateOf(false) }
+  var showPrivacyPolicy by remember { mutableStateOf(false) }
   val context = LocalContext.current
   val (versionCode, versionName) = remember { appVersionPair ?: context.appVersion() }
   val coroutineScope = rememberCoroutineScope()
@@ -174,6 +186,10 @@ fun LoginPage(
         onDismissDialog = { showForgotPasswordDialog = false },
       )
     }
+
+    if (showPrivacyPolicy) {
+      PrivacyPolicyPage(onDismiss = { showPrivacyPolicy = false })
+    }
     Column(
       modifier =
       modifier
@@ -199,7 +215,7 @@ fun LoginPage(
         }
         if (
           applicationConfiguration.appTitle.isNotEmpty() &&
-            applicationConfiguration.loginConfig.showAppTitle
+          applicationConfiguration.loginConfig.showAppTitle
         ) {
           Text(
             color = if (applicationConfiguration.useDarkTheme) Color.White else LoginDarkColor,
@@ -235,7 +251,7 @@ fun LoginPage(
             .focusProperties { next = passwordFocusRequester },
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
           keyboardActions =
-            KeyboardActions(onDone = { focusManager.moveFocus(FocusDirection.Next) }),
+          KeyboardActions(onDone = { focusManager.moveFocus(FocusDirection.Next) }),
         )
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = modifier.fillMaxWidth()) {
           Text(
@@ -264,9 +280,9 @@ fun LoginPage(
           singleLine = true,
           placeholder = { Text(color = Color.LightGray, text = "********") },
           visualTransformation =
-            if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+          if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
           keyboardOptions =
-            KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+          KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
           modifier =
           modifier
             .fillMaxWidth()
@@ -286,47 +302,47 @@ fun LoginPage(
             }
           },
           keyboardActions =
-            KeyboardActions(
-              onDone = {
-                focusManager.clearFocus()
-                onLoginButtonClicked()
-              },
-            ),
+          KeyboardActions(
+            onDone = {
+              focusManager.clearFocus()
+              onLoginButtonClicked()
+            },
+          ),
         )
         Text(
           fontSize = 14.sp,
           color = MaterialTheme.colors.error,
           text =
-            when (loginErrorState) {
-              LoginErrorState.UNKNOWN_HOST ->
+          when (loginErrorState) {
+            LoginErrorState.UNKNOWN_HOST ->
+              stringResource(
+                id = R.string.login_error,
+                stringResource(R.string.login_call_fail_error_message),
+              )
+            LoginErrorState.INVALID_CREDENTIALS ->
+              stringResource(
+                id = R.string.login_error,
+                stringResource(R.string.invalid_login_credentials),
+              )
+            null -> ""
+            LoginErrorState.MULTI_USER_LOGIN_ATTEMPT ->
+              stringResource(
+                id = R.string.login_error,
+                stringResource(R.string.multi_user_login_attempt),
+              )
+            LoginErrorState.ERROR_FETCHING_USER ->
+              stringResource(
+                id = R.string.login_error,
                 stringResource(
-                  id = R.string.login_error,
-                  stringResource(R.string.login_call_fail_error_message),
-                )
-              LoginErrorState.INVALID_CREDENTIALS ->
-                stringResource(
-                  id = R.string.login_error,
-                  stringResource(R.string.invalid_login_credentials),
-                )
-              null -> ""
-              LoginErrorState.MULTI_USER_LOGIN_ATTEMPT ->
-                stringResource(
-                  id = R.string.login_error,
-                  stringResource(R.string.multi_user_login_attempt),
-                )
-              LoginErrorState.ERROR_FETCHING_USER ->
-                stringResource(
-                  id = R.string.login_error,
-                  stringResource(
-                    org.smartregister.fhircore.quest.R.string.error_fetching_user_details,
-                  ),
-                )
-              LoginErrorState.INVALID_OFFLINE_STATE ->
-                stringResource(
-                  id = R.string.login_error,
-                  stringResource(R.string.invalid_offline_login_state),
-                )
-            },
+                  org.smartregister.fhircore.quest.R.string.error_fetching_user_details,
+                ),
+              )
+            LoginErrorState.INVALID_OFFLINE_STATE ->
+              stringResource(
+                id = R.string.login_error,
+                stringResource(R.string.invalid_offline_login_state),
+              )
+          },
           modifier =
           modifier
             .wrapContentWidth()
@@ -334,21 +350,46 @@ fun LoginPage(
             .align(Alignment.Start)
             .testTag(LOGIN_ERROR_TEXT_TAG),
         )
+
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.padding(vertical = 8.dp)
+        ) {
+          androidx.compose.material.Checkbox(
+            checked = privacyPolicyAccepted,
+            onCheckedChange = { privacyPolicyAccepted = it },
+            modifier = Modifier.testTag("PRIVACY_POLICY_CHECKBOX")
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "I agree to the ",
+            fontSize = 14.sp
+          )
+          Text(
+            text = "Privacy Policy",
+            fontSize = 14.sp,
+            color = MaterialTheme.colors.primary,
+            modifier = Modifier
+              .clickable { showPrivacyPolicy = true }
+              .testTag("PRIVACY_POLICY_LINK")
+          )
+        }
+
         Spacer(modifier = modifier.height(0.dp))
         Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxWidth()) {
           Button(
-            enabled = !showProgressBar && username.isNotEmpty() && password.isNotEmpty(),
+            enabled = !showProgressBar && username.isNotEmpty() && password.isNotEmpty() && privacyPolicyAccepted,
             colors =
-              ButtonDefaults.buttonColors(
-                backgroundColor = MaterialTheme.colors.primaryVariant,
-                disabledContentColor =
-                  if (applicationConfiguration.useDarkTheme) {
-                    LoginFieldBackgroundColor
-                  } else {
-                    Color.Gray
-                  },
-                contentColor = Color.White,
-              ),
+            ButtonDefaults.buttonColors(
+              backgroundColor = MaterialTheme.colors.primaryVariant,
+              disabledContentColor =
+              if (applicationConfiguration.useDarkTheme) {
+                LoginFieldBackgroundColor
+              } else {
+                Color.Gray
+              },
+              contentColor = Color.White,
+            ),
             onClick = onLoginButtonClicked,
             modifier =
             modifier
@@ -442,42 +483,71 @@ fun ForgotPasswordDialog(
   )
 }
 
-//@PreviewWithBackgroundExcludeGenerated
-//@Composable
-//fun LoginScreenPreview() {
-//  LoginPage(
-//    applicationConfiguration =
-//      ApplicationConfiguration(
-//        appId = "appId",
-//        configType = "application",
-//        appTitle = "FHIRCore App",
-//      ),
-//    username = "",
-//    onUsernameChanged = {},
-//    password = "",
-//    onPasswordChanged = {},
-//    forgotPassword = {},
-//    onLoginButtonClicked = {},
-//    appVersionPair = Pair(1, "0.0.1"),
-//  )
-//}
-//
-//@PreviewWithBackgroundExcludeGenerated
-//@Composable
-//fun LoginScreenPreviewDarkMode() {
-//  LoginPage(
-//    applicationConfiguration =
-//      ApplicationConfiguration(
-//        appId = "appId",
-//        configType = "application",
-//        appTitle = "FHIRCore App",
-//      ),
-//    username = "",
-//    onUsernameChanged = {},
-//    password = "",
-//    onPasswordChanged = {},
-//    forgotPassword = {},
-//    onLoginButtonClicked = {},
-//    appVersionPair = Pair(1, "0.0.1"),
-//  )
-//}
+
+@Composable
+fun PrivacyPolicyPage(onDismiss: () -> Unit) {
+  val privacyPolicyUrl = "https://artpark.in/privacy-policy"
+  var isLoading by remember { mutableStateOf(true) }
+
+  Dialog(
+    onDismissRequest = onDismiss,
+    properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
+  ) {
+    Surface(
+      modifier = Modifier
+        .fillMaxWidth()
+        .fillMaxHeight(0.9f), // Take up 90% of the screen height
+      shape = MaterialTheme.shapes.medium,
+      color = MaterialTheme.colors.surface
+    ) {
+
+      Column(
+        modifier = Modifier.fillMaxSize()
+      ) {
+        TopAppBar(
+          title = { Text("Privacy Policy") },
+          navigationIcon = {
+            IconButton(onClick = onDismiss) {
+              Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+          }
+        )
+
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f)
+        ) {
+
+          AndroidView(
+            factory = { context ->
+              WebView(context).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                  ViewGroup.LayoutParams.MATCH_PARENT,
+                  ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                webViewClient = object : WebViewClient() {
+                  override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                    isLoading = true
+                  }
+
+                  override fun onPageFinished(view: WebView?, url: String?) {
+                    isLoading = false
+                  }
+                }
+                settings.javaScriptEnabled = true
+                loadUrl(privacyPolicyUrl)
+              }
+            },
+            modifier = Modifier.fillMaxSize()
+          )
+          if (isLoading) {
+            CircularProgressIndicator(
+              modifier = Modifier.align(Alignment.Center)
+            )
+          }
+        }
+      }
+    }
+  }
+}
