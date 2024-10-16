@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
@@ -52,6 +53,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.Card
+import androidx.compose.material.Checkbox
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -63,6 +66,7 @@ import androidx.compose.material.TopAppBar
 import androidx.compose.material.contentColorFor
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
@@ -188,7 +192,12 @@ fun LoginPage(
     }
 
     if (showPrivacyPolicy) {
-      PrivacyPolicyPage(onDismiss = { showPrivacyPolicy = false })
+      PrivacyPolicyDialog(
+        onDismiss = { showPrivacyPolicy = false },
+        onAgree = {
+          privacyPolicyAccepted = true
+        }
+      )
     }
     Column(
       modifier =
@@ -253,24 +262,12 @@ fun LoginPage(
           keyboardActions =
           KeyboardActions(onDone = { focusManager.moveFocus(FocusDirection.Next) }),
         )
-        Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.Start, modifier = modifier.fillMaxWidth()) {
           Text(
             text = stringResource(R.string.password),
             modifier = modifier
               .wrapContentWidth()
               .padding(vertical = 4.dp),
-          )
-          Text(
-            text = stringResource(R.string.forgot_password),
-            color = MaterialTheme.colors.primary,
-            style = TextStyle(textDecoration = TextDecoration.Underline),
-            modifier =
-            modifier
-              .wrapContentWidth()
-              .padding(vertical = 8.dp)
-              .clickable {
-                showForgotPasswordDialog = !showForgotPasswordDialog
-              },
           )
         }
         OutlinedTextField(
@@ -309,6 +306,7 @@ fun LoginPage(
             },
           ),
         )
+
         Text(
           fontSize = 14.sp,
           color = MaterialTheme.colors.error,
@@ -346,23 +344,40 @@ fun LoginPage(
           modifier =
           modifier
             .wrapContentWidth()
-            .padding(vertical = 10.dp)
+            .padding(top = 4.dp, start = 8.dp, end = 8.dp)
             .align(Alignment.Start)
             .testTag(LOGIN_ERROR_TEXT_TAG),
         )
 
+        Row(horizontalArrangement = Arrangement.End, modifier = modifier.fillMaxWidth()) {
+          Text(
+            text = stringResource(R.string.forgot_password),
+            color = MaterialTheme.colors.primary,
+            fontSize = 18.sp,
+            modifier =
+            modifier
+              .wrapContentWidth()
+              .padding(vertical = 4.dp)
+              .clickable {
+                showForgotPasswordDialog = !showForgotPasswordDialog
+              },
+          )
+        }
+
         Row(
           verticalAlignment = Alignment.CenterVertically,
           modifier = Modifier.padding(vertical = 8.dp)
+            .fillMaxWidth()
+            .offset(x = (-12).dp)
         ) {
-          androidx.compose.material.Checkbox(
+          Checkbox(
             checked = privacyPolicyAccepted,
             onCheckedChange = { privacyPolicyAccepted = it },
             modifier = Modifier.testTag("PRIVACY_POLICY_CHECKBOX")
           )
-          Spacer(modifier = Modifier.width(8.dp))
+          Spacer(modifier = Modifier.width(4.dp))
           Text(
-            text = "I agree to the ",
+            text = "I agree to Aarogya Aarohan’s ",
             fontSize = 14.sp
           )
           Text(
@@ -485,40 +500,43 @@ fun ForgotPasswordDialog(
 
 
 @Composable
-fun PrivacyPolicyPage(onDismiss: () -> Unit) {
-  val privacyPolicyUrl = "https://artpark.in/privacy-policy"
+fun PrivacyPolicyDialog(onDismiss: () -> Unit, onAgree: () -> Unit) {
+  val privacyPolicyUrl = "https://artpark.in/aaprivacypolicy"
+
   var isLoading by remember { mutableStateOf(true) }
 
-  Dialog(
-    onDismissRequest = onDismiss,
-    properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
-  ) {
-    Surface(
+  Dialog(onDismissRequest = onDismiss) {
+    Card(
       modifier = Modifier
         .fillMaxWidth()
-        .fillMaxHeight(0.9f), // Take up 90% of the screen height
-      shape = MaterialTheme.shapes.medium,
-      color = MaterialTheme.colors.surface
+        .fillMaxHeight(0.8f),
+      elevation = 8.dp
     ) {
-
       Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.padding(16.dp)
       ) {
-        TopAppBar(
-          title = { Text("Privacy Policy") },
-          navigationIcon = {
-            IconButton(onClick = onDismiss) {
-              Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-            }
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            "Privacy Policy",
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp
+          )
+          IconButton(onClick = onDismiss) {
+            Icon(Icons.Default.Close, contentDescription = "Close")
           }
-        )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Box(
           modifier = Modifier
-            .fillMaxWidth()
             .weight(1f)
+            .fillMaxWidth()
         ) {
-
           AndroidView(
             factory = { context ->
               WebView(context).apply {
@@ -546,6 +564,22 @@ fun PrivacyPolicyPage(onDismiss: () -> Unit) {
               modifier = Modifier.align(Alignment.Center)
             )
           }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp).align(Alignment.End))
+
+        Row(modifier = Modifier.clickable {
+          onAgree()
+          onDismiss()
+        }
+          .fillMaxWidth()
+          .padding(horizontal = 8.dp),
+          horizontalArrangement = Arrangement.End
+        ) {
+          Text("I agree",
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            color = LightColors.primaryVariant)
         }
       }
     }
