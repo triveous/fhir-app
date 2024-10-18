@@ -1,0 +1,303 @@
+<resources xmlns:ns1="http://schemas.android.com/apk/res-auto">
+        <string name="back_to_clients">গ্ৰাহক তালিকালৈ উভতি যাওক</string>
+        <string name="test_results">পরীক্ষাৰ ফলাফল</string>
+
+        <string name="edit_patient_info">তথ্য সম্পাদনা কৰক</string>
+
+        <string name="menu_clients">গ্ৰাহক</string>
+        <string name="menu_settings">ছেটিংচ</string>
+
+        <string name="cannot_find_parent_questionnaire">মূল প্ৰশ্নাৱলী বিচাৰি পোৱা নাযায়!</string>
+        <string name="max_size_file_above_limit_validation_error_msg">ভুল: ফাইলৰ আকাৰ %1$s MBতকৈ বেছি</string>
+        <string name="max_size_image_above_limit_validation_error_msg">ভুল: ছবিৰ আকাৰ %1$s MBতকৈ বেছি</string>
+        <string name="max_value_validation_error_msg">সৰ্বাধিক মান অনুমোদিত হৈছে:<ns1:g id="max_value">%1$s</ns1:g></string>
+        <string name="mime_type_wrong_media_format_validation_error_msg">ভুল: ভুল মিডিয়া ফৰ্মেট</string>
+        <string name="min_length_validation_error_msg">উত্তৰত অন্তত %1$s টা অক্ষৰ থাকিব লাগে:<ns1:g id="min_length">%1$s</ns1:g></string>
+        <string name="min_value_validation_error_msg">সৰ্বনিম্ন মান অনুমোদিত হৈছে:<ns1:g id="min_value">%1$s</ns1:g></string>
+        <string name="multi_select_dialog_subtitle">সকলো বাছনি কৰক যি প্ৰযোজ্য</string>
+        <string name="take_photo">ছবি লওক</string>
+        <string name="time">সময়</string>
+        <string name="upload_audio">অডিঅ’ আপলোড কৰক</string>
+        <string name="add_photo">ছবি যোগ কৰক</string>
+        <string name="upload_document">নথি আপলোড কৰক</string>
+        <string name="upload_failed">আপলোড বিফল</string>
+        <string name="image_capture_failed">ছবি ধৰা বিফল</string>
+        <string name="upload_file">ফাইল আপলোড কৰক</string>
+        <string name="upload_photo">ছবি আপলোড কৰক</string>
+        <string name="upload_video">ভিডিঅ’ আপলোড কৰক</string>
+        <string name="uploaded">আপলোড সম্পূৰ্ণ</string>
+        <string name="video_deleted">ভিডিঅ’ মচা হৈছে</string>
+        <string name="video_uploaded">ভিডিঅ’ আপলোড সম্পূৰ্ণ</string>
+        <string name="audio_deleted">অডিঅ’ মচা হৈছে</string>
+        <string name="audio_uploaded">অডিঅ’ আপলোড সম্পূৰ্ণ</string>
+
+        <string name="loading_forms">ফৰ্মসমূহ ল’ড কৰা হৈছে…</string>
+        <string name="loading_responses">প্ৰতিক্ৰিয়াসমূহ ল’ড কৰা হৈছে…</string>
+        <string name="loading_patients">ঘটনাসমূহ ল’ড কৰা হৈছে…</string>
+        <string name="no_test_results_found">কোনো পৰীক্ষাৰ ফলাফল পোৱা নাযায়</string>
+        <string name="patient_test_results">পৰীক্ষাৰ ফলাফল</string>
+        <string name="last_test">শেহতীয়া পৰীক্ষা - %1$s</string>
+        <string name="sample_distance" translatable="false">2.4 km</string>
+        <string name="hash_sign" translatable="false">#</string>
+        <string name="menu_tasks">কৰ্মসমূহ</string>
+        <string name="household">গৃহস্থ</string>
+        <string name="routine_visit">নিয়মীয়া পৰিদৰ্শন</string>
+        <string name="anc_visit">ANC পৰিদৰ্শন</string>
+        <string name="at_risk">জোখৰ</string>
+        <string name="no_tasks">কৰ্ম নাই</string>
+        <string name="add_member">সদস্য যোগ কৰক</string>
+        <string name="what_to_do">আপুনি কি কৰিব বিচাৰে?</string>
+
+        <!-- Overflow menu strings -->
+        <string name="view_profile">প্ৰফাইল চাওক</string>
+        <string name="family_details">পৰিয়ালৰ বিস্তারিত</string>
+        <string name="change_family_head">পৰিয়ালৰ মূৰব্বী সলনি কৰক</string>
+        <string name="change_primary_caregiver">প্ৰধান যত্নদানকাৰী সলনি কৰক</string>
+        <string name="family_activity">পৰিয়ালৰ সক্রিয়তা</string>
+        <string name="view_past_encounters">অতীতৰ ঘটনাসমূহ চাওক</string>
+        <string name="remove_family">পৰিয়াল আঁতৰাওক</string>
+        <string name="family_suffix">%1$s পৰিয়াল</string>
+        <string name="remove_this_person">এই ব্যক্তিক আঁতৰাওক</string>
+        <string name="individual_details">ব্যক্তিগত বিবৰণ</string>
+        <string name="view_family">পৰিয়াল চাওক</string>
+        <string name="record_sick_child">অসুস্থ শিশুৰ পৰিসংখ্যা কৰক</string>
+
+        <!-- SideMenu option strings -->
+        <string name="device_to_device_sync">ডিভাইচৰ সৈতে সিঙ্ক</string>
+        <string name="anc_clients">ANC গ্ৰাহক</string>
+        <string name="all_clients">সকলো গ্ৰাহক</string>
+        <string name="pnc_clients">PNC গ্ৰাহক</string>
+        <string name="hiv_clients">গ্ৰাহক তালিকা</string>
+        <string name="phone_tracing_clients">ফোনত সন্ধান কৰক</string>
+        <string name="home_tracing_clients">গৃহ সন্ধান</string>
+        <string name="appointment_clients">পূৰ্বনির্ধাৰিত সাক্ষাৎকাৰ</string>
+        <string name="family_planning_clients">পৰিয়াল পৰিকল্পনা গ্ৰাহক</string>
+        <string name="households">গৃহস্থৰ সদস্য</string>
+        <string name="children">শিশুসকল</string>
+
+        <!-- Remove family questionnaire strings -->
+        <string name="remove_family_warning">%1$s আঁতৰাই থোৱা হ’লে, তেওঁলোকৰ সমগ্ৰ স্বাস্থ্য ৰেকৰ্ড আপোনাৰ ডিভাইচৰ পৰা আঁতৰোৱা হ\'ব। এই কাৰ্য পুনৰুদ্ধাৰ কৰিব পৰা নাযায়।</string>
+
+        <!-- Remove family member questionnaire strings -->
+        <string name="remove_family_member_warning">%1$s চিৰদিনৰ বাবে পৰিয়ালৰ পৰা আঁতৰ কৰা হ\'ব। এই কাৰ্য পুনৰুদ্ধাৰ কৰিব পৰা নাযায়।</string>
+        <string name="remove_member">সদস্য আঁতৰাওক</string>
+
+        <!-- Reporting strings -->
+        <string name="date_range">তাৰিখৰ সীমা</string>
+        <string name="change">সলনি কৰক</string>
+        <string name="all">সকলো</string>
+        <string name="individual">ব্যক্তিগত</string>
+        <string name="please_wait">অনুগ্ৰহ কৰি অপেক্ষা কৰক…</string>
+        <string name="patient">ৰোগী</string>
+        <string name="subject">বিষয়</string>
+        <string name="generate_report">ৰিপ’ৰ্ট প্রস্তুত কৰক</string>
+        <string name="select_patient">ৰোগী বাছনি কৰক</string>
+        <string name="select_subject">বিষয় বাছনি কৰক</string>
+        <string name="start_date">আৰম্ভৰ তাৰিখ</string>
+        <string name="end_date">শেষৰ তাৰিখ</string>
+        <string name="select_date">তাৰিখ বাছনি কৰক</string>
+
+        <!-- Change family head strings -->
+        <string name="no_eligible_family_members">নতুন মুৰব্বীৰ বাবে উপযুক্ত সদস্য নাপোৱা হ’ল।</string>
+        <string name="label_select_new_head">নতুন পৰিয়াল মুৰব্বী বাছনি কৰক</string>
+        <string name="label_assign_new_family_head">নতুন মুৰব্বী নিযুক্ত কৰক</string>
+        <string name="alert_message_abort_operation">আপুনি নিশ্চিত নেকি যে আপুনি এই কাৰ্য বন্ধ কৰিব বিচাৰে?</string>
+
+        <!-- Dialog alert messages -->
+        <string name="unsaved_changes_message_alert">আপুনি সংৰক্ষণ নকৰাকৈ আঁতৰিলে, আপোনাৰ সম্পাদিত বা পৰিবৰ্তন কৰা ডেটা হেৰাই যাব</string>
+        <string name="visit_due_on">%1$s এই তাৰিখত কাৰ্যকৰী হ’ব: %2$s</string>
+        <string name="visit_due_today">%1$s আজিৰ বাবে কাৰ্যকৰী</string>
+        <string name="visit_overdue">%1$s %2$s আগতে উপেক্ষিত হৈছে</string>
+        <string name="record_as_anc">ANC হিচাপে পৰিসংখ্যা কৰক</string>
+        <string name="pregnancy_outcome">গৰ্ভ অৱস্থা ফলাফল</string>
+        <string name="registers">ৰেজিষ্টাৰ</string>
+        <string name="questionnaire_response_name" translatable="false">%1$s (%2$s)</string>
+        <string name="due_on">নিৰ্ব্ধাৰিত তাৰিখ %1$s</string>
+        <string name="geo_widget_fragment_destination" translatable="false">জিঅ\' উইজেট ফ্ৰেগমেণ্ট গন্তব্য</string>
+        <string name="structuremap_failed"> %1$s-ৰ বাবে উৎস উলিওৱাত ব্যৰ্থ</string>
+        <string name="structure_map_missing_message">প্ৰশ্নাৱলীৰ বাবে StructureMap অনুপস্থিত, QuestionnaireResponse সংৰক্ষণ হৈছে</string>
+        <string name="structure_success"> %1$s-ৰ বাবে উৎস সফলতাৰে উলিওৱা হৈছে</string>
+        <string name="reassigned_managing_entity">ম্যানেজিং এন্টিটী পুনৰ নিযুক্ত কৰা হৈছে</string>
+        <string name="error_fetching_user_details">ব্যৱহাৰকাৰীৰ বিৱৰণ সংগ্ৰহ কৰিবলৈ ব্যৰ্থ</string>
+        <string name="questionnaire_not_found">প্ৰশ্নাৱলী পোৱা নগল। সকলো প্রশ্নাৱলী ছিঙ্ক কৰক</string>
+        <string name="no_visits">কোনো পৰিদৰ্শন নাই</string>
+        <string name="questionnaire_response_invalid">প্ৰশ্নাৱলীৰ উত্তৰ অকাৰ্য্যকৰ</string>
+        <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>
+        <string name="application_version" translatable="false">এপ্লিকেচন সংস্কৰণ</string>
+        <string name="missing_subject_type">প্ৰশ্নাৱলীত বিষয়ৰ ধৰণ অনুপস্থিত। সমস্যা সমাধান কৰিবলৈ Questionnaire.subjectType প্ৰদান কৰক।</string>
+        <string name="missing_questionnaire_config">QuestionnaireConfig প্ৰয়োজন কিন্তু অনুপস্থিত।</string>
+        <string name="error_populating_questionnaire">কিছুমান প্ৰশ্নাৱলীৰ ক্ষেত্ৰ পূৰণত ত্ৰুটি। অকাৰ্য্যকৰ QuestionnaireResponse।</string>
+        <string name="extraction_in_progress">প্ৰশ্নাৱলীৰ তথ্য প্ৰসেসিং...</string>
+        <string name="loading_questionnaire">প্ৰশ্নাৱলী লোডিং...</string>
+        <string name="clear_all">সকলো পৰিস্কাৰ কৰক</string>
+        <string name="yes">হয়</string>
+        <string name="no">নহয়</string>
+        <string name="location_permissions_denied">স্থান এক্সেছ প্ৰত্যাখ্যান: স্থান ধৰাৰ বাবে, ডিভাইচৰ ছেটিংছত স্থান অনুমতি সক্রিয় কৰক।</string>
+        <string name="camera_permissions_denied">অনুমতি প্ৰত্যাখ্যান: ফটো ধৰাৰ বাবে, কেমেৰা অনুমতি সক্রিয় কৰক।</string>
+        <string name="location_services_disabled">স্থান সেৱাসমূহ নিস্ক্ৰিয় কৰা হৈছে। আপুনি ইহা সক্রিয় কৰিবলৈ চাহিছে নেকি?</string>
+        <string name="copy_text_success_message">লিংক %1$s সফলতাৰে কপি কৰা হৈছে</string>
+        <string name="hello_blank_fragment">নমস্কাৰ ব্লেঙ্ক ফ্ৰেগমেণ্ট</string>
+        <string name="required_text_and_new_line">অনুগ্ৰহ কৰি প্ৰয়োজনীয় স্থান পূৰণ কৰক</string>
+        <string name="retake">পুনৰ ধৰা</string>
+        <string name="done">সম্পন্ন</string>
+        <string name="no_unsync_patients">কোনো ছিঙ্ক হোৱা কেচ নাই।</string>
+        <string name="no_draft_patients">আপোনাৰ কোনো সংৰক্ষিত খচৰা নাই</string>
+        <string name="no_patients_added">এখনো কেচ দাখিল কৰা নাই</string>
+        <string name="delete_draft_desc">আপুনি নিশ্চিত জানিবলৈ চাহিছে যে আপুনি ৰেকৰ্ড মচিব?</string>
+        <string name="delete_draft_title">ৰেকৰ্ড মচক</string>
+        <string name="loading_followups">কেচ লোডিং হৈছে</string>
+        <string name="no_followups">নতুন কেচ নাই</string>
+        <string name="update_status">স্থিতি আপডেট কৰক</string>
+        <string name="update">আপডেট কৰক</string>
+        <string name="select_language">ভাষা বাচক</string>
+        <string name="cancel">বাতিল কৰক</string>
+        <string name="close">বন্ধ কৰক</string>
+        <string name="no_cases">কোনো মিল থকা পৰামৰ্শ পোৱা নগল!</string>
+        <string name="not_contacted">যোগাযোগ কৰা হোৱা নাই</string>
+        <string name="not_responded">প্ৰতিক্ৰিয়া দিয়া হোৱা নাই</string>
+        <string name="add_patient">নতুন কেচ যোগ কৰক</string>
+        <string name="pending_agreed_not_done">সম্মত হৈছে, অনুসৰণ কৰা হোৱা নাই</string>
+        <string name="pending_not_agreed">অনুসৰণৰ বাবে সম্মতি দিয়া হোৱা নাই</string>
+        <string name="recenty_submitted_label">অতি সাম্প্ৰতিক দাখিল কৰা</string>
+        <string name="draft">খচৰা</string>
+        <string name="add_case">কেচ যোগ কৰক</string>
+        <string name="not_agrred_empty_label">অনুসৰণৰ বাবে সম্মতি দিয়া হোৱা নাই</string>
+        <string name="not_responded_empty_label">প্ৰতিক্ৰিয়া দিয়া হোৱা নাই</string>
+        <string name="not_contacted_empty_label">যোগাযোগ কৰা হোৱা নাই</string>
+        <string name="agrred_not_done_empty_label">সম্মতি দিয়া হৈছে কিন্তু অনুসৰণ কৰা হোৱা নাই</string>
+        <string name="completed_empty_label">সম্পূৰ্ণ কেচ নাই</string>
+
+        <string name="kle_dental_sciences">কেএলই সোসাইটি’ৰ ইনষ্টিটিউট অৱ ডেন্টাল ছাইন্সেছ, বেংগালুৰু</string>
+        <string name="aiims_delhi">এআইআইএমএস, দিল্লী</string>
+        <string name="nci_jhajjar">এনচিআই, ঝাঝাৰ</string>
+        <string name="msmf_bangalore">এমএছএমএফ, নাৰায়ণা হৃদয়ালয় হেলথ চিটি, বেংগালুৰু</string>
+        <string name="msmc_bangalore">এমএছএমচি, নাৰায়ণা হৃদয়ালয় হেলথ চিটি, বেংগালুৰু</string>
+        <string name="public_health_krishnagiri">পাব্লিক হেলথ ফেচিলিটিজ, কৃষ্টনগিৰি</string>
+        <string name="public_health_thanjavur">পাব্লিক হেলথ ফেচিলিটিজ, থানজাভুৰ</string>
+        <string name="mpmmcc_varanasi">এমপিএমএমচিচি, বারাণসী</string>
+        <string name="cachar_cancer_silchar">কাছাৰ কেঞ্চাৰ হাস্পতাল আৰু গৱেষণা কেন্দ্ৰ, শিলচৰ</string>
+        <string name="dr_borooah_cancer_guwahati">ড° ভুবনেশ্বৰ বৰুৱা কেঞ্চাৰ ইনষ্টিটিউট, গুৱাহাটী</string>
+
+
+
+        <!-- Districts -->
+        <string name="district_bengaluru">বেংগালুৰু</string>
+        <string name="district_new_delhi">নিউ দিল্লী</string>
+        <string name="district_bengaluru_rural">বেংগালুৰু গ্ৰাম্য</string>
+        <string name="district_krishnagiri">কৃষ্টনগিৰি</string>
+        <string name="district_thanjavur">থানজাভুৰ</string>
+        <string name="district_varanasi">বারাণসী</string>
+        <string name="district_cachar">কাছাৰ</string>
+        <string name="district_guwahati">গুৱাহাটী</string>
+
+
+        <!-- States -->
+        <string name="state_karnataka">কৰ্ণাটক</string>
+        <string name="state_delhi">দিল্লী</string>
+        <string name="state_tamil_nadu">তামিলনাডু</string>
+        <string name="state_uttar_pradesh">উত্তৰ প্ৰদেশ</string>
+        <string name="state_assam">অসম</string>
+
+
+        <!-- Profile-->
+        <string name="change_password">পাছৱৰ্ড সলনি কৰক</string>
+        <string name="change_language">ভাষা সলনি কৰক</string>
+        <string name="logout">লগ আউট</string>
+        <string name="change_pin">পিন সলনি কৰক</string>
+        <string name="profile_username">ব্যৱহাৰকাৰী নাম: %s</string>
+
+
+        <!-- Cases-->
+        <string name="visited">দৰ্শন কৰা</string>
+        <string name="cases_sync">সিঙ্ক: %s</string>
+        <string name="dynamic_see_more">অধিক %s চাওক</string>
+        <string name="dynamic_total_drafts">মুঠ খচৰা: %s</string>
+        <string name="dynamic_visited">দৰ্শন কৰা %s</string>
+        <string name="created">তৈয়াৰ কৰা</string>
+        <string name="total_submissions">মুঠ দাখিল: %s</string>
+        <string name="un_synced_submissions">অসংক্ৰান্ত দাখিল: %s</string>
+        <string name="synced_submissions">সংক্ৰান্ত দাখিল: %s</string>
+        <string name="nothing_in_un_synced">অসংক্ৰান্তত কিবা নাই</string>
+        <string name="cases_no_draft_patients">এতিয়ালৈকে কোনো কেছ যোগ কৰা হোৱা নাই। নতুন কেছ যোগ কৰি আৰম্ভ কৰক।</string>
+
+
+        <!-- Recommendation-->
+        <string name="phone">ফোন:</string>
+        <string name="add_investigation">তদন্ত যোগ কৰক</string>
+        <string name="urgent_referral">তৎকালীন উল্লেখ</string>
+        <string name="retake_photo">পুনৰ ছবি তুলি</string>
+        <string name="image_saved">ছবি সংৰক্ষিত হৈছে</string>
+        <string name="sync_status">সংক্ৰান্ত অৱস্থা</string>
+        <string name="sync_now">এতিয়াই সিঙ্ক কৰক</string>
+        <string name="notification_sync_failed">সংক্ৰান্তৰ ব্যৰ্থতা</string>
+        <string name="notification_sync">সিঙ্ক হৈছে…</string>
+        <string name="image_left">ছবি অবশিষ্ট: %s</string>
+        <string name="okay">বঢ়ীয়া</string>
+
+
+        <!-- Notification -->
+        <string name="notification_permission_title">বিজ্ঞপ্তি অনুমতি</string>
+        <string name="notification_permission_description">সর্বশেষ তথ্য সিঙ্কৰ বিষয়ে অৱগত থাকিবলৈ বিজ্ঞপ্তি সক্ৰিয় কৰক। সঠিক সময়ত সিঙ্ক সতর্কতাসমূহ অনুমতি দি আপোনাৰ এপ্লিকেশ্বন সদায় সৰ্বাধিক সদ্যতম তথ্য লাভ কৰে।</string>
+
+        <!-- Menu-->
+        <string name="menu_cases">কেছ</string>
+        <string name="menu_recommendations">সুপাৰিশসমূহ</string>
+        <string name="menu_dashboard">ডেছব\'ৰ্ড</string>
+
+
+        <!-- Recommendations -->
+        <string name="enter_name_or_phone">নাম বা ফোন নম্বৰ লিখক</string>
+        <string name="status_new">নতুন</string>
+        <string name="status_pending">পেণ্ডিং</string>
+        <string name="status_completed">সম্পূৰ্ণ</string>
+
+
+        <!-- Dashboard -->
+        <string name="health_center">স্বাস্থ্য কেন্দ্ৰ</string>
+        <string name="total_screened_cases">মুঠ পৰীক্ষিত কেছ</string>
+        <string name="today">আজিৰ দিন</string>
+        <string name="this_week">এই সপ্তাহ</string>
+        <string name="this_month">এই মাহ</string>
+        <string name="dashboard_add_patient">নতুন কেছ যোগ কৰক</string>
+
+
+        <!-- See All-->
+        <string name="view_all_draft">ড্ৰাফটসমূহ</string>
+        <string name="view_all_submissions">সমস্ত জমা</string>
+
+
+        <!-- View All-->
+        <string name="view_all">সকল দেখুৱাওক</string>
+        <string name="view_all_urgent_referral">তৎকালীন উল্লেখ</string>
+        <string name="view_all_add_investigation">তদন্ত যোগ কৰক</string>
+        <string name="view_all_retake_photo">পুনৰ ছবি তুলি</string>
+        <string name="view_all_advice_to_quit">বিৰতিৰ পৰামৰ্শ</string>
+        <string name="view_all_advice_to_quit_habit">আদত বিৰতিৰ পৰামৰ্শ</string>
+        <string name="view_all_change_status">অৱস্থা সলনি কৰক</string>
+        <string name="view_all_phone">ফোন %s</string>
+        <string name="phone_with_space">ফোন </string>
+        <string name="view_all_call">কল</string>
+        <string name="view_all_screened_on">পৰীক্ষা কৰা হৈছে</string>
+
+        <!-- Toolbar-->
+        <string name="toolbar_recently_added">মাজৰ পৰা সন্নিবিষ্ট</string>
+
+
+        <!-- SnackBar-->
+        <string name="status_updated_successfully">অৱস্থা সফলতাৰে আপডেট কৰা হৈছে</string>
+        <string name="select_status_to_update">আপডেট কৰিবলৈ অৱস্থা বাচনি কৰক</string>
+
+
+        <!-- Screen Title-->
+        <string name="not_agreed_for_followup">পৰৱৰ্তী অনুসৰণৰ বাবে একমত নহ\'ল</string>
+        <string name="agreed_followup_not_done">একমত হৈছে, অনুসৰণ কৰা হোৱা নাই</string>
+        <string name="followup_done">অনুসৰণ কৰা হৈছে</string>
+        <string name="remove_case">একমত নহ\'ল, কেছ আঁতৰাওক</string>
+        <string name="null_status">শূণ্য</string>
+        <string name="none_status">কোনো নাই</string>
+        <string name="default_status">ডিফল্ট</string>
+        <string name="remove_status">অৱস্থা আঁতৰাওক</string>
+        <string name="submit_questionnaire">জৱাব জমা কৰক</string>
+        <string name="button_pagination_next">পৰৱৰ্তী</string>
+        <string name="button_pagination_previous">পূৰ্বৰ</string>
+    </resources>
