@@ -7,4 +7,5 @@
     <locale android:name="mr"/>
     <locale android:name="ta"/>
     <locale android:name="ur"/>
+    <locale android:name="as"/>
 </locale-config>

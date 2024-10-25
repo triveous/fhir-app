@@ -67,7 +67,7 @@ android {
     versionCode = BuildConfigs.versionCode
     versionName = BuildConfigs.versionName
     multiDexEnabled = true
-    resourceConfigurations += listOf("en", "hi", "bn", "te", "mr", "ta", "ur")
+    resourceConfigurations += listOf("en", "hi", "bn", "te", "mr", "ta", "ur", "as")
     buildConfigField("boolean", "SKIP_AUTH_CHECK", "false")
     buildConfigField("String", "FHIR_BASE_URL", """"${project.extra["FHIR_BASE_URL"]}"""")
     buildConfigField("String", "OAUTH_BASE_URL", """"${project.extra["OAUTH_BASE_URL"]}"""")

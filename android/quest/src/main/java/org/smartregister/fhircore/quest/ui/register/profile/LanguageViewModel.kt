@@ -35,7 +35,8 @@ class LanguageViewModel @Inject constructor(
             LanguageConstants.TELUGU,
             LanguageConstants.MARATHI,
             LanguageConstants.TAMIL,
-            LanguageConstants.URDU
+            LanguageConstants.URDU,
+            LanguageConstants.ASSAMESE
         )
     )
 
@@ -47,7 +48,8 @@ class LanguageViewModel @Inject constructor(
             LanguageCodeConstants.TELUGU_CODE,
             LanguageCodeConstants.MARATHI_CODE,
             LanguageCodeConstants.TAMIL_CODE,
-            LanguageCodeConstants.URDU_CODE
+            LanguageCodeConstants.URDU_CODE,
+            LanguageCodeConstants.ASSAMESE_CODE,
         )
     )
 

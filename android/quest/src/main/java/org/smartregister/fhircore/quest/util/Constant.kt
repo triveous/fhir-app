@@ -16,6 +16,7 @@ object LanguageConstants {
     const val MARATHI = "Marathi (मराठी)"
     const val TAMIL = "Tamil (தமிழ்)"
     const val URDU = "Urdu (اردو)"
+    const val ASSAMESE = "Assamese (অসমীয়া)"
 }
 
 object LanguageCodeConstants {
@@ -26,6 +27,7 @@ object LanguageCodeConstants {
     const val MARATHI_CODE = "mr"
     const val TAMIL_CODE = "ta"
     const val URDU_CODE = "ur"
+    const val ASSAMESE_CODE = "as"
 }
 
 //Questionnaire custom extention

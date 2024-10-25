@@ -27,7 +27,7 @@ data class ApplicationConfiguration(
   override var configType: String = ConfigType.Application.name,
   val appTitle: String = "",
   val remoteSyncPageSize: Int = 100,
-  val languages: List<String> = listOf("en", "hi", "bn", "te", "mr", "ta", "ur"),
+  val languages: List<String> = listOf("en", "hi", "bn", "te", "mr", "ta", "ur", "as"),
   val useDarkTheme: Boolean = false,
   val syncInterval: Long = 15,
   val syncStrategies: List<String> = listOf(),
