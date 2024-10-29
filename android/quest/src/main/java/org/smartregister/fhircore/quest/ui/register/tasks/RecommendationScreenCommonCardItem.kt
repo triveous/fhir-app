@@ -45,12 +45,17 @@ fun CardItemViewAllTask(
     task: TasksViewModel.TaskItem,
     onSelectTask: (TasksViewModel.TaskItem) -> Unit
 ) {
-    var name = ""
-    var phone = ""
-    if (task.patient?.name?.isNotEmpty() == true && task.patient.name?.get(0)?.given?.isNotEmpty() == true) {
-        name = task.patient.name?.get(0)?.given?.get(0)?.value.toString()
-        phone = task.patient.telecom?.get(0)?.value.toString()
-    }
+    val name = task.patient?.name
+        ?.firstOrNull()
+        ?.given
+        ?.firstOrNull()
+        ?.value
+        ?: ""
+
+    val phone = task.patient?.telecom
+        ?.firstOrNull()
+        ?.value
+        ?: ""
     val taskStatusList = viewModel.getTaskCodeWithValue(task)
     println("CardItemView getTaskStatusList--> $taskStatusList")
 

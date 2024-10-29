@@ -782,16 +782,21 @@ fun BottomSheetContent(
     onCancel: () -> Unit
 ) {
 
-    var name = ""
-    var phone = ""
-    var date = ""
-    var address = ""
-    if (task.patient?.name?.isNotEmpty() == true && task.patient.name?.get(0)?.given?.isNotEmpty() == true) {
-        name = task.patient.name?.get(0)?.given?.get(0)?.value.toString()
-        phone = task.patient.telecom?.get(0)?.value.toString()
-        date = task.patient.meta?.lastUpdated?.let { convertToDate(it) }.toString()
-        address = getPatientAddress(task.patient)
-    }
+    val name = task.patient?.name
+        ?.firstOrNull()
+        ?.given
+        ?.firstOrNull()
+        ?.value
+        ?: ""
+
+    val phone = task.patient?.telecom
+        ?.firstOrNull()
+        ?.value
+        ?: ""
+
+    val date = task.patient?.meta?.lastUpdated?.let { convertToDate(it) }.toString()
+    val address = getPatientAddress(task.patient)
+
     val context = LocalContext.current
     Column(
         modifier = Modifier
@@ -1244,12 +1249,17 @@ fun CardItemView(
     task: RegisterViewModel.TaskItem,
     onSelectTask: (RegisterViewModel.TaskItem) -> Unit
 ) {
-    var name = ""
-    var phone = ""
-    if (task.patient?.name?.isNotEmpty() == true && task.patient.name?.get(0)?.given?.isNotEmpty() == true) {
-        name = task.patient.name?.get(0)?.given?.get(0)?.value.toString()
-        phone = task.patient.telecom?.get(0)?.value.toString()
-    }
+    val name = task.patient?.name
+        ?.firstOrNull()
+        ?.given
+        ?.firstOrNull()
+        ?.value
+        ?: ""
+
+    val phone = task.patient?.telecom
+        ?.firstOrNull()
+        ?.value
+        ?: ""
     val taskStatusList = viewModel.getTaskCodeWithValue(task)
     println("CardItemView getTaskStatusList--> $taskStatusList")
 
