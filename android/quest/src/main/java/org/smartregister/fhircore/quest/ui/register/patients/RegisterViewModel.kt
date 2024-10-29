@@ -503,12 +503,20 @@ constructor(
                 val patient = taskItem.patient
                 patient?.let {
                     if (isPhoneNumber) {
-                        val phone = patient?.telecom?.get(0)?.value.toString()
+                        val phone = patient?.telecom
+                            ?.firstOrNull()
+                            ?.value
+                            ?: ""
                         if (taskItem.task.status != TaskStatus.REJECTED && searchText.contains(phone)) {
                             matchedTasksWithPatientList.add(taskItem)
                         }
                     } else {
-                        val name = patient?.name?.get(0)?.given?.get(0)?.value.toString() ?: ""
+                        val name = patient?.name
+                            ?.firstOrNull()
+                            ?.given
+                            ?.firstOrNull()
+                            ?.value
+                            ?: ""
                         if (taskItem.task.status != TaskStatus.REJECTED && name.contains(
                                 searchText,
                                 true

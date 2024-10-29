@@ -369,16 +369,19 @@ fun TasksBottomSheetContent(
   onCancel: () -> Unit
 ) {
 
-  var name = ""
-  var phone = ""
-  var date = ""
-  var address = ""
-  if (task.patient?.name?.isNotEmpty() == true && task.patient?.name?.get(0)?.given?.isNotEmpty() == true){
-    name = task.patient?.name?.get(0)?.given?.get(0)?.value.toString()
-    phone = task.patient?.telecom?.get(0)?.value.toString()
-    date = task.patient?.meta?.lastUpdated?.let { OpensrpDateUtils.convertToDate(it) }.toString()
-    address = getPatientAddress(task.patient)
-  }
+  val name = task.patient?.name
+    ?.firstOrNull()
+    ?.given
+    ?.firstOrNull()
+    ?.value
+    ?: ""
+
+  val phone = task.patient?.telecom
+    ?.firstOrNull()
+    ?.value
+    ?: ""
+  val date = task.patient?.meta?.lastUpdated?.let { OpensrpDateUtils.convertToDate(it) }.toString()
+  val address = getPatientAddress(task.patient)
   val context = LocalContext.current
   Column(
     modifier = Modifier
