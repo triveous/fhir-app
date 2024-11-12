@@ -196,5 +196,7 @@
     <string name="failed_to_complete_request_successfully">అభ్యర్థనను విజయవంతంగా పూర్తి చేయడంలో విఫలమయ్యింది</string>
     <string name="no_internet_connection">ఇంటర్నెట్ కనెక్షన్ లేదు</string>
     <string name="notification_title_document_upload">పత్రం అప్‌లోడ్</string>
+    <string name="agree_privacy_policy">"I agree to Aarogya Aarohan’s "</string>
+    <string name="privacy_policy">Privacy Policy</string>
 
 </resources>

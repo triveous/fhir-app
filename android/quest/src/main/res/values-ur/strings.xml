@@ -293,4 +293,6 @@
     <string name="button_pagination_previous">پچھلا</string>
     <string name="dynamic_total_drafts">کل ڈرافٹس: %s</string>
     <string name="dynamic_visited">دیکھا %s</string>
+    <string name="agree_privacy_policy">میں آروگیا آروہن سے اتفاق کرتا ہوں</string>
+    <string name="privacy_policy">رازداری کی پالیسی</string>
 </resources>

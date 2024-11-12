@@ -291,4 +291,7 @@
     <string name="button_pagination_previous">পূর্ববর্তী</string>
     <string name="dynamic_total_drafts">মোট ড্রাফট: %s</string>
     <string name="dynamic_visited">পরিদর্শন করা হয়েছে %s</string>
+    <string name="agree_privacy_policy">আমি আরোগ্য আরোহণ-এর সাথে সম্মত</string>
+    <string name="privacy_policy">গোপনীয়তা নীতি</string>
+
 </resources>

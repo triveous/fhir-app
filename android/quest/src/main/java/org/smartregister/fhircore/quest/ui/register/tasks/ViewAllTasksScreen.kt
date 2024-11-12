@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -41,6 +42,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ModalBottomSheetLayout
 import androidx.compose.material.ModalBottomSheetValue
@@ -283,8 +285,8 @@ fun ViewAllTasksScreen(
         Box(
           modifier = modifier
             .background(SearchHeaderColor)
-        )
-        {
+        ) {
+          val isFetching by viewModel.isFetching.collectAsState()
           var selectedFilter by remember { mutableStateOf(Pair(TaskCode.URGENT_REFER_TO_HOSPITAL.code,"")) }
           val filteredTasks by viewModel.filteredTasksStateFlow.collectAsState()
           val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
@@ -316,37 +318,49 @@ fun ViewAllTasksScreen(
                 .fillMaxWidth()
             ) {
 
-              if (filteredTasks.isEmpty()){
-                Box(
-                  modifier = modifier
-                    .background(SearchHeaderColor)
-                    .padding(top = 48.dp)
-                    .fillMaxWidth(),
-                  contentAlignment = Alignment.Center
-                ) {
-
-                  Box(
+              if (isFetching){
+                Column(modifier = Modifier
+                  .fillMaxWidth()
+                  .fillMaxHeight(),
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  verticalArrangement = Arrangement.Center) {
+                  CircularProgressIndicator(
                     modifier = modifier
-                      .padding(horizontal = 16.dp)
-                      .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                  ) {
-                    Text(text = stringResource(id = R.string.no_cases))
-                  }
+                      .size(48.dp),
+                    strokeWidth = 4.dp,
+                    color = LightColors.primary,
+                  )
                 }
               }else{
-                LazyColumn(modifier = modifier
-                  .background(SearchHeaderColor)) {
-                  items(filteredTasks) { task ->
-                    Box(
+                if (filteredTasks.isEmpty()){
+                  Column(modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center) {
+                    CircularProgressIndicator(
                       modifier = modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                        .background(SearchHeaderColor)
-                    ) {
-                      SearchCardItemView(viewModel,task) {
-                        selectedTask = task
-                        coroutineScope.launch { bottomSheetState.show() }
+                        .size(48.dp),
+                      strokeWidth = 4.dp,
+                      color = LightColors.primary,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(org.smartregister.fhircore.engine.R.string.loading))
+                  }
+                }else{
+                  LazyColumn(modifier = modifier
+                    .background(SearchHeaderColor)) {
+                    items(filteredTasks) { task ->
+                      Box(
+                        modifier = modifier
+                          .fillMaxWidth()
+                          .padding(horizontal = 8.dp)
+                          .background(SearchHeaderColor)
+                      ) {
+                        SearchCardItemView(viewModel,task) {
+                          selectedTask = task
+                          coroutineScope.launch { bottomSheetState.show() }
+                        }
                       }
                     }
                   }

@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -39,6 +40,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ModalBottomSheetValue
@@ -186,6 +188,7 @@ fun ViewAllPatientsScreen(
                 val allSyncedPatients by viewModel.allSyncedPatientsStateFlow.collectAsState()
                 val savedRes by viewModel.allSavedDraftResponse.collectAsState()
                 val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
+                val isFetching by viewModel.isFetching.collectAsState()
 
                 Column(
                     modifier = modifier
@@ -236,12 +239,31 @@ fun ViewAllPatientsScreen(
                             .background(ANTI_FLASH_WHITE)
                             .fillMaxWidth()
                     ) {
+
+                        if (isFetching){
+                            Column(modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center) {
+                                CircularProgressIndicator(
+                                    modifier = modifier
+                                        .size(48.dp),
+                                    strokeWidth = 4.dp,
+                                    color = LightColors.primary,
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(stringResource(org.smartregister.fhircore.engine.R.string.loading))
+                            }
+                        }
+
                         when (selectedFilter) {
                             FilterType.ALL_PATIENTS -> {
                                 submissions = stringResource(
                                     id = R.string.total_submissions,
-                                    allSyncedPatients.size.toString()
+                                    allSyncedAndUnsyncedPatients.size.toString()
                                 )
+
                                 LazyColumn(
                                     modifier = modifier
                                         .background(ANTI_FLASH_WHITE)

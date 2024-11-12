@@ -420,11 +420,13 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     if (questionnaireConfig.isReadOnly()) {
       finish()
     } else if (questionnaireConfig.saveDraft) {
+      val dialogue = AlertDialogue.showProgressAlert(this, R.string.extraction_in_progress)
 
       lifecycleScope.launch {
         retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
           viewModel.isDraftSaved.observeForever {
             if (it){
+              dialogue.dismiss()
               finish()
             }
           }

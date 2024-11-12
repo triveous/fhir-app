@@ -375,14 +375,14 @@ fun LoginPage(
             onCheckedChange = { privacyPolicyAccepted = it },
             modifier = Modifier.testTag("PRIVACY_POLICY_CHECKBOX")
           )
-          Spacer(modifier = Modifier.width(4.dp))
           Text(
-            text = "I agree to Aarogya Aarohan’s ",
-            fontSize = 14.sp
+            text = stringResource(R.string.agree_privacy_policy),
+            fontSize = 12.sp
           )
+          Spacer(Modifier.width(2.dp))
           Text(
-            text = "Privacy Policy",
-            fontSize = 14.sp,
+            text = stringResource(R.string.privacy_policy),
+            fontSize = 12.sp,
             color = MaterialTheme.colors.primary,
             modifier = Modifier
               .clickable { showPrivacyPolicy = true }

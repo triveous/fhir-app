@@ -165,6 +165,9 @@ constructor(
     private val _allPatientsStateFlow = MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
     val allPatientsStateFlow: StateFlow<List<AllPatientsResourceData>> = _allPatientsStateFlow
 
+    private val _homeScreenPatientsStateFlow = MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
+    val homeScreenPatientsStateFlow: StateFlow<List<AllPatientsResourceData>> = _homeScreenPatientsStateFlow
+
     private val _allTaskCodeWithValues = MutableStateFlow<List<Pair<String, String>>>(emptyList())
     val allTaskCodeWithValues: StateFlow<List<Pair<String, String>>> = _allTaskCodeWithValues
 
@@ -507,7 +510,7 @@ constructor(
                             ?.firstOrNull()
                             ?.value
                             ?: ""
-                        if (taskItem.task.status != TaskStatus.REJECTED && searchText.contains(phone)) {
+                        if (taskItem.task.status != TaskStatus.REJECTED && phone.contains(searchText)) {
                             matchedTasksWithPatientList.add(taskItem)
                         }
                     } else {
@@ -835,6 +838,7 @@ constructor(
     fun getDashboardCasedData() {
 
         viewModelScope.launch(Dispatchers.IO) {
+            _isFetching.value = true
             val patients = fhirEngine.search<Patient> {
                 // ... your search criteria
             }.fastMap {
@@ -892,6 +896,7 @@ constructor(
             val data = DashboardData("$todayCases", "$thisWeek", "$thisMonth", "${patients.size}")
             // Update UI or perform further actions with the counts
             _dashboardDataStateFlow.value = data
+            _isFetching.value = false
         }
     }
 
@@ -922,30 +927,6 @@ constructor(
                         it.meta.lastUpdated
                     }
                 }
-
-            // Fetching unsynced patients
-            val unsyncedPatients = mutableListOf<AllPatientsResourceData>()
-            val data = fhirEngine.getUnsyncedLocalChanges()
-            data.fastForEach { localChange ->
-                val patient = parsePatientJson(localChange.payload)
-                patient?.let {
-                    patient?.let {
-                        if (patient.name.isNotEmpty()) {
-                            unsyncedPatients.add(it.toResourceData())
-                        }
-                    }
-                }
-            }
-
-            // Combining and sorting by last updated time
-            //val combinedList = (patients + drafts + unsyncedPatients)
-            //val combinedList = (patients + drafts)
-
-            /*
-                  val combinedList = (patients + unsyncedPatients)
-                    .sortedByDescending { it.meta.lastUpdated }
-            */
-
 
             // Updating the state flow
             _allPatientsStateFlow.value = patients
@@ -1119,6 +1100,7 @@ constructor(
     private fun refreshData() {
         getAllDraftResponses()
         getAllPatients()
+        //getHomeScreenPatients()
     }
 
 

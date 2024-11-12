@@ -294,4 +294,7 @@
     <string name="button_pagination_previous">पिछला</string>
     <string name="dynamic_total_drafts">कुल ड्राफ्ट: %s</string>
     <string name="dynamic_visited">देखा %s</string>
+    <string name="agree_privacy_policy">मैं आरोग्य आरोहन से सहमत हूँ</string>
+    <string name="privacy_policy">गोपनीयता नीति</string>
+
 </resources>

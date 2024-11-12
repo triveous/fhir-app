@@ -196,5 +196,7 @@
     <string name="failed_to_complete_request_successfully">درخواست کو کامیابی کے ساتھ مکمل کرنے میں ناکام</string>
     <string name="no_internet_connection">کوئی انٹرنیٹ کنکشن نہیں</string>
     <string name="notification_title_document_upload">دستاویز اپ لوڈ</string>
+    <string name="agree_privacy_policy">"I agree to Aarogya Aarohan’s "</string>
+    <string name="privacy_policy">Privacy Policy</string>
 
 </resources>

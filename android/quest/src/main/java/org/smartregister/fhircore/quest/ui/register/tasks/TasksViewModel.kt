@@ -87,88 +87,15 @@ constructor(
   private val _allLatestTasksStateFlow = MutableStateFlow<List<TaskItem>>(emptyList())
   val allLatestTasksStateFlow: StateFlow<List<TaskItem>> = _allLatestTasksStateFlow
 
+  private val _isFetching = MutableStateFlow<Boolean>(false)
+  val isFetching: StateFlow<Boolean> = _isFetching
+
   private val _filteredTasksStateFlow = MutableStateFlow<List<TaskItem>>(emptyList())
   val filteredTasksStateFlow: StateFlow<List<TaskItem>> = _filteredTasksStateFlow
 
   private val _allTaskCodeWithValues = MutableStateFlow<List<Pair<String,String>>>(emptyList())
   val allTaskCodeWithValues: StateFlow<List<Pair<String,String>>> = _allTaskCodeWithValues
-
-//  fun updateTask(task : Task, status: TaskStatus, taskOutput: TaskProgressState){
-//    viewModelScope.launch {
-//
-//      val value = CodeableConcept()
-//      value.text = taskOutput.text
-//
-//      task.status = status
-//      task.output = listOf(
-//        Task.TaskOutputComponent(
-//          CodeableConcept(),
-//          value,
-//        ),
-//      )
-//      fhirEngine.update(task)
-////      getAllTasks()
-//    }
-//  }
-//
-//  fun getAllTasks() {
-//    _isFetchingTasks.value = true
-//    viewModelScope.launch {
-//      val practitionerDetails = getPractitionerDetails()
-//
-//      val practitionerId = practitionerDetails?.id
-//
-//      val patients = fhirEngine.search<Patient> {
-//      }.fastMapNotNull {
-//        it.resource.toResourceData()
-//      }
-//
-//      val responses = fhirEngine.search<Task> {
-//      }.fastMapNotNull { it.resource }
-//
-//        val tasksWithPatient : MutableList<TaskItem> = mutableListOf()
-//        responses.fastMapNotNull { task ->
-//
-//          if (task?.owner?.identifier?.value == practitionerId){
-//            patients.size.let { it > 0 }.let { isNotEmpty ->
-//              if(isNotEmpty){
-//                val patient = patients.find {
-//                  task?.`for`?.reference?.toString().let { refId ->
-//                    (refId.toString().contains(it.patient?.logicalId.toString(), true) && task.status != TaskStatus.REJECTED)
-//                  }
-//                }
-//
-//                patient?.let {
-//                  val taskItem = TaskItem(
-//                    task = task,
-//                    patient = patient?.patient // Use a default patient object if not found
-//                  )
-//                  tasksWithPatient.add(taskItem)
-//                }
-//              }
-//            }
-//          }
-//        }
-//
-//      _newTasksStateFlow.value = tasksWithPatient
-//        .fastFilter { it.task.status == TaskStatus.REQUESTED }
-//        .fastDistinctBy { it.task.logicalId }
-//        .sortedByDescending { it.task.meta.lastUpdated }
-//
-//      _pendingTasksStateFlow.value = tasksWithPatient
-//        .fastFilter { it.task.status == TaskStatus.INPROGRESS }
-//        .fastDistinctBy { it.task.logicalId }
-//        .sortedByDescending { it.task.meta.lastUpdated }
-//
-//      _completedTasksStateFlow.value = tasksWithPatient
-//        .fastFilter { it.task.status == TaskStatus.COMPLETED }
-//        .fastDistinctBy { it.task.logicalId }
-//        .sortedByDescending {it.task.meta.lastUpdated }
-//
-//      _isFetchingTasks.value = false
-//
-//    }
-//  }
+  private var previousCode = ""
 
   private fun getPractitionerDetails() : FhirPractitionerDetails? {
       return sharedPreferencesHelper.read<FhirPractitionerDetails>(
@@ -179,6 +106,7 @@ constructor(
 
   fun getAllLatestTasks() {
     viewModelScope.launch {
+      _isFetching.value = true
       val practitionerDetails = getPractitionerDetails()
       val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
 
@@ -208,13 +136,14 @@ constructor(
       println("allCodeAndDisplay --> ${Gson().toJson(allCodeAndDisplay)}")
 
       _allLatestTasksStateFlow.value = tasksWithPatient.fastDistinctBy { it.task.logicalId }
+      _isFetching.value = false
     }
   }
 
   fun getFilteredTasks(filter:Pair<String,String>,status: TaskStatus, priority: TaskProgressState){
     val tasks = _allLatestTasksStateFlow.value
     var newTasks : List<TaskItem> = emptyList<TaskItem>()
-
+    _isFetching.value = true
     newTasks = tasks.fastFilter { task ->
       // Get the list of pairs for the task (assuming this returns a list of pairs or null)
       val list = getTaskCodeWithValue(task)
@@ -234,7 +163,7 @@ constructor(
           it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == priority.text
         }
       }else{
-        it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == priority.text
+        it.task.output.takeIf { it.isNotEmpty() }?.firstOrNull()?.value.valueToString() == priority.text
       }
     }
 
@@ -244,8 +173,9 @@ constructor(
     }.sortedByDescending { it.task.meta?.lastUpdated }
 
     _filteredTasksStateFlow.value = newTasks
+    _isFetching.value = false
+
   }
-  private var previousCode = ""
 
   internal fun getTaskCodeWithValue(taskWithPatient: TaskItem): List<Pair<String, String>>? {
     return taskWithPatient.task.input?.fastMapIndexedNotNull { index, input ->
