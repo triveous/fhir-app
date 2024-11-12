@@ -296,4 +296,6 @@
     <string name="button_pagination_previous">మునుపటి</string>
     <string name="dynamic_total_drafts">మొత్తం డ్రాఫ్ట్‌లు: %s</string>
     <string name="dynamic_visited">పరిశీలించారు %s</string>
+    <string name="agree_privacy_policy">నేను ఆరోగ్య ఆరోహన్ కు అంగీకరిస్తున్నాను</string>
+    <string name="privacy_policy">గోప్యతా విధానం</string>
 </resources>

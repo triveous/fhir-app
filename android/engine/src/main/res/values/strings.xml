@@ -197,5 +197,7 @@
     <string name="no_internet_connection">No internet connection</string>
     <!-- Notification -->
     <string name="notification_title_document_upload">Document Upload</string>
+    <string name="agree_privacy_policy">I agree to Aarogya Aarohan\’s</string>
+    <string name="privacy_policy">Privacy Policy</string>
 
 </resources>

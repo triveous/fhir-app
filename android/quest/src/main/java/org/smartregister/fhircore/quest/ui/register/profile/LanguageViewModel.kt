@@ -10,9 +10,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.smartregister.fhircore.engine.configuration.ConfigType
+import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
+import org.smartregister.fhircore.engine.configuration.app.ApplicationConfiguration
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.fetchLanguages
 import org.smartregister.fhircore.quest.util.LanguageCodeConstants
 import org.smartregister.fhircore.quest.util.LanguageConstants
 import java.util.Locale
@@ -22,21 +26,18 @@ import javax.inject.Inject
 class LanguageViewModel @Inject constructor(
     private val application: Application,
     val secureSharedPreference: SecureSharedPreference,
-    val sharedPreferencesHelper: SharedPreferencesHelper
-) : AndroidViewModel(application) {
+    val sharedPreferencesHelper: SharedPreferencesHelper,
+    val configurationRegistry: ConfigurationRegistry,
+    ) : AndroidViewModel(application) {
 
     private val appContext: Context = application.applicationContext
 
+    val applicationConfiguration: ApplicationConfiguration by lazy {
+        configurationRegistry.retrieveConfiguration(ConfigType.Application, paramsMap = emptyMap())
+    }
+
     private val _languages = MutableStateFlow(
-        listOf(
-            LanguageConstants.ENGLISH,
-            LanguageConstants.HINDI,
-            LanguageConstants.BENGALI,
-            LanguageConstants.TELUGU,
-            LanguageConstants.MARATHI,
-            LanguageConstants.TAMIL,
-            LanguageConstants.URDU
-        )
+        configurationRegistry.fetchLanguages().map { it.displayName }
     )
 
     private val languagesCode = MutableStateFlow(

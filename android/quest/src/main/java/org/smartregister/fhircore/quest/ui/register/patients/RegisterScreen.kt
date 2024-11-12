@@ -39,6 +39,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
@@ -193,6 +194,20 @@ fun RegisterScreen(
 
                                 ), modifier = Modifier.padding(horizontal = 40.dp)
                             )
+                        }
+
+                        if (isFetching){
+                            Row(modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp),
+                                horizontalArrangement = Arrangement.Center) {
+                                CircularProgressIndicator(
+                                    modifier = modifier
+                                        .size(48.dp),
+                                    strokeWidth = 4.dp,
+                                    color = LightColors.primary,
+                                )
+                            }
                         }
 
                         Box(
