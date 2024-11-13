@@ -126,7 +126,7 @@
     <string name="error_fetching_user_details">Failed to fetch user details</string>
     <string name="questionnaire_not_found">Questionnaire not found.  Sync all questionnaires to fix</string>
     <string name="no_visits">No visits</string>
-    <string name="questionnaire_response_invalid">Questionnaire response invalid</string>
+    <string name="questionnaire_response_invalid">Please update the fields properly before submitting</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>
     <string name="application_version" translatable="false">Application Version</string>
     <string name="missing_subject_type">Missing subject type on questionnaire. Provide Questionnaire.subjectType to resolve.</string>
@@ -207,7 +207,7 @@
     <!-- Profile-->
     <string name="change_password">Change Password</string>
     <string name="change_language">Change Language</string>
-    <string name="logout">Logout</string>
+    <string name="logout">LOGOUT</string>
     <string name="change_pin">Change PIN</string>
     <string name="profile_username">Username: %s</string>
 
@@ -295,5 +295,6 @@
     <string name="submit_questionnaire">Submit</string>
     <string name="button_pagination_next">Next</string>
     <string name="button_pagination_previous">Previous</string>
+    <string name="location_permission_reason">App needs location permission to capture the site location.</string>
 
 </resources>

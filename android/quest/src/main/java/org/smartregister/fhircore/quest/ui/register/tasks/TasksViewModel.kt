@@ -95,6 +95,10 @@ constructor(
 
   private val _allTaskCodeWithValues = MutableStateFlow<List<Pair<String,String>>>(emptyList())
   val allTaskCodeWithValues: StateFlow<List<Pair<String,String>>> = _allTaskCodeWithValues
+
+  private val _selectedFilter = MutableStateFlow<Pair<String,String>>(Pair(TaskCode.URGENT_REFER_TO_HOSPITAL.code, ""))
+  val selectedFilter: StateFlow<Pair<String,String>> = _selectedFilter
+
   private var previousCode = ""
 
   private fun getPractitionerDetails() : FhirPractitionerDetails? {
@@ -102,6 +106,10 @@ constructor(
         key = SharedPreferenceKey.PRACTITIONER_DETAILS.name,
         decodeWithGson = true,
       )
+  }
+
+  fun setSelectedFilter(filter: Pair<String, String>){
+    _selectedFilter.value = filter
   }
 
   fun getAllLatestTasks() {
@@ -133,6 +141,7 @@ constructor(
         getTaskCodeWithValue(taskWithPatient)
       }.flatten().fastDistinctBy { it.first }.sortedByDescending { it.second }
       _allTaskCodeWithValues.value = allCodeAndDisplay
+      _selectedFilter.value = allCodeAndDisplay.first()
       println("allCodeAndDisplay --> ${Gson().toJson(allCodeAndDisplay)}")
 
       _allLatestTasksStateFlow.value = tasksWithPatient.fastDistinctBy { it.task.logicalId }

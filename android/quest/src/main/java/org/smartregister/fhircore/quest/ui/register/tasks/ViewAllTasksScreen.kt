@@ -142,6 +142,8 @@ fun FilterRow(
     horizontalArrangement = Arrangement.SpaceBetween
     ) {
     val allTaskCodeWithValues = viewModel.allTaskCodeWithValues.collectAsState()
+    //allTaskCodeWithValues.value.isNotEmpty().let { onFilterSelected(allTaskCodeWithValues.value.first()) }
+
     allTaskCodeWithValues.value.forEachIndexed { index, filter ->
       Box(modifier = Modifier
         .border(
@@ -287,7 +289,7 @@ fun ViewAllTasksScreen(
             .background(SearchHeaderColor)
         ) {
           val isFetching by viewModel.isFetching.collectAsState()
-          var selectedFilter by remember { mutableStateOf(Pair(TaskCode.URGENT_REFER_TO_HOSPITAL.code,"")) }
+          val selectedFilter by viewModel.selectedFilter.collectAsState()
           val filteredTasks by viewModel.filteredTasksStateFlow.collectAsState()
           val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
 
@@ -305,7 +307,7 @@ fun ViewAllTasksScreen(
             Row(modifier = Modifier
               .fillMaxWidth()) {
               FilterRow(viewModel,selectedFilter) { filter ->
-                selectedFilter = filter
+                viewModel.setSelectedFilter(filter)
               }
             }
 

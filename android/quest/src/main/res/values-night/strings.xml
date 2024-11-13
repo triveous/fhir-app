@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="location_permission_reason">App needs location permission to capture the site location.</string>
+</resources>

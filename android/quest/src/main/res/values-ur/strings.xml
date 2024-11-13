@@ -295,4 +295,5 @@
     <string name="dynamic_visited">دیکھا %s</string>
     <string name="agree_privacy_policy">میں آروگیا آروہن سے اتفاق کرتا ہوں</string>
     <string name="privacy_policy">رازداری کی پالیسی</string>
+    <string name="location_permission_reason">App needs location permission to capture the site location.</string>
 </resources>

@@ -121,6 +121,7 @@ const val LOGIN_ERROR_TEXT_TAG = "loginErrorTextTag"
 const val LOGIN_FOOTER = "loginFooter"
 const val APP_LOGO_TAG = "appLogoTag"
 const val PASSWORD_FORGOT_DIALOG = "forgotPassWordDialog"
+const val CHANGE_PIN__DIALOG = "changePinDialog"
 
 @Composable
 fun LoginScreen(loginViewModel: LoginViewModel, appVersionPair: Pair<Int, String>? = null) {
@@ -377,7 +378,9 @@ fun LoginPage(
           )
           Text(
             text = stringResource(R.string.agree_privacy_policy),
-            fontSize = 12.sp
+            fontSize = 12.sp,
+            modifier = Modifier
+              .clickable { privacyPolicyAccepted = !privacyPolicyAccepted }
           )
           Spacer(Modifier.width(2.dp))
           Text(
