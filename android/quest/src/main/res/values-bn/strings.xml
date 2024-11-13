@@ -293,5 +293,6 @@
     <string name="dynamic_visited">পরিদর্শন করা হয়েছে %s</string>
     <string name="agree_privacy_policy">আমি আরোগ্য আরোহণ-এর সাথে সম্মত</string>
     <string name="privacy_policy">গোপনীয়তা নীতি</string>
+    <string name="location_permission_reason">App needs location permission to capture the site location.</string>
 
 </resources>

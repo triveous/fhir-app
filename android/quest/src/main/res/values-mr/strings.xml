@@ -291,5 +291,6 @@
     <string name="dynamic_visited">पाहिले %s</string>
     <string name="agree_privacy_policy">मी आरोग्य आरोहनशी सहमत आहे</string>
     <string name="privacy_policy">गोपनीयता धोरण</string>
+    <string name="location_permission_reason">App needs location permission to capture the site location.</string>
 
 </resources>

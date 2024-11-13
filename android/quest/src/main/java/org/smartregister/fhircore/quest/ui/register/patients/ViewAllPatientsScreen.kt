@@ -312,19 +312,38 @@ fun ViewAllPatientsScreen(
                                     id = R.string.total_submissions,
                                     allSyncedPatients.size.toString()
                                 )
-                                ShowAllDrafts(
-                                    modifier = modifier,
-                                    drafts = savedRes,
-                                    viewModel = viewModel,
-                                    onDeleteResponse = { id, isShowDeleteDialog ->
-                                        deleteDraftId = id
-                                        showDeleteDialog = isShowDeleteDialog
-                                    },
-                                    onEditResponse = {
-                                        onEditDraftClicked(it)
-                                    },
-                                    allDraftsSize = 1
-                                )
+
+                                if (viewModel.isFetching.collectAsState().value){
+                                    Column(modifier = Modifier
+                                        .fillMaxWidth()
+                                        .fillMaxHeight(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center) {
+                                        CircularProgressIndicator(
+                                            modifier = modifier
+                                                .size(48.dp),
+                                            strokeWidth = 4.dp,
+                                            color = LightColors.primary,
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(stringResource(org.smartregister.fhircore.engine.R.string.loading))
+                                    }
+                                }else{
+                                    ShowAllDrafts(
+                                        modifier = modifier,
+                                        drafts = savedRes,
+                                        viewModel = viewModel,
+                                        onDeleteResponse = { id, isShowDeleteDialog ->
+                                            deleteDraftId = id
+                                            showDeleteDialog = isShowDeleteDialog
+                                        },
+                                        onEditResponse = {
+                                            onEditDraftClicked(it)
+                                        },
+                                        allDraftsSize = 1
+                                    )
+                                }
+
                             }
                         }
                     }
@@ -477,7 +496,6 @@ fun ShowAllDrafts(
                 )
             }
         } else {
-
             Column(
                 modifier = modifier
                     .background(ANTI_FLASH_WHITE)

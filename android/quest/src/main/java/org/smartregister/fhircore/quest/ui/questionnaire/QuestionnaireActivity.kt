@@ -143,6 +143,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       }
 
       if (!hasLocationPermissions()) {
+        showToast(getString(R.string.location_permission_reason))
         launchLocationPermissionsDialog()
       }
 

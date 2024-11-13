@@ -987,6 +987,7 @@ constructor(
 
     fun getAllDraftResponses() {
         viewModelScope.launch(Dispatchers.IO) {
+            _isFetching.value = true
             val allResponses = mutableListOf<QuestionnaireResponse>()
             try {
                 val parser = FhirContext.forR4Cached().newJsonParser()
@@ -1014,6 +1015,7 @@ constructor(
                 .sortedByDescending { it.meta.lastUpdated }
 
             _allSavedDraftResponseStateFlow.value = allResponses + responses
+            _isFetching.value = false
         }
     }
 
