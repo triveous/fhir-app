@@ -384,10 +384,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 ResourceUtils.createFhirLocationFromGpsLocation(gpsLocation = currentLocation!!),
               )
             }
-            val flwId = viewModel.getUserName()
-
-            val ref = Reference()
-            ref.reference = "Practitioner/$flwId"
+            val ref = Reference().apply { reference =  "Practitioner/${viewModel.getUserName()}"}
             // set author
             questionnaireResponse.author = ref
 

@@ -151,7 +151,8 @@ constructor(
 
 
   fun getUserName(): String {
-    return secureSharedPreference.retrieveSessionUsername() ?: "guestFlw"
+    return practitionerId ?: ""
+  //return secureSharedPreference.retrieveSessionUsername() ?: "guestFlw"
   }
 
   /**
@@ -631,9 +632,7 @@ constructor(
       val questionnaireHasAnswer = questionnaireResponse.item.any { it?.item?.get(1)?.hasAnswer() == true }
       if (questionnaireHasAnswer) {
         try {
-          val flwId = getUserName()
-          val ref = Reference()
-          ref.reference = "Practitioner/$flwId"
+          val ref = Reference().apply { reference =  "Practitioner/${getUserName()}"}
           // set author
           questionnaireResponse.author = ref
           questionnaireResponse.id = questionnaireResponse.id ?: UUID.randomUUID().toString()
@@ -645,7 +644,7 @@ constructor(
             it.resource
           }.filter {
             (it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS) &&
-                    (it.author?.reference?.toString() ?: "").contains(userName, true)
+                    (it.author?.reference?.toString()?.substringAfter("/") ?: "").equals(userName, false)
           }
             .sortedByDescending { it.meta.lastUpdated }
 
