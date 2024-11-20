@@ -151,8 +151,7 @@ constructor(
 
 
   fun getUserName(): String {
-    return practitionerId ?: ""
-  //return secureSharedPreference.retrieveSessionUsername() ?: "guestFlw"
+    return secureSharedPreference.getPractitionerUserId()
   }
 
   /**
