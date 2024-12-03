@@ -21,7 +21,7 @@
     <string name="sync_completed">Sync Successful</string>
     <string name="syncing">Syncing</string>
     <string name="syncing_up" >Syncing up</string>
-    <string name="syncing_down" >Syncing down</string>
+    <string name="syncing_down" >Syncing cases</string>
     <string name="syncing_initiated">Sync initiated&#8230;</string>
     <string name="sync_failed">Sync failed. Check internet connection or try again later</string>
     <string name="sync_completed_with_errors">Sync will be retried in some time</string>
@@ -75,6 +75,10 @@
     <string name="password">Password</string>
     <string name="forgot_password">Forgot password</string>
     <string name="forgot_password_title">Forgot Password!</string>
+
+    <string name="change_pin_title" >Change PIN</string>
+    <string name="change_pin_desc" >To change your PIN, you need to log out. Would you like to continue?</string>
+
     <string name="more">More</string>
     <string name="call_supervisor">Contact your site coordinator.</string>
     <string name="cancel" tools:ignore="ButtonCase">CANCEL</string>
@@ -197,5 +201,7 @@
     <string name="no_internet_connection">No internet connection</string>
     <!-- Notification -->
     <string name="notification_title_document_upload">Document Upload</string>
+    <string name="agree_privacy_policy">I agree to Aarogya Aarohan\’s</string>
+    <string name="privacy_policy">Privacy Policy</string>
 
 </resources>

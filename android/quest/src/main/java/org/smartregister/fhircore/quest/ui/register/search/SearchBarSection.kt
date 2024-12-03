@@ -16,51 +16,35 @@
 
 package org.smartregister.fhircore.quest.ui.register.search
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.Card
 import androidx.compose.material.Text
-import androidx.compose.material.TextField
-import androidx.compose.material.TextFieldDefaults
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
-import org.smartregister.fhircore.engine.ui.theme.DarkColors
 import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.quest.event.ToolbarClickEvent
-import org.smartregister.fhircore.quest.ui.main.AppMainEvent
+import org.smartregister.fhircore.quest.theme.Colors
 
 const val DRAWER_MENU = "Drawer Menu"
 const val SEARCH = "Search"
@@ -78,122 +62,88 @@ const val SEARCH_FIELD_TEST_TAG = "searchFieldTestTag"
 
 @Composable
 fun SearchBarSection(
-  modifier: Modifier = Modifier,
-  toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
-  onSearchTextChanged: (String) -> Unit,
-  onSync: (AppMainEvent) -> Unit,
-  onClick: (ToolbarClickEvent) -> Unit,
+    modifier: Modifier = Modifier,
+    onSearchTextChanged: (String) -> Unit,
+    onClick: (ToolbarClickEvent) -> Unit,
 ) {
+    val searchText: MutableState<String> = remember { mutableStateOf("") }
+    val interactionSource = remember { MutableInteractionSource() }
 
-  var searchText: MutableState<String> = remember {
-    mutableStateOf("")
-  }
-  val context = LocalContext.current
-
-
-  Column(
-    modifier = modifier
-      .fillMaxWidth()
-      .background(Color.White),
-  ) {
-    Row(
-      modifier =
-      modifier
-        .fillMaxWidth()
-        .padding(horizontal = 8.dp)
-        .testTag(
-          TITLE_ROW_TEST_TAG,
-        ),
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
-      if (toolBarHomeNavigation == ToolBarHomeNavigation.NAVIGATE_BACK){
-        Icon(
-          Icons.Filled.ArrowBack,
-          contentDescription = DRAWER_MENU,
-          tint = Color.Black,
-          modifier =
-          modifier
-            .clickable { onClick(ToolbarClickEvent.Navigate) }
-            .testTag(TOP_ROW_ICON_TEST_TAG),
-        )
-      }
-
-      TextField(
-        colors = TextFieldDefaults.outlinedTextFieldColors(textColor = Color.DarkGray),
-        value = searchText.value,
-        onValueChange = {
-          searchText.value = it
-          if (it.length > 1){
-            onSearchTextChanged(it)
-          } },
-        maxLines = 1,
-        singleLine = true,
-        placeholder = {
-          Text(
-            color = GreyTextColor,
-            text = stringResource(R.string.search_hint),
-            modifier = modifier.testTag(SEARCH_FIELD_TEST_TAG).fillMaxWidth(),
-          )
-        },
-        modifier =
-        modifier
-          .padding(start = 8.dp, bottom = 8.dp, end = 8.dp)
-          .fillMaxWidth()
-          //.clip(RoundedCornerShape(size = 10.dp))
-          .background(Color.White)
-          .testTag(OUTLINED_BOX_TEST_TAG),
-        trailingIcon = {
-          if (searchText.value.isNotEmpty()) {
-            IconButton(
-              onClick = {
-                searchText.value = ""
-                onSearchTextChanged("")
-              },
-              modifier = modifier.testTag(TRAILING_ICON_BUTTON_TEST_TAG),
-            ) {
-              Icon(
-                imageVector = Icons.Filled.Clear,
-                CLEAR,
-                tint = Color.Gray,
-                modifier = modifier.testTag(TRAILING_ICON_TEST_TAG),
-              )
+    Card(elevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier =
+            modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier
+                .clickable {
+                    onClick(ToolbarClickEvent.Navigate)
+                }
+                .testTag(TOP_ROW_ICON_TEST_TAG)) {
+                Image(
+                    painterResource(org.smartregister.fhircore.quest.R.drawable.ic_back_arrow),
+                    contentDescription = DRAWER_MENU,
+                    modifier = Modifier.padding(20.dp)
+                )
             }
-          }
-        },
-      )
+
+            TextField(
+                colors = getTextFieldColors(),
+                value = searchText.value,
+                interactionSource = interactionSource,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    onSearchTextChanged(searchText.value)
+                }),
+                onValueChange = {
+                    searchText.value = it
+                    if (it.length > 1) {
+                        onSearchTextChanged(it)
+                    }
+                },
+                maxLines = 1,
+                singleLine = true,
+                placeholder = {
+                    Text(
+                        color = GreyTextColor,
+                        text = stringResource(R.string.search_hint),
+                        modifier = modifier
+                            .testTag(SEARCH_FIELD_TEST_TAG)
+                            .fillMaxWidth(),
+                    )
+                },
+                modifier = modifier.fillMaxWidth()
+                    .background(Color.White)
+                    .testTag(OUTLINED_BOX_TEST_TAG),
+                trailingIcon = {
+                    if (searchText.value.isNotEmpty()) {
+                        Box(modifier = Modifier
+                            .clickable {
+                                searchText.value = ""
+                                onSearchTextChanged("")
+                            }) {
+                            Image(
+                                painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_rec_search_cancel),
+                                contentDescription = TRAILING_ICON_TEST_TAG,
+                                modifier = modifier.padding(18.dp),
+                            )
+                        }
+                    }else{
+                        null
+                    }
+                },
+            )
+        }
     }
-  }
 }
 
-@PreviewWithBackgroundExcludeGenerated
 @Composable
-fun TopScreenSectionWithFilterItemOverNinetyNinePreview() {
-  SearchBarSection(
-    onSearchTextChanged = {},
-    toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-    onSync = {},
-    onClick = {},
-  )
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun TopScreenSectionWithFilterCountNinetyNinePreview() {
-  SearchBarSection(
-    onSearchTextChanged = {},
-    toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-    onSync = {},
-    onClick = {},
-  )
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-fun TopScreenSectionNoFilterIconPreview() {
-  SearchBarSection(
-    onSearchTextChanged = {},
-    toolBarHomeNavigation = ToolBarHomeNavigation.NAVIGATE_BACK,
-    onSync = {},
-    onClick = {},
-  )
-}
+internal fun getTextFieldColors() = androidx.compose.material3.TextFieldDefaults.colors().copy(
+    focusedContainerColor = Colors.WHITE,
+    unfocusedContainerColor = Colors.WHITE,
+    focusedTextColor = Colors.CRAYOLA,
+    errorIndicatorColor = Color.Transparent,
+    unfocusedTextColor = Color.Transparent,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent
+)

@@ -86,7 +86,7 @@
             android:layout_marginEnd="@dimen/attachment_action_button_margin_end"
             android:drawableStart="@drawable/ic_plus"
             android:drawableTint="@color/drk_blue"
-            android:text="Add photo"
+            android:text="@string/add_photo"
             android:paddingHorizontal="@dimen/attachment_action_button_padding_horizontal"
             android:visibility="gone"
             />

@@ -1,0 +1,202 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="sync">ম্যানুয়াল সিঙ্ক</string>
+    <string name="language">ভাষা</string>
+    <string name="logout_as_user">লগ আউট হিসেবে </string>
+    <string name="show_overdue">অবস্থান দেখান</string>
+    <string name="search_hint">নাম অথবা ফোন অনুসন্ধান করুন</string>
+    <string name="scan_bar_code">বারকোড স্ক্যান করুন</string>
+    <string name="empty_client_list_message_title">কোনও ফলাফল নেই</string>
+    <string name="empty_client_list_message_details">দুঃখিত, আমরা প্রদত্ত নাম বা আইডি দিয়ে ক্লায়েন্ট খুঁজে পাইনি</string>
+    <string name="register_new_client">নতুন ক্লায়েন্ট নিবন্ধন করুন</string>
+    <string name="default_app_title" translatable="false">ফহর অ্যাপ</string>
+    <string name="app_logo">অ্যাপ্লিকেশন লোগো</string>
+    <string name="powered_by">দ্বারা পরিচালিত</string>
+    <string name="app_version">অ্যাপ সংস্করণ %1$d(%2$s)</string>
+    <string name="last_sync">শেষ সিঙ্ক %1$s</string>
+    <string name="login_text">লগ ইন</string>
+    <string name="login_call_fail_error_message">সার্ভার থেকে শংসাপত্র যাচাই করতে ব্যর্থ হয়েছে। আপনার ইন্টারনেট সংযোগ চেক করুন</string>
+    <string name="userinfo_call_fail_error_message">সার্ভার থেকে ব্যবহারকারীর তথ্য প্রাপ্তিতে ব্যর্থ হয়েছে। আপনার ইন্টারনেট সংযোগ চেক করুন</string>
+    <string name="select_language">ভাষা নির্বাচন করুন</string>
+    <string name="logout_user">লগ আউট হিসেবে %1$s</string>
+    <string name="sync_completed">সিঙ্ক সফল</string>
+    <string name="syncing">সিঙ্ক হচ্ছে</string>
+    <string name="syncing_up">আপলোড হচ্ছে</string>
+    <string name="syncing_down">ডাউনলোড হচ্ছে</string>
+    <string name="syncing_initiated">সিঙ্ক শুরু হয়েছে&#8230;</string>
+    <string name="sync_failed">সিঙ্ক ব্যর্থ হয়েছে। ইন্টারনেট সংযোগ চেক করুন অথবা পরে আবার চেষ্টা করুন</string>
+    <string name="sync_completed_with_errors">সিঙ্ক কিছু সময় পরে পুনরায় চেষ্টা করা হবে</string>
+    <string name="sync_unauthorised">সিঙ্ক ব্যর্থ হয়েছে কারণ প্রমাণীকরণ শংসাপত্র অকার্যকর।</string>
+    <string name="refresh_token_fail_error_message">সার্ভার থেকে শংসাপত্র পুনরুদ্ধার করতে ব্যর্থ হয়েছে। আপনার ইন্টারনেট সংযোগ চেক করুন।</string>
+    <string name="try_again">আবার চেষ্টা করুন</string>
+    <string name="status_vaccinated">টিকা নেওয়া হয়েছে</string>
+    <string name="status_overdue">মেয়াদোত্তীর্ণ</string>
+    <string name="status_received_vaccine">টিকা %1$d \n%2$s</string>
+    <string name="fully_vaccinated">"সম্পূর্ণরূপে টিকাকৃত"</string>
+    <string name="already_fully_vaccinated">"আরও একটি ডোজ নিতে পারবেন না। ইতিমধ্যেই সম্পূর্ণরূপে টিকাকৃত"</string>
+    <string name="record_vaccine_nl">রেকর্ড\nটিকা</string>
+    <string name="date_last_seen">শেষ দেখা %1$s</string>
+    <string name="date_last_visited">শেষ পরিদর্শন %1$s</string>
+    <string name="str_save">সংরক্ষণ করুন</string>
+    <string name="login_error">লগইন ত্রুটি: %1$s</string>
+    <string name="str_next">পরবর্তী</string>
+    <string name="str_previous">পূর্ববর্তী</string>
+    <string name="str_page_info">পৃষ্ঠা %1$d এর %2$d</string>
+    <string name="search_result">%1$d ফলাফল(গুলি)</string>
+    <string name="no_results">কোনও ফলাফল নেই</string>
+    <string name="no_results_message">দুঃখিত আমরা প্রদত্ত নাম বা আইডি দিয়ে ব্যক্তিকে খুঁজে পাচ্ছি না</string>
+    <string name="male">পুরুষ</string>
+    <string name="female">মহিলা</string>
+    <string name="other">অন্যান্য</string>
+    <string name="unknown">অজানা</string>
+    <string name="syncing_failed">সিঙ্ক ব্যর্থ হয়েছে</string>
+    <string name="syncing_retry">সিঙ্ক পুনরায় চেষ্টা করুন</string>
+    <string name="syncing_in_progress">সিঙ্ক চলমান</string>
+    <string name="loading">লোড হচ্ছে</string>
+    <string name="error_logging_out">লগ আউট ত্রুটি বার্তা: %1$s</string>
+    <string name="cannot_logout_user">লগ আউট করতে অক্ষম: ইতিমধ্যেই লগ আউট করা হয়েছে অথবা ডিভাইস অফলাইন।</string>
+    <string name="error_loading_config_http_error">কনফিগারেশন লোড করতে ব্যর্থ হয়েছে। দয়া করে পরে আবার চেষ্টা করুন</string>
+    <string name="error_loading_config_no_internet">কনফিগারেশন লোড করতে ব্যর্থ হয়েছে। আপনার ইন্টারনেট সংযোগ চেক করুন</string>
+    <string name="error_loading_config_general">সার্ভারের সাথে সংযোগ স্থাপন ত্রুটি। দয়া করে সিস্টেম অ্যাডমিনিস্ট্রেটরের সাথে যোগাযোগ করুন</string>
+    <string name="error_loading_form">ফর্ম লোড করতে ত্রুটি</string>
+    <string name="error_saving_form">ফর্ম সংরক্ষণ করতে ত্রুটি</string>
+    <string name="form_progress_message">ডেটা প্রক্রিয়াকরণ হচ্ছে। দয়া করে অপেক্ষা করুন</string>
+    <string name="questionnaire_alert_back_pressed_message">আপনি কি নিশ্চিত আপনি ফিরে যেতে চান?</string>
+    <string name="questionnaire_in_progress_alert_back_pressed_message">আপনি কি নিশ্চিত আপনি উত্তরগুলি বাতিল করতে চান?</string>
+    <string name="questionnaire_alert_back_pressed_title">পরিবর্তনগুলি ত্যাগ করুন</string>
+    <string name="questionnaire_alert_back_pressed_button_title">ত্যাগ করুন</string>
+    <string name="questionnaire_alert_back_pressed_save_draft_button_title">আংশিক খসড়া সংরক্ষণ করুন</string>
+    <string name="questionnaire_alert_neutral_button_title">বাতিল করুন</string>
+    <string name="questionnaire_alert_confirm_button_title">হ্যাঁ</string>
+    <string name="questionnaire_alert_invalid_message">প্রদানকৃত বিবরণে বৈধতা ত্রুটি রয়েছে। ত্রুটিগুলি সমাধান করুন এবং আবার জমা দিন</string>
+    <string name="questionnaire_alert_invalid_title">বৈধতা ব্যর্থ</string>
+    <string name="questionnaire_alert_ack_button_title">ওকে</string>
+    <string name="username">ব্যবহারকারীর নাম</string>
+    <string name="appname">আরোগ্য আভরণ</string>
+    <string name="password">পাসওয়ার্ড</string>
+    <string name="forgot_password">পাসওয়ার্ড ভুলে গেছেন</string>
+    <string name="forgot_password_title">পাসওয়ার্ড ভুলে গেছেন!</string>
+    <string name="more">আরও</string>
+    <string name="call_supervisor">আপনার সাইট কোঅর্ডিনেটরের সাথে যোগাযোগ করুন।</string>
+    <string name="cancel" tools:ignore="ButtonCase">বাতিল করুন</string>
+    <string name="dial_number">নম্বর ডায়াল করুন</string>
+    <string name="register">নিবন্ধন করুন</string>
+    <string name="visits">ভিজিট</string>
+    <string name="reports">রিপোর্ট</string>
+    <string name="profile">প্রোফাইল</string>
+    <string name="settings">সেটিংস</string>
+    <string name="select_register">রেজিস্টার নির্বাচন করুন</string>
+    <string name="tick">টিক</string>
+    <string name="clients">ক্লায়েন্ট</string>
+    <string name="logout">লগ আউট</string>
+    <string name="application_id">অ্যাপ্লিকেশন আইডি</string>
+    <string name="app_id_sample" translatable="false">যেমন: ecbis, quest, cha</string>
+    <string name="load_configurations">কনফিগারেশন লোড করুন</string>
+    <string name="fhir_core_app" translatable="false">FHIRCORE অ্যাপ</string>
+    <string name="remember_app">অ্যাপ মনে রাখুন</string>
+    <string name="done">সম্পন্ন</string>
+    <string name="replace_photo">ছবি প্রতিস্থাপন করুন</string>
+    <string name="take_photo">ছবি তোলুন</string>
+    <string name="edit">সম্পাদনা করুন</string>
+    <string name="application_not_supported">অ্যাপ্লিকেশন %1$s কনফিগারেশন লোড করতে ত্রুটি</string>
+    <string name="eCBIS_app_name" translatable="false">eCBIS</string>
+    <string name="invalid_login_credentials">মোবাইল বা পাসওয়ার্ড অকার্যকর</string>
+    <string name="invalid_form_id">অবৈধ ফর্ম আইডি সংযুক্ত</string>
+    <string name="no">না</string>
+    <string name="yes">হ্যাঁ</string>
+    <string name="required_constraint_validation_error_msg">প্রয়োজনীয় ক্ষেত্রের জন্য কোন প্রতিক্রিয়া নেই।</string>
+    <string name="set_pin">পিন সেট করুন</string>
+    <string name="set_pin_message">%1$s এই পিনটি লগইন করতে ব্যবহার করবে</string>
+    <string name="enter_pin_for_user">%1$s এর জন্য পিন প্রবেশ করুন</string>
+    <string name="incorrect_pin_please_retry">ভুল পিন, অনুগ্রহ করে আবার চেষ্টা করুন</string>
+    <string name="pin_menu_login">লগ ইন</string>
+    <string name="forgot_pin">পিন ভুলে গেছেন? লগইন মাধ্যমে রিসেট করুন</string>
+    <string name="please_contact_supervisor">দয়া করে আপনার সুপারভাইজারের সাথে যোগাযোগ করুন।</string>
+    <string name="percentage" translatable="false">%</string>
+    <string name="logging_out">লগ আউট হচ্ছে। দয়া করে অপেক্ষা করুন…</string>
+    <string name="session_expired">সেশন মেয়াদোত্তীর্ণ হয়েছে এবং আবার লগইন করতে হবে</string>
+    <string name="sex">লিঙ্গ</string>
+    <string name="age">বয়স</string>
+    <string name="dob">জন্ম তারিখ</string>
+    <string name="id" translatable="false">আইডি: %1$s</string>
+    <string name="see_all">সব দেখুন</string>
+    <string name="forms">ফর্মসমূহ</string>
+    <string name="medical_history">মেডিকেল ইতিহাস</string>
+    <string name="upcoming_services">আসন্ন সেবা</string>
+    <string name="service_card">সেবা কার্ড</string>
+    <string name="other_patients">অন্যান্য রোগী</string>
+    <string name="responses">প্রতিক্রিয়া (%1$s)</string>
+    <string name="multi_user_login_attempt">ভিন্ন প্রদানকারী সহ লগইন করার চেষ্টা করা হয়েছে</string>
+    <string name="please_wait">দয়া করে অপেক্ষা করুন…</string>
+    <string name="clear_database">ডেটা রিসেট করুন</string>
+    <string name="transfer_data">ডেটা স্থানান্তর করুন</string>
+    <string name="clear_database_title">ডেটাবেস রিসেট করুন!</string>
+    <string name="clear_database_message">ডেটাবেস রিসেট করা আপনার ডিভাইস থেকে সমস্ত রেকর্ড মুছে ফেলবে। এই কর্মটি বাতিল করা যাবে না।</string>
+    <string name="resetting_app">অ্যাপ্লিকেশন রিসেট হচ্ছে…</string>
+    <string name="sync_strategy_careteam_system" translatable="false">https://smartregister.org/care-team-tag-id</string>
+    <string name="sync_strategy_location_system" translatable="false">https://smartregister.org/location-tag-id</string>
+    <string name="sync_strategy_organization_system" translatable="false">https://smartregister.org/organisation-tag-id</string>
+    <string name="sync_strategy_practitioner_system" translatable="false">https://smartregister.org/practitioner-tag-id</string>
+    <string name="sync_strategy_related_entity_location_system" translatable="false">https://smartregister.org/related-entity-location-tag-id</string>
+    <string name="sync_strategy_related_entity_location_display" translatable="false">সম্পর্কিত সত্তার স্থান</string>
+    <string name="sync_strategy_careteam_display" translatable="false">প্র্যাকটিশনার কেয়ারটিম</string>
+    <string name="sync_strategy_location_display" translatable="false">প্র্যাকটিশনার লোকেশন</string>
+    <string name="sync_strategy_organization_display" translatable="false">প্র্যাকটিশনার অর্গানাইজেশন</string>
+    <string name="sync_strategy_practitioner_display" translatable="false">প্র্যাকটিশনার</string>
+    <string name="year">বছর</string>
+    <string name="month">মাস</string>
+    <string name="weeks">সপ্তাহ(গুলি)</string>
+    <string name="days">দিন(গুলি)</string>
+    <string name="initializing">সেটিংস ইনিশিয়ালাইজ করা হচ্ছে &#8230;</string>
+    <string name="username_sample" translatable="false">ব্যবহারকারীর নাম প্রবেশ করুন।</string>
+    <string name="percentage_progress" translatable="false">%1$d%%</string>
+    <string name="error_occurred">কিছু ভুল হয়েছে…</string>
+    <string name="integer_format_validation_error_msg"
+            xmlns:ns1="http://your.namespace.uri">সংখ্যাটি <ns1:g id="min_value">%1$s</ns1:g> এবং <ns1:g id="max_value">%2$s</ns1:g> এর মধ্যে হতে হবে</string>
+    <string name="insights">অভিপ্রায়</string>
+    <string name="contact_help">"সহায়তা যোগাযোগ"</string>
+    <string name="offline_map">"অফলাইন মানচিত্র"</string>
+    <string name="dismiss">অগ্রাহ্য করুন</string>
+    <string name="user_info">ব্যবহারকারীর তথ্য</string>
+    <string name="assignment_info">অ্যাসাইনমেন্ট তথ্য</string>
+    <string name="app_info">অ্যাপ তথ্য</string>
+    <string name="device_info">ডিভাইস তথ্য</string>
+    <string name="refresh">রিফ্রেশ</string>
+    <string name="unsynced_resources">অসিঙ্ক্রোনাইজড রিসোর্স</string>
+    <string name="synced_statistics">সিঙ্ক্রোনাইজড পরিসংখ্যান</string>
+    <string name="all_data_synced">সব তথ্য সিঙ্ক হয়েছে</string>
+    <string name="invalid_offline_login_state">ব্যবহারকারীর সেটআপ প্রয়োজন। আপনার ইন্টারনেট সংযোগ সক্ষম করুন</string>
+    <string name="select_month">মাস নির্বাচন করুন</string>
+    <string name="user">ব্যবহারকারী</string>
+    <string name="team">দল</string>
+    <string name="locality">স্থানীয়তা</string>
+    <string name="team_organization">দল(সংগঠন)</string>
+    <string name="care_team">কেয়ার টিম</string>
+    <string name="location">অবস্থান</string>
+    <string name="app_version_code">অ্যাপ সংস্করণ কোড</string>
+    <string name="build_date">বিল্ড তারিখ</string>
+    <string name="manufacture">মেনুফ্যাকচার</string>
+    <string name="app_versions">অ্যাপ সংস্করণ</string>
+    <string name="os_version">ওএস সংস্করণ</string>
+    <string name="device_date">তারিখ</string>
+    <string name="device">ডিভাইস</string>
+    <string name="ok">ওকে</string>
+    <string name="add">যোগ করুন</string>
+    <string name="data_migration_started">সংস্করণ %1$d থেকে ডেটা মাইগ্রেশন শুরু হয়েছে</string>
+    <string name="data_migration_completed">অ্যাপ্লিকেশন ডেটা সংস্করণ %1$d তে মাইগ্রেট করা হয়েছে</string>
+    <string name="select_your_site">আপনার সাইট নির্বাচন করুন</string>
+    <string name="btn_continue">অবিরত রাখুন</string>
+    <string name="iisc">আইআইএসসি</string>
+    <string name="uploading_images_title">চিত্র আপলোড করা হচ্ছে</string>
+    <string name="images_pending_text">%1$d চিত্র অপেক্ষমাণ</string>
+    <string name="upload_success">চিত্রগুলি সফলভাবে আপলোড হয়েছে</string>
+    <string name="upload_failure">কিছু চিত্র আপলোড করতে ব্যর্থ হয়েছে</string>
+    <!--error message-->
+    <string name="failed_to_overwrite_url_request_successfully">ইউআরএল অনুরোধ সফলভাবে ওভাররাইট করতে ব্যর্থ হয়েছে</string>
+    <string name="unknown_error">অজানা ত্রুটি</string>
+    <string name="failed_to_complete_request_successfully">অনুরোধ সফলভাবে সম্পন্ন করতে ব্যর্থ হয়েছে</string>
+    <string name="no_internet_connection">ইন্টারনেট সংযোগ নেই</string>
+    <string name="notification_title_document_upload">ডকুমেন্ট আপলোড</string>
+    <string name="agree_privacy_policy">"I agree to Aarogya Aarohan’s "</string>
+    <string name="privacy_policy">Privacy Policy</string>
+
+</resources>

@@ -3,15 +3,14 @@
     <item
         android:id="@+id/navigation_register"
         android:icon="@drawable/patient_list"
-        android:title="Cases" />
+        android:title="@string/menu_cases" />
     <item
         android:id="@+id/navigation_tasks"
         android:icon="@drawable/follow_ups"
-        android:title="Recommendations" />
+        android:title="@string/menu_recommendations" />
 
     <item
         android:id="@+id/navigation_dashboard"
         android:icon="@drawable/ic_dashboard"
-        android:title="Dashboard" />
-
+        android:title="@string/menu_dashboard" />
 </menu>

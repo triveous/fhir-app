@@ -51,6 +51,7 @@ import org.smartregister.fhircore.engine.util.clearPasswordInMemory
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
 import org.smartregister.fhircore.engine.util.extension.getActivity
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.util.VERSION_CODE
@@ -312,8 +313,7 @@ constructor(
         val organizations = practitionerDetails.fhirPractitionerDetails?.organizations ?: listOf()
         val locations = practitionerDetails.fhirPractitionerDetails?.locations ?: listOf()
         val practitioners = practitionerDetails.fhirPractitionerDetails?.practitioners ?: listOf()
-        val practitionerId =
-          practitionerDetails.fhirPractitionerDetails?.practitionerId.valueToString()
+        val practitionerId = practitioners.firstOrNull()?.logicalId ?: ""
         val locationHierarchies =
           practitionerDetails.fhirPractitionerDetails?.locationHierarchyList ?: listOf()
 
@@ -368,6 +368,7 @@ constructor(
         }
 
         if (practitionerId.isNotEmpty()) {
+          secureSharedPreference.savePractitionerUserId(practitionerId)
           writePractitionerDetailsToShredPref(
             careTeam = careTeam,
             organization = organization,

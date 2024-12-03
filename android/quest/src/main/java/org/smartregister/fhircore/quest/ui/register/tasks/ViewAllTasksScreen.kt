@@ -32,36 +32,17 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
-import org.smartregister.fhircore.engine.ui.theme.LightColors
-import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
-import org.smartregister.fhircore.quest.ui.main.components.FILTER
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.ModalBottomSheetLayout
 import androidx.compose.material.ModalBottomSheetValue
@@ -70,35 +51,44 @@ import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonColors
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Task
-import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
+import org.smartregister.fhircore.engine.ui.theme.LightColors
+import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
 
-
-const val URGENT_REFERRAL_TAB = "Urgent Referral"
-const val ADD_INVESTIGATION_TAB = "Add Investigation"
-const val RETAKE_PHOTO_TAB = "Retake Photo Tab"
-const val URGENT_REFERRAL_PATIENTS = 0
-const val ADD_INVESTIGATION_PATIENTS = 1
-const val RETAKE_PHOTO_PATIENTS = 2
 
 enum class FilterType(val label: String) {
   URGENT_REFERRAL("Urgent Referral"),
@@ -107,38 +97,97 @@ enum class FilterType(val label: String) {
   ADVICE_TO_QUIT("Advice To Quit")
 }
 
+enum class TaskCode(val code: String) {
+  URGENT_REFER_TO_HOSPITAL("urgent-refer-to-hospital"),
+  ADDITIONAL_INVESTIGATION_NEEDED("additional-investigation-needed"),
+  QUIT_HABIT("quit-habit"),
+  RETAKE_IMAGE("retake-image");
+
+  companion object {
+//    fun fromCode(code: String): TaskCode? = values().find { it.code == code }
+    fun fromCode(code: String): TaskCode? {
+      // Normalize the code by replacing underscores with hyphens
+      val normalizedCode = code.replace("_", "-")
+      return values().find { it.code == normalizedCode }
+    }
+  }
+}
+
+enum class TaskCodes(val codes: List<String>) {
+  URGENT_REFER_TO_HOSPITAL(listOf("urgent-refer-to-hospital", "urgent_referral")),
+  ADDITIONAL_INVESTIGATION_NEEDED(listOf("additional-investigation-needed", "add_investigation_needed")),
+  QUIT_HABIT(listOf("quit-habit", "quit_habit")),
+  RETAKE_IMAGE(listOf("retake-image", "retake_photo"));
+
+  companion object {
+    // Find TaskCode by matching any of the possible codes
+    fun fromCode(code: String): TaskCodes? {
+      return entries.find { taskCode ->
+        taskCode.codes.any { it.equals(code,true) }
+      }
+    }
+  }
+}
+
 @Composable
-fun FilterRow(selectedFilter: FilterType, onFilterSelected: (FilterType) -> Unit) {
+fun FilterRow(
+  viewModel: TasksViewModel,
+  selectedFilter: Pair<String,String>,
+  onFilterSelected: (Pair<String,String>) -> Unit
+) {
   Row(modifier = Modifier
     .fillMaxWidth()
     .horizontalScroll(rememberScrollState())
     .padding(16.dp),
     horizontalArrangement = Arrangement.SpaceBetween
     ) {
-    FilterType.entries.forEachIndexed { index, filter ->
+    val allTaskCodeWithValues = viewModel.allTaskCodeWithValues.collectAsState()
+    //allTaskCodeWithValues.value.isNotEmpty().let { onFilterSelected(allTaskCodeWithValues.value.first()) }
+
+    allTaskCodeWithValues.value.forEachIndexed { index, filter ->
       Box(modifier = Modifier
-        .border(width = 0.5.dp, color = (if (filter == selectedFilter) LightColors.primary else Color.LightGray ), shape = RoundedCornerShape(8.dp))
-        .background(if (filter == selectedFilter) LightColors.primary else SearchHeaderColor,
-          shape = RoundedCornerShape(8.dp))
-        .padding(8.dp)) {
+        .border(
+          width = 0.5.dp,
+          color = (if (filter.first == selectedFilter.first) LightColors.primary else Color.LightGray),
+          shape = RoundedCornerShape(8.dp)
+        )
+        .background(
+          if (filter.first == selectedFilter.first) LightColors.primary else SearchHeaderColor,
+          shape = RoundedCornerShape(8.dp)
+        )
+        .padding(8.dp)
+        .clickable {
+          onFilterSelected(filter)
+        }) {
         Text(
-          text = filter.label,
+          text = filter.second.uppercase(),
           style = TextStyle(
             fontWeight = FontWeight(600),
             fontSize = 16.sp
           ),
-          modifier = Modifier
-            .padding(4.dp)
-            .clickable {
-              onFilterSelected(filter)
-            },
-          color = if (filter == selectedFilter) Color.White else Color.Black
+          modifier = Modifier.padding(4.dp),
+          color = if (filter.first == selectedFilter.first) Color.White else Color.Black
         )
       }
       if (index < FilterType.entries.size - 1) {
         Spacer(modifier = Modifier.width(8.dp)) // Horizontal margin
       }
     }
+  }
+}
+
+@Composable
+fun getFilterName(labelName: String): String {
+  return if (labelName.equals(FilterType.ADD_INVESTIGATION.label, true)) {
+    stringResource(id = R.string.view_all_add_investigation)
+  } else if (labelName.equals(FilterType.RETAKE_PHOTO.label, true)) {
+    stringResource(id = R.string.view_all_retake_photo)
+  } else if (labelName.equals(FilterType.ADVICE_TO_QUIT.label, true)) {
+    stringResource(id = R.string.view_all_advice_to_quit)
+  } else if (labelName.equals(stringResource(id = R.string.view_all_advice_to_quit_habit), true)) {
+    stringResource(id = R.string.view_all_advice_to_quit_habit)
+  } else {
+    stringResource(id = R.string.view_all_urgent_referral)
   }
 }
 
@@ -157,6 +206,8 @@ fun ViewAllTasksScreen(
   val coroutineScope = rememberCoroutineScope()
   val bottomSheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden, skipHalfExpanded = true)
   var selectedTask by remember { mutableStateOf<TasksViewModel.TaskItem?>(null) }
+  val statusUpdateSuccessfully = stringResource(id = R.string.status_updated_successfully)
+  val selectStatusToUpdate = stringResource(id = R.string.select_status_to_update)
 
   Scaffold(
     modifier = modifier.background(SearchHeaderColor),
@@ -178,45 +229,47 @@ fun ViewAllTasksScreen(
       sheetState = bottomSheetState,
       sheetContent = {
         selectedTask?.let { task ->
-          TasksBottomSheetContent(task = task, onStatusUpdate = {taskProgressState ->
+          TasksBottomSheetContent(viewModel,task = task, onStatusUpdate = {taskProgressState ->
             var status : TaskStatus = TaskStatus.NULL
+            var taskPriorityState = taskProgressState
+
             when(taskProgressState){
               TaskProgressState.FOLLOWUP_DONE -> {
                 status = TaskStatus.COMPLETED
               }
-              TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
+              TaskProgressState.NOT_AGREED_FOR_FOLLOWUP,TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
                 status = TaskStatus.INPROGRESS
               }
-              TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
-                status = TaskStatus.INPROGRESS
-              }
-              TaskProgressState.NOT_CONTACTED -> {
-                status = TaskStatus.REQUESTED
-              }
-              TaskProgressState.NOT_RESPONDED -> {
-                status = TaskStatus.REQUESTED
-              }
-              TaskProgressState.DEFAULT -> {
-                status = TaskStatus.REQUESTED
-              }
+
               TaskProgressState.REMOVE -> {
+                taskPriorityState = TaskProgressState.REMOVE
                 status = TaskStatus.REJECTED
               }
+
+              TaskProgressState.NOT_RESPONDED -> {
+                taskPriorityState = TaskProgressState.NOT_RESPONDED
+                status = TaskStatus.REQUESTED
+              }
+
+              TaskProgressState.DEFAULT, TaskProgressState.NOT_CONTACTED -> {
+                status = TaskStatus.REQUESTED
+              }
+
               else -> {
                 status = TaskStatus.REQUESTED
 
               }
             }
 
-            if(taskPriority != TaskProgressState.NONE){
-              registerViewModel.updateTask(task.task, status, taskPriority)
+            if(taskPriorityState != TaskProgressState.NONE){
+              registerViewModel.updateTask(task.task, status, taskPriorityState)
               coroutineScope.launch {
-                registerViewModel.emitSnackBarState(SnackBarMessageConfig("Status updated successfully"))
+                registerViewModel.emitSnackBarState(SnackBarMessageConfig(statusUpdateSuccessfully))
                 bottomSheetState.hide()
               }
             }else{
               coroutineScope.launch {
-                registerViewModel.emitSnackBarState(SnackBarMessageConfig("Select the status to update"))
+                registerViewModel.emitSnackBarState(SnackBarMessageConfig(selectStatusToUpdate))
               }
             }
           },
@@ -234,9 +287,9 @@ fun ViewAllTasksScreen(
         Box(
           modifier = modifier
             .background(SearchHeaderColor)
-        )
-        {
-          var selectedFilter by remember { mutableStateOf(FilterType.URGENT_REFERRAL) }
+        ) {
+          val isFetching by viewModel.isFetching.collectAsState()
+          val selectedFilter by viewModel.selectedFilter.collectAsState()
           val filteredTasks by viewModel.filteredTasksStateFlow.collectAsState()
           val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
 
@@ -253,8 +306,8 @@ fun ViewAllTasksScreen(
 
             Row(modifier = Modifier
               .fillMaxWidth()) {
-              FilterRow(selectedFilter) { filter ->
-                selectedFilter = filter
+              FilterRow(viewModel,selectedFilter) { filter ->
+                viewModel.setSelectedFilter(filter)
               }
             }
 
@@ -267,37 +320,49 @@ fun ViewAllTasksScreen(
                 .fillMaxWidth()
             ) {
 
-              if (filteredTasks.isEmpty()){
-                Box(
-                  modifier = modifier
-                    .background(SearchHeaderColor)
-                    .padding(top = 48.dp)
-                    .fillMaxWidth(),
-                  contentAlignment = Alignment.Center
-                ) {
-
-                  Box(
+              if (isFetching){
+                Column(modifier = Modifier
+                  .fillMaxWidth()
+                  .fillMaxHeight(),
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  verticalArrangement = Arrangement.Center) {
+                  CircularProgressIndicator(
                     modifier = modifier
-                      .padding(horizontal = 16.dp)
-                      .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                  ) {
-                    Text(text = stringResource(id = R.string.no_cases))
-                  }
+                      .size(48.dp),
+                    strokeWidth = 4.dp,
+                    color = LightColors.primary,
+                  )
                 }
               }else{
-                LazyColumn(modifier = modifier
-                  .background(SearchHeaderColor)) {
-                  items(filteredTasks) { task ->
-                    Box(
+                if (filteredTasks.isEmpty()){
+                  Column(modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center) {
+                    CircularProgressIndicator(
                       modifier = modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                        .background(SearchHeaderColor)
-                    ) {
-                      SearchCardItemView(task) {
-                        selectedTask = task
-                        coroutineScope.launch { bottomSheetState.show() }
+                        .size(48.dp),
+                      strokeWidth = 4.dp,
+                      color = LightColors.primary,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(org.smartregister.fhircore.engine.R.string.loading))
+                  }
+                }else{
+                  LazyColumn(modifier = modifier
+                    .background(SearchHeaderColor)) {
+                    items(filteredTasks) { task ->
+                      Box(
+                        modifier = modifier
+                          .fillMaxWidth()
+                          .padding(horizontal = 8.dp)
+                          .background(SearchHeaderColor)
+                      ) {
+                        SearchCardItemView(viewModel,task) {
+                          selectedTask = task
+                          coroutineScope.launch { bottomSheetState.show() }
+                        }
                       }
                     }
                   }
@@ -313,18 +378,26 @@ fun ViewAllTasksScreen(
 
 
 @Composable
-fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (TaskProgressState) -> Unit, onCancel: () -> Unit) {
+fun TasksBottomSheetContent(
+  viewModel: TasksViewModel,
+  task: TasksViewModel.TaskItem,
+  onStatusUpdate: (TaskProgressState) -> Unit,
+  onCancel: () -> Unit
+) {
 
-  var name = ""
-  var phone = ""
-  var date = ""
-  var address = ""
-  if (task.patient?.name?.isNotEmpty() == true && task.patient?.name?.get(0)?.given?.isNotEmpty() == true){
-    name = task.patient?.name?.get(0)?.given?.get(0)?.value.toString()
-    phone = task.patient?.telecom?.get(0)?.value.toString()
-    date = task.patient?.meta?.lastUpdated?.let { OpensrpDateUtils.convertToDate(it) }.toString()
-    address = getPatientAddress(task.patient)
-  }
+  val name = task.patient?.name
+    ?.firstOrNull()
+    ?.given
+    ?.firstOrNull()
+    ?.value
+    ?: ""
+
+  val phone = task.patient?.telecom
+    ?.firstOrNull()
+    ?.value
+    ?: ""
+  val date = task.patient?.meta?.lastUpdated?.let { OpensrpDateUtils.convertToDate(it) }.toString()
+  val address = getPatientAddress(task.patient)
   val context = LocalContext.current
   Column(
     modifier = Modifier
@@ -368,7 +441,7 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
     Row(modifier = Modifier
       .fillMaxWidth(),
       verticalAlignment = Alignment.CenterVertically) {
-      Text(text = "Screened on ",
+      Text(text = stringResource(id = R.string.view_all_screened_on),
         color = colorResource(id = R.color.subTextGreyBold),
         fontSize = 14.sp,
         fontWeight = FontWeight.Bold)
@@ -390,7 +463,7 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
 
       Row {
         Text(
-          text = "Phone ",
+          text = stringResource(id = R.string.phone_with_space),
           color = colorResource(id = R.color.subTextGreyBold),
           fontSize = 14.sp,
           fontWeight = FontWeight.Bold,
@@ -412,7 +485,7 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
         },
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Text(text = "Call", color = LightColors.primary)
+        Text(text = stringResource(id = R.string.view_all_call), color = LightColors.primary)
 
         Spacer(modifier = Modifier.width(4.dp))
 
@@ -431,64 +504,11 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
       }
     }
 
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Row(modifier = Modifier.padding(vertical = 4.dp)) {
-      var label = ""
-      var textColor = Color.Black
-      var color = Color.Black
-
-      when(task.task.intent){
-
-        Task.TaskIntent.PLAN -> {
-          label = "ADD INVESTIGATION"
-          color = Color(0xFFFFF8E0)
-          textColor = Color(0xFFFFC800)
-        }
-
-        Task.TaskIntent.OPTION -> {
-          label = "ADVICE TO QUIT HABIT"
-          color = Color(0xFFFFF8E0)
-          textColor = Color(0xFFFFC800)
-        }
-
-        Task.TaskIntent.ORDER -> {
-          label = "URGENT REFERRAL"
-          color = Color(0xFFFFCDD2)
-          textColor = Color(0xFFFF3355)
-        }
-
-        Task.TaskIntent.PROPOSAL -> {
-          label = "RETAKE PHOTO"
-          color = Color.LightGray
-          textColor = Color.Gray
-        }
-
-        else -> {
-          label = ""
-          color = Color.LightGray
-          textColor = Color.Gray
-        }
-      }
-
-      Row(modifier = Modifier
-        .background(color, shape = MaterialTheme.shapes.small)
-        .fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center
-      ) {
-        Text(
-          text = label,
-          color = textColor,
-          fontWeight = FontWeight.Bold,
-          textAlign = TextAlign.Center,
-          modifier = Modifier
-            .padding(horizontal = 8.dp, vertical = 8.dp)
-            .fillMaxWidth(),
-        )
-      }
-    }
-
     Spacer(modifier = Modifier.height(16.dp))
+
+    MultiRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
+
+    Spacer(modifier = Modifier.height(8.dp))
 
 
     if (task.task.status != TaskStatus.COMPLETED){
@@ -498,7 +518,7 @@ fun TasksBottomSheetContent(task: TasksViewModel.TaskItem, onStatusUpdate: (Task
         .background(Color.LightGray))
 
       Spacer(modifier = Modifier.height(16.dp))
-      Text(text = "CHANGE STATUS", color = colorResource(id = R.color.subTextGrey), fontSize = 14.sp)
+      Text(text = stringResource(id = R.string.view_all_change_status), color = colorResource(id = R.color.subTextGrey), fontSize = 14.sp)
       Spacer(modifier = Modifier.height(16.dp))
     }
 
@@ -670,119 +690,8 @@ fun getPatientAddress(patient: Patient?): String {
 }
 
 @Composable
-fun SearchCardItemView(task: TasksViewModel.TaskItem, onSelectTask: (TasksViewModel.TaskItem) -> Unit) {
-  Box(
-    modifier = Modifier
-      .fillMaxWidth()
-      .padding(vertical = 8.dp, horizontal = 16.dp)
-      .background(Color.White, shape = RoundedCornerShape(8.dp))
-      .clickable {
-        onSelectTask(task)
-        //viewModel.updateTask(task, Task.TaskStatus.INPROGRESS, Task.TaskPriority.ROUTINE)
-      }
-  ) {
-    Card(
-      modifier = Modifier
-        .fillMaxWidth()
-        .background(Color.White, shape = RoundedCornerShape(8.dp)),
-      elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-    ) {
-      Box(
-        modifier = Modifier
-          .background(Color.White)
-      ) {
-        Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = 16.dp)
-            .background(Color.White)
-        ) {
-          var name = ""
-          var phone = ""
-          if (task.patient?.name?.isNotEmpty() == true && task.patient?.name?.get(0)?.given?.isNotEmpty() == true){
-            name = task.patient?.name?.get(0)?.given?.get(0)?.value.toString()
-            phone = task.patient?.telecom?.get(0)?.value.toString()
-          }
-          Row(modifier = Modifier.padding(vertical = 4.dp)) {
-
-            androidx.compose.material.Icon(
-              modifier = Modifier.padding(
-                vertical = 4.dp,
-                horizontal = 4.dp
-              ),
-              painter = painterResource(id = R.drawable.ic_patient_male),
-              contentDescription = FILTER,
-              tint = LightColors.primary,
-            )
-
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
-              Text(
-                modifier = Modifier
-                  .padding(vertical = 4.dp, horizontal = 4.dp),
-                text = "$name",
-                fontSize = 18.sp,
-                color = LightColors.primary
-              )
-              Spacer(modifier = Modifier.height(4.dp))
-              Text(
-                text = "Phone ${phone}",
-                color = colorResource(id = R.color.subTextGrey),
-                fontSize = 14.sp,
-                modifier = Modifier
-                  .padding(horizontal = 4.dp, vertical = 4.dp)
-              )
-              Spacer(modifier = Modifier.height(4.dp))
-              Row(modifier = Modifier.padding(vertical = 4.dp)) {
-                var label = ""
-                var textColor = Color.Black
-                var color = Color.Black
-
-                when(task.task.intent){
-
-                  Task.TaskIntent.PLAN -> {
-                    label = "ADD INVESTIGATION"
-                    color = Color(0xFFFFF8E0)
-                    textColor = Color(0xFFFFC800)
-                  }
-
-                  Task.TaskIntent.OPTION -> {
-                    label = "ADVICE TO QUIT HABIT"
-                    color = Color(0xFFFFF8E0)
-                    textColor = Color(0xFFFFC800)
-                  }
-
-                  Task.TaskIntent.ORDER -> {
-                    label = "URGENT REFERRAL"
-                    color = Color(0xFFFFCDD2)
-                    textColor = Color(0xFFFF3355)
-                  }
-
-                  Task.TaskIntent.PROPOSAL -> {
-                    label = "RETAKE PHOTO"
-                    color = Color.LightGray
-                    textColor = Color.Gray
-                  }
-
-                  else -> {
-                    label = ""
-                    color = Color.LightGray
-                    textColor = Color.Gray
-                  }
-                }
-
-                Text(
-                  text = label,
-                  color = textColor,
-                  fontSize = 14.sp,
-                  modifier = Modifier
-                    .background(color, shape = MaterialTheme.shapes.small)
-                    .padding(horizontal = 4.dp, vertical = 4.dp)
-                )
-              }
-            }
-          }
-        }
-      }
-    }
+fun SearchCardItemView(viewModel: TasksViewModel,task: TasksViewModel.TaskItem, onSelectTask: (TasksViewModel.TaskItem) -> Unit) {
+  CardItemViewAllTask(viewModel,task){
+    onSelectTask(task)
   }
 }

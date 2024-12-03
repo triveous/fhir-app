@@ -1,5 +1,7 @@
 
 import com.android.build.api.variant.FilterConfiguration.FilterType
+import com.android.tools.r8.internal.en
+import com.android.tools.r8.internal.mr
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.json.JSONArray
 import org.json.JSONObject
@@ -65,7 +67,7 @@ android {
     versionCode = BuildConfigs.versionCode
     versionName = BuildConfigs.versionName
     multiDexEnabled = true
-
+    resourceConfigurations += listOf("en", "hi", "bn", "te", "mr", "ta", "ur")
     buildConfigField("boolean", "SKIP_AUTH_CHECK", "false")
     buildConfigField("String", "FHIR_BASE_URL", """"${project.extra["FHIR_BASE_URL"]}"""")
     buildConfigField("String", "OAUTH_BASE_URL", """"${project.extra["OAUTH_BASE_URL"]}"""")

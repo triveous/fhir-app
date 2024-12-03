@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -38,17 +39,18 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.AndroidEntryPoint
 import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
 import org.smartregister.fhircore.engine.configuration.workflow.ApplicationWorkflow
-import javax.inject.Inject
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.extension.isIn
+import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.util.extensions.interpolateActionParamsValue
+import javax.inject.Inject
 
 @ExperimentalMaterialApi
 @AndroidEntryPoint
@@ -119,7 +121,9 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
                 onEditDraftClicked = {
                   showQuestionnaire(registerViewModel.registerUiState.value, it)
                 },
-                screenTitle = if (from.contains(FilterType.DRAFTS.name, true)) {"Drafts"} else {"Recently Added"},
+                screenTitle = if (from.contains(FilterType.DRAFTS.name, true))
+                {stringResource(id = R.string.draft)} else {
+                  stringResource(id = R.string.toolbar_recently_added)},
                 onBack = {
                   activity?.finish()
                 }

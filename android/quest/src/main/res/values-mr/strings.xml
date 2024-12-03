@@ -1,0 +1,296 @@
+<resources xmlns:ns1="http://schemas.android.com/apk/res-auto">
+    <string name="back_to_clients">ग्राहक सूचीवर परत जा</string>
+    <string name="test_results">चाचणी परिणाम</string>
+
+    <string name="edit_patient_info">माहिती संपादित करा</string>
+
+    <string name="menu_clients">ग्राहक</string>
+    <string name="menu_settings">सेटिंग्ज</string>
+
+    <string name="cannot_find_parent_questionnaire">पालक प्रश्नावली सापडली नाही!</string>
+    <string name="max_size_file_above_limit_validation_error_msg">त्रुटी: फाइल आकार %1$s MB पेक्षा मोठा आहे</string>
+    <string name="max_size_image_above_limit_validation_error_msg">त्रुटी: चित्राचा आकार %1$s MB पेक्षा मोठा आहे</string>
+    <string name="max_value_validation_error_msg">कमाल मूल्य: <ns1:g id="max_value">%1$s</ns1:g></string>
+    <string name="mime_type_wrong_media_format_validation_error_msg">त्रुटी: चुकीचा मीडिया फॉर्मेट</string>
+    <string name="min_length_validation_error_msg">उत्तरात परवानगी असलेल्या किमान वर्णांची संख्या: <ns1:g id="min_length">%1$s</ns1:g></string>
+    <string name="min_value_validation_error_msg">किमान मूल्य: <ns1:g id="min_value">%1$s</ns1:g></string>
+    <string name="multi_select_dialog_subtitle">सर्व लागू असलेले निवडा</string>
+    <string name="take_photo">फोटो काढा</string>
+    <string name="time">वेळ</string>
+    <string name="add_photo">फोटो जोडा</string>
+    <string name="upload_audio">ऑडिओ अपलोड करा</string>
+    <string name="upload_document">कागदपत्र अपलोड करा</string>
+    <string name="upload_failed">अपलोड अयशस्वी</string>
+    <string name="image_capture_failed">चित्र काढण्यास अयशस्वी</string>
+    <string name="upload_file">फाइल अपलोड करा</string>
+    <string name="upload_photo">फोटो अपलोड करा</string>
+    <string name="upload_video">वीडिओ अपलोड करा</string>
+    <string name="uploaded">अपलोड केलेले</string>
+    <string name="video_deleted">वीडिओ हटवला</string>
+    <string name="video_uploaded">वीडिओ अपलोड केलेला</string>
+    <string name="audio_deleted">ऑडिओ हटवला</string>
+    <string name="audio_uploaded">ऑडिओ अपलोड केलेला</string>
+
+    <string name="loading_forms">फॉर्म लोड करत आहे …</string>
+    <string name="loading_responses">प्रतिक्रियांचे लोड करत आहे …</string>
+    <string name="loading_patients">केसेस लोड करत आहे …</string>
+    <string name="no_test_results_found">कोणतेही चाचणी परिणाम सापडले नाहीत</string>
+    <string name="patient_test_results">चाचणी परिणाम</string>
+    <string name="last_test">अखेरची चाचणी - %1$s</string>
+    <string name="sample_distance" translatable="false">२.४ किमी</string>
+    <string name="hash_sign" translatable="false">#</string>
+    <string name="menu_tasks">कार्य</string>
+    <string name="household">कुटुंब</string>
+    <string name="routine_visit">नियमित भेट</string>
+    <string name="anc_visit">ANC भेट</string>
+    <string name="at_risk">धोका</string>
+    <string name="no_tasks">कोणतीही कार्ये नाहीत</string>
+    <string name="add_member">सदस्य जोडा</string>
+    <string name="what_to_do">तुम्हाला काय करायचे आहे?</string>
+
+    <!--Overflow menu strings -->
+    <string name="view_profile">प्रोफाइल पहा</string>
+    <string name="family_details">कुटुंबाचे तपशील</string>
+    <string name="change_family_head">कुटुंब प्रमुख बदलवा</string>
+    <string name="change_primary_caregiver">प्राथमिक देखरेख करणारा बदलवा</string>
+    <string name="family_activity">कुटुंबीय क्रियाकलाप</string>
+    <string name="view_past_encounters">मागील भेटी पहा</string>
+    <string name="remove_family">कुटुंब हटवा</string>
+    <string name="family_suffix">%1$s कुटुंब</string>
+    <string name="remove_this_person">या व्यक्तीला हटवा</string>
+    <string name="individual_details">वैयक्तिक तपशील</string>
+    <string name="view_family">कुटुंब पहा</string>
+    <string name="record_sick_child">आजारी मुलाचे रेकॉर्ड करा</string>
+
+    <!-- SideMenu option strings-->
+    <string name="device_to_device_sync">डिव्हाइस ते डिव्हाइस समन्वय</string>
+    <string name="anc_clients">ANC ग्राहक</string>
+    <string name="all_clients">सर्व ग्राहक</string>
+    <string name="pnc_clients">PNC ग्राहक</string>
+    <string name="hiv_clients">ग्राहक यादी</string>
+    <string name="phone_tracing_clients">फोन ट्रेसिंग</string>
+    <string name="home_tracing_clients">घरगुती ट्रेसिंग</string>
+    <string name="appointment_clients">अपॉइंटमेंट्स</string>
+    <string name="family_planning_clients">कुटुंब नियोजन ग्राहक</string>
+    <string name="households">कुटुंबे</string>
+    <string name="children">मुलं</string>
+
+    <!--remove family questionnaire strings-->
+    <string name="remove_family_warning">%1$s कुटुंब हटवल्यास त्यांचा संपूर्ण आरोग्य रेकॉर्ड आपल्या डिव्हाइसमधून हटवला जाईल. हा क्रिया उलटता येणार नाही.</string>
+
+    <!--remove family member questionnaire strings-->
+    <string name="remove_family_member_warning">%1$s या कुटुंबातून कायमचा हटवला जाईल. हा क्रिया उलटता येणार नाही.</string>
+    <string name="remove_member">सदस्य हटवा</string>
+
+    <!--Reporting strings -->
+    <string name="date_range">तारीख श्रेणी</string>
+    <string name="change">बदलवा</string>
+    <string name="all">सर्व</string>
+    <string name="individual">वैयक्तिक</string>
+    <string name="please_wait">कृपया थांबा…</string>
+    <string name="patient">रुग्ण</string>
+    <string name="subject">विषय</string>
+    <string name="generate_report">रिपोर्ट जनरेट करा</string>
+    <string name="select_patient">रुग्ण निवडा</string>
+    <string name="select_subject">विषय निवडा</string>
+    <string name="start_date">सुरूवातीची तारीख</string>
+    <string name="end_date">समाप्तीची तारीख</string>
+    <string name="select_date">तारीख निवडा</string>
+
+    <!--Change family head strings -->
+    <string name="no_eligible_family_members">कुटुंब प्रमुखासाठी पात्र कुटुंब सदस्य सापडले नाहीत.</string>
+    <string name="label_select_new_head">नवीन कुटुंब प्रमुख निवडा</string>
+    <string name="label_assign_new_family_head">नवीन कुटुंब प्रमुख नियुक्त करा</string>
+    <string name="alert_message_abort_operation">आपल्याला हा ऑपरेशन रद्द करायचा आहे का?</string>
+
+    <!-- Dialog alert messages-->
+    <string name="unsaved_changes_message_alert">जर आपण जतन करण्यापूर्वी सोडले तर, आपले संपादने किंवा बदल गमावले जातील</string>
+    <string name="visit_due_on">%1$s %2$s रोजी अपेक्षित आहे</string>
+    <string name="visit_due_today">%1$s आज अपेक्षित आहे</string>
+    <string name="visit_overdue">%1$s %2$s पूर्वी गेला</string>
+    <string name="record_as_anc">ANC म्हणून नोंदवा</string>
+    <string name="pregnancy_outcome">गर्भधारणा परिणाम</string>
+    <string name="registers">नोंदणी</string>
+
+    <string name="questionnaire_response_name" translatable="false">%1$s (%2$s)</string>
+    <string name="due_on">%1$s रोजी अपेक्षित</string>
+
+    <string name="geo_widget_fragment_destination" translatable="false">GeoWidget Fragment Destination</string>
+
+    <string name="structuremap_failed">%1$s साठी संसाधने काढण्यात अयशस्वी</string>
+    <string name="structure_map_missing_message">प्रश्नावलीसाठी StructureMap गायब आहे, प्रश्नावलीप्रतिक्रिया जतन केली आहे</string>
+    <string name="structure_success">%1$s साठी संसाधने यशस्वीपणे काढली</string>
+    <string name="reassigned_managing_entity">व्यवस्थापकीय संस्था यशस्वीपणे पुनःनियुक्त</string>
+    <string name="error_fetching_user_details">वापरकर्ता तपशील मिळवण्यात अयशस्वी</string>
+    <string name="questionnaire_not_found">प्रश्नावली सापडली नाही. दुरुस्तीसाठी सर्व प्रश्नावल्या समन्वयित करा</string>
+    <string name="no_visits">कोणतीही भेटी नाहीत</string>
+    <string name="questionnaire_response_invalid">प्रश्नावली प्रतिक्रिया अमान्य</string>
+    <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>
+    <string name="application_version" translatable="false">अर्ज आवृत्ती</string>
+    <string name="missing_subject_type">प्रश्नावलीवर विषय प्रकार गहाळ आहे. समस्येचे समाधान करण्यासाठी Questionnaire.subjectType प्रदान करा.</string>
+    <string name="missing_questionnaire_config">प्रश्नावलीसाठी QuestionnaireConfig आवश्यक आहे पण गायब आहे.</string>
+    <string name="error_populating_questionnaire">काही प्रश्नावली फील्ड भरताना त्रुटी. अमान्य प्रश्नावली प्रतिक्रिया.</string>
+    <string name="extraction_in_progress">प्रश्नावली डेटा प्रक्रिया करत आहे…</string>
+    <string name="loading_questionnaire">प्रश्नावली लोड करत आहे…</string>
+    <string name="clear_all">सर्व साफ करा</string>
+    <string name="yes">होय</string>
+    <string name="no">नाही</string>
+
+    <string name="location_permissions_denied">स्थान प्रवेश नाकारला: GPS समन्वय काढण्यासाठी, कृपया आपल्या डिव्हाइस सेटिंग्जमध्ये स्थान परवानग्या सक्षम करा.</string>
+    <string name="location_services_disabled">स्थान सेवांचा वापर बंद आहे. आपण त्यांना सक्षम करायचे आहे का?</string>
+    <string name="copy_text_success_message">लिंक %1$s यशस्वीपणे कॉपी केली</string>
+
+    <string name="hello_blank_fragment">नमस्कार रिक्त तुकडा</string>
+    <string name="required_text_and_new_line">कृपया आवश्यक क्षेत्र भरा</string>
+    <string name="retake">पुन्हा घ्या</string>
+    <string name="done">पूर्ण</string>
+    <string name="no_unsync_patients">कोणतेही असमर्थित प्रकरणे नाहीत.</string>
+    <string name="no_draft_patients">तुमच्याकडे कोणतेही साठवलेले मसुदे नाहीत</string>
+    <string name="no_patients_added">आधीच कोणतेही प्रकरणे सादर केलेली नाहीत</string>
+    <string name="delete_draft_desc">तुम्हाला नोंद नष्ट करायची आहे का?</string>
+    <string name="delete_draft_title">नोंद नष्ट करा</string>
+    <string name="loading_followups">प्रकरणे लोड करत आहे</string>
+    <string name="no_followups">कोणतेही नवीन प्रकरणे नाहीत</string>
+    <string name="update_status">स्थिती अपडेट करा</string>
+    <string name="update">अपडेट करा</string>
+    <string name="select_language">भाषा निवडा</string>
+    <string name="cancel">रद्द करा</string>
+    <string name="close">बंद करा</string>
+    <string name="no_cases">कोणतेही जुळणारे शिफारशी सापडल्या नाहीत!</string>
+    <string name="not_contacted">संपर्क साधलेला नाही</string>
+    <string name="not_responded">प्रतिक्रिया दिलेली नाही</string>
+    <string name="add_patient">नवीन प्रकरण जोडा</string>
+
+    <string name="pending_agreed_not_done">आवृत्ती केली, फॉलोअप पूर्ण झालेले नाही</string>
+    <string name="pending_not_agreed">फॉलोअपसाठी सहमत नाही</string>
+    <string name="recenty_submitted_label">अलीकडे सादर केलेले</string>
+    <string name="draft">मसुदे</string>
+    <string name="add_case">प्रकरण जोडा</string>
+    <string name="not_agrred_empty_label">फॉलोअपसाठी सहमत नाहीत अशी काहीच नाही</string>
+    <string name="not_responded_empty_label">प्रतिक्रिया दिलेली नाहीत अशी काहीच नाही</string>
+    <string name="not_contacted_empty_label">संपर्क साधलेला नाहीत अशी काहीच नाही</string>
+    <string name="agrred_not_done_empty_label">आवृत्ती केली पण फॉलोअप पूर्ण झालेले नाहीत अशी काहीच नाही</string>
+    <string name="completed_empty_label">पूर्ण झालेल्या प्रकरणे अशी काहीच नाही</string>
+
+    <string name="kle_dental_sciences">KLE समाजाचे दंतशास्त्र संस्थान, बंगलोर</string>
+    <string name="aiims_delhi">AIIMS, दिल्ली</string>
+    <string name="nci_jhajjar">NCI, झज्जर</string>
+    <string name="msmf_bangalore">MSMF, नारायणा हृदयालय हेल्थ सिटी, बंगलोर</string>
+    <string name="msmc_bangalore">MSMC, नारायणा हृदयालय हेल्थ सिटी, बंगलोर</string>
+    <string name="public_health_krishnagiri">सार्वजनिक आरोग्य सुविधा, कृष्णगिरी</string>
+    <string name="public_health_thanjavur">सार्वजनिक आरोग्य सुविधा, तंजावूर</string>
+    <string name="mpmmcc_varanasi">MPMMCC, वाराणसी</string>
+    <string name="cachar_cancer_silchar">काछर कॅन्सर हॉस्पिटल आणि रिसर्च सेंटर, सिलचर</string>
+    <string name="dr_borooah_cancer_guwahati">डॉ. भुबनेश्वर बोरूआह कॅन्सर संस्थान, गुवाहाटी</string>
+
+    <!-- Districts -->
+    <string name="district_bengaluru">बengलोर</string>
+    <string name="district_new_delhi">नवी दिल्ली</string>
+    <string name="district_bengaluru_rural">बengलोर ग्रामीण</string>
+    <string name="district_krishnagiri">कृष्णागिरी</string>
+    <string name="district_thanjavur">तंजावूर</string>
+    <string name="district_varanasi">वाराणसी</string>
+    <string name="district_cachar">काचर</string>
+    <string name="district_guwahati">गुवाहाटी</string>
+
+    <!-- States -->
+    <string name="state_karnataka">कर्नाटका</string>
+    <string name="state_delhi">दिल्ली</string>
+    <string name="state_tamil_nadu">तामिळ नाडू</string>
+    <string name="state_uttar_pradesh">उत्तर प्रदेश</string>
+    <string name="state_assam">आसाम</string>
+
+    <!-- Profile-->
+    <string name="change_password">पासवर्ड बदलवा</string>
+    <string name="change_language">भाषा बदलवा</string>
+    <string name="logout">लॉगआउट</string>
+    <string name="change_pin">PIN बदलवा</string>
+    <string name="profile_username">वापरकर्तानाव: %s</string>
+
+    <!-- Cases-->
+    <string name="visited">भेट दिली</string>
+    <string name="cases_sync">समन्वय: %s</string>
+    <string name="dynamic_see_more">%s अधिक पहा</string>
+    <string name="created">तयार केले</string>
+    <string name="total_submissions">एकूण सबमिशन्स: %s</string>
+    <string name="un_synced_submissions">असमन्वित सबमिशन्स: %s</string>
+    <string name="synced_submissions">समन्वित सबमिशन्स: %s</string>
+    <string name="nothing_in_un_synced">असमन्वित मध्ये काहीही नाही</string>
+    <string name="cases_no_draft_patients">अजून कोणतेही केस जोडलेले नाहीत. नवीन केस जोडून सुरू करा.</string>
+
+    <!-- Recommendation-->
+    <string name="phone">फोन:</string>
+    <string name="add_investigation">तपास जोडा</string>
+    <string name="urgent_referral">तत्काळ संदर्भ</string>
+    <string name="retake_photo">फोटो पुन्हा घ्या</string>
+    <string name="image_saved">चित्र जतन केले</string>
+    <string name="sync_status">समन्वय स्थिती</string>
+    <string name="sync_now">आता समन्वय करा</string>
+    <string name="notification_sync_failed">समन्वय अयशस्वी</string>
+    <string name="notification_sync">समन्वयित करीत आहे…</string>
+    <string name="image_left">उरलेले चित्र: %s</string>
+    <string name="okay">ठीक आहे</string>
+    <string name="notification_permission_title">सूचना परवानगी</string>
+    <string name="notification_permission_description">ताज्या डेटा समन्वयाबद्दल माहिती ठेवण्यासाठी सूचना सक्षम करा. वेळेवर समन्वय अलर्ट्स सक्षम करून आपला अ‍ॅप नेहमीच सर्वात अद्ययावत माहिती ठेवावा याची खात्री करा.</string>
+
+    <!-- Menu-->
+    <string name="menu_cases">प्रकरणे</string>
+    <string name="menu_recommendations">शिफारसी</string>
+    <string name="menu_dashboard">डॅशबोर्ड</string>
+
+    <!-- Recommendations -->
+    <string name="enter_name_or_phone">नाव किंवा फोन प्रविष्ट करा</string>
+    <string name="status_new">नवीन</string>
+    <string name="status_pending">प्रलंबित</string>
+    <string name="status_completed">पूर्ण</string>
+
+    <!-- Dashboard -->
+    <string name="health_center">आरोग्य केंद्र</string>
+    <string name="total_screened_cases">स्क्रीन केलेली एकूण प्रकरणे</string>
+    <string name="today">आज</string>
+    <string name="this_week">या आठवड्यात</string>
+    <string name="this_month">या महिन्यात</string>
+    <string name="dashboard_add_patient">नवीन प्रकरण जोडा</string>
+
+    <!-- See All-->
+    <string name="view_all_draft">मसुदे</string>
+    <string name="view_all_submissions">सर्व सबमिशन</string>
+
+    <!-- View All-->
+    <string name="view_all">सर्व पहा</string>
+    <string name="view_all_urgent_referral">तत्काळ संदर्भ</string>
+    <string name="view_all_add_investigation">अधिक तपासणी</string>
+    <string name="view_all_retake_photo">फोटो पुन्हा घ्या</string>
+    <string name="view_all_advice_to_quit">सोडण्याचा सल्ला</string>
+    <string name="view_all_advice_to_quit_habit">आदत सोडण्याचा सल्ला</string>
+    <string name="view_all_change_status">स्थिती बदला</string>
+    <string name="view_all_phone">फोन %s</string>
+    <string name="phone_with_space">फोन </string>
+    <string name="view_all_call">कॉल</string>
+    <string name="view_all_screened_on">स्क्रीन केलेले</string>
+    <string name="toolbar_recently_added">अलीकडेच जोडलेले</string>
+
+    <!-- SnackBar-->
+    <string name="status_updated_successfully">स्थिती यशस्वीरित्या अद्यतनित केली</string>
+    <string name="select_status_to_update">अद्यतन करण्यासाठी स्थिती निवडा</string>
+
+    <!-- Screen Title-->
+    <string name="not_agreed_for_followup">फॉलोअपसाठी सहमत नाही</string>
+    <string name="agreed_followup_not_done">सहमत, फॉलोअप केले नाही</string>
+    <string name="followup_done">फॉलोअप पूर्ण झाले</string>
+    <string name="remove_case">सहमत नाही, केस काढा</string>
+    <string name="null_status">null</string>
+    <string name="none_status">none</string>
+    <string name="default_status">डिफॉल्ट</string>
+    <string name="remove_status">काढा</string>
+
+    <string name="submit_questionnaire">सबमिट करा</string>
+    <string name="button_pagination_next">पुढील</string>
+    <string name="button_pagination_previous">मागील</string>
+    <string name="dynamic_total_drafts">एकूण ड्राफ्ट: %s</string>
+    <string name="dynamic_visited">पाहिले %s</string>
+    <string name="agree_privacy_policy">मी आरोग्य आरोहनशी सहमत आहे</string>
+    <string name="privacy_policy">गोपनीयता धोरण</string>
+    <string name="location_permission_reason">App needs location permission to capture the site location.</string>
+
+</resources>

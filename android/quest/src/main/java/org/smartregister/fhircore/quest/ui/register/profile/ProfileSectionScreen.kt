@@ -67,6 +67,7 @@ import org.smartregister.fhircore.quest.theme.Theme.getBackground
 import org.smartregister.fhircore.quest.theme.bodyBold
 import org.smartregister.fhircore.quest.theme.bodyMedium
 import org.smartregister.fhircore.quest.theme.bodyNormal
+import org.smartregister.fhircore.quest.ui.login.CHANGE_PIN__DIALOG
 import org.smartregister.fhircore.quest.ui.login.PASSWORD_FORGOT_DIALOG
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.DRAWER_MENU
@@ -87,11 +88,13 @@ fun ProfileSectionScreen(
     registerUiState: RegisterUiState,
     searchText: MutableState<String>,
     userName: String = "",
-    onBackPressed: () -> Unit
+    onBackPressed: () -> Unit,
+    onClickChangeLanguage:() -> Unit
 ) {
 
     val userNameText = viewModel.getUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var showChangePinDialog by remember { mutableStateOf(false) }
     val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: ""
 
     Scaffold(
@@ -121,6 +124,15 @@ fun ProfileSectionScreen(
             ForgotPasswordDialog(
                 onDismissDialog = { showForgotPasswordDialog = false },
             )
+        }
+
+        if (showChangePinDialog) {
+            ChangePinDialog(
+                onDismissDialog = { showChangePinDialog = false },
+            ){
+                showChangePinDialog = false
+                viewModel.logout()
+            }
         }
 
         Box {
@@ -190,7 +202,7 @@ fun ProfileSectionScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        viewModel.logout()
+                                        showChangePinDialog = true
                                     }
                                     .padding(horizontal = 16.dp, vertical = 16.dp)
                                     .background(Color.White)) {
@@ -202,6 +214,38 @@ fun ProfileSectionScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(id = R.string.change_pin),
+                                    style = bodyMedium(fontSize = 18.sp)
+                                )
+                            }
+                        }
+
+                        Card(
+                            shape = RoundedCornerShape(4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = 16.dp,
+                                    vertical = 4.dp
+                                ), // Set corner radius here
+                            elevation = CardDefaults.cardElevation(2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onClickChangeLanguage()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                                    .background(Color.White)) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_change_language),
+                                    contentDescription = DRAWER_MENU,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(id = R.string.change_language),
                                     style = bodyMedium(fontSize = 18.sp)
                                 )
                             }
@@ -282,20 +326,12 @@ fun ProfileSectionScreen(
                             modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 16.dp)
-                            .clickable {
-                                viewModel.logout()
-                            }
                         ) {
                             Icon(
                                 Icons.Filled.PermDeviceInformation,
                                 contentDescription = DRAWER_MENU,
                                 tint = Color.Gray,
-                                modifier =
-                                modifier
-                                    .clickable {
-
-                                    }
-                                    .testTag(TOP_ROW_ICON_TEST_TAG),
+                                modifier = modifier.testTag(TOP_ROW_ICON_TEST_TAG),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = stringResource(
@@ -357,5 +393,55 @@ fun ForgotPasswordDialog(
             }
         },
         modifier = Modifier.testTag(PASSWORD_FORGOT_DIALOG),
+    )
+}
+
+
+@Composable
+fun ChangePinDialog(
+    onDismissDialog: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLogout: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismissDialog,
+        title = {
+            androidx.compose.material.Text(
+                text = stringResource(org.smartregister.fhircore.engine.R.string.change_pin_title),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+            )
+        },
+        text = {
+            androidx.compose.material.Text(
+                text = stringResource(org.smartregister.fhircore.engine.R.string.change_pin_desc),
+                fontSize = 16.sp
+            )
+        },
+        buttons = {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                androidx.compose.material.Text(
+                    text = stringResource(org.smartregister.fhircore.engine.R.string.cancel),
+                    modifier = modifier
+                        .padding(horizontal = 10.dp)
+                        .clickable { onDismissDialog() },
+                )
+                androidx.compose.material.Text(
+                    color = MaterialTheme.colors.primary,
+                    text = stringResource(org.smartregister.fhircore.engine.R.string.logout),
+                    modifier = modifier
+                        .padding(horizontal = 10.dp)
+                        .clickable {
+                            onLogout()
+                        },
+                )
+            }
+        },
+        modifier = Modifier.testTag(CHANGE_PIN__DIALOG),
     )
 }

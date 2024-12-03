@@ -20,4 +20,9 @@ object Colors {
     val SIZZLING_RED = Color(0xFFFF3355)
     val Quartz = Color(0xFF49454F)
     val CharlestonGreen = Color(0xFF282828)
+    val CORNSILK = Color(0xFFFFF8E0)
+    val DEEP_LILAC = Color(0xFF9D4AC7)
+    val LAVENDER_WEB = Color(0xFFF3E1FC)
+    val PHILIPPINE_YELLOW = Color(0xFFFFC800)
+    val LIGHT_RED = Color(0xFFFFCDD2)
 }

@@ -52,22 +52,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.view.ButtonProperties
 import org.smartregister.fhircore.engine.configuration.view.ButtonType
-import org.smartregister.fhircore.engine.configuration.view.ColumnProperties
 import org.smartregister.fhircore.engine.configuration.view.CompoundTextProperties
 import org.smartregister.fhircore.engine.configuration.view.ServiceCardProperties
-import org.smartregister.fhircore.engine.configuration.view.ViewProperties
 import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.ServiceMemberIcon
 import org.smartregister.fhircore.engine.domain.model.ServiceStatus
-import org.smartregister.fhircore.engine.domain.model.ViewType
 import org.smartregister.fhircore.engine.ui.theme.DefaultColor
 import org.smartregister.fhircore.engine.ui.theme.DividerColor
 import org.smartregister.fhircore.engine.ui.theme.SuccessColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.parseColor
 import org.smartregister.fhircore.quest.util.extensions.conditional
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
@@ -354,513 +348,513 @@ private fun BigServiceButton(
     )
   }
 }
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardServiceOverduePreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Overdue household service",
-                    primaryTextColor = "#000000",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Town/Village",
-                    primaryTextColor = "#5A5A5A",
-                    secondaryText = "HH No.",
-                    secondaryTextColor = "#555AAA",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Last visited yesterday",
-                    primaryTextColor = "#5A5A5A",
-                  ),
-                ),
-              serviceMemberIcons = "CHILD",
-              showVerticalDivider = true,
-              serviceButton =
-                ButtonProperties(
-                  visible = "true",
-                  status = ServiceStatus.OVERDUE.name,
-                  text = "1",
-                  buttonType = ButtonType.BIG,
-                ),
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardServiceOverdueWithBackgroundColorPreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Overdue household service",
-                    primaryTextColor = "#000000",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Town/Village",
-                    primaryTextColor = "#5A5A5A",
-                    secondaryText = "HH No.",
-                    secondaryTextColor = "#555AAA",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Last visited yesterday",
-                    primaryTextColor = "#5A5A5A",
-                  ),
-                ),
-              serviceMemberIcons = "CHILD",
-              showVerticalDivider = true,
-              serviceButton =
-                ButtonProperties(
-                  visible = "true",
-                  status = "",
-                  backgroundColor = "#000000",
-                  text = "1",
-                  buttonType = ButtonType.BIG,
-                ),
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardServiceOverdueWithNoBackgroundColorAndStatusPreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Overdue household service",
-                    primaryTextColor = "#000000",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Town/Village",
-                    primaryTextColor = "#5A5A5A",
-                    secondaryText = "HH No.",
-                    secondaryTextColor = "#555AAA",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Last visited yesterday",
-                    primaryTextColor = "#5A5A5A",
-                  ),
-                ),
-              serviceMemberIcons = "CHILD",
-              showVerticalDivider = true,
-              serviceButton =
-                ButtonProperties(
-                  visible = "true",
-                  status = "",
-                  backgroundColor = "",
-                  text = "1",
-                  buttonType = ButtonType.BIG,
-                ),
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardServiceDuePreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Important Due household service from Past",
-                    primaryTextColor = "#000000",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Town/Village",
-                    primaryTextColor = "#5A5A5A",
-                    secondaryText = "HH No.",
-                    secondaryTextColor = "#555AAA",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Last visited yesterday",
-                    primaryTextColor = "#5A5A5A",
-                  ),
-                ),
-              serviceMemberIcons =
-                "CHILD,PREGNANT_WOMAN,CHILD,CHILD,PREGNANT_WOMAN,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD",
-              showVerticalDivider = true,
-              serviceButton =
-                ButtonProperties(
-                  visible = "true",
-                  status = ServiceStatus.DUE.name,
-                  text = "Issue Bed net",
-                  buttonType = ButtonType.BIG,
-                ),
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardServiceUpcomingPreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Upcoming household service",
-                    primaryTextColor = "#000000",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Town/Village",
-                    primaryTextColor = "#5A5A5A",
-                    secondaryText = "HH No.",
-                    secondaryTextColor = "#555AAA",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Last visited yesterday",
-                    primaryTextColor = "#5A5A5A",
-                  ),
-                ),
-              serviceMemberIcons = "CHILD,CHILD,CHILD,CHILD",
-              showVerticalDivider = true,
-              serviceButton =
-                ButtonProperties(
-                  visible = "true",
-                  status = ServiceStatus.UPCOMING.name,
-                  text = "Next visit 09-10-2022",
-                  buttonType = ButtonType.BIG,
-                ),
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardServiceFamilyMemberPreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "John Njoroge Mwangi, M",
-                    primaryTextColor = "#000000",
-                  ),
-                ),
-              serviceMemberIcons = "CHILD",
-              showVerticalDivider = false,
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardServiceWithTinyServiceButtonPreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Nelson Mandela, M",
-                    primaryTextColor = "#000000",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Last visited yesterday",
-                    primaryTextColor = "#5A5A5A",
-                  ),
-                ),
-              showVerticalDivider = false,
-              serviceButton =
-                ButtonProperties(
-                  status = ServiceStatus.DUE.name,
-                  text = "ANC Visit",
-                  buttonType = ButtonType.TINY,
-                ),
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardServiceCompletedPreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Fully vaccinated household",
-                    primaryTextColor = "#000000",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Town/Village",
-                    primaryTextColor = "#5A5A5A",
-                    secondaryText = "HH No.",
-                    secondaryTextColor = "#555AAA",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "Last visited yesterday",
-                    primaryTextColor = "#5A5A5A",
-                  ),
-                ),
-              showVerticalDivider = true,
-              serviceButton =
-                ButtonProperties(
-                  visible = "true",
-                  status = ServiceStatus.COMPLETED.name,
-                  text = "Fully Vaccinated against COVID 19 virus",
-                  buttonType = ButtonType.BIG,
-                ),
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardANCServiceDuePreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "ANC service due",
-                    primaryTextColor = "#000000",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "EDD",
-                    primaryTextColor = "#5A5A5A",
-                    secondaryText = "29-10-2022",
-                    secondaryTextColor = "#555AAA",
-                  ),
-                ),
-              serviceMemberIcons = "CHILD",
-              showVerticalDivider = true,
-              serviceButton =
-                ButtonProperties(
-                  status = ServiceStatus.DUE.name,
-                  text = "ANC Visit",
-                ),
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun ServiceCardANCServiceOverduePreview() {
-  val viewProperties =
-    listOf<ViewProperties>(
-      ColumnProperties(
-        viewType = ViewType.COLUMN,
-        children =
-          listOf(
-            ServiceCardProperties(
-              viewType = ViewType.SERVICE_CARD,
-              details =
-                listOf(
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "A very long name. Lorem Ipsum Blah blah!",
-                    primaryTextColor = "#000000",
-                  ),
-                  CompoundTextProperties(
-                    viewType = ViewType.COMPOUND_TEXT,
-                    primaryText = "EDD",
-                    primaryTextColor = "#5A5A5A",
-                    secondaryText = "29-10-2022",
-                    secondaryTextColor = "#555AAA",
-                  ),
-                ),
-              showVerticalDivider = false,
-              serviceMemberIcons = "PREGNANT_WOMAN",
-              services =
-                listOf(
-                  ButtonProperties(
-                    visible = "true",
-                    status = ServiceStatus.COMPLETED.name,
-                    text = "Pregnancy Outcome",
-                    buttonType = ButtonType.MEDIUM,
-                  ),
-                  ButtonProperties(
-                    visible = "true",
-                    status = ServiceStatus.OVERDUE.name,
-                    text = "ANC Visit 2",
-                    buttonType = ButtonType.MEDIUM,
-                  ),
-                ),
-            ),
-          ),
-      ),
-    )
-
-  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-    ViewRenderer(
-      viewProperties = viewProperties,
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = rememberNavController(),
-    )
-  }
-}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardServiceOverduePreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Overdue household service",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Town/Village",
+//                    primaryTextColor = "#5A5A5A",
+//                    secondaryText = "HH No.",
+//                    secondaryTextColor = "#555AAA",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Last visited yesterday",
+//                    primaryTextColor = "#5A5A5A",
+//                  ),
+//                ),
+//              serviceMemberIcons = "CHILD",
+//              showVerticalDivider = true,
+//              serviceButton =
+//                ButtonProperties(
+//                  visible = "true",
+//                  status = ServiceStatus.OVERDUE.name,
+//                  text = "1",
+//                  buttonType = ButtonType.BIG,
+//                ),
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardServiceOverdueWithBackgroundColorPreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Overdue household service",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Town/Village",
+//                    primaryTextColor = "#5A5A5A",
+//                    secondaryText = "HH No.",
+//                    secondaryTextColor = "#555AAA",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Last visited yesterday",
+//                    primaryTextColor = "#5A5A5A",
+//                  ),
+//                ),
+//              serviceMemberIcons = "CHILD",
+//              showVerticalDivider = true,
+//              serviceButton =
+//                ButtonProperties(
+//                  visible = "true",
+//                  status = "",
+//                  backgroundColor = "#000000",
+//                  text = "1",
+//                  buttonType = ButtonType.BIG,
+//                ),
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardServiceOverdueWithNoBackgroundColorAndStatusPreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Overdue household service",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Town/Village",
+//                    primaryTextColor = "#5A5A5A",
+//                    secondaryText = "HH No.",
+//                    secondaryTextColor = "#555AAA",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Last visited yesterday",
+//                    primaryTextColor = "#5A5A5A",
+//                  ),
+//                ),
+//              serviceMemberIcons = "CHILD",
+//              showVerticalDivider = true,
+//              serviceButton =
+//                ButtonProperties(
+//                  visible = "true",
+//                  status = "",
+//                  backgroundColor = "",
+//                  text = "1",
+//                  buttonType = ButtonType.BIG,
+//                ),
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardServiceDuePreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Important Due household service from Past",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Town/Village",
+//                    primaryTextColor = "#5A5A5A",
+//                    secondaryText = "HH No.",
+//                    secondaryTextColor = "#555AAA",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Last visited yesterday",
+//                    primaryTextColor = "#5A5A5A",
+//                  ),
+//                ),
+//              serviceMemberIcons =
+//                "CHILD,PREGNANT_WOMAN,CHILD,CHILD,PREGNANT_WOMAN,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD,CHILD",
+//              showVerticalDivider = true,
+//              serviceButton =
+//                ButtonProperties(
+//                  visible = "true",
+//                  status = ServiceStatus.DUE.name,
+//                  text = "Issue Bed net",
+//                  buttonType = ButtonType.BIG,
+//                ),
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardServiceUpcomingPreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Upcoming household service",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Town/Village",
+//                    primaryTextColor = "#5A5A5A",
+//                    secondaryText = "HH No.",
+//                    secondaryTextColor = "#555AAA",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Last visited yesterday",
+//                    primaryTextColor = "#5A5A5A",
+//                  ),
+//                ),
+//              serviceMemberIcons = "CHILD,CHILD,CHILD,CHILD",
+//              showVerticalDivider = true,
+//              serviceButton =
+//                ButtonProperties(
+//                  visible = "true",
+//                  status = ServiceStatus.UPCOMING.name,
+//                  text = "Next visit 09-10-2022",
+//                  buttonType = ButtonType.BIG,
+//                ),
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardServiceFamilyMemberPreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "John Njoroge Mwangi, M",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                ),
+//              serviceMemberIcons = "CHILD",
+//              showVerticalDivider = false,
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardServiceWithTinyServiceButtonPreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Nelson Mandela, M",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Last visited yesterday",
+//                    primaryTextColor = "#5A5A5A",
+//                  ),
+//                ),
+//              showVerticalDivider = false,
+//              serviceButton =
+//                ButtonProperties(
+//                  status = ServiceStatus.DUE.name,
+//                  text = "ANC Visit",
+//                  buttonType = ButtonType.TINY,
+//                ),
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardServiceCompletedPreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Fully vaccinated household",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Town/Village",
+//                    primaryTextColor = "#5A5A5A",
+//                    secondaryText = "HH No.",
+//                    secondaryTextColor = "#555AAA",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "Last visited yesterday",
+//                    primaryTextColor = "#5A5A5A",
+//                  ),
+//                ),
+//              showVerticalDivider = true,
+//              serviceButton =
+//                ButtonProperties(
+//                  visible = "true",
+//                  status = ServiceStatus.COMPLETED.name,
+//                  text = "Fully Vaccinated against COVID 19 virus",
+//                  buttonType = ButtonType.BIG,
+//                ),
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardANCServiceDuePreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "ANC service due",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "EDD",
+//                    primaryTextColor = "#5A5A5A",
+//                    secondaryText = "29-10-2022",
+//                    secondaryTextColor = "#555AAA",
+//                  ),
+//                ),
+//              serviceMemberIcons = "CHILD",
+//              showVerticalDivider = true,
+//              serviceButton =
+//                ButtonProperties(
+//                  status = ServiceStatus.DUE.name,
+//                  text = "ANC Visit",
+//                ),
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun ServiceCardANCServiceOverduePreview() {
+//  val viewProperties =
+//    listOf<ViewProperties>(
+//      ColumnProperties(
+//        viewType = ViewType.COLUMN,
+//        children =
+//          listOf(
+//            ServiceCardProperties(
+//              viewType = ViewType.SERVICE_CARD,
+//              details =
+//                listOf(
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "A very long name. Lorem Ipsum Blah blah!",
+//                    primaryTextColor = "#000000",
+//                  ),
+//                  CompoundTextProperties(
+//                    viewType = ViewType.COMPOUND_TEXT,
+//                    primaryText = "EDD",
+//                    primaryTextColor = "#5A5A5A",
+//                    secondaryText = "29-10-2022",
+//                    secondaryTextColor = "#555AAA",
+//                  ),
+//                ),
+//              showVerticalDivider = false,
+//              serviceMemberIcons = "PREGNANT_WOMAN",
+//              services =
+//                listOf(
+//                  ButtonProperties(
+//                    visible = "true",
+//                    status = ServiceStatus.COMPLETED.name,
+//                    text = "Pregnancy Outcome",
+//                    buttonType = ButtonType.MEDIUM,
+//                  ),
+//                  ButtonProperties(
+//                    visible = "true",
+//                    status = ServiceStatus.OVERDUE.name,
+//                    text = "ANC Visit 2",
+//                    buttonType = ButtonType.MEDIUM,
+//                  ),
+//                ),
+//            ),
+//          ),
+//      ),
+//    )
+//
+//  Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+//    ViewRenderer(
+//      viewProperties = viewProperties,
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = rememberNavController(),
+//    )
+//  }
+//}

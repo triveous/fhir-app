@@ -12,7 +12,10 @@ import com.google.android.material.textfield.TextInputLayout
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.StringType
+import org.smartregister.fhircore.quest.QuestApplication
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.util.KEYBOARD_NUMERIC
+import timber.log.Timber
 
 object CustomEditTextStringViewHolderFactory : QuestionnaireItemViewHolderFactory(R.layout.custom_text_question_item) {
 
@@ -48,6 +51,12 @@ class EditTextStringViewHolderDelegate :
   ) {
     header.visibility = View.GONE
 
+    (questionnaireViewItem.questionnaireItem.getExtensionString("http://hl7.org/fhir/StructureDefinition/keyboard")
+      .orEmpty() == KEYBOARD_NUMERIC).let {
+      if (it){
+        textInputEditText.inputType = InputType.TYPE_CLASS_NUMBER
+      }
+    }
     val text = questionnaireViewItem.answers.singleOrNull()?.valueStringType?.value ?: ""
     if ((text != textInputEditText.text.toString())) {
       textInputEditText.setText(text)
@@ -64,7 +73,7 @@ class EditTextStringViewHolderDelegate :
     }
 
     textInputLayout.hint = "${questionnaireViewItem.questionText} $isMandatoryQuestion"
-    textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, questionnaireViewItem.validationResult)
+    textInputLayout.error = getValidationErrorMessage(textInputLayout.context, questionnaireViewItem, questionnaireViewItem.validationResult,(textInputLayout.context.applicationContext as QuestApplication).sharedPreferencesHelper)
   }
 
 

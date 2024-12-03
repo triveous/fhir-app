@@ -81,20 +81,16 @@ class SelectSiteViewModel @Inject constructor(
 
     private fun getFhirBaseUrl(selectSite: SelectSite, isTest: Boolean = false): String? {
         return if (BuildConfig.BUILD_TYPE.equals("release",true) || isTest) {
-            println("BuildConfig.DEBUG--> true")
             selectSite.fhirBaseUrl
         } else {
-            println("BuildConfig.DEBUG-->  false")
             STAGING_FHIR_BASE_URL
         }
     }
 
     private fun getOAuthBaseUrl(selectSite: SelectSite, isTest: Boolean = false): String? {
         return if (BuildConfig.BUILD_TYPE.equals("release",true) || isTest) {
-            println("BuildConfig.DEBUG-->  true")
             selectSite.authBaseUrl
         } else {
-            println("BuildConfig.DEBUG-->  false")
             STAGING_OAUTH_BASE_URL
         }
     }

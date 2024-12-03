@@ -1,0 +1,202 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="sync">మాన్యువల్ సింక్</string>
+    <string name="language">భాష</string>
+    <string name="logout_as_user">లాగ్ అవుట్‌గా </string>
+    <string name="show_overdue">చేపట్టని వాటా చూపించు</string>
+    <string name="search_hint">పేరు లేదా ఫోన్ నంబర్‌ను శోధించండి</string>
+    <string name="scan_bar_code">బార్‌కోడ్ స్కాన్ చేయండి</string>
+    <string name="empty_client_list_message_title">ఫలితాలు లేవు</string>
+    <string name="empty_client_list_message_details">మేము ఇవ్వబడిన పేరు లేదా ఐడీతో కస్టమర్‌ను కనుగొనలేకపోయాము</string>
+    <string name="register_new_client">కొత్త కస్టమర్‌ను నమోదు చేయండి</string>
+    <string name="default_app_title" translatable="false">ఫ్హిర్ యాప్</string>
+    <string name="app_logo">అప్లికేషన్ లోగో</string>
+    <string name="powered_by">చలాయించబడింది</string>
+    <string name="app_version">యాప్ వర్షన్ %1$d(%2$s)</string>
+    <string name="last_sync">చివరి సింక్ %1$s</string>
+    <string name="login_text">లాగిన్</string>
+    <string name="login_call_fail_error_message">సర్వర్ నుండి సాక్సంను నిర్ధారించడంలో విఫలమయ్యారు. మీ ఇంటర్నెట్ కనెక్షన్‌ని తనిఖీ చేయండి</string>
+    <string name="userinfo_call_fail_error_message">సర్వర్ నుండి వినియోగదారు సమాచారం పొందడంలో విఫలమయ్యారు. మీ ఇంటర్నెట్ కనెక్షన్‌ని తనిఖీ చేయండి</string>
+    <string name="select_language">భాష ఎంచుకోండి</string>
+    <string name="logout_user">లాగ్ అవుట్‌గా %1$s</string>
+    <string name="sync_completed">సింక్ విజయవంతమైంది</string>
+    <string name="syncing">సింకింగ్</string>
+    <string name="syncing_up">ఎగువకు సింకింగ్</string>
+    <string name="syncing_down">కిందకు సింకింగ్</string>
+    <string name="syncing_initiated">సింక్ ప్రారంభమైంది&#8230;</string>
+    <string name="sync_failed">సింక్ విఫలమైంది. ఇంటర్నెట్ కనెక్షన్‌ని తనిఖీ చేయండి లేదా కొద్దిరోజుల తర్వాత మళ్లీ ప్రయత్నించండి</string>
+    <string name="sync_completed_with_errors">సింక్ కొన్ని తప్పులు కలిగి ఉంది, తరువాత మళ్లీ ప్రయత్నించబడుతుంది</string>
+    <string name="sync_unauthorised">సింక్ విఫలమైంది ఎందుకంటే గుర్తింపు నిబంధనలు అమలు చేయబడలేదు.</string>
+    <string name="refresh_token_fail_error_message">సర్వర్ నుండి క్రెడెంటియల్స్ పొందడంలో విఫలమయ్యారు. దయచేసి మీ ఇంటర్నెట్ కనెక్షన్‌ని తనిఖీ చేయండి.</string>
+    <string name="try_again">మళ్లీ ప్రయత్నించండి</string>
+    <string name="status_vaccinated">వ్యాక్సినేటెడ్</string>
+    <string name="status_overdue">ఒవర్డ్యూ</string>
+    <string name="status_received_vaccine">వాక్సిన్ %1$d \n%2$s</string>
+    <string name="fully_vaccinated">"పూర్తిగా వ్యాక్సినేటెడ్"</string>
+    <string name="already_fully_vaccinated">"మరొక డోసు పొందలేరు. ఇప్పటికే పూర్తిగా వ్యాక్సినేటెడ్"</string>
+    <string name="record_vaccine_nl">రికార్డు\nవాక్సిన్</string>
+    <string name="date_last_seen">చివరి సారిగా %1$s చూడబడింది</string>
+    <string name="date_last_visited">చివరి సారిగా %1$s సందర్శించబడింది</string>
+    <string name="str_save">సేవ్</string>
+    <string name="login_error">లాగిన్ లోపం: %1$s</string>
+    <string name="str_next">తర్వాత</string>
+    <string name="str_previous">మునుపటి</string>
+    <string name="str_page_info">పేజీ %1$d లో %2$d</string>
+    <string name="search_result">%1$d ఫలితాలు</string>
+    <string name="no_results">ఫలితాలు లేవు</string>
+    <string name="no_results_message">మేము అందించిన పేరు లేదా ఐడీతో వ్యక్తిని కనుగొనలేకపోయాము</string>
+    <string name="male">పురుషులు</string>
+    <string name="female">మహిళలు</string>
+    <string name="other">ఇతర</string>
+    <string name="unknown">తెలియదు</string>
+    <string name="syncing_failed">సింక్ విఫలమైంది</string>
+    <string name="syncing_retry">సింక్ మళ్లీ ప్రయత్నించండి</string>
+    <string name="syncing_in_progress">సింక్ జరుగుతోంది</string>
+    <string name="loading">లోడింగ్</string>
+    <string name="error_logging_out">లాగ్ అవుట్ లోపం సందేశం: %1$s</string>
+    <string name="cannot_logout_user">లాగ్ అవుట్ చేయలేకపోయారు: ఇప్పటికే లాగ్ అవుట్ చేయబడింది లేదా పరికరం ఆఫ్లైన్ లో ఉంది.</string>
+    <string name="error_loading_config_http_error">కాన్ఫిగరేషన్‌ను లోడ్ చేయలేకపోయాము. దయచేసి తరువాత మళ్లీ ప్రయత్నించండి</string>
+    <string name="error_loading_config_no_internet">కాన్ఫిగరేషన్‌ను లోడ్ చేయలేకపోయాము. మీ ఇంటర్నెట్ కనెక్షన్‌ని తనిఖీ చేయండి</string>
+    <string name="error_loading_config_general">సర్వర్‌తో కనెక్ట్ కావడంలో లోపం. దయచేసి వ్యవస్థ నిర్వాహకుడిని సంప్రదించండి</string>
+    <string name="error_loading_form">ఫారమ్‌ను లోడ్ చేయడంలో లోపం</string>
+    <string name="error_saving_form">ఫారమ్‌ను సేవ్ చేయడంలో లోపం ఏర్పడింది</string>
+    <string name="form_progress_message">డేటా ప్రాసెస్ చేయబడుతుంది. దయచేసి వేచి ఉండండి</string>
+    <string name="questionnaire_alert_back_pressed_message">మీరు వెనక్కి వెళ్ళాలనుకుంటున్నారా?</string>
+    <string name="questionnaire_in_progress_alert_back_pressed_message">మీరు సమాధానాలను వదిలిపెట్టాలని నిశ్చయించారా?</string>
+    <string name="questionnaire_alert_back_pressed_title">మార్చింపులు వదులుకోండి</string>
+    <string name="questionnaire_alert_back_pressed_button_title">వదులుకోండి</string>
+    <string name="questionnaire_alert_back_pressed_save_draft_button_title">పార్ట్‌డ్రాఫ్ట్ సేవ్ చేయండి</string>
+    <string name="questionnaire_alert_neutral_button_title">రద్దు</string>
+    <string name="questionnaire_alert_confirm_button_title">ఆవును</string>
+    <string name="questionnaire_alert_invalid_message">ఇవ్వబడిన వివరాలు సరిపోలకపోయాయి. తప్పులను పరిష్కరించండి మరియు మళ్లీ సమర్పించండి</string>
+    <string name="questionnaire_alert_invalid_title">మాన్యువల్ విఫలం</string>
+    <string name="questionnaire_alert_ack_button_title">సరే</string>
+    <string name="username">వినియోగదారు పేరు</string>
+    <string name="appname">ఆరోగ్య ఆరోహణ</string>
+    <string name="password">పాస్వర్డ్</string>
+    <string name="forgot_password">పాస్వర్డ్ మర్చిపోయారా</string>
+    <string name="forgot_password_title">పాస్వర్డ్ మర్చిపోయారా!</string>
+    <string name="more">మరిన్ని</string>
+    <string name="call_supervisor">మీ సైట్ కర్డినేటర్‌ను సంప్రదించండి.</string>
+    <string name="cancel" tools:ignore="ButtonCase">రద్దు</string>
+    <string name="dial_number">నంబర్ డయల్ చేయండి</string>
+    <string name="register">నమోదు</string>
+    <string name="visits">సందర్శన</string>
+    <string name="reports">రిపోర్టులు</string>
+    <string name="profile">ప్రొఫైల్</string>
+    <string name="settings">సెట్టింగ్స్</string>
+    <string name="select_register">రెజిస్టర్ ఎంచుకోండి</string>
+    <string name="tick">టిక్</string>
+    <string name="clients">కస్టమర్‌లు</string>
+    <string name="logout">లాగ్ అవుట్</string>
+    <string name="application_id">అప్లికేషన్ ఐడీ</string>
+    <string name="app_id_sample" translatable="false">ఉదాహరణకు. ecbis, quest, cha</string>
+    <string name="load_configurations">కాన్ఫిగరేషన్లు లోడ్ చేయండి</string>
+    <string name="fhir_core_app" translatable="false">FHIRCORE APP</string>
+    <string name="remember_app">అప్లికేషన్ గుర్తించండి</string>
+    <string name="done">చేయబడింది</string>
+    <string name="replace_photo">ఫోటో మార్చండి</string>
+    <string name="take_photo">ఫోటో తీసుకోండి</string>
+    <string name="edit">సవరించు</string>
+    <string name="application_not_supported">అప్లికేషన్ %1$s కాన్ఫిగరేషన్లను లోడ్ చేయడంలో లోపం</string>
+    <string name="eCBIS_app_name" translatable="false">eCBIS</string>
+    <string name="invalid_login_credentials">మొబైల్ లేదా పాస్వర్డ్ చెల్లదు</string>
+    <string name="invalid_form_id">చెల్లని ఫారమ్ ID జత చేయబడింది</string>
+    <string name="no">కాదు</string>
+    <string name="yes">అవును</string>
+    <string name="required_constraint_validation_error_msg">తనిఖీ చేయాల్సిన ఫీల్డ్‌కు ప్రతిస్పందన లేదు.</string>
+    <string name="set_pin">సెట్ చేయండి</string>
+    <string name="set_pin_message">%1$s ఈ పిన్ ని లాగిన్ కోసం ఉపయోగిస్తారు</string>
+    <string name="enter_pin_for_user">%1$s కోసం పిన్ నమోదు చేయండి</string>
+    <string name="incorrect_pin_please_retry">చెల్లని పిన్, దయచేసి మళ్లీ ప్రయత్నించండి</string>
+    <string name="pin_menu_login">లాగిన్</string>
+    <string name="forgot_pin">పిన్ మర్చిపోయారా? లాగిన్ ద్వారా రీసెట్ చేయండి</string>
+    <string name="please_contact_supervisor">దయచేసి మీ సూపర్‌వైజర్‌ను సంప్రదించండి.</string>
+    <string name="percentage" translatable="false">%</string>
+    <string name="logging_out">లాగ్ అవుట్ అవుతున్నది. దయచేసి వేచి ఉండండి…</string>
+    <string name="session_expired">సెషన్ ముగిసింది మరియు మళ్లీ లాగిన్ కావాలి</string>
+    <string name="sex">లింగం</string>
+    <string name="age">వయస్సు</string>
+    <string name="dob">జన్మతేదీ</string>
+    <string name="id" translatable="false">ID: %1$s</string>
+    <string name="see_all">అన్ని చూడండి</string>
+    <string name="forms">ఫార్మ్‌లు</string>
+    <string name="medical_history">ఆరోగ్య చరిత్ర</string>
+    <string name="upcoming_services">మొదటివరకు సేవలు</string>
+    <string name="service_card">సేవ కార్డు</string>
+    <string name="other_patients">ఇతర రోగులు</string>
+    <string name="responses">స్పందనలు (%1$s)</string>
+    <string name="multi_user_login_attempt">భిన్న ప్రొవైడర్‌తో లాగిన్ చేయాలని ప్రయత్నించారు</string>
+    <string name="please_wait">దయచేసి వేచి ఉండండి…</string>
+    <string name="clear_database">డేటా రీసెట్ చేయండి</string>
+    <string name="transfer_data">డేటా ప్రసారం</string>
+    <string name="clear_database_title">డేటాబేస్ రీసెట్!</string>
+    <string name="clear_database_message">డేటాబేస్‌ను రీసెట్ చేయడం మీ పరికరం నుండి అన్ని రికార్డులను తీసివేస్తుంది. ఈ చర్యను వెనక్కి తీసుకోవడం సాధ్యం కాదు.</string>
+    <string name="resetting_app">అప్లికేషన్‌ను రీసెట్ చేయడం…</string>
+    <string name="sync_strategy_careteam_system" translatable="false">https://smartregister.org/care-team-tag-id</string>
+    <string name="sync_strategy_location_system" translatable="false">https://smartregister.org/location-tag-id</string>
+    <string name="sync_strategy_organization_system" translatable="false">https://smartregister.org/organisation-tag-id</string>
+    <string name="sync_strategy_practitioner_system" translatable="false">https://smartregister.org/practitioner-tag-id</string>
+    <string name="sync_strategy_related_entity_location_system" translatable="false">https://smartregister.org/related-entity-location-tag-id</string>
+    <string name="sync_strategy_related_entity_location_display" translatable="false">సంబంధిత సంస్థ స్థానం</string>
+    <string name="sync_strategy_careteam_display" translatable="false">ప్రాక్టిషనర్ కేర్ టీం</string>
+    <string name="sync_strategy_location_display" translatable="false">ప్రాక్టిషనర్ లొకేషన్</string>
+    <string name="sync_strategy_organization_display" translatable="false">ప్రాక్టిషనర్ సంస్థ</string>
+    <string name="sync_strategy_practitioner_display" translatable="false">ప్రాక్టిషనర్</string>
+    <string name="year">సంవత్సరం</string>
+    <string name="month">మాసం</string>
+    <string name="weeks">ఆవారం(లు)</string>
+    <string name="days">రోజులు</string>
+    <string name="initializing">సెట్టింగ్‌లు ప్రారంభిస్తున్నాయి &#8230;</string>
+    <string name="username_sample" translatable="false">దయచేసి యూజర్‌నేమ్ నమోదు చేయండి.</string>
+    <string name="percentage_progress" translatable="false">%1$d%%</string>
+    <string name="error_occurred">ఎదురైంది…</string>
+    <string name="integer_format_validation_error_msg"
+            xmlns:ns1="http://your.namespace.uri">సంఖ్య <ns1:g id="min_value">%1$s</ns1:g> మరియు <ns1:g id="max_value">%2$s</ns1:g> మధ్య ఉండాలి</string>
+    <string name="insights">అవగాహన</string>
+    <string name="contact_help">సహాయం సంప్రదించండి</string>
+    <string name="offline_map">ఆఫ్‌లైన్ మ్యాప్స్</string>
+    <string name="dismiss">తప్పించు</string>
+    <string name="user_info">వాడుకరి సమాచారం</string>
+    <string name="assignment_info">ఆసైన్‌మెంట్ సమాచారం</string>
+    <string name="app_info">యాప్ సమాచారం</string>
+    <string name="device_info">పరికరం సమాచారం</string>
+    <string name="refresh">మళ్లీ లాగిన్ చేయండి</string>
+    <string name="unsynced_resources">సింక్ కాని వనరులు</string>
+    <string name="synced_statistics">సింక్ చేసిన గణాంకాలు</string>
+    <string name="all_data_synced">అన్ని డేటా సింక్ చేయబడింది</string>
+    <string name="invalid_offline_login_state">యూజర్ సెటప్ అవసరం. మీ ఇంటర్నెట్ కనెక్షన్‌ను అందుబాటులో ఉంచండి</string>
+    <string name="select_month">మాసం ఎంచుకోండి</string>
+    <string name="user">వాడుకరి</string>
+    <string name="team">టీం</string>
+    <string name="locality">ప్రాంతం</string>
+    <string name="team_organization">టీం(సంస్థ)</string>
+    <string name="care_team">కేర్ టీమ్</string>
+    <string name="location">స్థానం</string>
+    <string name="app_version_code">యాప్ వెర్షన్ కోడ్</string>
+    <string name="build_date">బిల్డ్ తేదీ</string>
+    <string name="manufacture">తయారీ</string>
+    <string name="app_versions">యాప్ వెర్షన్</string>
+    <string name="os_version">OS వెర్షన్</string>
+    <string name="device_date">తేదీ</string>
+    <string name="device">పరికరం</string>
+    <string name="ok">సరే</string>
+    <string name="add">జోడించు</string>
+    <string name="data_migration_started">సంస్కరణ %1$d నుండి డేటా మైగ్రేషన్ ప్రారంభమైంది</string>
+    <string name="data_migration_completed">యాప్ డేటా వెర్షన్ %1$d కి మైగ్రేట్ అయింది</string>
+    <string name="select_your_site">మీ సైట్ ఎంచుకోండి</string>
+    <string name="btn_continue">చరియించు</string>
+    <string name="iisc">IISc</string>
+    <string name="uploading_images_title">చిత్రాలను అప్‌లోడ్ చేయడం</string>
+    <string name="images_pending_text">%1$d చిత్రాలు పెండింగ్</string>
+    <string name="upload_success">చిత్రాలు విజయవంతంగా అప్‌లోడ్ చేయబడ్డాయి</string>
+    <string name="upload_failure">కొన్ని చిత్రాలు అప్‌లోడ్ చేయడంలో విఫలమయ్యాయి</string>
+    <!--error message-->
+    <string name="failed_to_overwrite_url_request_successfully">URL అభ్యర్థనను విజయవంతంగా మళ్లీ వ్రాయడంలో విఫలమయ్యింది</string>
+    <string name="unknown_error">తెలియని లోపం</string>
+    <string name="failed_to_complete_request_successfully">అభ్యర్థనను విజయవంతంగా పూర్తి చేయడంలో విఫలమయ్యింది</string>
+    <string name="no_internet_connection">ఇంటర్నెట్ కనెక్షన్ లేదు</string>
+    <string name="notification_title_document_upload">పత్రం అప్‌లోడ్</string>
+    <string name="agree_privacy_policy">"I agree to Aarogya Aarohan’s "</string>
+    <string name="privacy_policy">Privacy Policy</string>
+
+</resources>

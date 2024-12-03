@@ -19,10 +19,8 @@ package org.smartregister.fhircore.quest.ui.shared.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -39,19 +37,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.view.CompoundTextProperties
-import org.smartregister.fhircore.engine.configuration.view.SpacerProperties
 import org.smartregister.fhircore.engine.configuration.view.TextCase
 import org.smartregister.fhircore.engine.configuration.view.TextFontWeight
 import org.smartregister.fhircore.engine.configuration.view.TextOverFlow
 import org.smartregister.fhircore.engine.configuration.view.ViewAlignment
 import org.smartregister.fhircore.engine.domain.model.ActionConfig
 import org.smartregister.fhircore.engine.domain.model.ResourceData
-import org.smartregister.fhircore.engine.domain.model.ViewType
 import org.smartregister.fhircore.engine.ui.theme.DefaultColor
-import org.smartregister.fhircore.engine.util.annotation.PreviewWithBackgroundExcludeGenerated
 import org.smartregister.fhircore.engine.util.extension.camelCase
 import org.smartregister.fhircore.engine.util.extension.parseColor
 import org.smartregister.fhircore.engine.util.extension.removeExtraWhiteSpaces
@@ -195,55 +188,55 @@ private fun CompoundTextPart(
     style = TextStyle(letterSpacing = letterSpacing.sp),
   )
 }
+//
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun CompoundTextNoSecondaryTextPreview() {
+//  val navController = rememberNavController()
+//  Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+//    CompoundText(
+//      compoundTextProperties =
+//        CompoundTextProperties(
+//          primaryText = "Full Name, Age",
+//          primaryTextColor = "#000000",
+//          primaryTextFontWeight = TextFontWeight.SEMI_BOLD,
+//        ),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = navController,
+//    )
+//    CompoundText(
+//      compoundTextProperties =
+//        CompoundTextProperties(primaryText = "Sex", primaryTextColor = "#5A5A5A"),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = navController,
+//    )
+//  }
+//}
 
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun CompoundTextNoSecondaryTextPreview() {
-  val navController = rememberNavController()
-  Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-    CompoundText(
-      compoundTextProperties =
-        CompoundTextProperties(
-          primaryText = "Full Name, Age",
-          primaryTextColor = "#000000",
-          primaryTextFontWeight = TextFontWeight.SEMI_BOLD,
-        ),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = navController,
-    )
-    CompoundText(
-      compoundTextProperties =
-        CompoundTextProperties(primaryText = "Sex", primaryTextColor = "#5A5A5A"),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = navController,
-    )
-  }
-}
-
-@PreviewWithBackgroundExcludeGenerated
-@Composable
-private fun CompoundTextWithSecondaryTextPreview() {
-  val navController = rememberNavController()
-  Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-    CompoundText(
-      compoundTextProperties =
-        CompoundTextProperties(primaryText = "Full Name, Sex, Age", primaryTextColor = "#000000"),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = navController,
-    )
-    SpacerView(spacerProperties = SpacerProperties(viewType = ViewType.SPACER, width = 8f))
-    CompoundText(
-      compoundTextProperties =
-        CompoundTextProperties(
-          primaryText = "Stock status",
-          primaryTextColor = "#5A5A5A",
-          secondaryText = "Overdue",
-          secondaryTextColor = "#000000",
-          separator = ":",
-          secondaryTextBackgroundColor = "#FFA500",
-        ),
-      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
-      navController = navController,
-    )
-  }
-}
+//@PreviewWithBackgroundExcludeGenerated
+//@Composable
+//private fun CompoundTextWithSecondaryTextPreview() {
+//  val navController = rememberNavController()
+//  Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+//    CompoundText(
+//      compoundTextProperties =
+//        CompoundTextProperties(primaryText = "Full Name, Sex, Age", primaryTextColor = "#000000"),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = navController,
+//    )
+//    SpacerView(spacerProperties = SpacerProperties(viewType = ViewType.SPACER, width = 8f))
+//    CompoundText(
+//      compoundTextProperties =
+//        CompoundTextProperties(
+//          primaryText = "Stock status",
+//          primaryTextColor = "#5A5A5A",
+//          secondaryText = "Overdue",
+//          secondaryTextColor = "#000000",
+//          separator = ":",
+//          secondaryTextBackgroundColor = "#FFA500",
+//        ),
+//      resourceData = ResourceData("id", ResourceType.Patient, emptyMap()),
+//      navController = navController,
+//    )
+//  }
+//}

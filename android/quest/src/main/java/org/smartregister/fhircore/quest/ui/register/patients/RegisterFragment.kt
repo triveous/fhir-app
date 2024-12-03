@@ -171,6 +171,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
   override fun onResume() {
     super.onResume()
     registerViewModel.getAllPatients()
+    //registerViewModel.getHomeScreenPatients()
     registerViewModel.getAllSyncedPatients()
     registerViewModel.getAllDraftResponses()
     registerViewModel.getAllUnSyncedPatients()

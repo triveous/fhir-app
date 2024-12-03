@@ -33,13 +33,9 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import com.google.android.fhir.datacapture.QuestionnaireFragment
-import org.smartregister.fhircore.engine.util.extension.logicalId
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import dagger.hilt.android.AndroidEntryPoint
-import java.io.Serializable
-import java.util.LinkedList
-import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
@@ -57,6 +53,7 @@ import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.extension.clearText
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.parcelable
 import org.smartregister.fhircore.engine.util.extension.parcelableArrayList
 import org.smartregister.fhircore.engine.util.extension.showToast
@@ -66,6 +63,9 @@ import org.smartregister.fhircore.quest.util.LocationUtils
 import org.smartregister.fhircore.quest.util.PermissionUtils
 import org.smartregister.fhircore.quest.util.ResourceUtils
 import timber.log.Timber
+import java.io.Serializable
+import java.util.LinkedList
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class QuestionnaireActivity : BaseMultiLanguageActivity() {
@@ -89,6 +89,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     setTheme(org.smartregister.fhircore.engine.R.style.AppTheme_Questionnaire)
     viewBinding = QuestionnaireActivityBinding.inflate(layoutInflater)
     setContentView(viewBinding.root)
+
     with(intent) {
       parcelable<QuestionnaireConfig>(QUESTIONNAIRE_CONFIG)?.also { questionnaireConfig = it }
       actionParameters = parcelableArrayList(QUESTIONNAIRE_ACTION_PARAMETERS) ?: arrayListOf()
@@ -142,6 +143,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       }
 
       if (!hasLocationPermissions()) {
+        showToast(getString(R.string.location_permission_reason))
         launchLocationPermissionsDialog()
       }
 
@@ -251,8 +253,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           }
         }
 
-        questionnaire = viewModel.retrieveQuestionnaire(questionnaireConfig, actionParameters)
 
+        questionnaire = viewModel.retrieveQuestionnaire(questionnaireConfig, actionParameters,sharedPreferencesHelper.getLanguageCode())
 
         try {
           val questionnaireFragmentBuilder = buildQuestionnaireFragment(questionnaire!!)
@@ -284,7 +286,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       finish()
     }
     val questionnaireFragmentBuilder =
-      QuestionnaireFragment.builder()
+       QuestionnaireFragment.builder()
         .setQuestionnaire(questionnaire.json())
         .showReviewPageBeforeSubmit(false)
         .setCustomQuestionnaireItemViewHolderFactoryMatchersProvider(
@@ -368,7 +370,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     ) { _, _ ->
       lifecycleScope.launch {
         val questionnaireResponse = retrieveQuestionnaireResponse()
-
+        questionnaireResponse?.language = viewModel.languageCode
         // Close questionnaire if opened in read only mode or if experimental
         if (questionnaireConfig.isReadOnly() || questionnaire?.experimental == true) {
           finish()
@@ -382,10 +384,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 ResourceUtils.createFhirLocationFromGpsLocation(gpsLocation = currentLocation!!),
               )
             }
-            val flwId = viewModel.getUserName()
-
-            val ref = Reference()
-            ref.reference = "Practitioner/$flwId"
+            val ref = Reference().apply { reference =  "Practitioner/${viewModel.getUserName()}"}
             // set author
             questionnaireResponse.author = ref
 
@@ -419,11 +418,13 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     if (questionnaireConfig.isReadOnly()) {
       finish()
     } else if (questionnaireConfig.saveDraft) {
+      val dialogue = AlertDialogue.showProgressAlert(this, R.string.extraction_in_progress)
 
       lifecycleScope.launch {
         retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
           viewModel.isDraftSaved.observeForever {
             if (it){
+              dialogue.dismiss()
               finish()
             }
           }

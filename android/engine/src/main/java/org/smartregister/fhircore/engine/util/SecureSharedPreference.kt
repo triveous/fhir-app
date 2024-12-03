@@ -17,7 +17,6 @@
 package org.smartregister.fhircore.engine.util
 
 import android.content.Context
-import android.util.Log
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -72,6 +71,19 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
       .getString(SharedPreferenceKey.LOGIN_CREDENTIAL_KEY.name, null)
       ?.decodeJson<AuthCredentials>()
 
+
+  fun getPractitionerUserId(): String =
+    secureSharedPreferences
+      .getString(SharedPreferenceKey.PRACTITIONER_USER_ID.name, null) ?: ""
+
+
+  fun savePractitionerUserId(logicalId: String) {
+    secureSharedPreferences.edit {
+      putString(SharedPreferenceKey.PRACTITIONER_USER_ID.name, logicalId)
+    }
+  }
+
+
   fun saveSessionPin(pin: CharArray) {
     val randomSaltBytes = get256RandomBytes()
     secureSharedPreferences.edit {
@@ -95,8 +107,11 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
     }
   }
 
-  fun getSiteName(): String? {
-    return secureSharedPreferences.getString(SharedPreferenceKey.SITE_NAME.name, null)
+  fun setChangeLanguage(language: String,languageCode: String) {
+    secureSharedPreferences.edit {
+      putString(SharedPreferenceKey.KEY_LANGUAGE.name, language)
+      putString(SharedPreferenceKey.KEY_LANGUAGE_CODE.name, languageCode)
+    }
   }
 
   fun getFhirBaseUrl(): String {
@@ -104,7 +119,6 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
     if (fhirBaseUrl.isNullOrEmpty()) {
       fhirBaseUrl = STAGING_FHIR_BASE_URL
     }
-    Log.e("TAG","secure getFhirBaseUrl() fhirBaseUrl --> $fhirBaseUrl")
     return fhirBaseUrl
   }
 
@@ -113,7 +127,6 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
     if (oAuthBaseurl.isNullOrEmpty()) {
       oAuthBaseurl = STAGING_OAUTH_BASE_URL
     }
-    Log.e("TAG","secure getOauthBaseUrl() oAuthBaseurl--> $oAuthBaseurl")
     return oAuthBaseurl
   }
 
