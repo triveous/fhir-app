@@ -28,6 +28,7 @@ import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.SearchParameter
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
+import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry.Companion.SORT_BY_ID
 import org.smartregister.fhircore.engine.configuration.app.ApplicationConfiguration
 import org.smartregister.fhircore.engine.configuration.app.ConfigService
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
@@ -119,13 +120,16 @@ constructor(
                 }
                 ?.code*/
             ConfigurationRegistry.ID -> paramExpression
+            ConfigurationRegistry.SORT -> SORT_BY_ID
             ConfigurationRegistry.COUNT -> appConfig.remoteSyncPageSize.toString()
             else -> null
           }?.let {
-            // replace the evaluated value into expression for complex expressions
-            // e.g. #organization -> 123
-            // e.g. patient.organization eq #organization -> patient.organization eq 123
-            paramExpression?.replace(paramLiteral, it)
+            // Only do the replacement if paramExpression is not null
+            if (paramExpression != null) {
+              paramExpression.replace(paramLiteral, it)
+            } else {
+              it
+            }
           }
 
         // for each entity in base create and add param map
