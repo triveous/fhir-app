@@ -6,12 +6,13 @@ import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 object OpensrpDateUtils {
 
     fun convertToDate(input: Date): String {
         val outputFormat = SimpleDateFormat("dd MMMM yyyy hh:mm a", Locale.getDefault())
-
+        outputFormat.timeZone = TimeZone.getDefault()
         // Format the date to the desired output format
         return outputFormat.format(input)
     }
@@ -31,7 +32,7 @@ object OpensrpDateUtils {
     fun convertToDateStringFromString(input: String): String {
         val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
         val outputFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale.getDefault())
-
+        outputFormat.timeZone = TimeZone.getDefault()
         val dateObj: Date? = try {
             format.parse(input)
         } catch (exception: Exception) {
@@ -44,6 +45,7 @@ object OpensrpDateUtils {
 
     fun convertToDateStringToDate(input: String?): Date? {
         val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
+        format.timeZone = TimeZone.getDefault()
         val dateObj: Date? = try {
             format.parse(input)
         } catch (exception: Exception) {
