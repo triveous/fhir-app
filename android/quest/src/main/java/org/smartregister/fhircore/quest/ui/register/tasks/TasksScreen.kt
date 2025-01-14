@@ -86,6 +86,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.android.fhir.datacapture.extensions.asStringValue
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
@@ -122,10 +123,12 @@ import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN
 import org.smartregister.fhircore.quest.ui.register.patients.getSyncImageList
 import org.smartregister.fhircore.quest.ui.shared.components.ExtendedFab
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
+import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.SectionTitles
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
+import kotlin.collections.find
 
 enum class TabType(val label: String) {
     TASK_NEW_TAB("New"), TASK_PENDING_TAB("Pending"), TASK_COMPLETED_TAB("Completed")
@@ -817,7 +820,16 @@ fun BottomSheetContent(
         ?.value
         ?: ""
 
-    val date = task.patient?.meta?.lastUpdated?.let { convertToDate(it) }.toString()
+    val dateObj = task.patient?.extension
+        ?.find { it.url?.substringAfterLast("/") == "patient-registraion-date" }
+        ?.value?.asStringValue()
+        ?.takeIf { it.isNotEmpty() }
+        ?.let { convertToDateStringToDate(it) }
+        ?: task.patient?.meta?.lastUpdated
+
+    val date = dateObj?.let { convertToDate(it) }.orEmpty()
+
+    //val date = task.patient?.meta?.lastUpdated?.let { convertToDate(it) }.toString()
     val address = getPatientAddress(task.patient)
 
     val context = LocalContext.current
