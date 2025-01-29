@@ -28,8 +28,10 @@ import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.SearchParameter
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
+import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry.Companion.SORT_BY_ID
 import org.smartregister.fhircore.engine.configuration.app.ApplicationConfiguration
 import org.smartregister.fhircore.engine.configuration.app.ConfigService
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import timber.log.Timber
@@ -45,6 +47,7 @@ constructor(
   val configService: ConfigService,
   val configurationRegistry: ConfigurationRegistry,
   val sharedPreferencesHelper: SharedPreferencesHelper,
+  val secureSharedPreference: SecureSharedPreference
 ) {
 
   private val syncConfig by lazy {
@@ -108,6 +111,7 @@ constructor(
         val paramName = sp.name // e.g. organization
         val paramLiteral = "#$paramName" // e.g. #organization in expression for replacement
         val paramExpression = sp.expression
+        val flwUserId = secureSharedPreference.getPractitionerUserId() //ex: flw1
         val expressionValue =
           when (paramName) {
             // TODO: Does not support multi organization yet,
@@ -119,13 +123,23 @@ constructor(
                 }
                 ?.code*/
             ConfigurationRegistry.ID -> paramExpression
+            ConfigurationRegistry.SORT -> SORT_BY_ID
             ConfigurationRegistry.COUNT -> appConfig.remoteSyncPageSize.toString()
+            ConfigurationRegistry.OPERATOR -> flwUserId //For Encounter resource type
+            ConfigurationRegistry.OWNER -> flwUserId //For Task resource type
+            ConfigurationRegistry.GENERAL_PRACTITIONER -> flwUserId //For Patient resource type
+            ConfigurationRegistry.AUTHOR -> flwUserId //For QuesRes resource type
+            ConfigurationRegistry.PERFORMER -> flwUserId //For Observation resource type
+            ConfigurationRegistry.PATIENT -> flwUserId //For all others resources when we don't want to download unused resources like Observation etc from the server this query will return empty
+            ConfigurationRegistry.PRACTITIONER -> flwUserId
             else -> null
           }?.let {
-            // replace the evaluated value into expression for complex expressions
-            // e.g. #organization -> 123
-            // e.g. patient.organization eq #organization -> patient.organization eq 123
-            paramExpression?.replace(paramLiteral, it)
+            // Only do the replacement if paramExpression is not null
+            if (paramExpression != null) {
+              paramExpression.replace(paramLiteral, it)
+            } else {
+              it
+            }
           }
 
         // for each entity in base create and add param map
@@ -158,10 +172,6 @@ constructor(
             }
           }
       }
-
-    Timber.i("SYNC CONFIG $pairs")
-    //pairs.removeAt(6)
-
     return mapOf(*pairs.toTypedArray())
   }
 }

@@ -764,6 +764,14 @@ constructor(
     const val CONFIG_SUFFIX = "_config"
     const val CONFIG_TYPE = "configType"
     const val COUNT = "count"
+    const val SORT = "sort"
+    const val OPERATOR = "operator"
+    const val AUTHOR = "author"
+    const val PERFORMER = "performer"
+    const val PATIENT = "patient"
+    const val PRACTITIONER = "practitioner"
+    const val OWNER = "owner"
+    const val GENERAL_PRACTITIONER = "general-practitioner"
     const val DEBUG_SUFFIX = "/debug"
     const val DEFAULT_STRING_SEPARATOR = ","
     const val FHIR_GATEWAY_MODE_HEADER_VALUE = "list-entries"
@@ -773,6 +781,7 @@ constructor(
     const val ORGANIZATION = "organization"
     const val TYPE_REFERENCE_DELIMITER = "/"
     const val DEFAULT_COUNT = 200
+    const val SORT_BY_ID = "_id"
 
     /**
      * The list of resources whose types can be synced down as part of the Composition configs.

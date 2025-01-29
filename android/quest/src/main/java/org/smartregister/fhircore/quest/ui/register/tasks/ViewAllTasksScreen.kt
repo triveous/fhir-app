@@ -71,6 +71,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.android.fhir.datacapture.extensions.asStringValue
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
@@ -86,6 +87,8 @@ import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils
+import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
+import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
 
@@ -396,7 +399,14 @@ fun TasksBottomSheetContent(
     ?.firstOrNull()
     ?.value
     ?: ""
-  val date = task.patient?.meta?.lastUpdated?.let { OpensrpDateUtils.convertToDate(it) }.toString()
+  val dateObj = task.patient?.extension
+    ?.find { it.url?.substringAfterLast("/") == "patient-registraion-date" }
+    ?.value?.asStringValue()
+    ?.takeIf { it.isNotEmpty() }
+    ?.let { convertToDateStringToDate(it) }
+    ?: task.patient?.meta?.lastUpdated
+
+  val date = dateObj?.let { convertToDate(it) }.orEmpty()
   val address = getPatientAddress(task.patient)
   val context = LocalContext.current
   Column(
