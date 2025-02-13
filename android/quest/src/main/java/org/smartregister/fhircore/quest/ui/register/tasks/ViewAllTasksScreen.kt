@@ -240,7 +240,11 @@ fun ViewAllTasksScreen(
               TaskProgressState.FOLLOWUP_DONE -> {
                 status = TaskStatus.COMPLETED
               }
-              TaskProgressState.NOT_AGREED_FOR_FOLLOWUP,TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
+              TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
+                status = TaskStatus.COMPLETED
+              }
+
+              TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
                 status = TaskStatus.INPROGRESS
               }
 
@@ -250,8 +254,13 @@ fun ViewAllTasksScreen(
               }
 
               TaskProgressState.NOT_RESPONDED -> {
-                taskPriorityState = TaskProgressState.NOT_RESPONDED
-                status = TaskStatus.REQUESTED
+                if(task.task.status == TaskStatus.REQUESTED){
+                  taskPriorityState = TaskProgressState.NOT_RESPONDED
+                  status = TaskStatus.INPROGRESS
+                }else{
+                  taskPriorityState = TaskProgressState.NOT_RESPONDED
+                  status = TaskStatus.COMPLETED
+                }
               }
 
               TaskProgressState.DEFAULT, TaskProgressState.NOT_CONTACTED -> {
@@ -350,7 +359,6 @@ fun ViewAllTasksScreen(
                       color = LightColors.primary,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text(stringResource(org.smartregister.fhircore.engine.R.string.loading))
                   }
                 }else{
                   LazyColumn(modifier = modifier
@@ -593,6 +601,7 @@ fun TasksBottomSheetContent(
           var selectedRadioColor = Color.Gray
           selectedRadioColor = when(priority){
             TaskProgressState.FOLLOWUP_DONE -> Color.Green
+            TaskProgressState.FOLLOWUP_NOT_DONE -> Color.Gray
             TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> Color(0xFFFFC800)
             TaskProgressState.NOT_RESPONDED -> Color.Red
             TaskProgressState.REMOVE -> Color.Red

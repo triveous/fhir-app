@@ -48,6 +48,7 @@ import org.hl7.fhir.r4.model.Resource
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocStatusRequest
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
+import org.smartregister.fhircore.engine.domain.networkUtils.DocumentReferenceCaseType
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.CONTENT_TYPE
@@ -137,7 +138,9 @@ constructor(
     private suspend fun performDocumentReferenceUpload(context: Context, workerId: String): Boolean {
         Timber.i("Starting document reference upload for worker: $workerId")
 
-        val docReferences = openSrpFhirEngine.search<DocumentReference> {}
+        val docReferences = openSrpFhirEngine.search<DocumentReference> {}.filter {
+            it.resource.description != DocumentReferenceCaseType.DRAFT
+        }
         val totalDocuments = docReferences.size
         var pendingDocuments = totalDocuments
 

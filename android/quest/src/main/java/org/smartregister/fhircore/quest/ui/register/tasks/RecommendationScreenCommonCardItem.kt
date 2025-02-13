@@ -26,6 +26,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.hl7.fhir.r4.model.Task
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
@@ -59,7 +60,7 @@ fun CardItemViewAllTask(
     val taskStatusList = viewModel.getTaskCodeWithValue(task)
     println("CardItemView getTaskStatusList--> $taskStatusList")
 
-    RecommendationItem(name, phone, taskStatusList) {
+    RecommendationItem(name, phone, taskStatusList, task?.task?.status) {
         onSelectTask(task)
     }
 }
@@ -70,6 +71,7 @@ fun RecommendationItem(
     name: String,
     phone: String,
     taskStatusList: List<Pair<String, String>>?,
+    status: Task.TaskStatus?,
     onClick: () -> Unit
 ) {
     Card(
@@ -99,13 +101,17 @@ fun RecommendationItem(
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.Center) {
                         Text(
-                            text = stringResource(id = R.string.phone),
+                            text = stringResource(id =  R.string.phone),
                             style = bodyExtraBold(14.sp),
                             color = CRAYOLA_LIGHT
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = phone,
+                            style = bodyNormal(14.sp),
+                        )
+                        Text(
+                            text = "${status?.name?.toString()}",
                             style = bodyNormal(14.sp),
                         )
                     }
