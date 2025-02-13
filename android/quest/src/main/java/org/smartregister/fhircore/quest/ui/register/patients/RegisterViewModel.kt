@@ -553,9 +553,6 @@ constructor(
         return tasks.fastFilter { it ->
             (it.task.status == status && it.task.output.takeIf { it.isNotEmpty() }
                 ?.get(0)?.value.valueToString() == TaskProgressState.NOT_RESPONDED.text)
-
-
-            //(it.task.priority == TaskPriority.ASAP && it.task.status == status)
         }.sortedByDescending { it.task.meta.lastUpdated }.fastDistinctBy { it.task.logicalId }
     }
 
@@ -1040,8 +1037,10 @@ constructor(
 
     fun getAllUnSyncedPatientsImages() {
         viewModelScope.launch(Dispatchers.IO) {
-            _allUnSyncedImages.value = fhirEngine.search<DocumentReference> {}.count()
-            imageCount = allUnSyncedImages.value
+
+            val imagesCount = fhirEngine.search<DocumentReference> {}.filter {  it.resource.description != DocumentReferenceCaseType.DRAFT.name }.count()
+            _allUnSyncedImages.value = imagesCount
+            imageCount = imagesCount
         }
     }
 
@@ -1320,4 +1319,9 @@ constructor(
     fun setPermissionGranted(value: Boolean) {
         _permissionGranted.value = value
     }
+}
+
+enum class DocumentReferenceCaseType(val label: String) {
+    DRAFT("DRAFT"),
+    SUBMITTED("SUBMITTED")
 }

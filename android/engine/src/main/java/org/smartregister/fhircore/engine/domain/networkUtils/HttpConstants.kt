@@ -19,3 +19,8 @@ object WorkerConstants {
     const val DOC_STATUS = "/docStatus"
     const val CONTENT_TYPE = "application/json-patch+json"
 }
+
+object DocumentReferenceCaseType {
+    const val DRAFT = "DRAFT"
+    const val SUBMITTED = "SUBMITTED"
+}
