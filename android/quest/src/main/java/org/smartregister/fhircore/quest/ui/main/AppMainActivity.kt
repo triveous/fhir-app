@@ -25,6 +25,7 @@ import androidx.activity.viewModels
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.core.os.bundleOf
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.sync.CurrentSyncJobStatus
@@ -60,7 +61,7 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 @ExperimentalMaterialApi
-open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, OnSyncListener {
+open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler, OnSyncListener {
 
   @Inject lateinit var dispatcherProvider: DefaultDispatcherProvider
 
@@ -76,23 +77,24 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
   lateinit var navHostFragment: NavHostFragment
   val appMainViewModel by viewModels<AppMainViewModel>()
   private val geoWidgetViewModel by viewModels<GeoWidgetViewModel>()
+  lateinit var navController: NavController
+  private lateinit var bottomNavigationView: BottomNavigationView
   private val sentryNavListener =
     SentryNavigationListener(enableNavigationBreadcrumbs = true, enableNavigationTracing = true)
-
   override val startForResult =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
-      if (activityResult.resultCode == Activity.RESULT_OK) {
+      if (activityResult.resultCode == RESULT_OK) {
         lifecycleScope.launch { onSubmitQuestionnaire(activityResult) }
       }
     }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    //setContentView(FragmentContainerView(this).apply { id = R.id.nav_host })
     setContentView(R.layout.activity_main)
     val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.firstOrNull()
     val topMenuConfigId =
       topMenuConfig?.actions?.firstOrNull { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig?.id
+    bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
 
     val fragmentManager = supportFragmentManager
     navHostFragment = fragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment?
@@ -105,58 +107,8 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
           .setPrimaryNavigationFragment(it)
           .commitNow()
       }
-
-    val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
-    bottomNavigationView?.setOnNavigationItemSelectedListener { item ->
-      val navController = navHostFragment.navController
-      when (item.itemId) {
-        R.id.navigation_register -> {
-          navController.popBackStack(R.id.registerFragment, true)
-          navController.navigate(R.id.registerFragment, bundleOf(
-            NavigationArg.SCREEN_TITLE to topMenuConfig?.display,
-            NavigationArg.REGISTER_ID to topMenuConfigId,
-          ))
-          true
-        }
-        R.id.navigation_tasks -> {
-          navController.popBackStack(R.id.tasksFragment, true)
-          navController.navigate(R.id.tasksFragment)
-          true
-        }
-
-        /*R.id.navigation_profile -> {
-          appMainViewModel.appMainUiState.value.username
-          navController.popBackStack(R.id.profileSectionFragment, true)
-
-          *//*val args = bundleOf(
-            NavigationArg.PROFILE_ID to "",
-            NavigationArg.RESOURCE_ID to "",
-            NavigationArg.RESOURCE_CONFIG to "",
-          )
-          navController.navigate(MainNavigationScreen.Profile.route, args = args)*//*
-
-          navController.navigate(R.id.profileSectionFragment, bundleOf(
-            NavigationArg.USER_NAME to appMainViewModel.appMainUiState.value.username
-          ))
-          true
-        }*/
-
-        R.id.navigation_dashboard -> {
-//          appMainViewModel.appMainUiState.value.username
-          navController.popBackStack(R.id.dashboardFragment, true)
-          navController.navigate(R.id.dashboardFragment)
-          true
-        }
-        else -> false
-      }
-    }
-
-/*    supportFragmentManager
-      .beginTransaction()
-      .replace(R.id.nav_host_fragment, navHostFragment)
-      .setPrimaryNavigationFragment(navHostFragment)
-      .commit()*/
-
+    navController = navHostFragment.navController
+    setupBottomNavigation()
     geoWidgetViewModel.geoWidgetEventLiveData.observe(this) { geoWidgetEvent ->
       when (geoWidgetEvent) {
         is GeoWidgetEvent.OpenProfile ->
@@ -174,10 +126,8 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
       }
     }
 
-    // Register sync listener then run sync in that order
     syncListenerManager.registerSyncListener(this, lifecycle)
 
-    // Setup the drawer and schedule jobs
     appMainViewModel.run {
       lifecycleScope.launch {
 //        retrieveAppMainUiState()
@@ -192,6 +142,62 @@ open class AppMainActivity : BaseMultiLanguageActivity(), QuestionnaireHandler, 
         }
       }
       schedulePeriodicJobs()
+    }
+  }
+
+  private fun setupBottomNavigation() {
+    val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.firstOrNull()
+    val topMenuConfigId =
+      topMenuConfig?.actions?.firstOrNull { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig?.id
+    bottomNavigationView.setOnItemReselectedListener {  }
+
+    bottomNavigationView.setOnItemSelectedListener { item ->
+      when (item.itemId) {
+        R.id.navigation_register -> {
+          if (navController.currentDestination?.id != R.id.registerFragment) {
+            navController.popBackStack(R.id.registerFragment, false)
+            navController.navigate(
+              R.id.registerFragment,
+              bundleOf(
+                NavigationArg.SCREEN_TITLE to topMenuConfig?.display,
+                NavigationArg.REGISTER_ID to topMenuConfigId,
+              )
+            )
+          }
+          true
+        }
+        R.id.navigation_tasks -> {
+          if (navController.currentDestination?.id != R.id.tasksFragment) {
+            navController.popBackStack(R.id.tasksFragment, false)
+            navController.navigate(R.id.tasksFragment)
+          }
+          true
+        }
+        R.id.navigation_dashboard -> {
+          if (navController.currentDestination?.id != R.id.dashboardFragment) {
+            navController.popBackStack(R.id.dashboardFragment, false)
+            navController.navigate(R.id.dashboardFragment)
+          }
+          true
+        }
+        else -> false
+      }
+    }
+
+    navController.addOnDestinationChangedListener { _, destination, _ ->
+      when (destination.id) {
+        R.id.registerFragment -> bottomNavigationView.menu.findItem(R.id.navigation_register)?.isChecked = true
+        R.id.tasksFragment -> bottomNavigationView.menu.findItem(R.id.navigation_tasks)?.isChecked = true
+        R.id.dashboardFragment -> bottomNavigationView.menu.findItem(R.id.navigation_dashboard)?.isChecked = true
+      }
+    }
+  }
+
+  override fun onBackPressed() {
+    if (navController.currentDestination?.id == R.id.registerFragment) {
+      super.onBackPressed()
+    }else{
+      navController.popBackStack()
     }
   }
 
