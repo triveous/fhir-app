@@ -20,6 +20,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
+import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.hilt.work.HiltWorker
@@ -38,8 +39,11 @@ import com.google.android.fhir.sync.upload.UploadStrategy
 import com.google.gson.Gson
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -48,6 +52,8 @@ import org.hl7.fhir.r4.model.Resource
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocStatusRequest
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
+import org.smartregister.fhircore.engine.di.CoroutineDispatchers
+import org.smartregister.fhircore.engine.di.NetworkModule
 import org.smartregister.fhircore.engine.domain.networkUtils.DocumentReferenceCaseType
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
@@ -58,6 +64,7 @@ import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.createNotification
+import retrofit2.Response
 import timber.log.Timber
 
 @HiltWorker
@@ -70,6 +77,7 @@ constructor(
     private val openSrpFhirEngine: FhirEngine,
     private val appTimeStampContext: AppTimeStampContext,
     private val fhirResourceService: FhirResourceService,
+    private val dispatchers: CoroutineDispatchers
 ) : FhirSyncWorker(appContext, workerParams) {
 
     companion object {
@@ -90,189 +98,190 @@ constructor(
     override fun getUploadStrategy(): UploadStrategy = UploadStrategy.AllChangesSquashedBundlePut
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
-        val notification =
-            createNotification(applicationContext) // Your method to create a notification
+        val notification = createNotification(applicationContext)
         return ForegroundInfo(
             NOTIFICATION_ID,
             notification,
-            FOREGROUND_SERVICE_TYPE_SHORT_SERVICE // Specify the service type
+            FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
         )
     }
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = withContext(dispatchers.io) {
         Timber.i("AppSyncWorker Running sync worker")
+
         if (mutex.isLocked) {
             Timber.e("AppSyncWorker is locked. Returning failure")
-            return Result.failure()
+            return@withContext Result.failure()
         }
-        val metaSyncResult = super.doWork()
+
         mutex.withLock {
-            Timber.i("AppSyncWorker Running within lock sync worker")
             try {
-                setForeground(getForegroundInfo()) // Set the foreground info
+                setForeground(getForegroundInfo())
+
+                val metaSyncResult = super.doWork()
+                /*if (metaSyncResult.javaClass === Result.success().javaClass) {
+                    return@withLock metaSyncResult
+                }*/
+
                 val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
-
                 val retries = inputData.getInt("max_retires", 0)
-                // In case it has failed or to be retried, we will send the original result
-                if (metaSyncResult.javaClass === Result.success().javaClass) {
-                    return when (allDocUploaded) {
-                        true -> {
-                            Result.success()
-                        }
 
-                        false -> if (retries > runAttemptCount) Result.retry() else Result.failure(
-                            workDataOf(
-                                "error" to Exception::class.java.name,
-                                "reason" to "Failed to upload all files"
-                            )
+                when {
+                    allDocUploaded && (metaSyncResult.javaClass === Result.success().javaClass) -> Result.success()
+                    retries > runAttemptCount -> Result.retry()
+                    else -> Result.failure(
+                        workDataOf(
+                            "error" to Exception::class.java.name,
+                            "reason" to "Failed to upload all files"
                         )
-                    }
+                    )
                 }
             } catch (e: Exception) {
-                Timber.e(e, "Appsync worker")
+                Timber.e(e, "AppSync worker failed")
+                Result.failure(workDataOf("error" to e.toString()))
             }
         }
-        return metaSyncResult
     }
 
     private suspend fun performDocumentReferenceUpload(context: Context, workerId: String): Boolean {
         Timber.i("Starting document reference upload for worker: $workerId")
 
-        val docReferences = openSrpFhirEngine.search<DocumentReference> {}.filter {
-            it.resource.description != DocumentReferenceCaseType.DRAFT
+        val docReferences = withContext(dispatchers.io) {
+            openSrpFhirEngine.search<DocumentReference> {}.filter {
+                it.resource.description != DocumentReferenceCaseType.DRAFT
+            }
         }
-        val totalDocuments = docReferences.size
-        var pendingDocuments = totalDocuments
 
-        Timber.i("Found $totalDocuments document(s) to upload")
+        val totalDocuments = docReferences.size
+        var processedDocuments = 0
 
         val notificationManager = createNotificationChannel(context)
-        val notificationBuilder = createNotificationBuilder(context, totalDocuments, pendingDocuments)
+        val notificationBuilder = createNotificationBuilder(context, totalDocuments, totalDocuments - processedDocuments)
 
-        val result = docReferences.map {
-            val uriString = it.resource.getExtensionByUrl(UPLOAD_IMAGE_URL)?.value?.asStringValue()
-            if (uriString.isNullOrBlank()) {
-                Timber.e(Exception("Empty or null URI string for document: ${it.resource.logicalId} - $pendingDocuments pending"))
-                return@map it.resource to null
-            }
-            it.resource to uriString.toUri()
-        }.filter { it.second !== null }.map {
-            val docReference = it.first
-            val fileUri = it.second ?: return@map false
-
-            try {
-                uploadImageMutex.withLock {
-                    Timber.i("Processing document reference with logicalId: ${docReference.logicalId}")
-                    val docReferenceJson = FhirContext.forR4Cached().newJsonParser()
-                        .encodeResourceToString(docReference as Resource)
-                    val docReferenceBytes = docReferenceJson.encodeToByteArray()
-
-                    val refBody =
-                        docReferenceBytes.toRequestBody(HEADER_APPLICATION_JSON.toMediaType())
-
-                    Timber.i("Inserting document reference with logicalId: ${docReference.logicalId}")
-                    fhirResourceService.insertResource(
-                        docReference.fhirType(),
-                        docReference.logicalId,
-                        refBody
-                    )
-                    Timber.i("Successfully inserted document reference with logicalId: ${docReference.logicalId}")
-
-                    val docContentType = docReference.content.first().attachment.contentType
-
-                    Timber.i("Retrieving file bytes for document with logicalId: ${docReference.logicalId}")
-                    val bytes = runCatching {
-                        context.contentResolver.openInputStream(fileUri)
-                            ?.use { it.buffered().readBytes() }
-                    }.getOrNull() ?: run {
-                        Timber.e(Exception("Failed to retrieve file bytes for document with logicalId: ${docReference.logicalId}"))
-                        return@map false
-                    }
-
-                    val body = bytes.toRequestBody(docContentType.toMediaType())
-
-                    Timber.i("Uploading file for document with logicalId: ${docReference.logicalId}")
-                    val response = fhirResourceService.uploadFile(
-                        docReference.fhirType(),
-                        docReference.logicalId,
-                        "DocumentReference.content.attachment",
-                        body
-                    )
-
-                    if (response.isSuccessful.not()) {
-                        val customException = ImageUploadAPIException(
-                            documentId = docReference.logicalId,
-                            responseCode = response.code(),
-                            responseMessage = response.message(),
-                            pendingDocuments = pendingDocuments
-                        )
-                        Timber.e(customException)
-                        // 400 mean bad request
-                        if (response.code() == 422 || response.code() == 410) {
-                            openSrpFhirEngine.purge(
-                                docReference.resourceType,
-                                docReference.logicalId,
-                                true
-                            )
-                            applicationContext.contentResolver.delete(fileUri, null, null)
-                        }
-                        return@map false
-                    } else {
-                        Timber.i("Successfully uploaded document with logicalId: ${docReference.logicalId} - Response code: ${response.code()} - $pendingDocuments pending")
-                        fhirResourceService.updateResource(
-                            docReference.fhirType(),
-                            docReference.logicalId,
-                            Gson().toJson(listOf(DocStatusRequest(REPLACE,DOC_STATUS,DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()))).toRequestBody(
-                                CONTENT_TYPE.toMediaTypeOrNull()
-                            )
-                        )
-
-                        // Save the changes to document reference
-                        openSrpFhirEngine.purge(
-                            docReference.resourceType,
-                            docReference.logicalId,
-                            true
-                        )
-
-                        // Delete the file
-                        applicationContext.contentResolver.delete(fileUri, null, null)
-                        Timber.i("Purged documentRef with logicalId: ${docReference.logicalId}")
-
-                        // Update progress
-                        pendingDocuments--
-                        val progress =
-                            ((totalDocuments - pendingDocuments) * 100 / totalDocuments).toInt()
-                        updateProgress(
-                            context,
-                            notificationBuilder,
-                            totalDocuments,
-                            pendingDocuments
-                        )
-                        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
-
-                        // Update work progress
-                        setProgressAsync(workDataOf("progress" to progress))
-
-                        Timber.i("Completed processing for document with logicalId: ${docReference.logicalId}")
-                        true
-                    }
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Exception while processing document with logicalId: ${docReference.logicalId} - $pendingDocuments pending")
-                false
+        return docReferences.map { docRef ->
+            processDocumentReference(
+                context,
+                docRef.resource,
+                notificationManager,
+                notificationBuilder,
+                totalDocuments,
+                processedDocuments
+            ).also {
+                processedDocuments++
+                updateProgress(processedDocuments, totalDocuments)
             }
         }.all { it }
-
-        // Update notification on completion
-        updateNotification(context, notificationManager, notificationBuilder, result)
-        Timber.i("Finished document reference upload for worker: $workerId")
-        return result
+            .also { success ->
+                updateNotification(context, notificationManager, notificationBuilder, success)
+            }
     }
 
-    private fun updateProgress(context: Context,notificationBuilder: NotificationCompat.Builder, totalDocuments: Int, pendingDocuments: Int) {
-        notificationBuilder.setProgress(totalDocuments, totalDocuments - pendingDocuments, false)
-            .setContentText(context.getString(R.string.images_pending_text, pendingDocuments))
+    private suspend fun processDocumentReference(
+        context: Context,
+        docReference: DocumentReference,
+        notificationManager: NotificationManager,
+        notificationBuilder: NotificationCompat.Builder,
+        totalDocuments: Int,
+        processedDocuments: Int
+    ): Boolean = withContext(dispatchers.io) {
+        try {
+            val uriString = docReference.getExtensionByUrl(UPLOAD_IMAGE_URL)?.value?.asStringValue()
+            if (uriString.isNullOrBlank()) {
+                Timber.e("Empty or null URI string for document: ${docReference.logicalId}")
+                return@withContext false
+            }
 
+            val fileUri = uriString.toUri()
+            val bytes = context.contentResolver.openInputStream(fileUri)?.use {
+                it.buffered().readBytes()
+            } ?: run {
+                Timber.e("Failed to read file bytes for document: ${docReference.logicalId}")
+                return@withContext false
+            }
+
+            uploadImageMutex.withLock {
+                // Upload document reference
+                val docReferenceJson = FhirContext.forR4Cached().newJsonParser()
+                    .encodeResourceToString(docReference as Resource)
+                val refBody = docReferenceJson.encodeToByteArray()
+                    .toRequestBody(HEADER_APPLICATION_JSON.toMediaType())
+
+                fhirResourceService.insertResource(
+                    docReference.fhirType(),
+                    docReference.logicalId,
+                    refBody
+                )
+
+                // Upload file
+                val docContentType = docReference.content.first().attachment.contentType
+                val body = bytes.toRequestBody(docContentType.toMediaType())
+
+                val response = fhirResourceService.uploadFile(
+                    docReference.fhirType(),
+                    docReference.logicalId,
+                    "DocumentReference.content.attachment",
+                    body
+                )
+
+                handleUploadResponse(response, docReference, fileUri, context)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to process document: ${docReference.logicalId}")
+            false
+        }
+    }
+
+    private suspend fun handleUploadResponse(
+        response: Response<String>,
+        docReference: DocumentReference,
+        fileUri: Uri,
+        context: Context
+    ): Boolean {
+        if (!response.isSuccessful) {
+            if (response.code() in listOf(422, 410)) {
+                cleanupFailedUpload(docReference, fileUri, context)
+            }
+            return false
+        }
+
+        // Update document status
+        fhirResourceService.updateResource(
+            docReference.fhirType(),
+            docReference.logicalId,
+            Gson().toJson(listOf(
+                DocStatusRequest(
+                    REPLACE,
+                    DOC_STATUS,
+                    DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()
+                )
+            )).toRequestBody(CONTENT_TYPE.toMediaTypeOrNull())
+        )
+
+        cleanupSuccessfulUpload(docReference, fileUri, context)
+        return true
+    }
+
+    private suspend fun cleanupFailedUpload(
+        docReference: DocumentReference,
+        fileUri: Uri,
+        context: Context
+    ) = withContext(dispatchers.io) {
+        openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+        context.contentResolver.delete(fileUri, null, null)
+    }
+
+    private suspend fun cleanupSuccessfulUpload(
+        docReference: DocumentReference,
+        fileUri: Uri,
+        context: Context
+    ) = withContext(dispatchers.io) {
+        openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+        context.contentResolver.delete(fileUri, null, null)
+    }
+
+    private suspend fun updateProgress(processedDocuments: Int, totalDocuments: Int) {
+        val progress = ((processedDocuments * 100) / totalDocuments).toInt()
+        setProgressAsync(workDataOf("progress" to progress))
     }
 
     private fun createNotificationChannel(context: Context): NotificationManager {

@@ -29,6 +29,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
@@ -74,6 +75,17 @@ class NetworkModule {
   @Provides
   fun baseUrlsHolders(secureSharedPreference: SecureSharedPreference): BaseUrlsHolder =
     BaseUrlsHolder(secureSharedPreference)
+
+  @Module
+  @InstallIn(SingletonComponent::class)
+  object DispatcherModule {
+    @Provides
+    fun provideDispatchers(): CoroutineDispatchers = object : CoroutineDispatchers {
+      override val main = Dispatchers.Main
+      override val io = Dispatchers.IO
+      override val default = Dispatchers.Default
+    }
+  }
 
   @Provides
   @NoAuthorizationOkHttpClientQualifier
