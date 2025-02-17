@@ -171,7 +171,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
     private fun initModel() {
         try {
-            module =  Module.load(getAssetPath(requireContext(), "traced_cpu.pt"))
+            module =  Module.load(getAssetPath(requireContext(), "model_fold1_trace.pt"))
         } catch (e: Exception) {
             Log.e("OCS", "Error reading assets", e)
         } finally {
@@ -426,9 +426,9 @@ class CameraxLauncherFragment : DialogFragment() {
             val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(capturedImage, mean, std)
             val bgrTensor = convertRGBtoBGR(inputTensor) ?: throw IllegalStateException("Failed to convert RGB to BGR")
 
-            val output = module?.forward(IValue.from(bgrTensor)) ?: throw IllegalStateException("Module is null or forward operation failed")
-            val outputDict = output.toDictStringKey() ?: throw IllegalStateException("Failed to convert output to dictionary")
-            val outputTensor = outputDict["logits"]?.toTensor() ?: throw IllegalStateException("Failed to get logits tensor")
+            val outputTensor = module?.forward(IValue.from(bgrTensor))?.toTensor() ?: throw IllegalStateException("Module is null or forward operation failed")
+            //val outputDict = output.toDictStringKey() ?: throw IllegalStateException("Failed to convert output to dictionary")
+            //val outputTensor = outputDict["logits"]?.toTensor() ?: throw IllegalStateException("Failed to get logits tensor")
 
             var scores = outputTensor.dataAsFloatArray[0]
             //Sigmoid
@@ -438,11 +438,10 @@ class CameraxLauncherFragment : DialogFragment() {
             val confidence = if (prediction == 1) (scores * 100).toString() else ((1 - scores) * 100).toString()
             return Pair(className, confidence)
         } catch (e: Exception) {
-            Timber.e(e, "Error processing image")
+            Log.d("Error", "Error processing image ${e.printStackTrace()}")
             return null
         }
     }
-
     fun View.setSafeOnClickListener(interval: Long = 1000, onSafeClick: (View) -> Unit) {
         var lastClickTime = 0L
         val safeClickListener = object : View.OnClickListener {
