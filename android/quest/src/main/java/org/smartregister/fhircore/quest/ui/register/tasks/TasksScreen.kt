@@ -120,6 +120,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.getPatientsCount
 import org.smartregister.fhircore.quest.ui.register.patients.getSyncImageList
 import org.smartregister.fhircore.quest.ui.shared.components.ExtendedFab
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
@@ -209,12 +210,16 @@ fun PendingTasksScreen(
     )
     var selectedTask by remember { mutableStateOf<RegisterViewModel.TaskItem?>(null) }
 
-    val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
     val isFetching by viewModel.isFetchingTasks.collectAsState()
-    var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
-    var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
     val statusUpdateSuccessfully = stringResource(id = R.string.status_updated_successfully)
     val selectStatusToUpdate = stringResource(id = R.string.select_status_to_update)
+
+    val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
+    val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
+    /*var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
+    var totalPatientsLeftCountData = getPatientsCount(unSyncedPatientsCount.size)
+    var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
+    var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -388,9 +393,12 @@ fun PendingTasksScreen(
                         }
                         val context = LocalContext.current
 
-                        viewModel.imageCount = unSyncedImagesCount
-                        totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                        //viewModel.imageCount = unSyncedImagesCount
+                        //viewModel.unsyncedPatientsCount = unSyncedPatientsCount.size
+                        /*totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                        totalPatientsLeftCountData = getPatientsCount(viewModel.unsyncedPatientsCount)
                         totalImageLeft = totalImageLeftCountData
+                        totalPatientsLeft = totalPatientsLeftCountData*/
 
                         Box(
                             modifier = modifier.background(SearchHeaderColor)
@@ -578,8 +586,9 @@ fun PendingTasksScreen(
 
                 ForegroundSyncDialog(showDialog = viewModel.showDialog.value,
                     title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
-                    content = totalImageLeft,
-                    viewModel.imageCount,
+                    content = "${getSyncImageList(unSyncedImagesCount)} \n${getPatientsCount(unSyncedPatientsCount.size)}",
+                    unSyncedImagesCount,
+                    unSyncedPatientsCount.size,
                     confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
                     dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
                     onDismiss = {

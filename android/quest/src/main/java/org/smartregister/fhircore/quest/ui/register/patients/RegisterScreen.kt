@@ -110,8 +110,11 @@ fun RegisterScreen(
 ) {
 
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
-    var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
+    val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
+    /*var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
+    var totalPatientsLeftCountData = getPatientsCount(unSyncedPatientsCount.size)
     var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
+    var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -161,9 +164,12 @@ fun RegisterScreen(
                 var deleteDraftId by remember { mutableStateOf("") }
                 var showDeleteDialog by remember { mutableStateOf(false) }
 
-                    viewModel.imageCount = unSyncedImagesCount
-                    totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                    //viewModel.imageCount = unSyncedImagesCount
+                    //viewModel.unsyncedPatientsCount = unSyncedPatientsCount.size
+                    /*totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                    totalPatientsLeftCountData = getPatientsCount(viewModel.unsyncedPatientsCount)
                     totalImageLeft = totalImageLeftCountData
+                    totalPatientsLeft = totalPatientsLeftCountData*/
 
                 if (allSyncedPatients.isEmpty() && savedRes.isEmpty()) {
                     Column(
@@ -351,8 +357,9 @@ fun RegisterScreen(
             ForegroundSyncDialog(
                 showDialog = viewModel.showDialog.value,
                 title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
-                content = totalImageLeft,
-                viewModel.imageCount,
+                content = "${getSyncImageList(unSyncedImagesCount)} \n${getPatientsCount(unSyncedPatientsCount.size)}",
+                unSyncedImagesCount,
+                unSyncedPatientsCount.size,
                 confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
                 dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
                 onDismiss = {

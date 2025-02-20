@@ -157,6 +157,7 @@ class TasksFragment : Fragment(), OnSyncListener {
     super.onResume()
     registerViewModel.getAllTasks()
     registerViewModel.getAllUnSyncedPatientsImages()
+    registerViewModel.getAllUnSyncedPatients()
     syncListenerManager.registerSyncListener(this, lifecycle)
   }
 
