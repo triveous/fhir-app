@@ -20,6 +20,7 @@ fun ForegroundSyncDialog(
     title: String,
     content: String,
     imageCount: Int = 0,
+    patientsCount: Int = 0,
     dismissButtonText: String,
     confirmButtonText: String,
     onDismiss: () -> Unit,
@@ -37,7 +38,7 @@ fun ForegroundSyncDialog(
                 }
             },
             dismissButton = { // sync button
-                if (imageCount > 0) {
+                if (imageCount > 0 || patientsCount > 0) {
                     TextButton(onClick = onConfirm) {
                         Text(confirmButtonText, style = bodyMedium(16.sp))
                     }

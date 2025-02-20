@@ -205,7 +205,8 @@ constructor(
     val permissionGranted: State<Boolean> = _permissionGranted
 
     var appMainEvent: AppMainEvent? = null
-    var imageCount = 0
+    //var imageCount = 0
+    //var unsyncedPatientsCount = 0
 
     /**
      * This function paginates the register data. An optional [clearCache] resets the data in the
@@ -1031,6 +1032,7 @@ constructor(
             patients.reverse()
 //      CoroutineScope(Dispatchers.Main).launch {
             _allUnSyncedStateFlow.value = patients
+            //unsyncedPatientsCount = patients.size
 //      }
         }
     }
@@ -1040,7 +1042,8 @@ constructor(
 
             val imagesCount = fhirEngine.search<DocumentReference> {}.filter {  it.resource.description != DocumentReferenceCaseType.DRAFT.name }.count()
             _allUnSyncedImages.value = imagesCount
-            imageCount = imagesCount
+            //imageCount = imagesCount
+            //unsyncedPatientsCount = _allUnSyncedStateFlow.value.size
         }
     }
 

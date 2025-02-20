@@ -171,6 +171,7 @@ class DashboardFragment : Fragment(), OnSyncListener {
         registerViewModel.getDashboardCasedData()
         syncListenerManager.registerSyncListener(this, lifecycle)
         registerViewModel.getAllUnSyncedPatientsImages()
+        registerViewModel.getAllUnSyncedPatients()
         //registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL, taskStatus, taskPriority)
     }
 
