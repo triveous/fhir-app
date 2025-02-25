@@ -234,7 +234,7 @@
     <string name="sync_now">Sync now</string>
     <string name="notification_sync_failed">Sync failed</string>
     <string name="notification_sync">Syncing…</string>
-    <string name="image_left">Image Left: %s</string>
+    <string name="image_left">Images Left: %s</string>
     <string name="patients_left">Patients Left: %s</string>
     <string name="okay">Okay</string>
 
