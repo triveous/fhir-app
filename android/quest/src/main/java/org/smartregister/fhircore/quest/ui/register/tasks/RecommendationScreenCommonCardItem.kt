@@ -188,7 +188,7 @@ fun MultiRecommendationStatusColumn(taskStatusList: List<Pair<String, String>>?)
     val lazyListState = rememberLazyListState()
     LazyColumn(
         state = lazyListState,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().height(150.dp)
     ) {
         items(count = taskStatusList?.size ?: 0) { position ->
             val data = taskStatusList?.get(position)
