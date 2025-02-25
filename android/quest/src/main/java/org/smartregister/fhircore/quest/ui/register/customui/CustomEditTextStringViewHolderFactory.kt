@@ -50,12 +50,9 @@ class EditTextStringViewHolderDelegate :
     textInputEditText: TextInputEditText
   ) {
     header.visibility = View.GONE
-
-    (questionnaireViewItem.questionnaireItem.getExtensionString("http://hl7.org/fhir/StructureDefinition/keyboard")
-      .orEmpty() == KEYBOARD_NUMERIC).let {
-      if (it){
-        textInputEditText.inputType = InputType.TYPE_CLASS_NUMBER
-      }
+    if(questionnaireViewItem.questionnaireItem.getExtensionString("http://hl7.org/fhir/StructureDefinition/keyboard")
+      .orEmpty() == KEYBOARD_NUMERIC){
+      textInputEditText.inputType = InputType.TYPE_CLASS_NUMBER
     }
     val text = questionnaireViewItem.answers.singleOrNull()?.valueStringType?.value ?: ""
     if ((text != textInputEditText.text.toString())) {
