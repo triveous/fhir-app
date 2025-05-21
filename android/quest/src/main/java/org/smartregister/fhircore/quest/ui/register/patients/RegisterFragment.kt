@@ -16,6 +16,9 @@
 
 package org.smartregister.fhircore.quest.ui.register.patients
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -28,6 +31,7 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.SnackbarDuration
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
@@ -47,7 +51,12 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -59,6 +68,7 @@ import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
@@ -75,12 +85,27 @@ import javax.inject.Inject
 class RegisterFragment : Fragment(), OnSyncListener {
 
   @Inject lateinit var syncListenerManager: SyncListenerManager
-
   @Inject lateinit var eventBus: EventBus
   private val appMainViewModel by activityViewModels<AppMainViewModel>()
   private val registerFragmentArgs by navArgs<RegisterFragmentArgs>()
   private val registerViewModel by viewModels<RegisterViewModel>()
 
+  // Network connectivity state flow
+  private val _isOnline = MutableStateFlow(true)
+  val isOnline: StateFlow<Boolean> = _isOnline
+
+  // Network callback for real-time connectivity updates
+  private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+    override fun onAvailable(network: Network) {
+      super.onAvailable(network)
+      _isOnline.value = true
+    }
+
+    override fun onLost(network: Network) {
+      super.onLost(network)
+      _isOnline.value = false
+    }
+  }
 
   override fun onCreateView(
     inflater: LayoutInflater,
@@ -100,10 +125,13 @@ class RegisterFragment : Fragment(), OnSyncListener {
       }
     }
 
+    // Initialize network status
+    _isOnline.value = requireContext().isDeviceOnline()
 
-/*    registerViewModel.patientsListLiveData.observeForever {
-      val data = it
-    }*/
+    // Register network callback
+    val connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    connectivityManager.registerDefaultNetworkCallback(networkCallback)
+
     return ComposeView(requireContext()).apply {
       setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
       setContent {
@@ -151,15 +179,18 @@ class RegisterFragment : Fragment(), OnSyncListener {
               )
             },
           ) { innerPadding ->
-            Box(modifier = Modifier.padding(innerPadding)
-              .background(SearchHeaderColor)
-              .testTag(REGISTER_SCREEN_BOX_TAG)) {
-
+            Box(
+              modifier = Modifier
+                .padding(innerPadding)
+                .background(SearchHeaderColor)
+                .testTag(REGISTER_SCREEN_BOX_TAG)
+            ) {
               RegisterScreen(
                 registerUiState = registerViewModel.registerUiState.value,
                 navController = findNavController(),
                 appMainViewModel = appMainViewModel,
-                viewModel = registerViewModel
+                viewModel = registerViewModel,
+                isOnline = isOnline.collectAsState().value
               )
             }
           }
@@ -170,13 +201,14 @@ class RegisterFragment : Fragment(), OnSyncListener {
 
   override fun onResume() {
     super.onResume()
+    // Update network status when fragment resumes
+    _isOnline.value = requireContext().isDeviceOnline()
+
     registerViewModel.getAllPatients()
-    //registerViewModel.getHomeScreenPatients()
     registerViewModel.getAllSyncedPatients()
     registerViewModel.getAllDraftResponses()
     registerViewModel.getAllUnSyncedPatients()
     registerViewModel.getAllUnSyncedPatientsImages()
-
 
     syncListenerManager.registerSyncListener(this, lifecycle)
   }
@@ -184,6 +216,13 @@ class RegisterFragment : Fragment(), OnSyncListener {
   override fun onStop() {
     super.onStop()
     registerViewModel.searchText.value = "" // Clear the search term
+  }
+
+  override fun onDestroyView() {
+    super.onDestroyView()
+    // Unregister the network callback when fragment is destroyed
+    val connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    connectivityManager.unregisterNetworkCallback(networkCallback)
   }
 
   override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
@@ -343,6 +382,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
       arguments = bundle
     }
 
-      const val REGISTER_SCREEN_BOX_TAG = "fragmentRegisterScreenTestTag"
+    const val REGISTER_SCREEN_BOX_TAG = "fragmentRegisterScreenTestTag"
   }
 }
