@@ -31,6 +31,11 @@ import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CellTower
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.NetworkWifi
+import androidx.compose.material.icons.filled.SignalWifiOff
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,8 +75,10 @@ fun TopScreenSection(
   modifier: Modifier = Modifier,
   title: String = stringResource(id = R.string.appname),
   toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
+  isOnline: Boolean = true,
   onSync: (AppMainEvent) -> Unit,
   onClick: (ToolbarClickEvent) -> Unit,
+
 ) {
   Column(
     modifier = modifier
@@ -95,22 +102,40 @@ fun TopScreenSection(
           contentDescription = DRAWER_MENU,
           tint = Color.White,
           modifier =
-          modifier
-            .clickable { onClick(ToolbarClickEvent.Navigate) }
-            .testTag(TOP_ROW_ICON_TEST_TAG),
+            modifier
+              .clickable { onClick(ToolbarClickEvent.Navigate) }
+              .testTag(TOP_ROW_ICON_TEST_TAG),
         )
       }
-        Text(
-          text = title,
-          fontSize = 24.sp,
-          color = Color.White,
-          fontWeight = FontWeight.Bold,
-          modifier = modifier
-            .padding(start = 8.dp)
-            .weight(1f)
-            .testTag(TOP_ROW_TEXT_TEST_TAG),
-        )
+      Text(
+        text = title,
+        fontSize = 24.sp,
+        color = Color.White,
+        fontWeight = FontWeight.Bold,
+        modifier = modifier
+          .padding(start = 8.dp)
+          .weight(1f)
+          .testTag(TOP_ROW_TEXT_TEST_TAG),
+      )
       val context = LocalContext.current
+
+      // Network status indicator
+//      Row(
+//        verticalAlignment = Alignment.CenterVertically,
+//        modifier = Modifier.padding(end = 8.dp, start = 8.dp),
+//      ) {
+//        Icon(
+//          imageVector = if (isOnline) Icons.Filled.CellTower else Icons.Filled.CellTower,
+//          contentDescription = if (isOnline) "" else "",
+//          tint = if (isOnline) Color.Green else Color.Red,
+//          modifier = Modifier.padding(end = 4.dp),
+//        )
+////        Text(
+////          text = if (isOnline) "" else "",
+////          fontSize = 14.sp,
+////          color = if (isOnline) Color.White else Color.Red,
+////        )
+//      }
 
       if (toolBarHomeNavigation == ToolBarHomeNavigation.SYNC) {
         Icon(
@@ -131,7 +156,7 @@ fun TopScreenSection(
         Icon(
           painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_cases_sync),
           contentDescription = FILTER,
-          tint = Color.White,
+          tint = if (isOnline) Color.White else Color.Gray,
           modifier =
           modifier
             .clickable { onSync(AppMainEvent.SyncData(context)) }

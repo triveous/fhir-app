@@ -107,6 +107,7 @@ fun RegisterScreen(
     appMainViewModel: AppMainViewModel,
     registerUiState: RegisterUiState,
     navController: NavController,
+    isOnline: Boolean = true,
 ) {
 
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
@@ -132,6 +133,7 @@ fun RegisterScreen(
                     modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
                     title = stringResource(id = R.string.appname),
                     toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
+                    isOnline = isOnline,
                     onSync = {
                         viewModel.appMainEvent = it
                         viewModel.setShowDialog(true)
