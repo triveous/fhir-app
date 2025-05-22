@@ -17,6 +17,7 @@
 package org.smartregister.fhircore.quest.ui.main.components
 
 import android.content.Intent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -120,22 +121,29 @@ fun TopScreenSection(
       val context = LocalContext.current
 
       // Network status indicator
-//      Row(
-//        verticalAlignment = Alignment.CenterVertically,
-//        modifier = Modifier.padding(end = 8.dp, start = 8.dp),
-//      ) {
-//        Icon(
-//          imageVector = if (isOnline) Icons.Filled.CellTower else Icons.Filled.CellTower,
-//          contentDescription = if (isOnline) "" else "",
-//          tint = if (isOnline) Color.Green else Color.Red,
-//          modifier = Modifier.padding(end = 4.dp),
-//        )
-////        Text(
-////          text = if (isOnline) "" else "",
-////          fontSize = 14.sp,
-////          color = if (isOnline) Color.White else Color.Red,
-////        )
-//      }
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(end = 8.dp, start = 8.dp),
+      ) {
+        // Online/offline status indicator as a round dot
+        Canvas(
+          modifier = Modifier
+            .padding(end = 4.dp)
+            .width(8.dp)
+            .height(16.dp),
+          onDraw = {
+            drawCircle(
+              color = if (isOnline) Color(0xFF6FD571) else Color(0xFFF44336),
+              radius = size.minDimension / 2
+            )
+          }
+        )
+        Text(
+          text = if (isOnline) "Online" else "Offline",
+          fontSize = 14.sp,
+          color = Color.White,
+        )
+      }
 
       if (toolBarHomeNavigation == ToolBarHomeNavigation.SYNC) {
         Icon(
