@@ -121,29 +121,29 @@ fun TopScreenSection(
       val context = LocalContext.current
 
       // Network status indicator
-      Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(end = 8.dp, start = 8.dp),
-      ) {
-        // Online/offline status indicator as a round dot
-        Canvas(
-          modifier = Modifier
-            .padding(end = 4.dp)
-            .width(8.dp)
-            .height(16.dp),
-          onDraw = {
-            drawCircle(
-              color = if (isOnline) Color(0xFF6FD571) else Color(0xFFF44336),
-              radius = size.minDimension / 2
-            )
-          }
-        )
-        Text(
-          text = if (isOnline) "Online" else "Offline",
-          fontSize = 14.sp,
-          color = Color.White,
-        )
-      }
+//      Row(
+//        verticalAlignment = Alignment.CenterVertically,
+//        modifier = Modifier.padding(end = 8.dp, start = 8.dp),
+//      ) {
+//        // Online/offline status indicator as a round dot
+//        Canvas(
+//          modifier = Modifier
+//            .padding(end = 4.dp)
+//            .width(8.dp)
+//            .height(16.dp),
+//          onDraw = {
+//            drawCircle(
+//              color = if (isOnline) Color(0xFF6FD571) else Color(0xFFF44336),
+//              radius = size.minDimension / 2
+//            )
+//          }
+//        )
+//        Text(
+//          text = if (isOnline) "Online" else "Offline",
+//          fontSize = 14.sp,
+//          color = Color.White,
+//        )
+//      }
 
       if (toolBarHomeNavigation == ToolBarHomeNavigation.SYNC) {
         Icon(
