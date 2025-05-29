@@ -90,6 +90,11 @@ class RegisterFragment : Fragment(), OnSyncListener {
   private val registerFragmentArgs by navArgs<RegisterFragmentArgs>()
   private val registerViewModel by viewModels<RegisterViewModel>()
 
+  // Track if main sync completed but waiting for image upload completion
+  private var isWaitingForImageUpload = false
+  private var hasShownSyncCompleted = false
+  private var hasShownSyncing = false
+
   // Network connectivity state flow
   private val _isOnline = MutableStateFlow(true)
   val isOnline: StateFlow<Boolean> = _isOnline
@@ -204,6 +209,11 @@ class RegisterFragment : Fragment(), OnSyncListener {
     // Update network status when fragment resumes
     _isOnline.value = requireContext().isDeviceOnline()
 
+    // Reset sync state flags
+    isWaitingForImageUpload = false
+    hasShownSyncCompleted = false
+    hasShownSyncing = false
+
     registerViewModel.getAllPatients()
     registerViewModel.getAllSyncedPatients()
     registerViewModel.getAllDraftResponses()
@@ -220,6 +230,11 @@ class RegisterFragment : Fragment(), OnSyncListener {
 
   override fun onDestroyView() {
     super.onDestroyView()
+    // Reset sync state flags
+    isWaitingForImageUpload = false
+    hasShownSyncCompleted = false
+    hasShownSyncing = false
+
     // Unregister the network callback when fragment is destroyed
     val connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     connectivityManager.unregisterNetworkCallback(networkCallback)
@@ -229,37 +244,79 @@ class RegisterFragment : Fragment(), OnSyncListener {
     when (syncJobStatus) {
       is CurrentSyncJobStatus.Running ->
         if (syncJobStatus.inProgressSyncJob is SyncJobStatus.Started) {
-          lifecycleScope.launch {
-            registerViewModel.emitSnackBarState(
-              SnackBarMessageConfig(message = getString(R.string.syncing)),
-            )
+          // Reset flags when new sync starts
+          isWaitingForImageUpload = false
+          hasShownSyncCompleted = false
+          if (!hasShownSyncing){
+            hasShownSyncing = true
+            lifecycleScope.launch {
+              registerViewModel.emitSnackBarState(
+                SnackBarMessageConfig(message = getString(R.string.syncing)),
+              )
+            }
           }
         } else {
+          val progressSyncJob = syncJobStatus.inProgressSyncJob as SyncJobStatus.InProgress
+
+          // Check if this is image upload progress
+          if (progressSyncJob.syncOperation == SyncOperation.UPLOAD) {
+            lifecycleScope.launch {
+              registerViewModel.emitSnackBarState(
+                SnackBarMessageConfig(message = getString(R.string.uploading_images_title)),
+              )
+            }
+          }
+
           emitPercentageProgress(
-            syncJobStatus.inProgressSyncJob as SyncJobStatus.InProgress,
-            (syncJobStatus.inProgressSyncJob as SyncJobStatus.InProgress).syncOperation ==
-              SyncOperation.UPLOAD,
+            progressSyncJob,
+            progressSyncJob.syncOperation == SyncOperation.UPLOAD,
           )
         }
       is CurrentSyncJobStatus.Succeeded -> {
-        refreshRegisterData()
-        lifecycleScope.launch {
-          registerViewModel.emitSnackBarState(
-            SnackBarMessageConfig(
-              message = getString(R.string.sync_completed),
-              //actionLabel = getString(R.string.ok).uppercase(),
-              duration = SnackbarDuration.Short,
-            ),
-          )
-          delay(200)
-          registerViewModel.getAllPatients()
-          registerViewModel.getAllSyncedPatients()
-          registerViewModel.getAllDraftResponses()
-          registerViewModel.getAllUnSyncedPatients()
-          registerViewModel.getAllUnSyncedPatientsImages()
+        // Check if we were waiting for image upload completion
+        if (isWaitingForImageUpload && !hasShownSyncCompleted) {
+          // This success means image upload is also complete
+          hasShownSyncCompleted = true
+          lifecycleScope.launch {
+            refreshRegisterData()
+            registerViewModel.emitSnackBarState(
+              SnackBarMessageConfig(
+                message = getString(R.string.sync_completed),
+                duration = SnackbarDuration.Short,
+              ),
+            )
+            delay(200)
+            registerViewModel.getAllPatients()
+            registerViewModel.getAllSyncedPatients()
+            registerViewModel.getAllDraftResponses()
+            registerViewModel.getAllUnSyncedPatients()
+            registerViewModel.getAllUnSyncedPatientsImages()
+          }
+          isWaitingForImageUpload = false
+        } else if (!isWaitingForImageUpload && !hasShownSyncCompleted) {
+          // Regular sync completion without image uploads
+          hasShownSyncCompleted = true
+          lifecycleScope.launch {
+            refreshRegisterData()
+            registerViewModel.emitSnackBarState(
+              SnackBarMessageConfig(
+                message = getString(R.string.sync_completed),
+                duration = SnackbarDuration.Short,
+              ),
+            )
+            delay(200)
+            registerViewModel.getAllPatients()
+            registerViewModel.getAllSyncedPatients()
+            registerViewModel.getAllDraftResponses()
+            registerViewModel.getAllUnSyncedPatients()
+            registerViewModel.getAllUnSyncedPatientsImages()
+          }
         }
       }
       is CurrentSyncJobStatus.Failed -> {
+        // Reset state on failure
+        isWaitingForImageUpload = false
+        hasShownSyncCompleted = false
         refreshRegisterData()
         syncJobStatus.toString()
         // Show error message in snackBar message
@@ -268,7 +325,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
             SnackBarMessageConfig(
               message = getString(R.string.sync_completed_with_errors),
               duration = SnackbarDuration.Short,
-              //actionLabel = getString(R.string.ok).uppercase(),
             ),
           )
         }
@@ -341,6 +397,11 @@ class RegisterFragment : Fragment(), OnSyncListener {
     lifecycleScope.launch {
       val percentageProgress: Int = calculateActualPercentageProgress(progressSyncJobStatus)
       registerViewModel.emitPercentageProgressState(percentageProgress, isUploadSync)
+
+      // If this is image upload progress, set flag to wait for completion
+      if (isUploadSync && !hasShownSyncCompleted) {
+        isWaitingForImageUpload = true
+      }
     }
   }
 
