@@ -171,6 +171,8 @@ constructor(
         }else{
           it.task.output.takeIf { it.isNotEmpty() }?.get(0)?.value.valueToString() == priority.text
         }
+      }else if (status == TaskStatus.INPROGRESS){
+        it.task.output.takeIf { it.isNotEmpty() }?.firstOrNull()?.value.valueToString() == priority.text
       }else{
         it.task.output.takeIf { it.isNotEmpty() }?.firstOrNull()?.value.valueToString() == priority.text
       }

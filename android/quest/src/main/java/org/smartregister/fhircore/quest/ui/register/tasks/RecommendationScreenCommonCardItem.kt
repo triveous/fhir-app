@@ -60,7 +60,7 @@ fun CardItemViewAllTask(
     val taskStatusList = viewModel.getTaskCodeWithValue(task)
     println("CardItemView getTaskStatusList--> $taskStatusList")
 
-    RecommendationItem(name, phone, taskStatusList, task?.task?.status) {
+    RecommendationItem(name, phone, taskStatusList) {
         onSelectTask(task)
     }
 }
@@ -71,7 +71,6 @@ fun RecommendationItem(
     name: String,
     phone: String,
     taskStatusList: List<Pair<String, String>>?,
-    status: Task.TaskStatus?,
     onClick: () -> Unit
 ) {
     Card(
@@ -108,10 +107,6 @@ fun RecommendationItem(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = phone,
-                            style = bodyNormal(14.sp),
-                        )
-                        Text(
-                            text = "${status?.name?.toString()}",
                             style = bodyNormal(14.sp),
                         )
                     }
@@ -186,55 +181,57 @@ fun MultiRecommendationStatus(taskStatusList: List<Pair<String, String>>?) {
 @Composable
 fun MultiRecommendationStatusColumn(taskStatusList: List<Pair<String, String>>?) {
     val lazyListState = rememberLazyListState()
-    LazyColumn(
-        state = lazyListState,
-        modifier = Modifier.fillMaxWidth().height(150.dp)
-    ) {
-        items(count = taskStatusList?.size ?: 0) { position ->
-            val data = taskStatusList?.get(position)
-            Row(modifier = Modifier.padding(bottom = 16.dp)) {
-                val label = data?.second?.uppercase() ?: ""
-                var textColor = Color.Black
-                var color = Color.Black
-                val taskCode = TaskCode.fromCode(data?.first ?: "") ?: ""
+    taskStatusList?.size?.let {
+        LazyColumn(
+            state = lazyListState,
+            modifier = if (it > 1)  Modifier.fillMaxWidth().height(150.dp) else Modifier.fillMaxWidth()
+        ) {
+            items(count = taskStatusList?.size ?: 0) { position ->
+                val data = taskStatusList?.get(position)
+                Row(modifier = Modifier.padding(bottom = 16.dp)) {
+                    val label = data?.second?.uppercase() ?: ""
+                    var textColor = Color.Black
+                    var color = Color.Black
+                    val taskCode = TaskCode.fromCode(data?.first ?: "") ?: ""
 
-                when (taskCode) {
-                    TaskCode.ADDITIONAL_INVESTIGATION_NEEDED -> {
-                        color = Colors.CORNSILK
-                        textColor = Colors.PHILIPPINE_YELLOW
+                    when (taskCode) {
+                        TaskCode.ADDITIONAL_INVESTIGATION_NEEDED -> {
+                            color = Colors.CORNSILK
+                            textColor = Colors.PHILIPPINE_YELLOW
+                        }
+
+                        TaskCode.QUIT_HABIT -> {
+                            color = Colors.LAVENDER_WEB
+                            textColor = Colors.DEEP_LILAC
+                        }
+
+                        TaskCode.URGENT_REFER_TO_HOSPITAL -> {
+                            color = Colors.LIGHT_RED
+                            textColor = Colors.SIZZLING_RED
+                        }
+
+                        TaskCode.RETAKE_IMAGE -> {
+                            color = Color.LightGray
+                            textColor = Color.Gray
+                        }
+
+                        else -> {
+                            color = Color.LightGray
+                            textColor = Color.Gray
+                        }
                     }
 
-                    TaskCode.QUIT_HABIT -> {
-                        color = Colors.LAVENDER_WEB
-                        textColor = Colors.DEEP_LILAC
-                    }
-
-                    TaskCode.URGENT_REFER_TO_HOSPITAL -> {
-                        color = Colors.LIGHT_RED
-                        textColor = Colors.SIZZLING_RED
-                    }
-
-                    TaskCode.RETAKE_IMAGE -> {
-                        color = Color.LightGray
-                        textColor = Color.Gray
-                    }
-
-                    else -> {
-                        color = Color.LightGray
-                        textColor = Color.Gray
-                    }
+                    Text(
+                        text = label.uppercase(),
+                        color = textColor,
+                        style = body14Medium(),
+                        modifier = Modifier
+                            .background(
+                                color, shape = MaterialTheme.shapes.small
+                            ).fillMaxWidth()
+                            .padding(12.dp)
+                    )
                 }
-
-                Text(
-                    text = label.uppercase(),
-                    color = textColor,
-                    style = body14Medium(),
-                    modifier = Modifier
-                        .background(
-                            color, shape = MaterialTheme.shapes.small
-                        ).fillMaxWidth()
-                        .padding(12.dp)
-                )
             }
         }
     }
