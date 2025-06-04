@@ -551,7 +551,7 @@ fun PendingTasksScreen(
                                                                         ) {
                                                                             TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE.text
                                                                         } else {
-                                                                            TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP.text
+                                                                            TaskProgressStatusDisplay.NOT_RESPONDED.text
                                                                         }
                                                                     )
                                                                     putExtra(TASK_STATUS, status.name)
@@ -1321,7 +1321,7 @@ fun CardItemView(
     val taskStatusList = viewModel.getTaskCodeWithValue(task)
     println("CardItemView getTaskStatusList--> $taskStatusList")
 
-    RecommendationItem(name, phone, taskStatusList, task.task?.status) {
+    RecommendationItem(name, phone, taskStatusList) {
         onSelectTask(task)
     }
 }
