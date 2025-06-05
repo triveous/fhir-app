@@ -498,7 +498,7 @@ constructor(
 
     fun searchTasks(searchText: String) {
         _searchedTasksStateFlow.value = emptyList()
-        val isPhoneNumber = searchText.toIntOrNull() != null
+        val isPhoneNumber = searchText.toLongOrNull() != null
         val allTasksWithPatients = _allLatestTasksStateFlow.value
         val matchedTasksWithPatientList = mutableListOf<TaskItem>()
 

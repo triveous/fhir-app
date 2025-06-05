@@ -579,7 +579,9 @@ fun TasksBottomSheetContent(
             TaskProgressState.AGREED_FOLLOWUP_NOT_DONE.text -> {
               //Clicked on task from Inprogress tab -> Agreed, Follow up not done section.
               options = listOf(
+                TaskProgressState.NOT_RESPONDED to TaskProgressStatusDisplay.NOT_RESPONDED,
                 TaskProgressState.NOT_AGREED_FOR_FOLLOWUP to TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP,
+                TaskProgressState.FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.FOLLOWUP_NOT_DONE,
                 TaskProgressState.FOLLOWUP_DONE to TaskProgressStatusDisplay.FOLLOWUP_DONE,
               )
             }
