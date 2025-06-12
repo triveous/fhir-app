@@ -53,6 +53,8 @@ class EditTextStringViewHolderDelegate :
     if(questionnaireViewItem.questionnaireItem.getExtensionString("http://hl7.org/fhir/StructureDefinition/keyboard")
       .orEmpty() == KEYBOARD_NUMERIC){
       textInputEditText.inputType = InputType.TYPE_CLASS_NUMBER
+    }else{
+      textInputEditText.inputType = InputType.TYPE_CLASS_TEXT
     }
     val text = questionnaireViewItem.answers.singleOrNull()?.valueStringType?.value ?: ""
     if ((text != textInputEditText.text.toString())) {

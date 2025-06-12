@@ -253,6 +253,10 @@ fun ViewAllTasksScreen(
                 status = TaskStatus.REJECTED
               }
 
+              TaskProgressState.FOLLOWUP_NOT_DONE -> {
+                status = TaskStatus.COMPLETED
+              }
+
               TaskProgressState.NOT_RESPONDED -> {
                 if(task.task.status == TaskStatus.REQUESTED){
                   taskPriorityState = TaskProgressState.NOT_RESPONDED

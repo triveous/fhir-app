@@ -136,7 +136,7 @@ constructor(
   }
 
   fun setSentryUserProperties() {
-    val userName = secureSharedPreference.retrieveSessionUsername()
+    val userName = secureSharedPreference.getPractitionerUserId()
     try {
       viewModelScope.launch {
         val docReferences = fhirEngine.search<DocumentReference> {}.size
