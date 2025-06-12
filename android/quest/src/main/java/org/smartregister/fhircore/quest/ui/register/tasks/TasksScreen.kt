@@ -366,6 +366,9 @@ fun PendingTasksScreen(
             },
         ) { innerPadding ->
             Box(modifier = modifier.background(SearchHeaderColor)) {
+                val selectedTabType = remember {
+                    mutableStateOf(TabType.TASK_NEW_TAB)
+                }
 
                 if(isFetching){
                     Column(modifier = Modifier
@@ -388,9 +391,7 @@ fun PendingTasksScreen(
                         val newTasks by viewModel.newTasksStateFlow.collectAsState()
                         val pendingTasks by viewModel.pendingTasksStateFlow.collectAsState()
                         val completedTasks by viewModel.completedTasksStateFlow.collectAsState()
-                        val selectedTabType = remember {
-                            mutableStateOf(TabType.TASK_NEW_TAB)
-                        }
+
                         val context = LocalContext.current
 
                         //viewModel.imageCount = unSyncedImagesCount
