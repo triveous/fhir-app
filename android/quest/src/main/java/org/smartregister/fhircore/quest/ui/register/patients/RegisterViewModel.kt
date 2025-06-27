@@ -178,6 +178,9 @@ constructor(
     private val _isFetchingTasks = MutableStateFlow<Boolean>(false)
     val isFetchingTasks: StateFlow<Boolean> = _isFetchingTasks
 
+    private val _isShowPendingSyncBanner = MutableStateFlow<Boolean>(false)
+    val isShowPendingSyncBanner: StateFlow<Boolean> = _isShowPendingSyncBanner
+
 
     private val _isLogout = MutableStateFlow<Boolean>(false)
     val isLogout: StateFlow<Boolean> = _isLogout
@@ -226,6 +229,11 @@ constructor(
             pagesDataCache.getOrPut(currentPage.value) {
                 getPager(registerId, loadAll).flow.cachedIn(viewModelScope)
             }
+    }
+
+    //48h
+    fun isShowPendingSyncBanner(){
+        _isShowPendingSyncBanner.value = secureSharedPreference.getLastSyncDataTime() + 1000 * 60 * 60 * 48 < System.currentTimeMillis()
     }
 
     fun setSentryUserProperties() {

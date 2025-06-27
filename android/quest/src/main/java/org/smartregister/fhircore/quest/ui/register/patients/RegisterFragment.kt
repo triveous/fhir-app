@@ -72,6 +72,7 @@ import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
+import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
@@ -95,23 +96,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
   private var hasShownSyncCompleted = false
   private var hasShownSyncing = false
 
-  // Network connectivity state flow
-  private val _isOnline = MutableStateFlow(true)
-  val isOnline: StateFlow<Boolean> = _isOnline
-
-  // Network callback for real-time connectivity updates
-  private val networkCallback = object : ConnectivityManager.NetworkCallback() {
-    override fun onAvailable(network: Network) {
-      super.onAvailable(network)
-      _isOnline.value = true
-    }
-
-    override fun onLost(network: Network) {
-      super.onLost(network)
-      _isOnline.value = false
-    }
-  }
-
   override fun onCreateView(
     inflater: LayoutInflater,
     container: ViewGroup?,
@@ -129,13 +113,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
         )
       }
     }
-
-    // Initialize network status
-    _isOnline.value = requireContext().isDeviceOnline()
-
-    // Register network callback
-    val connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    connectivityManager.registerDefaultNetworkCallback(networkCallback)
 
     return ComposeView(requireContext()).apply {
       setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -195,7 +172,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
                 navController = findNavController(),
                 appMainViewModel = appMainViewModel,
                 viewModel = registerViewModel,
-                isOnline = isOnline.collectAsState().value
+                isOnline = (activity as AppMainActivity).isOnline.collectAsState().value
               )
             }
           }
@@ -206,9 +183,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
 
   override fun onResume() {
     super.onResume()
-    // Update network status when fragment resumes
-    _isOnline.value = requireContext().isDeviceOnline()
-
     // Reset sync state flags
     isWaitingForImageUpload = false
     hasShownSyncCompleted = false
@@ -234,10 +208,6 @@ class RegisterFragment : Fragment(), OnSyncListener {
     isWaitingForImageUpload = false
     hasShownSyncCompleted = false
     hasShownSyncing = false
-
-    // Unregister the network callback when fragment is destroyed
-    val connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    connectivityManager.unregisterNetworkCallback(networkCallback)
   }
 
   override fun onSync(syncJobStatus: CurrentSyncJobStatus) {

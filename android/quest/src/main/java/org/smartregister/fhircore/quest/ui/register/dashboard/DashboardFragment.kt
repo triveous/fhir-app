@@ -60,6 +60,7 @@ import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.isIn
 import org.smartregister.fhircore.quest.event.EventBus
+import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.tasks.ViewAllTasksFragment
@@ -151,14 +152,16 @@ class DashboardFragment : Fragment(), OnSyncListener {
                             .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
                             DashboardScreen(
+                                viewModel = registerViewModel,
+                                appMainViewModel = appMainViewModel,
                                 onEvent = registerViewModel::onEvent,
                                 registerUiState = registerViewModel.registerUiState.value,
                                 navController = findNavController(),
-                                appMainViewModel = appMainViewModel,
-                                viewModel = registerViewModel
-                            ) {
-                                showQuestionnaire()
-                            }
+                                onAddNewCase = {
+                                    showQuestionnaire()
+                                },
+                                isOnline = (activity as AppMainActivity).isOnline.collectAsState().value
+                            )
                         }
                     }
                 }
