@@ -83,6 +83,17 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
     }
   }
 
+  fun updateLastSyncDataTime(timeInMillis: Long) {
+    secureSharedPreferences.edit {
+      putLong(SharedPreferenceKey.LAST_SYNC_DATE_TIME.name, timeInMillis)
+    }
+  }
+
+  fun getLastSyncDataTime(): Long {
+    return secureSharedPreferences
+      .getLong(SharedPreferenceKey.LAST_SYNC_DATE_TIME.name, 0L)
+  }
+
 
   fun saveSessionPin(pin: CharArray) {
     val randomSaltBytes = get256RandomBytes()

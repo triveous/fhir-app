@@ -21,6 +21,8 @@
     <string name="sync_completed">Sync Successful</string>
     <string name="syncing">Syncing</string>
     <string name="syncing_up" >Syncing up</string>
+    <string name="sync_pending">Sync pending</string>
+    <string name="sync_now">Sync Now</string>
     <string name="syncing_down" >Syncing cases</string>
     <string name="syncing_initiated">Sync initiated&#8230;</string>
     <string name="sync_failed">Sync failed. Check internet connection or try again later</string>

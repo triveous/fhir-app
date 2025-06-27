@@ -17,6 +17,9 @@
 package org.smartregister.fhircore.quest.ui.main
 
 import android.app.Activity
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.ActivityResult
@@ -32,6 +35,8 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import dagger.hilt.android.AndroidEntryPoint
 import io.sentry.android.navigation.SentryNavigationListener
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.IdType
 import org.hl7.fhir.r4.model.QuestionnaireResponse
@@ -81,6 +86,24 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
   private lateinit var bottomNavigationView: BottomNavigationView
   private val sentryNavListener =
     SentryNavigationListener(enableNavigationBreadcrumbs = true, enableNavigationTracing = true)
+
+  // Network connectivity state flow
+  private val _isOnline = MutableStateFlow(true)
+  val isOnline: StateFlow<Boolean> = _isOnline
+
+  // Network callback for real-time connectivity updates
+  private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+    override fun onAvailable(network: Network) {
+      super.onAvailable(network)
+      _isOnline.value = true
+    }
+
+    override fun onLost(network: Network) {
+      super.onLost(network)
+      _isOnline.value = false
+    }
+  }
+
   override val startForResult =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
       if (activityResult.resultCode == RESULT_OK) {
@@ -91,6 +114,11 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_main)
+    _isOnline.value = isDeviceOnline()
+
+    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    connectivityManager.registerDefaultNetworkCallback(networkCallback)
+
     val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.firstOrNull()
     val topMenuConfigId =
       topMenuConfig?.actions?.firstOrNull { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig?.id
@@ -196,7 +224,7 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
   override fun onBackPressed() {
     if (navController.currentDestination?.id == R.id.registerFragment) {
       super.onBackPressed()
-    }else{
+    } else {
       navController.popBackStack()
     }
   }
@@ -210,6 +238,13 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
   override fun onPause() {
     super.onPause()
     navHostFragment.navController.removeOnDestinationChangedListener(sentryNavListener)
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    // Unregister the network callback when activity is destroyed
+    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    connectivityManager.unregisterNetworkCallback(networkCallback)
   }
 
   override suspend fun onSubmitQuestionnaire(activityResult: ActivityResult) {

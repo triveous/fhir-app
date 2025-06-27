@@ -202,6 +202,7 @@ fun PendingTasksScreen(
     registerUiState: RegisterUiState,
     searchText: MutableState<String>,
     navController: NavController,
+    isOnline: Boolean,
 ) {
     val lazyListState: LazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -314,6 +315,7 @@ fun PendingTasksScreen(
                             viewModel.setShowDialog(true)
                         },
                         toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
+                        isOnline = isOnline,
                     ) { event ->
                     }
                     Box(

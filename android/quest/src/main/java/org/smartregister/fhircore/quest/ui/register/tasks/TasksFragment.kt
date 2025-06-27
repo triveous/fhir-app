@@ -59,6 +59,7 @@ import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.event.EventBus
+import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
@@ -139,12 +140,13 @@ class TasksFragment : Fragment(), OnSyncListener {
               .testTag(REGISTER_SCREEN_BOX_TAG)) {
 
               PendingTasksScreen(
+                viewModel = registerViewModel,
+                appMainViewModel = appMainViewModel,
                 onEvent = registerViewModel::onEvent,
                 registerUiState = registerViewModel.registerUiState.value,
                 searchText = registerViewModel.searchText,
                 navController = findNavController(),
-                appMainViewModel = appMainViewModel,
-                viewModel = registerViewModel
+                isOnline = (activity as AppMainActivity).isOnline.collectAsState().value
               )
             }
           }

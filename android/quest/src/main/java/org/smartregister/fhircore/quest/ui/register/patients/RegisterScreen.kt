@@ -50,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,6 +80,7 @@ import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
 import org.smartregister.fhircore.quest.theme.body14Medium
 import org.smartregister.fhircore.quest.theme.bodyNormal
+import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
@@ -112,11 +114,17 @@ fun RegisterScreen(
 
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
     val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
+    val isShowPendingSyncBanner by viewModel.isShowPendingSyncBanner.collectAsState()
+    val context = LocalContext.current
+
     /*var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
     var totalPatientsLeftCountData = getPatientsCount(unSyncedPatientsCount.size)
     var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
     var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
 
+    LaunchedEffect(Unit) {
+        viewModel.isShowPendingSyncBanner()
+    }
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -140,6 +148,41 @@ fun RegisterScreen(
                         viewModel.setSentryUserProperties()
                     },
                 ) { event ->
+                }
+                Spacer(Modifier.height(4.dp))
+                if ( isShowPendingSyncBanner && isOnline && (unSyncedImagesCount > 0 || unSyncedPatientsCount.isNotEmpty())) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+                        elevation = CardDefaults.cardElevation(0.1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.sync_pending),
+                                style = body14Medium().copy(color = Color(0xFF856404))
+                            )
+                            TextButton(
+                                onClick = {
+                                    viewModel.appMainEvent = AppMainEvent.SyncData(context)
+                                    viewModel.setShowDialog(true)
+                                    viewModel.setSentryUserProperties()
+                                }
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.sync_now),
+                                    style = body14Medium().copy(color = LightColors.primary)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         },) { innerPadding ->

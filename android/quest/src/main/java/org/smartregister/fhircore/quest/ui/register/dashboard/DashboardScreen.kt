@@ -53,7 +53,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -94,6 +93,7 @@ fun DashboardScreen(
   registerUiState: RegisterUiState,
   navController: NavController,
   onAddNewCase: () -> Unit,
+  isOnline: Boolean,
 ) {
   val lazyListState: LazyListState = rememberLazyListState()
   val coroutineScope = rememberCoroutineScope()
@@ -177,6 +177,7 @@ fun DashboardScreen(
               viewModel.setShowDialog(true)
             },
             toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
+            isOnline = isOnline,
           ) { event ->
             navController.popBackStack()
           }
