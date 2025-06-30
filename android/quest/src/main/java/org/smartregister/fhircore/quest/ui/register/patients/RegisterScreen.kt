@@ -136,7 +136,7 @@ fun RegisterScreen(
 
     Scaffold(
         topBar = {
-            Column {
+            Column(Modifier.background(ANTI_FLASH_WHITE)) {
                 TopScreenSection(
                     modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
                     title = stringResource(id = R.string.appname),
@@ -150,11 +150,12 @@ fun RegisterScreen(
                 ) { event ->
                 }
                 Spacer(Modifier.height(4.dp))
-                if ( isShowPendingSyncBanner && isOnline && (unSyncedImagesCount > 0 || unSyncedPatientsCount.isNotEmpty())) {
+                if ( isShowPendingSyncBanner && (unSyncedImagesCount > 0 || unSyncedPatientsCount.isNotEmpty())) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .background(ANTI_FLASH_WHITE),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                         elevation = CardDefaults.cardElevation(0.1.dp)
                     ) {

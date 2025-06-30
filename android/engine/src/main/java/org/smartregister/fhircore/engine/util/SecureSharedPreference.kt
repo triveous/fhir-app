@@ -91,7 +91,7 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
 
   fun getLastSyncDataTime(): Long {
     return secureSharedPreferences
-      .getLong(SharedPreferenceKey.LAST_SYNC_DATE_TIME.name, 0L)
+      .getLong(SharedPreferenceKey.LAST_SYNC_DATE_TIME.name, -1L)
   }
 
 
