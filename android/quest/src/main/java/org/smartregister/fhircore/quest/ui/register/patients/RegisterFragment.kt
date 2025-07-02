@@ -114,6 +114,10 @@ class RegisterFragment : Fragment(), OnSyncListener {
       }
     }
 
+    lifecycleScope.launch {
+      registerViewModel.updatePractitionerIdInLocalChanges()
+    }
+
     return ComposeView(requireContext()).apply {
       setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
       setContent {
