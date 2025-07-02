@@ -94,6 +94,16 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
       .getLong(SharedPreferenceKey.LAST_SYNC_DATE_TIME.name, -1L)
   }
 
+  fun practitionerIdIssueMigrated(isMigrated: Boolean) {
+    secureSharedPreferences.edit {
+      putBoolean(SharedPreferenceKey.PRACTITIONER_USER_ID_ISSUE_FIXED.name, isMigrated)
+    }
+  }
+
+  fun getPractitionerIdIssueMigrated(): Boolean =
+    secureSharedPreferences
+      .getBoolean(SharedPreferenceKey.PRACTITIONER_USER_ID_ISSUE_FIXED.name, false)
+
 
   fun saveSessionPin(pin: CharArray) {
     val randomSaltBytes = get256RandomBytes()

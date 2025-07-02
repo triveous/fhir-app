@@ -35,6 +35,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import ca.uhn.fhir.context.FhirContext
+import ca.uhn.fhir.parser.IParser
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.search.search
@@ -52,13 +53,17 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.DocumentReference
+import org.hl7.fhir.r4.model.Encounter
 import org.hl7.fhir.r4.model.Enumerations.DataType
+import org.hl7.fhir.r4.model.Media
 import org.hl7.fhir.r4.model.Meta
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.Resource
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskStatus
@@ -256,6 +261,91 @@ constructor(
         } catch (e: Exception) {
             Timber.e(e)
         }
+    }
+
+    suspend fun updatePractitionerIdInLocalChanges() {
+        if(secureSharedPreference.getPractitionerIdIssueMigrated()){
+            return
+        }
+        // Initialize FHIR context and JSON parser
+        val fhirContext = FhirContext.forR4()
+        val jsonParser: IParser = fhirContext.newJsonParser()
+
+        // Get the correct practitioner ID
+        val correctPractitionerId = secureSharedPreference.getPractitionerUserId()
+            ?: throw IllegalStateException("Practitioner ID not found in secureSharedPreference")
+
+        // Validate practitioner ID (ensure it's not empty and is lowercase)
+        if (correctPractitionerId.isEmpty()) {
+            throw IllegalStateException("Practitioner ID is empty")
+        }
+        val normalizedPractitionerId = correctPractitionerId.lowercase()
+
+        // Retrieve unsynced local changes
+        val localChanges = fhirEngine.getUnsyncedLocalChanges()
+
+        withContext(Dispatchers.IO) {
+            localChanges.forEach { localChange ->
+                try {
+                    // Parse the payload into a Resource
+                    val resource = jsonParser.parseResource(localChange.payload)
+
+                    // Flag to track if resource was updated
+                    var updated = false
+
+                    when (resource) {
+                        is Patient -> {
+                            // Update generalPractitioner references
+                            resource.generalPractitioner?.forEach { reference ->
+                                if (shouldUpdateReference(reference.reference)) {
+                                    reference.reference = "Practitioner/$normalizedPractitionerId"
+                                    updated = true
+                                }
+                            }
+                        }
+                        is Encounter -> {
+                            // Update participant references
+                            resource.participant?.forEach { participant ->
+                                if (shouldUpdateReference(participant.individual?.reference)) {
+                                    participant.individual = org.hl7.fhir.r4.model.Reference("Practitioner/$normalizedPractitionerId")
+                                    updated = true
+                                }
+                            }
+                        }
+                        is Media -> {
+                            // Update operator reference
+                            if (shouldUpdateReference(resource.operator?.reference)) {
+                                resource.operator = org.hl7.fhir.r4.model.Reference("Practitioner/$normalizedPractitionerId")
+                                updated = true
+                            }
+                        }
+                        is QuestionnaireResponse -> {
+                            // Update author reference
+                            if (shouldUpdateReference(resource.author?.reference)) {
+                                resource.author = org.hl7.fhir.r4.model.Reference("Practitioner/$normalizedPractitionerId")
+                                updated = true
+                            }
+                        }
+                    }
+
+                    // If resource was updated, save it back to the FHIR Engine
+                    if (updated) {
+                        fhirEngine.update(resource as Resource)
+                    }
+                } catch (e: Exception) {
+                    // Log error for debugging
+                    e.printStackTrace()
+                }
+            }
+        }
+        secureSharedPreference.practitionerIdIssueMigrated(true)
+    }
+
+    // Helper function to determine if a reference needs updating
+    private fun shouldUpdateReference(reference: String?): Boolean {
+        if (reference.isNullOrEmpty()) return true
+        val practitionerId = reference.substringAfter("Practitioner/", "")
+        return practitionerId.isEmpty() || practitionerId != practitionerId.lowercase()
     }
 
     fun logout() {
@@ -960,6 +1050,35 @@ constructor(
                     }
                 }
             }
+//            data.forEach { localChange ->
+//                try {
+//                    val fhirContext = FhirContext.forR4()
+//                    val jsonParser: IParser = fhirContext.newJsonParser()
+//                    // Parse the payload (JSON string) into a Resource
+//                    val resource: Resource = jsonParser.parseResource(localChange.payload) as Resource
+//
+//                    // Check if the resource is of the desired type (modify as needed)
+//                    if (isResourceType(localChange.payload)) {
+//                        // Modify the resource (e.g., replace "Flw1" with "flw1")
+//                        val updatedJson = jsonParser.encodeResourceToString(resource)
+//                            .replace("Flw1", "flw1")
+//
+//                        // Parse the updated JSON back into a Resource
+//                        val updatedResource: Resource = jsonParser.parseResource(updatedJson)  as Resource
+//
+//                        // Update the resource in the FHIR Engine's database
+//                        fhirEngine.update(updatedResource)
+//
+//                        // Optionally, mark the LocalChange as synced or delete it
+//                        // Note: This depends on your sync logic. You might need to create a new LocalChange
+//                        // or let the sync process handle it.
+//                    }
+//                } catch (e: Exception) {
+//                    // Handle parsing or update errors
+//                    e.printStackTrace()
+//                }
+//            }
+
 
             val patients = fhirEngine.search<Patient> {
             }.fastMap {
@@ -1231,6 +1350,22 @@ constructor(
         }
         return jsonString.isNotEmpty() && jsonObject?.optString("resourceType")
             .equals("Patient", true)
+    }
+
+    private fun isResourceType(jsonString: String): Boolean {
+        if (jsonString.isEmpty() || !isJsonObject(jsonString)) return false
+        var jsonObject: JSONObject? = null
+        try {
+            jsonObject = JSONObject(jsonString)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return jsonString.isNotEmpty() &&
+                (jsonObject?.optString("resourceType").equals("Patient", true) ||
+                jsonObject?.optString("resourceType").equals("Encounter", true) ||
+                jsonObject?.optString("resourceType").equals("Media", true) ||
+                jsonObject?.optString("resourceType").equals("QuestionnaireResponse", true)
+                )
     }
 
     private fun isJsonObject(jsonString: String): Boolean {
