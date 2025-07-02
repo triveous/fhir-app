@@ -85,10 +85,10 @@ constructor(
         val uploadImageMutex = Mutex()
         const val SYNC_METADATA_SYSTEM = "http://hl7.org/fhir/codes"
         const val SYNC_METADATA_CODE = "sync-metadata"
-        const val LAST_SYNC_TIME_EXTENSION = "http://hl7.org/fhir/StructureDefinition/last-sync-time"
-        const val DEVICE_ID_EXTENSION = "http://hl7.org/fhir/StructureDefinition/device-id"
-        const val FLW_ID_EXTENSION = "flw-id"
-        const val PENDING_IMAGES_EXTENSION = "pending-images"
+        const val LAST_SYNC_TIME_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/last-sync-date"
+        const val DEVICE_ID_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/device-id"
+        const val FLW_ID_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/flw-id"
+        const val PENDING_IMAGES_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/pending-images"
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
