@@ -203,3 +203,6 @@ fun SyncedPatientCardItem(patientData: Patient, patient: RegisterViewModel.AllPa
 fun getSyncImageList(imageCount: Int) =
     stringResource(id = org.smartregister.fhircore.quest.R.string.image_left, imageCount.toString())
 
+@Composable
+fun getPatientsCount(patientsCount: Int) =
+    stringResource(id = org.smartregister.fhircore.quest.R.string.patients_left, patientsCount.toString())

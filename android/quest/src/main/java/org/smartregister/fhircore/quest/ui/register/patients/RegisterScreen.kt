@@ -50,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,6 +80,7 @@ import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
 import org.smartregister.fhircore.quest.theme.body14Medium
 import org.smartregister.fhircore.quest.theme.bodyNormal
+import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
@@ -107,12 +109,22 @@ fun RegisterScreen(
     appMainViewModel: AppMainViewModel,
     registerUiState: RegisterUiState,
     navController: NavController,
+    isOnline: Boolean = true,
 ) {
 
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
-    var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
-    var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
+    val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
+    val isShowPendingSyncBanner by viewModel.isShowPendingSyncBanner.collectAsState()
+    val context = LocalContext.current
 
+    /*var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
+    var totalPatientsLeftCountData = getPatientsCount(unSyncedPatientsCount.size)
+    var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
+    var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
+
+    LaunchedEffect(Unit) {
+        viewModel.isShowPendingSyncBanner()
+    }
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -124,17 +136,54 @@ fun RegisterScreen(
 
     Scaffold(
         topBar = {
-            Column {
+            Column(Modifier.background(ANTI_FLASH_WHITE)) {
                 TopScreenSection(
                     modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
                     title = stringResource(id = R.string.appname),
                     toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
+                    isOnline = isOnline,
                     onSync = {
                         viewModel.appMainEvent = it
                         viewModel.setShowDialog(true)
                         viewModel.setSentryUserProperties()
                     },
                 ) { event ->
+                }
+                Spacer(Modifier.height(4.dp))
+                if ( isShowPendingSyncBanner && (unSyncedImagesCount > 0 || unSyncedPatientsCount.isNotEmpty())) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .background(ANTI_FLASH_WHITE),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+                        elevation = CardDefaults.cardElevation(0.1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.sync_pending),
+                                style = body14Medium().copy(color = Color(0xFF856404))
+                            )
+                            TextButton(
+                                onClick = {
+                                    viewModel.appMainEvent = AppMainEvent.SyncData(context)
+                                    viewModel.setShowDialog(true)
+                                    viewModel.setSentryUserProperties()
+                                }
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.sync_now),
+                                    style = body14Medium().copy(color = LightColors.primary)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         },) { innerPadding ->
@@ -161,9 +210,12 @@ fun RegisterScreen(
                 var deleteDraftId by remember { mutableStateOf("") }
                 var showDeleteDialog by remember { mutableStateOf(false) }
 
-                    viewModel.imageCount = unSyncedImagesCount
-                    totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                    //viewModel.imageCount = unSyncedImagesCount
+                    //viewModel.unsyncedPatientsCount = unSyncedPatientsCount.size
+                    /*totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                    totalPatientsLeftCountData = getPatientsCount(viewModel.unsyncedPatientsCount)
                     totalImageLeft = totalImageLeftCountData
+                    totalPatientsLeft = totalPatientsLeftCountData*/
 
                 if (allSyncedPatients.isEmpty() && savedRes.isEmpty()) {
                     Column(
@@ -351,8 +403,9 @@ fun RegisterScreen(
             ForegroundSyncDialog(
                 showDialog = viewModel.showDialog.value,
                 title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
-                content = totalImageLeft,
-                viewModel.imageCount,
+                content = "${getSyncImageList(unSyncedImagesCount)} \n${getPatientsCount(unSyncedPatientsCount.size)}",
+                unSyncedImagesCount,
+                unSyncedPatientsCount.size,
                 confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
                 dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
                 onDismiss = {

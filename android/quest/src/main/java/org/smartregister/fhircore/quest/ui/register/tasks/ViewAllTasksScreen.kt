@@ -240,7 +240,11 @@ fun ViewAllTasksScreen(
               TaskProgressState.FOLLOWUP_DONE -> {
                 status = TaskStatus.COMPLETED
               }
-              TaskProgressState.NOT_AGREED_FOR_FOLLOWUP,TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
+              TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
+                status = TaskStatus.COMPLETED
+              }
+
+              TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
                 status = TaskStatus.INPROGRESS
               }
 
@@ -249,9 +253,18 @@ fun ViewAllTasksScreen(
                 status = TaskStatus.REJECTED
               }
 
+              TaskProgressState.FOLLOWUP_NOT_DONE -> {
+                status = TaskStatus.COMPLETED
+              }
+
               TaskProgressState.NOT_RESPONDED -> {
-                taskPriorityState = TaskProgressState.NOT_RESPONDED
-                status = TaskStatus.REQUESTED
+                if(task.task.status == TaskStatus.REQUESTED){
+                  taskPriorityState = TaskProgressState.NOT_RESPONDED
+                  status = TaskStatus.INPROGRESS
+                }else{
+                  taskPriorityState = TaskProgressState.NOT_RESPONDED
+                  status = TaskStatus.COMPLETED
+                }
               }
 
               TaskProgressState.DEFAULT, TaskProgressState.NOT_CONTACTED -> {
@@ -350,7 +363,6 @@ fun ViewAllTasksScreen(
                       color = LightColors.primary,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text(stringResource(org.smartregister.fhircore.engine.R.string.loading))
                   }
                 }else{
                   LazyColumn(modifier = modifier
@@ -551,7 +563,8 @@ fun TasksBottomSheetContent(
         options = listOf(
           TaskProgressState.NOT_RESPONDED to TaskProgressStatusDisplay.NOT_RESPONDED,
           TaskProgressState.NOT_AGREED_FOR_FOLLOWUP to TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP,
-          TaskProgressState.AGREED_FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE
+          TaskProgressState.AGREED_FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE,
+          TaskProgressState.FOLLOWUP_DONE to TaskProgressStatusDisplay.FOLLOWUP_DONE
         )
       }
 
@@ -570,8 +583,19 @@ fun TasksBottomSheetContent(
             TaskProgressState.AGREED_FOLLOWUP_NOT_DONE.text -> {
               //Clicked on task from Inprogress tab -> Agreed, Follow up not done section.
               options = listOf(
+                TaskProgressState.NOT_RESPONDED to TaskProgressStatusDisplay.NOT_RESPONDED,
                 TaskProgressState.NOT_AGREED_FOR_FOLLOWUP to TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP,
+                TaskProgressState.FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.FOLLOWUP_NOT_DONE,
                 TaskProgressState.FOLLOWUP_DONE to TaskProgressStatusDisplay.FOLLOWUP_DONE,
+              )
+            }
+
+            TaskProgressState.NOT_RESPONDED.text -> {
+              //Clicked on task from Inprogress tab -> Not agreed for follow-up.
+              options = listOf(
+                TaskProgressState.NOT_RESPONDED to TaskProgressStatusDisplay.NOT_RESPONDED,
+                TaskProgressState.NOT_AGREED_FOR_FOLLOWUP to TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP,
+                TaskProgressState.AGREED_FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE,
               )
             }
           }
@@ -593,6 +617,7 @@ fun TasksBottomSheetContent(
           var selectedRadioColor = Color.Gray
           selectedRadioColor = when(priority){
             TaskProgressState.FOLLOWUP_DONE -> Color.Green
+            TaskProgressState.FOLLOWUP_NOT_DONE -> Color.Gray
             TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> Color(0xFFFFC800)
             TaskProgressState.NOT_RESPONDED -> Color.Red
             TaskProgressState.REMOVE -> Color.Red

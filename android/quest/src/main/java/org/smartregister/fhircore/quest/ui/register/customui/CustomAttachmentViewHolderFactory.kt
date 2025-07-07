@@ -694,6 +694,7 @@ internal object CustomAttachmentViewHolderFactory :
             date = Date()
             docStatus = DocumentReference.ReferredDocumentStatus.PRELIMINARY
             status = Enumerations.DocumentReferenceStatus.CURRENT
+            description = "DRAFT"
         }
         return doc
     }

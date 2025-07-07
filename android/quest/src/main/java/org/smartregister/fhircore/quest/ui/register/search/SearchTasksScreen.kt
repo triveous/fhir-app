@@ -105,11 +105,15 @@ fun SearchTasksScreen(
                             }
 
                             TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
-                                status = TaskStatus.INPROGRESS
+                                status = TaskStatus.COMPLETED
                             }
 
                             TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
                                 status = TaskStatus.INPROGRESS
+                            }
+
+                            TaskProgressState.FOLLOWUP_NOT_DONE -> {
+                                status = TaskStatus.COMPLETED
                             }
 
                             TaskProgressState.NONE -> {
@@ -123,9 +127,13 @@ fun SearchTasksScreen(
                             }
 
                             TaskProgressState.NOT_RESPONDED -> {
-                                //Status remain same only moves Not contacted to no responded section
-                                taskPriority = TaskProgressState.NOT_RESPONDED
-                                status = task.task.status
+                                if(status == TaskStatus.REQUESTED){
+                                    taskPriority = TaskProgressState.NOT_RESPONDED
+                                    status = TaskStatus.INPROGRESS
+                                }else{
+                                    taskPriority = TaskProgressState.NOT_RESPONDED
+                                    status = TaskStatus.COMPLETED
+                                }
                             }
 
                             else -> {}

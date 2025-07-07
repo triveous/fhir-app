@@ -22,6 +22,7 @@ enum class SharedPreferenceKey {
   LANG,
   PRACTITIONER_ID,
   PRACTITIONER_USER_ID,
+  PRACTITIONER_USER_ID_ISSUE_FIXED,
   PRACTITIONER_DETAILS,
   PRACTITIONER_LOCATION_HIERARCHIES,
   PRACTITIONER_LOCATION,
@@ -39,6 +40,7 @@ enum class SharedPreferenceKey {
   DRAFTS,
   KEY_LANGUAGE,
   KEY_LANGUAGE_CODE,
+  LAST_SYNC_DATE_TIME
 }
 
 const val STAGING_FHIR_BASE_URL = "https://staging.arogyam-midas.iisc.ac.in/fhir/"

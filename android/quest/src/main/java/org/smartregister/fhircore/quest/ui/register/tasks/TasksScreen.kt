@@ -120,6 +120,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
+import org.smartregister.fhircore.quest.ui.register.patients.getPatientsCount
 import org.smartregister.fhircore.quest.ui.register.patients.getSyncImageList
 import org.smartregister.fhircore.quest.ui.shared.components.ExtendedFab
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
@@ -201,6 +202,7 @@ fun PendingTasksScreen(
     registerUiState: RegisterUiState,
     searchText: MutableState<String>,
     navController: NavController,
+    isOnline: Boolean,
 ) {
     val lazyListState: LazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -209,12 +211,16 @@ fun PendingTasksScreen(
     )
     var selectedTask by remember { mutableStateOf<RegisterViewModel.TaskItem?>(null) }
 
-    val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
     val isFetching by viewModel.isFetchingTasks.collectAsState()
-    var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
-    var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
     val statusUpdateSuccessfully = stringResource(id = R.string.status_updated_successfully)
     val selectStatusToUpdate = stringResource(id = R.string.select_status_to_update)
+
+    val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
+    val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
+    /*var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
+    var totalPatientsLeftCountData = getPatientsCount(unSyncedPatientsCount.size)
+    var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
+    var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -238,11 +244,15 @@ fun PendingTasksScreen(
                         }
 
                         TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> {
-                            status = TaskStatus.INPROGRESS
+                            status = TaskStatus.COMPLETED
                         }
 
                         TaskProgressState.AGREED_FOLLOWUP_NOT_DONE -> {
                             status = TaskStatus.INPROGRESS
+                        }
+
+                        TaskProgressState.FOLLOWUP_NOT_DONE -> {
+                            status = TaskStatus.COMPLETED
                         }
 
                         TaskProgressState.NONE -> {
@@ -256,9 +266,13 @@ fun PendingTasksScreen(
                         }
 
                         TaskProgressState.NOT_RESPONDED -> {
-                            //Status remain same only moves Not contacted to no responded section
-                            taskPriority = TaskProgressState.NOT_RESPONDED
-                            status = task.task.status
+                            if(status == TaskStatus.REQUESTED){
+                                taskPriority = TaskProgressState.NOT_RESPONDED
+                                status = TaskStatus.INPROGRESS
+                            }else{
+                                taskPriority = TaskProgressState.NOT_RESPONDED
+                                status = TaskStatus.COMPLETED
+                            }
                         }
 
                         else -> {}
@@ -301,6 +315,7 @@ fun PendingTasksScreen(
                             viewModel.setShowDialog(true)
                         },
                         toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
+                        isOnline = isOnline,
                     ) { event ->
                     }
                     Box(
@@ -353,6 +368,9 @@ fun PendingTasksScreen(
             },
         ) { innerPadding ->
             Box(modifier = modifier.background(SearchHeaderColor)) {
+                val selectedTabType = remember {
+                    mutableStateOf(TabType.TASK_NEW_TAB)
+                }
 
                 if(isFetching){
                     Column(modifier = Modifier
@@ -376,14 +394,14 @@ fun PendingTasksScreen(
                         val pendingTasks by viewModel.pendingTasksStateFlow.collectAsState()
                         val completedTasks by viewModel.completedTasksStateFlow.collectAsState()
 
-                        val selectedTabType = remember {
-                            mutableStateOf(TabType.TASK_NEW_TAB)
-                        }
                         val context = LocalContext.current
 
-                        viewModel.imageCount = unSyncedImagesCount
-                        totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                        //viewModel.imageCount = unSyncedImagesCount
+                        //viewModel.unsyncedPatientsCount = unSyncedPatientsCount.size
+                        /*totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
+                        totalPatientsLeftCountData = getPatientsCount(viewModel.unsyncedPatientsCount)
                         totalImageLeft = totalImageLeftCountData
+                        totalPatientsLeft = totalPatientsLeftCountData*/
 
                         Box(
                             modifier = modifier.background(SearchHeaderColor)
@@ -415,9 +433,9 @@ fun PendingTasksScreen(
                                         val notContactedTasks = viewModel.getNotContactedNewTasks(
                                             newTasks, TaskStatus.REQUESTED
                                         )
-                                        val notRespondedTasks = viewModel.getNotRespondedNewTasks(
+                                        /*val notRespondedTasks = viewModel.getNotRespondedNewTasks(
                                             newTasks, TaskStatus.REQUESTED
-                                        )
+                                        )*/
 
                                         val sectionsList: MutableList<Section> = mutableListOf()
                                         val section = Section(
@@ -427,12 +445,12 @@ fun PendingTasksScreen(
                                         )
                                         sectionsList.add(section)
 
-                                        val section2 = Section(
+                                        /*val section2 = Section(
                                             title = stringResource(id = R.string.not_responded),
                                             items = notRespondedTasks,
                                             sectionTitle = SectionTitles.NOT_RESPONDED
-                                        )
-                                        sectionsList.add(section2)
+                                        )*/
+                                        //sectionsList.add(section2)
 
                                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -497,19 +515,22 @@ fun PendingTasksScreen(
                                         val pendingNotAgreedTasks = viewModel.getPendingNotAgreedTasks(
                                             pendingTasks, TaskStatus.INPROGRESS
                                         )
+                                        val notRespondedTasks = viewModel.getNotRespondedNewTasks(
+                                            pendingTasks, TaskStatus.INPROGRESS
+                                        )
 
                                         val sectionsList: MutableList<Section> = mutableListOf()
                                         val section = Section(
-                                            title = stringResource(id = R.string.pending_agreed_not_done),
-                                            items = pendingAgreedButNotDoneTasks,
-                                            sectionTitle = SectionTitles.AGREED_FOLLOWUP_NOT_DONE
+                                            title = stringResource(id = R.string.not_responded),
+                                            items = notRespondedTasks,
+                                            sectionTitle = SectionTitles.NOT_RESPONDED
                                         )
                                         sectionsList.add(section)
 
                                         val section2 = Section(
-                                            title = stringResource(id = R.string.pending_not_agreed),
-                                            items = pendingNotAgreedTasks,
-                                            sectionTitle = SectionTitles.NOT_AGREED_FOR_FOLLOWUP
+                                            title = stringResource(id = R.string.agreed_for_followup),
+                                            items = pendingAgreedButNotDoneTasks,
+                                            sectionTitle = SectionTitles.AGREED_FOLLOWUP_NOT_DONE
                                         )
                                         sectionsList.add(section2)
 
@@ -533,7 +554,7 @@ fun PendingTasksScreen(
                                                                         ) {
                                                                             TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE.text
                                                                         } else {
-                                                                            TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP.text
+                                                                            TaskProgressStatusDisplay.NOT_RESPONDED.text
                                                                         }
                                                                     )
                                                                     putExtra(TASK_STATUS, status.name)
@@ -568,8 +589,9 @@ fun PendingTasksScreen(
 
                 ForegroundSyncDialog(showDialog = viewModel.showDialog.value,
                     title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
-                    content = totalImageLeft,
-                    viewModel.imageCount,
+                    content = "${getSyncImageList(unSyncedImagesCount)} \n${getPatientsCount(unSyncedPatientsCount.size)}",
+                    unSyncedImagesCount,
+                    unSyncedPatientsCount.size,
                     confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
                     dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
                     onDismiss = {
@@ -992,7 +1014,8 @@ fun BottomSheetContent(
                 options = listOf(
                     TaskProgressState.NOT_RESPONDED to TaskProgressStatusDisplay.NOT_RESPONDED,
                     TaskProgressState.NOT_AGREED_FOR_FOLLOWUP to TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP,
-                    TaskProgressState.AGREED_FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE
+                    TaskProgressState.AGREED_FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE,
+                    TaskProgressState.FOLLOWUP_DONE to TaskProgressStatusDisplay.FOLLOWUP_DONE
                 )
             }
 
@@ -1000,18 +1023,20 @@ fun BottomSheetContent(
 
                 if (task.task.output.isNotEmpty()) {
                     when (task.task.output.get(0).value.valueToString()) {
-                        TaskProgressState.NOT_AGREED_FOR_FOLLOWUP.text -> {
+                        TaskProgressState.NOT_RESPONDED.text -> {
                             //Clicked on task from Inprogress tab -> Not agreed for follow-up.
                             options = listOf(
+                                TaskProgressState.NOT_RESPONDED to TaskProgressStatusDisplay.NOT_RESPONDED,
+                                TaskProgressState.NOT_AGREED_FOR_FOLLOWUP to TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP,
                                 TaskProgressState.AGREED_FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.AGREED_FOLLOWUP_NOT_DONE,
-                                TaskProgressState.REMOVE to TaskProgressStatusDisplay.REMOVE_CASE
                             )
                         }
 
-                        TaskProgressState.AGREED_FOLLOWUP_NOT_DONE.text -> {
-                            //Clicked on task from Inprogress tab -> Agreed, Follow up not done section.
+                        else -> {
                             options = listOf(
+                                TaskProgressState.NOT_RESPONDED to TaskProgressStatusDisplay.NOT_RESPONDED,
                                 TaskProgressState.NOT_AGREED_FOR_FOLLOWUP to TaskProgressStatusDisplay.NOT_AGREED_FOR_FOLLOWUP,
+                                TaskProgressState.FOLLOWUP_NOT_DONE to TaskProgressStatusDisplay.FOLLOWUP_NOT_DONE,
                                 TaskProgressState.FOLLOWUP_DONE to TaskProgressStatusDisplay.FOLLOWUP_DONE,
                             )
                         }
@@ -1036,6 +1061,7 @@ fun BottomSheetContent(
                     var selectedRadioColor = Color.Gray
                     selectedRadioColor = when (priority) {
                         TaskProgressState.FOLLOWUP_DONE -> Color.Green
+                        TaskProgressState.FOLLOWUP_NOT_DONE -> Color.Gray
                         TaskProgressState.NOT_AGREED_FOR_FOLLOWUP -> Color(0xFFFFC800)
                         TaskProgressState.NOT_RESPONDED -> Color.Red
                         TaskProgressState.REMOVE -> Color.Red
