@@ -19,8 +19,10 @@ package org.smartregister.fhircore.engine.data.remote.fhir.resource
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import org.hl7.fhir.r4.model.Bundle
+import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.OperationOutcome
 import org.hl7.fhir.r4.model.Resource
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -60,6 +62,13 @@ interface FhirResourceService {
     @Body body: RequestBody,
   ): OperationOutcome
 
+  @PATCH("{resourceType}/{id}")
+  suspend fun updateDocumentReferenceResource(
+    @Path("resourceType") resourceType: String,
+    @Path("id") id: String,
+    @Body body: RequestBody,
+  ): DocumentReference
+
   @DELETE("{resourceType}/{id}")
   suspend fun deleteResource(
     @Path("resourceType") resourceType: String,
@@ -84,4 +93,12 @@ interface FhirResourceService {
                          @Query("path") path: String,
                          @Body body: RequestBody
   ): retrofit2.Response<String>
+
+
+  @GET("DocumentReference/{id}")
+  suspend fun getDocumentReferenceMeta(
+    @Path("id") id: String,
+    @Query("_elements") elements: String =
+      "docStatus,content.attachment.contentType,content.attachment.size"
+  ): DocumentReference
 }
