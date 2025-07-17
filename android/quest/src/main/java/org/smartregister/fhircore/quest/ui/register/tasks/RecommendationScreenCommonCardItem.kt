@@ -31,6 +31,7 @@ import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
+import org.smartregister.fhircore.quest.theme.body12Medium
 import org.smartregister.fhircore.quest.theme.body14Medium
 import org.smartregister.fhircore.quest.theme.body18Medium
 import org.smartregister.fhircore.quest.theme.bodyExtraBold
@@ -111,10 +112,70 @@ fun RecommendationItem(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    MultiRecommendationStatus(taskStatusList)
+                    //MultiRecommendationStatus(taskStatusList)
+                    SingleHighestPriorityRecommendationStatus(taskStatusList)
+
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SingleHighestPriorityRecommendationStatus(taskStatusList: List<Pair<String, String>>?) {
+    // Define priority order: lower index = higher priority
+    val priorityOrder = listOf(
+        TaskCode.URGENT_REFER_TO_HOSPITAL,
+        TaskCode.ADDITIONAL_INVESTIGATION_NEEDED,
+        TaskCode.RETAKE_IMAGE,
+        TaskCode.QUIT_HABIT
+    )
+
+    // Find the highest priority item
+    val prioritizedItem = taskStatusList
+        ?.mapNotNull { data ->
+            val code = TaskCode.fromCode(data.first)
+            if (code != null) code to data else null
+        }?.minByOrNull {
+            priorityOrder.indexOf(it.first).takeIf { idx -> idx >= 0 } ?: Int.MAX_VALUE
+        }
+
+    prioritizedItem?.let { (taskCode, data) ->
+        val label = data.second.uppercase()
+        var textColor = Color.Black
+        var color = Color.Black
+
+        when (taskCode) {
+            TaskCode.ADDITIONAL_INVESTIGATION_NEEDED -> {
+                color = Colors.CORNSILK
+                textColor = Colors.PHILIPPINE_YELLOW
+            }
+            TaskCode.QUIT_HABIT -> {
+                color = Colors.LAVENDER_WEB
+                textColor = Colors.DEEP_LILAC
+            }
+            TaskCode.URGENT_REFER_TO_HOSPITAL -> {
+                color = Colors.LIGHT_RED
+                textColor = Colors.SIZZLING_RED
+            }
+            TaskCode.RETAKE_IMAGE -> {
+                color = Color.LightGray
+                textColor = Color.Gray
+            }
+            else -> {
+                color = Color.LightGray
+                textColor = Color.Gray
+            }
+        }
+
+        Text(
+            text = label,
+            color = textColor,
+            style = body12Medium(),
+            modifier = Modifier
+                .background(color, shape = MaterialTheme.shapes.small)
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+        )
     }
 }
 
@@ -173,6 +234,75 @@ fun MultiRecommendationStatus(taskStatusList: List<Pair<String, String>>?) {
                         )
                         .padding(horizontal = 8.dp, vertical = 8.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun SingleRecommendationStatusColumn(taskStatusList: List<Pair<String, String>>?) {
+    val lazyListState = rememberLazyListState()
+    val priorityOrder = listOf(
+        TaskCode.URGENT_REFER_TO_HOSPITAL,
+        TaskCode.ADDITIONAL_INVESTIGATION_NEEDED,
+        TaskCode.RETAKE_IMAGE,
+        TaskCode.QUIT_HABIT
+    )
+
+    val prioritizedItem = taskStatusList
+        ?.mapNotNull { data ->
+            val code = TaskCode.fromCode(data.first)
+            if (code != null) code to data
+            else null
+        }?.minByOrNull {
+            priorityOrder.indexOf(it.first).takeIf { idx -> idx >= 0 } ?: Int.MAX_VALUE
+        }
+
+    prioritizedItem?.let { (taskCode, data) ->
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            item {
+                Row(modifier = Modifier.padding(bottom = 16.dp)) {
+                    val label = data.second.uppercase()
+                    var textColor = Color.Black
+                    var color = Color.Black
+
+                    when (taskCode) {
+                        TaskCode.ADDITIONAL_INVESTIGATION_NEEDED -> {
+                            color = Colors.CORNSILK
+                            textColor = Colors.PHILIPPINE_YELLOW
+                        }
+                        TaskCode.QUIT_HABIT -> {
+                            color = Colors.LAVENDER_WEB
+                            textColor = Colors.DEEP_LILAC
+                        }
+                        TaskCode.URGENT_REFER_TO_HOSPITAL -> {
+                            color = Colors.LIGHT_RED
+                            textColor = Colors.SIZZLING_RED
+                        }
+                        TaskCode.RETAKE_IMAGE -> {
+                            color = Color.LightGray
+                            textColor = Color.Gray
+                        }
+                        else -> {
+                            color = Color.LightGray
+                            textColor = Color.Gray
+                        }
+                    }
+
+                    Text(
+                        text = label,
+                        color = textColor,
+                        style = body12Medium(),
+                        modifier = Modifier
+                            .background(
+                                color, shape = MaterialTheme.shapes.small
+                            ).fillMaxWidth()
+                            .padding(12.dp)
+                    )
+                }
             }
         }
     }
