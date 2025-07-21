@@ -53,14 +53,10 @@ import org.hl7.fhir.r4.model.Resource
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.R
-import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocStatusRequest
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.domain.networkUtils.DocumentReferenceCaseType
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
-import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.CONTENT_TYPE
-import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
-import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
@@ -177,7 +173,6 @@ constructor(
                 uploadImageMutex.withLock {
                     Timber.i("Processing document reference with logicalId: ${docReference.logicalId}")
 
-                    // VERSION-AWARE UPLOAD IMPLEMENTATION
                     val success = uploadDocumentReferenceVersionAware(docReference, fileUri, context)
 
                     if (success) {
@@ -230,214 +225,170 @@ constructor(
         return result
     }
 
-    private fun documentReferenceHasDataAndFinalOnServer(docReference: DocumentReference?): Boolean {
-        return try {
-                return (documentReferenceHasImageDataOnServer(docReference)
-                        && documentReferenceIsFinalisedOnServer(docReference))
-            return false
-        } catch (e: Exception) {
-            Timber.i("No DocumentReference on server for id ${docReference?.logicalId}: ${e.localizedMessage}")
-            false
-        }
-    }
+    /**
+     * Checks if the DocumentReference on the server has been marked as 'final'.
+     */
+    private fun DocumentReference?.isFinalOnServer(): Boolean =
+        this?.docStatus == DocumentReference.ReferredDocumentStatus.FINAL
 
-    private fun documentReferenceAlreadyInsertedOnServer(docReference: DocumentReference?): Boolean {
-        return try {
-            docReference?.let {
-                return (docReference.docStatus == DocumentReference.ReferredDocumentStatus.PRELIMINARY) ||
-                        (docReference.docStatus == DocumentReference.ReferredDocumentStatus.FINAL )
-            }
-            return false
-        } catch (e: Exception) {
-            Timber.i("No DocumentReference on server for id ${docReference?.logicalId}: ${e.localizedMessage}")
-            false
-        }
-    }
+    /**
+     * Checks if the DocumentReference on the server has an attachment with a non-zero size.
+     */
+    private fun DocumentReference?.hasImageDataOnServer(): Boolean =
+        this?.content?.any { (it.attachment?.size ?: 0) > 0 } == true
 
-    private fun documentReferenceHasImageDataOnServer(docReference: DocumentReference?): Boolean {
-        return try {
-            docReference?.let {
-                docReference.content.any {
-                    return (it.attachment?.size != null && (it.attachment?.size ?: 0) > 0)
-                }
-            }
-            return false
-        } catch (e: Exception) {
-            Timber.i("No DocumentReference on server for id ${docReference?.logicalId}: ${e.localizedMessage}")
-            false
-        }
-    }
+    /**
+     * Checks if a record for this DocumentReference (preliminary or final) already exists on the server.
+     */
+    private fun DocumentReference?.hasRecordOnServer(): Boolean =
+        this?.docStatus in setOf(
+            DocumentReference.ReferredDocumentStatus.PRELIMINARY,
+            DocumentReference.ReferredDocumentStatus.FINAL
+        )
 
-    private fun documentReferenceIsFinalisedOnServer(docReference: DocumentReference?): Boolean {
-        return try {
-            docReference?.let {
-                return (docReference.docStatus == DocumentReference.ReferredDocumentStatus.FINAL)
-            }
-            return false
-        } catch (e: Exception) {
-            Timber.i("No DocumentReference on server for id ${docReference?.logicalId}: ${e.localizedMessage}")
-            false
-        }
-    }
-
-    private suspend fun getDocumentReferenceMetaDataFromServer(docReference: DocumentReference): DocumentReference? {
-        return try {
-            val serverDocRef = fhirResourceService.getDocumentReferenceMeta(docReference.logicalId)
-            return serverDocRef
-        } catch (e: Exception) {
-            Timber.i("No DocumentReference on server for id ${docReference.logicalId}: ${e.localizedMessage}")
-            null
-        }
-    }
+    /**
+     * Checks if the DocumentReference on the server is complete (has data and is final).
+     */
+    private fun DocumentReference?.isCompleteOnServer(): Boolean =
+        isFinalOnServer() && hasImageDataOnServer()
 
     private suspend fun uploadDocumentReferenceVersionAware(
         docReference: DocumentReference,
         fileUri: Uri,
         context: Context
     ): Boolean {
-        return try {
+        return runCatching {
             Timber.i("Starting version-aware upload for document: ${docReference.logicalId}")
 
-            val docRefMetaData = getDocumentReferenceMetaDataFromServer(docReference)
-            // 1. Avoid uploading if server already has data for this DocumentReference
-            if (documentReferenceHasDataAndFinalOnServer(docRefMetaData)) {
-                Timber.i("Server already has DocumentReference with data: ${docReference.logicalId}. Skipping upload.")
-                return true
+            val serverDocRef = getDocumentReferenceMetaDataFromServer(docReference)
+
+            // 1. If the document is already fully uploaded and finalized, we're done.
+            if (serverDocRef.isCompleteOnServer()) {
+                Timber.i("Server already has complete DocumentReference: ${docReference.logicalId}. Skipping.")
+                return@runCatching true
             }
 
-            if (docReference.docStatus == DocumentReference.ReferredDocumentStatus.FINAL) {
-                if (!documentReferenceIsFinalisedOnServer(docRefMetaData)){
-                    Timber.i("DocumentReference already final: ${docReference.logicalId}")
-
-                    val finalStatusUpdate = """[
-                        {
-                            "op": "replace",
-                            "path": "/docStatus",
-                            "value": "final"
-                        }
-                    ]"""
-
-                    fhirResourceService.updateDocumentReferenceResource(
-                        docReference.fhirType(),
-                        docReference.logicalId,
-                        finalStatusUpdate.toRequestBody("application/json-patch+json".toMediaTypeOrNull())
-                    )
-                    return true
-                }
-                return true
+            // 2. State correction: If local is 'final' but server is not, just patch the server status.
+            // This handles cases where the app was closed after uploading the image but before finalizing.
+            if (docReference.docStatus == DocumentReference.ReferredDocumentStatus.FINAL && !serverDocRef.isFinalOnServer()) {
+                Timber.i("Local DocumentReference is final, updating server status for ${docReference.logicalId}")
+                finalizeDocumentOnServer(docReference)
+                return@runCatching true
             }
 
-            if (!documentReferenceAlreadyInsertedOnServer(docRefMetaData)){
-                val fileExists = runCatching {
-                    context.contentResolver.openInputStream(fileUri)?.use { it.available() > 0 } ?: false
-                }.getOrDefault(false)
-                if (!fileExists) {
-                    Timber.e(Exception("File does not exist or is empty for document: ${docReference.logicalId}"))
-                    return false
-                }
+            // 3. Main Upload Flow: Execute steps based on server state.
+            // Each step is idempotent and can be retried.
 
-                // Step 1: Create DocumentReference with metadata only and preliminary status
-                val metadataDocReference = docReference.copy().apply {
-                    docStatus = DocumentReference.ReferredDocumentStatus.PRELIMINARY
-                    // Keep content metadata but ensure no embedded data
-                    content.forEach { contentComponent ->
-                        contentComponent.attachment?.data = null
-                    }
-                }
-
-                val docReferenceJson = FhirContext.forR4Cached().newJsonParser()
-                    .encodeResourceToString(metadataDocReference as Resource)
-                val refBody = docReferenceJson.encodeToByteArray()
-                    .toRequestBody(HEADER_APPLICATION_JSON.toMediaType())
-
-                Timber.i("Step 1: Inserting DocumentReference metadata for: ${docReference.logicalId}")
-
-                val initialResource = fhirResourceService.insertResource(
-                    docReference.fhirType(),
-                    docReference.logicalId,
-                    refBody
-                )
-                Timber.i("Step 1 completed: DocumentReference metadata inserted for: ${docReference.logicalId}")
+            // Step 3a: Create the preliminary metadata record if it doesn't exist.
+            if (!serverDocRef.hasRecordOnServer()) {
+                createMetadataRecordOnServer(docReference, fileUri, context)
             }
 
-            if (!documentReferenceHasImageDataOnServer(docRefMetaData)){
-                // Step 2: Upload binary file using the exact resource from step 1
-                Timber.i("Step 2: Retrieving file bytes for document: ${docReference.logicalId}")
-                val bytes = runCatching {
-                    context.contentResolver.openInputStream(fileUri)
-                        ?.use { it.buffered().readBytes() }
-                }.getOrNull() ?: run {
-                    Timber.e(Exception("Failed to retrieve file bytes for document: ${docReference.logicalId}"))
-                    return false
-                }
-
-                val docContentType = docReference.content.first().attachment.contentType
-                val body = bytes.toRequestBody(docContentType.toMediaType())
-
-                Timber.i("Step 2: Uploading file for document: ${docReference.logicalId}")
-                val uploadResponse = fhirResourceService.uploadFile(
-                    docReference.fhirType(),
-                    docReference.logicalId,
-                    "DocumentReference.content.attachment",
-                    body
-                )
-
-                if (!uploadResponse.isSuccessful) {
-                    val customException = ImageUploadAPIException(
-                        documentId = docReference.logicalId,
-                        responseCode = uploadResponse.code(),
-                        responseMessage = uploadResponse.message(),
-                        pendingDocuments = 0 // Will be updated by caller
-                    )
-                    Timber.e(customException)
-
-                    // Handle specific error codes
-                    if (uploadResponse.code() == 422 || uploadResponse.code() == 410) {
-                        // Clean up if resource is invalid or gone
-                        openSrpFhirEngine.purge(
-                            docReference.resourceType,
-                            docReference.logicalId,
-                            true
-                        )
-                        context.contentResolver.delete(fileUri, null, null)
-                    }
-                    return false
-                }
-
-                Timber.i("Step 2 completed: File uploaded successfully for: ${docReference.logicalId}")
-
-                //Update docStatus to final locally
+            // Step 3b: Upload the file's binary content if it's missing.
+            if (!serverDocRef.hasImageDataOnServer()) {
+                uploadFileContent(docReference, fileUri, context)
+                // After upload, update local status to FINAL to track progress
                 docReference.docStatus = DocumentReference.ReferredDocumentStatus.FINAL
                 openSrpFhirEngine.update(docReference)
             }
 
-            if (!documentReferenceIsFinalisedOnServer(docRefMetaData)){
-                // Step 3: Update status to final using JSON Patch to avoid overwriting binary data
-                Timber.i("Step 3: Updating status to final for document: ${docReference.logicalId}")
-                    val finalStatusUpdate = """[
-                    {
-                        "op": "replace",
-                        "path": "/docStatus",
-                        "value": "final"
-                    }
-                ]"""
-
-                val statusUpdateResponse = fhirResourceService.updateDocumentReferenceResource(
-                    docReference.fhirType(),
-                    docReference.logicalId,
-                    finalStatusUpdate.toRequestBody("application/json-patch+json".toMediaTypeOrNull())
-                )
-
-                Timber.i("Step 3 completed: Status updated to final for: ${docReference.logicalId}")
-                Timber.i("Version-aware upload completed successfully for: ${docReference.logicalId}")
-
-                return true
+            // Step 3c: Finalize the document status on the server.
+            if (!serverDocRef.isFinalOnServer()) {
+                finalizeDocumentOnServer(docReference)
             }
 
-            return true
-        } catch (e: Exception) {
+            Timber.i("Version-aware upload completed successfully for: ${docReference.logicalId}")
+            true // Success
+        }.onFailure { e ->
             Timber.e(e, "Version-aware upload failed for document: ${docReference.logicalId}")
-            return false
+        }.getOrDefault(false)
+    }
+
+    /**
+     * Step 1: Creates the DocumentReference resource on the server with a 'preliminary' status.
+     */
+    private suspend fun createMetadataRecordOnServer(docReference: DocumentReference, fileUri: Uri, context: Context) {
+        Timber.i("Step 1: Creating metadata record for ${docReference.logicalId}")
+
+        // Ensure the local file exists before creating a server record for it.
+        val fileExists = context.contentResolver.openInputStream(fileUri)?.use { it.available() > 0 } ?: false
+        if (!fileExists) {
+            throw IllegalStateException("File does not exist or is empty for document: ${docReference.logicalId}")
+        }
+
+        val metadataDocReference = docReference.copy().apply {
+            docStatus = DocumentReference.ReferredDocumentStatus.PRELIMINARY
+            content.forEach { it.attachment?.data = null } // Ensure no data is embedded
+        }
+
+        val docReferenceJson = FhirContext.forR4Cached().newJsonParser().encodeResourceToString(metadataDocReference)
+        val requestBody = docReferenceJson.encodeToByteArray().toRequestBody(HEADER_APPLICATION_JSON.toMediaType())
+
+        fhirResourceService.insertResource(docReference.fhirType(), docReference.logicalId, requestBody)
+        Timber.i("Step 1 completed: Metadata record created for ${docReference.logicalId}")
+    }
+
+    /**
+     * Step 2: Uploads the binary file content to the existing DocumentReference.
+     */
+    private suspend fun uploadFileContent(docReference: DocumentReference, fileUri: Uri, context: Context) {
+        Timber.i("Step 2: Uploading file content for ${docReference.logicalId}")
+
+        val bytes = context.contentResolver.openInputStream(fileUri)
+            ?.use { it.buffered().readBytes() }
+            ?: throw IllegalStateException("Failed to read file bytes for document: ${docReference.logicalId}")
+
+        val contentType = docReference.content.firstOrNull()?.attachment?.contentType
+        val body = bytes.toRequestBody(contentType?.toMediaType())
+
+        val response = fhirResourceService.uploadFile(
+            docReference.fhirType(),
+            docReference.logicalId,
+            "DocumentReference.content.attachment",
+            body
+        )
+
+        if (!response.isSuccessful) {
+            // Handle specific cleanup logic for failed uploads
+            if (response.code() in listOf(422, 410)) {
+                openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+                context.contentResolver.delete(fileUri, null, null)
+            }
+            // Throw a specific exception to be caught by the top-level handler
+            throw ImageUploadAPIException(
+                documentId = docReference.logicalId,
+                responseCode = response.code(),
+                responseMessage = response.message(),
+                pendingDocuments = 0 // Caller can update this if needed
+            )
+        }
+        Timber.i("Step 2 completed: File content uploaded for ${docReference.logicalId}")
+    }
+
+    /**
+     * Step 3: Updates the DocumentReference status to 'final' using a JSON Patch.
+     */
+    private suspend fun finalizeDocumentOnServer(docReference: DocumentReference) {
+        Timber.i("Step 3: Finalizing document status for ${docReference.logicalId}")
+        val finalStatusUpdate = """[
+        { "op": "replace", "path": "/docStatus", "value": "final" }
+    ]"""
+
+        fhirResourceService.updateDocumentReferenceResource(
+            docReference.fhirType(),
+            docReference.logicalId,
+            finalStatusUpdate.toRequestBody("application/json-patch+json".toMediaTypeOrNull())
+        )
+        Timber.i("Step 3 completed: Document status finalized for ${docReference.logicalId}")
+    }
+
+    // The metadata fetch function remains the same
+    private suspend fun getDocumentReferenceMetaDataFromServer(docReference: DocumentReference): DocumentReference? {
+        return try {
+            fhirResourceService.getDocumentReferenceMeta(docReference.logicalId)
+        } catch (e: Exception) {
+            Timber.i("No DocumentReference on server for id ${docReference.logicalId}: ${e.localizedMessage}")
+            null
         }
     }
 
