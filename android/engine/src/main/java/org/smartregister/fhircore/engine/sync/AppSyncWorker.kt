@@ -374,7 +374,7 @@ constructor(
         { "op": "replace", "path": "/docStatus", "value": "final" }
     ]"""
 
-        fhirResourceService.updateDocumentReferenceResource(
+        fhirResourceService.updateResource(
             docReference.fhirType(),
             docReference.logicalId,
             finalStatusUpdate.toRequestBody("application/json-patch+json".toMediaTypeOrNull())

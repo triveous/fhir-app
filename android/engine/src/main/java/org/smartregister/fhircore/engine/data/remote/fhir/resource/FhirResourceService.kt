@@ -62,13 +62,6 @@ interface FhirResourceService {
     @Body body: RequestBody,
   ): OperationOutcome
 
-  @PATCH("{resourceType}/{id}")
-  suspend fun updateDocumentReferenceResource(
-    @Path("resourceType") resourceType: String,
-    @Path("id") id: String,
-    @Body body: RequestBody,
-  ): DocumentReference
-
   @DELETE("{resourceType}/{id}")
   suspend fun deleteResource(
     @Path("resourceType") resourceType: String,
