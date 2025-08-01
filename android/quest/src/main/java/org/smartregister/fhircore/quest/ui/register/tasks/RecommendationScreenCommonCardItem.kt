@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.hl7.fhir.r4.model.Task
+import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
@@ -36,6 +37,9 @@ import org.smartregister.fhircore.quest.theme.body14Medium
 import org.smartregister.fhircore.quest.theme.body18Medium
 import org.smartregister.fhircore.quest.theme.bodyExtraBold
 import org.smartregister.fhircore.quest.theme.bodyNormal
+import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
+import org.smartregister.fhircore.quest.util.SectionTitles
+import org.smartregister.fhircore.quest.util.TaskProgressState
 
 /**
  * Created by Jeetesh Surana.
@@ -60,8 +64,9 @@ fun CardItemViewAllTask(
         ?: ""
     val taskStatusList = viewModel.getTaskCodeWithValue(task)
     println("CardItemView getTaskStatusList--> $taskStatusList")
-
-    RecommendationItem(name, phone, taskStatusList) {
+    val reason = task.task.output.takeIf { it.isNotEmpty() }
+        ?.get(0)?.value.valueToString()
+    RecommendationItem(name, phone, reason, task.task.status, taskStatusList) {
         onSelectTask(task)
     }
 }
@@ -71,9 +76,28 @@ fun CardItemViewAllTask(
 fun RecommendationItem(
     name: String,
     phone: String,
+    taskReason: String,
+    taskStatus : Task.TaskStatus,
     taskStatusList: List<Pair<String, String>>?,
     onClick: () -> Unit
 ) {
+    var displayReason = ""
+    when (taskReason) {
+
+        TaskProgressState.NOT_RESPONDED.name -> {
+            displayReason = SectionTitles.NOT_RESPONDED
+        }
+        TaskProgressState.NOT_CONTACTED.name -> {
+            displayReason = SectionTitles.NOT_CONTACTED
+        }
+        TaskProgressState.AGREED_FOLLOWUP_NOT_DONE.name -> {
+            displayReason = SectionTitles.AGREED_FOLLOWUP_NOT_DONE
+        }
+        TaskProgressState.NOT_AGREED_FOR_FOLLOWUP.name -> {
+            displayReason = SectionTitles.NOT_AGREED_FOR_FOLLOWUP
+        }
+    }
+
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(4.dp),
@@ -115,6 +139,16 @@ fun RecommendationItem(
                     //MultiRecommendationStatus(taskStatusList)
                     SingleHighestPriorityRecommendationStatus(taskStatusList)
 
+                    MultiRecommendationStatus(taskStatusList)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (taskStatus == Task.TaskStatus.COMPLETED && displayReason.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.Center) {
+                            Text(
+                                text = displayReason,
+                                style = bodyNormal(14.sp),
+                            )
+                        }
+                    }
                 }
             }
         }
