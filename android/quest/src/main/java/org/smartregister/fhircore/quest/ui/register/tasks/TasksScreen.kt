@@ -975,7 +975,7 @@ fun BottomSheetContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        MultiRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
+        SingleRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
 
         Spacer(modifier = Modifier.height(8.dp))
 
