@@ -28,7 +28,8 @@ This guide provides step-by-step instructions for installing and running Aarogya
 
 1. **GitHub Account**: For accessing the source code repository
 2. **Google Account**: For Android development tools
-3. **Firebase Account** (optional): For crash reporting and analytics
+3. **Sentry Account** (optional): For crash reporting and analytics 
+4. **Firebase Account** (optional): For crash reporting and analytics
 
 ## Step 1: Clone the Repository
 

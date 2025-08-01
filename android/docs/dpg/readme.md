@@ -42,7 +42,7 @@ Detailed documentation of data protection measures, privacy policies, and compli
 **Website**: [https://www.artpark.in/](https://www.artpark.in/)  
 **Contact**: connect@artpark.in  
 **License**: Apache License 2.0  
-**Repository**: [GitHub Repository](https://github.com/artpark/aarogya-aarohan)
+**Repository**: [GitHub Repository](https://github.com/triveous/fhir-app)
 
 ## Key Features
 
