@@ -239,7 +239,7 @@ constructor(
     //48h
     fun isShowPendingSyncBanner(){
         _isShowPendingSyncBanner.value = secureSharedPreference.getLastSyncDataTime() > 0 &&
-                (System.currentTimeMillis() - secureSharedPreference.getLastSyncDataTime() > 1000 * 10)
+                (System.currentTimeMillis() - secureSharedPreference.getLastSyncDataTime() > 1000 * 60 * 60 * 48)
     }
 
     fun setSentryUserProperties() {
