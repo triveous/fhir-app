@@ -138,14 +138,12 @@ fun RecommendationItem(
                     Spacer(modifier = Modifier.height(8.dp))
                     //MultiRecommendationStatus(taskStatusList)
                     SingleHighestPriorityRecommendationStatus(taskStatusList)
-
-                    MultiRecommendationStatus(taskStatusList)
                     Spacer(modifier = Modifier.height(8.dp))
                     if (taskStatus == Task.TaskStatus.COMPLETED && displayReason.isNotEmpty()) {
                         Row(horizontalArrangement = Arrangement.Center) {
                             Text(
-                                text = displayReason,
-                                style = bodyNormal(14.sp),
+                                text = "Reason: $displayReason",
+                                style = bodyNormal(10.sp),
                             )
                         }
                     }
