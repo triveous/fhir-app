@@ -368,12 +368,7 @@ fun ViewAllTasksScreen(
                     .fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center) {
-                    CircularProgressIndicator(
-                      modifier = modifier
-                        .size(48.dp),
-                      strokeWidth = 4.dp,
-                      color = LightColors.primary,
-                    )
+                    Text("No recommendations found")
                     Spacer(Modifier.height(8.dp))
                   }
                 }else{
