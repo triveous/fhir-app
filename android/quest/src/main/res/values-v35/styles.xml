@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Android 15+ specific styles that opt out of edge-to-edge enforcement -->
+    <style name="Theme.MyQuestionnaire" parent="Theme.Questionnaire">
+        <item name="questionnaireQuestionTextStyle">
+            @style/TextAppearance.MaterialComponents.Headline1
+        </item>
+        <item name="questionnaireRadioButtonStyle">
+            @style/TextAppearance.MaterialComponents.Chip
+        </item>
+        <item name="questionnaireTextInputLayoutStyle">
+            @style/EditTextStyle
+        </item>
+        <!-- Opt out of edge-to-edge enforcement on Android 15+ -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+
+    <style name="Theme.MyQuestionnaire2" parent="Theme.Questionnaire">
+        <item name="questionnaireRadioButtonStyle">
+            @style/RadioButtonWithoutBorder
+        </item>
+        <!-- Opt out of edge-to-edge enforcement on Android 15+ -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+
+</resources>
