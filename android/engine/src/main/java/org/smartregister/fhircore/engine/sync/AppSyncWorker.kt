@@ -30,6 +30,7 @@ import androidx.work.workDataOf
 import ca.uhn.fhir.context.FhirContext
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.extensions.asStringValue
+import com.google.android.fhir.get
 import com.google.android.fhir.search.search
 import com.google.android.fhir.sync.AcceptLocalConflictResolver
 import com.google.android.fhir.sync.ConflictResolver
@@ -262,20 +263,8 @@ constructor(
             }
         }.all { it }
 
-        // Update sync metadata if at least one document was uploaded successfully
-        try {
-            if (atLeastOneSuccess) {
-                updateLastSyncDate(pendingDocuments)
-                if ((openSrpFhirEngine.getUnsyncedLocalChanges()
-                        .filter { it.resourceType == ResourceType.Basic.name }).isNotEmpty()
-                ){
-                    Timber.i("Basic resouce found, retrying sync")
-                    super.doWork()
-                }
-            }
-        }catch (e: Exception) {
-            Timber.e(e, "Failed to update sync metadata")
-        }
+        updateLastSyncDate(pendingDocuments)
+        super.doWork()
 
         updateNotification(context, notificationManager, notificationBuilder, result)
         Timber.i("Finished document reference upload for worker: $workerId")
@@ -295,9 +284,10 @@ constructor(
 
             val deviceId = getDeviceId()
             val flw = secureSharedPreference.getPractitionerUserId()
+            val resourceId = "sync-metadata-$deviceId"
 
             val syncMetadata = Basic().apply {
-                id = "sync-metadata-$deviceId"
+                id = resourceId
                 code.addCoding()
                     .setSystem(SYNC_METADATA_SYSTEM)
                     .setCode(SYNC_METADATA_CODE)
@@ -319,12 +309,17 @@ constructor(
                 }
             }
 
-            // Update or create resource on FHIR server
-            try {
+            // Check if resource exists, then update or create accordingly
+            val existingResource = try {
+                openSrpFhirEngine.get<Basic>(resourceId)
+            } catch (e: Exception) {
+                null
+            }
+
+            if (existingResource != null) {
                 openSrpFhirEngine.update(syncMetadata)
                 Timber.i("Successfully updated sync metadata for device: $deviceId")
-            } catch (e: Exception) {
-                Timber.w("Sync metadata not found, creating new resource")
+            } else {
                 openSrpFhirEngine.create(syncMetadata)
                 Timber.i("Successfully created sync metadata for device: $deviceId")
             }
