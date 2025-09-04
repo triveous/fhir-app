@@ -53,10 +53,14 @@ import org.hl7.fhir.r4.model.Resource
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.R
+import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocStatusRequest
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.domain.networkUtils.DocumentReferenceCaseType
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.CONTENT_TYPE
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
@@ -87,6 +91,7 @@ constructor(
         const val DEVICE_ID_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/device-id"
         const val FLW_ID_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/flw-id"
         const val PENDING_IMAGES_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/pending-images"
+        const val IMG_UPLOAD_ERROR_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-error"
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
@@ -277,7 +282,6 @@ constructor(
             }
 
             // 3. Main Upload Flow: Execute steps based on server state.
-            // Each step is idempotent and can be retried.
 
             // Step 3a: Create the preliminary metadata record if it doesn't exist.
             if (!serverDocRef.hasRecordOnServer()) {
@@ -349,6 +353,12 @@ constructor(
         )
 
         if (!response.isSuccessful) {
+            docReference.addExtension().apply {
+                url = IMG_UPLOAD_ERROR_EXTENSION
+                setValue(StringType("Upload failed: ${response.code()} - ${response.message()}"))
+            }
+            openSrpFhirEngine.update(docReference)
+            
             // Handle specific cleanup logic for failed uploads
             if (response.code() in listOf(422, 410)) {
                 openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
@@ -370,14 +380,12 @@ constructor(
      */
     private suspend fun finalizeDocumentOnServer(docReference: DocumentReference) {
         Timber.i("Step 3: Finalizing document status for ${docReference.logicalId}")
-        val finalStatusUpdate = """[
-        { "op": "replace", "path": "/docStatus", "value": "final" }
-    ]"""
-
         fhirResourceService.updateResource(
             docReference.fhirType(),
             docReference.logicalId,
-            finalStatusUpdate.toRequestBody("application/json-patch+json".toMediaTypeOrNull())
+            Gson().toJson(listOf(DocStatusRequest(REPLACE, DOC_STATUS, DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()))).toRequestBody(
+                CONTENT_TYPE.toMediaTypeOrNull()
+            )
         )
         Timber.i("Step 3 completed: Document status finalized for ${docReference.logicalId}")
     }
