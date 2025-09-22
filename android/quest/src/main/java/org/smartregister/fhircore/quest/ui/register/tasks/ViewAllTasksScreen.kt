@@ -119,8 +119,8 @@ enum class TaskCode(val code: String) {
 enum class TaskCodes(val codes: List<String>) {
   URGENT_REFER_TO_HOSPITAL(listOf("urgent-refer-to-hospital", "urgent_referral")),
   ADDITIONAL_INVESTIGATION_NEEDED(listOf("additional-investigation-needed", "add_investigation_needed")),
-  QUIT_HABIT(listOf("quit-habit", "quit_habit")),
-  RETAKE_IMAGE(listOf("retake-image", "retake_photo"));
+  RETAKE_IMAGE(listOf("retake-image", "retake_photo")),
+  QUIT_HABIT(listOf("quit-habit", "quit_habit"));
 
   companion object {
     // Find TaskCode by matching any of the possible codes
@@ -138,6 +138,16 @@ fun FilterRow(
   selectedFilter: Pair<String,String>,
   onFilterSelected: (Pair<String,String>) -> Unit
 ) {
+  val priorityOrder = listOf(
+      "urgent_referral",
+    "urgent-refer-to-hospital",
+      "add_investigation",
+    "additional-investigation-needed",
+    "retake-image",
+      "retake_photo",
+      "advice_to_quit",
+    "quit-habit"
+  )
   Row(modifier = Modifier
     .fillMaxWidth()
     .horizontalScroll(rememberScrollState())
@@ -147,7 +157,9 @@ fun FilterRow(
     val allTaskCodeWithValues = viewModel.allTaskCodeWithValues.collectAsState()
     //allTaskCodeWithValues.value.isNotEmpty().let { onFilterSelected(allTaskCodeWithValues.value.first()) }
 
-    allTaskCodeWithValues.value.forEachIndexed { index, filter ->
+    allTaskCodeWithValues.value
+      .sortedBy { priorityOrder.indexOf(it.first.lowercase()) }
+      .forEachIndexed { index, filter ->
       Box(modifier = Modifier
         .border(
           width = 0.5.dp,
@@ -172,7 +184,7 @@ fun FilterRow(
           color = if (filter.first == selectedFilter.first) Color.White else Color.Black
         )
       }
-      if (index < FilterType.entries.size - 1) {
+      if (index < allTaskCodeWithValues.value.size - 1) {
         Spacer(modifier = Modifier.width(8.dp)) // Horizontal margin
       }
     }
@@ -356,12 +368,7 @@ fun ViewAllTasksScreen(
                     .fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center) {
-                    CircularProgressIndicator(
-                      modifier = modifier
-                        .size(48.dp),
-                      strokeWidth = 4.dp,
-                      color = LightColors.primary,
-                    )
+                    Text("No recommendations found")
                     Spacer(Modifier.height(8.dp))
                   }
                 }else{
@@ -528,7 +535,7 @@ fun TasksBottomSheetContent(
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    MultiRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
+    SingleRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
 
     Spacer(modifier = Modifier.height(8.dp))
 
