@@ -63,6 +63,16 @@ fun typography(darkTheme: Boolean = isSystemInDarkTheme()): Typography {
 }
 
 @Composable
+fun body12Medium(darkTheme: Boolean = isSystemInDarkTheme()): TextStyle {
+    val robotoFontFamily: FontFamily = robotoFontFamilyData()
+    return TextStyle(
+        fontFamily = robotoFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp, color = getTextColor(darkTheme)
+    )
+}
+
+@Composable
 fun body14Medium(darkTheme: Boolean = isSystemInDarkTheme()): TextStyle {
     val robotoFontFamily: FontFamily = robotoFontFamilyData()
     return TextStyle(

@@ -975,7 +975,7 @@ fun BottomSheetContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        MultiRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
+        SingleRecommendationStatusColumn(viewModel.getTaskCodeWithValue(task))
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -1323,8 +1323,9 @@ fun CardItemView(
         ?: ""
     val taskStatusList = viewModel.getTaskCodeWithValue(task)
     println("CardItemView getTaskStatusList--> $taskStatusList")
-
-    RecommendationItem(name, phone, taskStatusList) {
+    val reason = task.task.output.takeIf { it.isNotEmpty() }
+        ?.get(0)?.value.valueToString()
+    RecommendationItem(name, phone, reason, task.task.status, taskStatusList) {
         onSelectTask(task)
     }
 }
