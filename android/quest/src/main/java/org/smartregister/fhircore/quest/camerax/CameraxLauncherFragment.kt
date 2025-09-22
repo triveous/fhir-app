@@ -282,7 +282,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
     private fun takePhoto(imageCapture: ImageCapture) {
         try {
-            val file = File.createTempFile("IMG_", ".jpeg", requireContext().cacheDir)
+            val file = File.createTempFile("IMG_", ".jpeg", requireContext().filesDir)
             val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
 
             imageCapture.takePicture(

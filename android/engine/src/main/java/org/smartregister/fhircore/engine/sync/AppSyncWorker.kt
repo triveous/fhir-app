@@ -79,7 +79,8 @@ constructor(
     private val openSrpFhirEngine: FhirEngine,
     private val appTimeStampContext: AppTimeStampContext,
     private val fhirResourceService: FhirResourceService,
-    val secureSharedPreference: SecureSharedPreference
+    val secureSharedPreference: SecureSharedPreference,
+    private val gson: Gson
 ) : FhirSyncWorker(appContext, workerParams) {
 
     companion object {
@@ -383,7 +384,7 @@ constructor(
         fhirResourceService.updateResource(
             docReference.fhirType(),
             docReference.logicalId,
-            Gson().toJson(listOf(DocStatusRequest(REPLACE, DOC_STATUS, DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()))).toRequestBody(
+            gson.toJson(listOf(DocStatusRequest(REPLACE, DOC_STATUS, DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()))).toRequestBody(
                 CONTENT_TYPE.toMediaTypeOrNull()
             )
         )
