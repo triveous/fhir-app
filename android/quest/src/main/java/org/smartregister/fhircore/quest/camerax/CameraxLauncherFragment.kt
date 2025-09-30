@@ -1,9 +1,13 @@
 package org.smartregister.fhircore.quest.camerax
 
 import android.Manifest
-import android.app.Dialog
+import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -20,7 +24,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.appcompat.widget.AppCompatImageView
-import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
@@ -32,23 +35,30 @@ import androidx.camera.core.Preview
 import androidx.camera.core.TorchState
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.ui.geometry.Rect
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
-import com.bumptech.glide.Glide
-import com.bumptech.glide.Glide.*
+import com.bumptech.glide.Glide.with
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.pytorch.IValue
+import org.pytorch.Module
+import org.pytorch.Tensor
+import org.pytorch.torchvision.TensorImageUtils
+import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
 import timber.log.Timber
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.text.DecimalFormat
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.math.exp
 
 class CameraxLauncherFragment : DialogFragment() {
 
@@ -59,6 +69,7 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var flashButton: AppCompatImageButton
     private lateinit var closeCameraIB: AppCompatImageView
     private lateinit var previewView: PreviewView
+    //private lateinit var predictionScore: TextView
 
     private lateinit var cameraPreviewViewLay: FrameLayout
     private lateinit var previewViewImageLay: ConstraintLayout
@@ -73,7 +84,7 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var zoomSeekBar: CustomSeekBar
 
     private var fileAbsPath: String = ""
-
+    var module : Module? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         //setStyle(STYLE_NO_FRAME, android.R.style.Theme_Holo_Light)
@@ -92,6 +103,7 @@ class CameraxLauncherFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         previewView = view.findViewById(R.id.previewView)
+        //predictionScore = view.findViewById(R.id.predictionScore)
         flashButton = view.findViewById(R.id.flashButton)
         closeCameraIB = view.findViewById(R.id.closeCameraIB)
         captureButton = view.findViewById(R.id.captureButton)
@@ -106,8 +118,18 @@ class CameraxLauncherFragment : DialogFragment() {
         previewImage = view.findViewById(R.id.previewImage)
         zoomSeekBar = view.findViewById(R.id.zoomSeekBar)
 
-        selectButton.setOnClickListener {
-            onPhotoSelected(fileAbsPath)
+        lifecycleScope.launch {
+            initModel()
+        }
+
+        selectButton.setSafeOnClickListener(interval = 6000) {
+            /*requireActivity().runOnUiThread {
+                progressBar.visibility = View.VISIBLE
+                requireActivity().showToast("Processing image", Toast.LENGTH_SHORT)
+            }*/
+            lifecycleScope.launch {
+                onPhotoSelected(fileAbsPath)
+            }
         }
 
         closeCameraIB.setOnClickListener {
@@ -145,6 +167,16 @@ class CameraxLauncherFragment : DialogFragment() {
         }
 
         checkPermissionAndStartCamera()
+    }
+
+    private fun initModel() {
+        try {
+            module =  Module.load(getAssetPath(requireContext(), "model_fold1_trace.pt"))
+        } catch (e: Exception) {
+            Log.e("OCS", "Error reading assets", e)
+        } finally {
+            //progressBar.visibility = View.GONE
+        }
     }
 
 
@@ -298,6 +330,9 @@ class CameraxLauncherFragment : DialogFragment() {
                             fileAbsPath = file.absolutePath
                             val flashOffDrawable = context?.getDrawable(R.drawable.flash_off)
                             flashButton.setImageDrawable(flashOffDrawable)
+                            requireActivity().runOnUiThread {
+                                cameraExecutor.shutdown()
+                            }
                         }
                     }
 
@@ -312,14 +347,125 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
+    private fun decodeFileToBitmap(filePath: String): Bitmap? {
+        return try {
+            val tStart = System.currentTimeMillis()
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            var bitmap = BitmapFactory.decodeFile(filePath, options)
+                ?: throw IOException("Failed to decode file: $filePath")
 
+            val end = System.currentTimeMillis()
+            val elapseSec = (end - tStart) / 1000f
+            Timber.d("cls6.pt process: bitmap $elapseSec sec")
 
+            Bitmap.createScaledBitmap(bitmap, 256, 256, true)
+        } catch (e: Exception) {
+            Timber.e(e, "Error decoding file to bitmap: $filePath")
+            null
+        }
+    }
+    fun getAssetPath(context: Context, assetName: String): String? {
+        val assetManager = context.assets
+        val assetInputStream = assetManager.open(assetName) ?: return null
+        val internalFile = File(context.filesDir, assetName)
+
+        try {
+            internalFile.createNewFile()
+            val outputStream = FileOutputStream(internalFile)
+
+            val buffer = ByteArray(1024)
+            var bytesRead: Int
+            while (assetInputStream.read(buffer).also { bytesRead = it } > 0) {
+                outputStream.write(buffer, 0, bytesRead)
+            }
+            outputStream.close()
+            return internalFile.absolutePath
+        } catch (e: IOException) {
+            e.printStackTrace()
+            return null // Indicate failure to get asset path
+        } finally {
+            assetInputStream.close() // Ensure closing the stream even on exceptions
+        }
+    }
+
+    private fun convertRGBtoBGR(inputTensor: Tensor): Tensor? {
+        return try {
+            val shape = inputTensor.shape()
+            require(shape.size == 4 && shape[1] == 3L) { "Input tensor must have shape [1, 3, H, W]" }
+
+            val channels = shape[1].toInt()
+            val height = shape[2].toInt()
+            val width = shape[3].toInt()
+
+            val inputData = inputTensor.dataAsFloatArray
+            val outputData = FloatArray(inputData.size)
+            val productOfHeightAndWidth = height * width
+
+            for (i in 0 until productOfHeightAndWidth) {
+                outputData[i] = inputData[2 * productOfHeightAndWidth + i] // B
+                outputData[productOfHeightAndWidth + i] = inputData[productOfHeightAndWidth + i] // G
+                outputData[2 * productOfHeightAndWidth + i] = inputData[i] // R
+            }
+
+            Tensor.fromBlob(outputData, shape)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to convert RGB to BGR")
+            null
+        }
+    }
+
+    private fun processImage(absolutePath: String): Pair<String, String>? {
+        try {
+            val capturedImage = decodeFileToBitmap(absolutePath) ?: throw IllegalArgumentException("Failed to decode image")
+
+            val mean = floatArrayOf(0.485f, 0.456f, 0.406f)
+            val std = floatArrayOf(0.229f, 0.224f, 0.225f)
+
+            val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(capturedImage, mean, std)
+            val bgrTensor = convertRGBtoBGR(inputTensor) ?: throw IllegalStateException("Failed to convert RGB to BGR")
+
+            val outputTensor = module?.forward(IValue.from(bgrTensor))?.toTensor() ?: throw IllegalStateException("Module is null or forward operation failed")
+            //val outputDict = output.toDictStringKey() ?: throw IllegalStateException("Failed to convert output to dictionary")
+            //val outputTensor = outputDict["logits"]?.toTensor() ?: throw IllegalStateException("Failed to get logits tensor")
+
+            var scores = outputTensor.dataAsFloatArray[0]
+            //Sigmoid
+            scores = 1 / (1 + exp(-scores))
+            val prediction = if (scores > 0.5f) 1 else 0
+            val className = classes.diseases[prediction]
+            val confidence = if (prediction == 1) (scores * 100).toString() else ((1 - scores) * 100).toString()
+            return Pair(className, confidence)
+        } catch (e: Exception) {
+            Log.d("Error", "Error processing image ${e.printStackTrace()}")
+            return null
+        }
+    }
+    fun View.setSafeOnClickListener(interval: Long = 1000, onSafeClick: (View) -> Unit) {
+        var lastClickTime = 0L
+        val safeClickListener = object : View.OnClickListener {
+            override fun onClick(v: View) {
+                val currentTime = SystemClock.elapsedRealtime()
+                if (currentTime - lastClickTime < interval) return
+                lastClickTime = currentTime
+                onSafeClick(v)
+            }
+        }
+        setOnClickListener(safeClickListener)
+    }
     private fun onPhotoSelected(absolutePath : String){
-        setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
-            putString(CAMERA_RESULT_URI_KEY, absolutePath)
-            putBoolean(CAMERA_RESULT_KEY, true)
-        })
-        dismiss()
+        val score = processImage(fileAbsPath)
+        requireActivity().runOnUiThread {
+            setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
+                putString(CAMERA_RESULT_URI_KEY, absolutePath)
+                putString(CAMERA_PREDICTION_KEY, "${score?.first ?: "Error in processing"}")
+                putString(CAMERA_CONFIDENCE_KEY, "${score?.second ?: "Error in processing"}%")
+                putBoolean(CAMERA_RESULT_KEY, true)
+            })
+            requireActivity().showToast("Image processed successfully", Toast.LENGTH_SHORT)
+            dismiss()
+        }
     }
 
     override fun onDestroy() {
@@ -333,6 +479,8 @@ class CameraxLauncherFragment : DialogFragment() {
         private const val ARG_SAVED_PHOTO_URI = "arg_saved_photo_uri"
         const val CAMERA_RESULT_KEY = "camera_result"
         const val CAMERA_RESULT_URI_KEY = "camera_result_uri"
+        const val CAMERA_PREDICTION_KEY = "camera_prediction"
+        const val CAMERA_CONFIDENCE_KEY = "camera_confidence"
 
         fun newInstance(): CameraxLauncherFragment {
             return CameraxLauncherFragment()
