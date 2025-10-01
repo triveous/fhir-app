@@ -119,6 +119,22 @@ android {
   }
 
   packaging {
+    resources {
+      pickFirsts += listOf(
+        "lib/arm64-v8a/libc++_shared.so",
+        "lib/armeabi-v7a/libc++_shared.so",
+        "lib/x86/libc++_shared.so",
+        "lib/x86_64/libc++_shared.so"
+      )
+    }
+    jniLibs {
+      pickFirsts += listOf(
+        "lib/arm64-v8a/libc++_shared.so",
+        "lib/armeabi-v7a/libc++_shared.so",
+        "lib/x86/libc++_shared.so",
+        "lib/x86_64/libc++_shared.so"
+      )
+    }
     resources.excludes.addAll(
       listOf(
         "META-INF/ASL-2.0.txt",
@@ -266,7 +282,7 @@ configurations {
 }
 
 dependencies {
-
+  implementation(files("libs/opencv-411-android.aar"))
   implementation ("org.pytorch:pytorch_android:1.10.0")
   implementation ("org.pytorch:pytorch_android_torchvision:1.10.0")
 

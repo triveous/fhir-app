@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
@@ -22,6 +23,7 @@ import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.annotation.RequiresApi
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.camera.core.CameraControl
@@ -51,6 +53,7 @@ import org.pytorch.Tensor
 import org.pytorch.torchvision.TensorImageUtils
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.util.OpenCVUtils
 import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
@@ -58,6 +61,7 @@ import java.io.IOException
 import java.text.DecimalFormat
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.collections.get
 import kotlin.math.exp
 
 class CameraxLauncherFragment : DialogFragment() {
@@ -171,7 +175,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
     private fun initModel() {
         try {
-            module =  Module.load(getAssetPath(requireContext(), "model_fold1_trace.pt"))
+            module =  Module.load(getAssetPath(requireContext(), "model6.pt"))
         } catch (e: Exception) {
             Log.e("OCS", "Error reading assets", e)
         } finally {
@@ -416,32 +420,38 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun processImage(absolutePath: String): Pair<String, String>? {
+        //val processStartTime = System.currentTimeMillis()
         try {
-            val capturedImage = decodeFileToBitmap(absolutePath) ?: throw IllegalArgumentException("Failed to decode image")
+            val processedImage = OpenCVUtils.decodeFileToMat(absolutePath) ?: throw IllegalArgumentException("Failed to decode image")
+            val tensorStartTime = System.currentTimeMillis()
+            //val mean = floatArrayOf(0.485f, 0.456f, 0.406f)
+            val mean = floatArrayOf(0.0f, 0.0f, 0.0f)
+            //val std = floatArrayOf(0.229f, 0.224f, 0.225f)
+            val std = floatArrayOf(1f, 1f, 1f)
 
-            val mean = floatArrayOf(0.485f, 0.456f, 0.406f)
-            val std = floatArrayOf(0.229f, 0.224f, 0.225f)
-
-            val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(capturedImage, mean, std)
+            val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(processedImage, mean, std)
             val bgrTensor = convertRGBtoBGR(inputTensor) ?: throw IllegalStateException("Failed to convert RGB to BGR")
-
             val outputTensor = module?.forward(IValue.from(bgrTensor))?.toTensor() ?: throw IllegalStateException("Module is null or forward operation failed")
-            //val outputDict = output.toDictStringKey() ?: throw IllegalStateException("Failed to convert output to dictionary")
-            //val outputTensor = outputDict["logits"]?.toTensor() ?: throw IllegalStateException("Failed to get logits tensor")
-
             var scores = outputTensor.dataAsFloatArray[0]
             //Sigmoid
             scores = 1 / (1 + exp(-scores))
             val prediction = if (scores > 0.5f) 1 else 0
             val className = classes.diseases[prediction]
             val confidence = if (prediction == 1) (scores * 100).toString() else ((1 - scores) * 100).toString()
+
+//            val processEndTime = System.currentTimeMillis()
+//            val processTimeSec = (processEndTime - processStartTime)
+//            val imageName = File(absolutePath).name
+
             return Pair(className, confidence)
         } catch (e: Exception) {
             Log.d("Error", "Error processing image ${e.printStackTrace()}")
             return null
         }
     }
+
     fun View.setSafeOnClickListener(interval: Long = 1000, onSafeClick: (View) -> Unit) {
         var lastClickTime = 0L
         val safeClickListener = object : View.OnClickListener {
