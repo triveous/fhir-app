@@ -54,12 +54,16 @@ import org.hl7.fhir.r4.model.Resource
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.R
+import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocExtensionRequest
 import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocStatusRequest
+import org.smartregister.fhircore.engine.data.local.updateDocStatus.ExtensionValue
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.domain.networkUtils.DocumentReferenceCaseType
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.ADD_EXTENSION
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.CONTENT_TYPE
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_EXTENSION
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
@@ -94,6 +98,7 @@ constructor(
         const val FLW_ID_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/flw-id"
         const val PENDING_IMAGES_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/pending-images"
         const val IMG_UPLOAD_ERROR_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-error"
+        const val IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-failed-permanently"
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
@@ -168,12 +173,16 @@ constructor(
         val result = docReferences.map {
             val uriString = it.resource.getExtensionByUrl(UPLOAD_IMAGE_URL)?.value?.asStringValue()
             if (uriString.isNullOrBlank()) {
+                imageNotPresentOnDeviceFinalizeDocumentOnServer(it.resource, "Empty or null URI string")
                 Timber.e(Exception("Empty or null URI string for document: ${it.resource.logicalId} - $pendingDocuments pending"))
                 return@map it.resource to null
             }
             it.resource to uriString.toUri()
         }.filter { it.second !== null }.map {
             val docReference = it.first
+            if (!filesExists(it.second)){
+                imageNotPresentOnDeviceFinalizeDocumentOnServer(docReference, "File not found")
+            }
             val fileUri = it.second ?: return@map false
 
             try {
@@ -219,6 +228,16 @@ constructor(
         Timber.i("Finished version-aware document reference upload for worker: $workerId")
         return result
     }
+
+private fun filesExists(uri: Uri?): Boolean {
+    if (uri == null) return false
+    return try {
+        applicationContext.contentResolver.openInputStream(uri)?.use { it.available() > 0 } ?: false
+    } catch (e: Exception) {
+        Timber.e(e, "Error checking file existence for uri: $uri")
+        false
+    }
+}
 
     /**
      * Checks if the DocumentReference on the server has been marked as 'final'.
@@ -377,6 +396,53 @@ constructor(
                 CONTENT_TYPE.toMediaTypeOrNull()
             )
         )
+        Timber.i("Step 3 completed: Document status finalized for ${docReference.logicalId}")
+    }
+
+    /**
+     * Update the DocumentReference with image permanent failure ext & status to 'final'.
+     */
+    private suspend fun imageNotPresentOnDeviceFinalizeDocumentOnServer(docReference: DocumentReference, errorMessage: String) {
+        Timber.i("Step 3: Finalizing document status for ${docReference.logicalId}")
+
+        val extensionValue = ExtensionValue(
+            url = IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION,
+            valueString = "IMG_UPLOAD_FAILED_PERMANENTLY"
+        )
+
+        val errorExtensionValue = ExtensionValue(
+            url = IMG_UPLOAD_ERROR_EXTENSION,
+            valueString = errorMessage
+        )
+
+        val docExtensionRequest = DocExtensionRequest(
+            op = ADD_EXTENSION,
+            path = DOC_EXTENSION,
+            value = extensionValue
+        )
+
+        val errorExtensionRequest = DocExtensionRequest(
+            op = ADD_EXTENSION,
+            path = DOC_EXTENSION,
+            value = errorExtensionValue
+        )
+
+        val docStatusRequest = DocStatusRequest(
+            op = REPLACE,
+            path = DOC_STATUS,
+            value = DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()
+        )
+
+        val patchOperations = listOf(docExtensionRequest, docStatusRequest, errorExtensionRequest)
+
+        fhirResourceService.updateResource(
+            docReference.fhirType(),
+            docReference.logicalId,
+            gson.toJson(patchOperations).toRequestBody(
+                CONTENT_TYPE.toMediaTypeOrNull()
+            )
+        )
+
         Timber.i("Step 3 completed: Document status finalized for ${docReference.logicalId}")
     }
 

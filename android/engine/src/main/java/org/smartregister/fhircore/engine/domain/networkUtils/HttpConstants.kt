@@ -16,7 +16,9 @@ object ErrorCodes {
 
 object WorkerConstants {
     const val REPLACE = "replace"
+    const val ADD_EXTENSION = "add"
     const val DOC_STATUS = "/docStatus"
+    const val DOC_EXTENSION = "/extension"
     const val CONTENT_TYPE = "application/json-patch+json"
 }
 
