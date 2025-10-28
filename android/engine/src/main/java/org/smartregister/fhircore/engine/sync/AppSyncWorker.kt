@@ -49,16 +49,18 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.DateTimeType
 import org.hl7.fhir.r4.model.DocumentReference
-import org.hl7.fhir.r4.model.OperationOutcome
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocStatusRequest
 import org.smartregister.fhircore.engine.data.local.updateDocStatus.ExtensionValue
+import org.smartregister.fhircore.engine.data.local.updateDocStatus.JsonPatchOperation
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.domain.networkUtils.DocumentReferenceCaseType
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.ADD_EXTENSION
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.CONTENT_TYPE
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_EXTENSION
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
@@ -408,19 +410,8 @@ private fun filesExists(uri: Uri?): Boolean {
             valueString = "IMG_UPLOAD_FAILED_PERMANENTLY"
         )
 
-        // Define the JSON Patch operations
-        val patchOperations = listOf(
-            mapOf(
-                "op" to "add",
-                "path" to "/extension",
-                "value" to listOf(extensionValue)
-            ),
-            mapOf(
-                "op" to "replace",
-                "path" to "/docStatus",
-                "value" to DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()
-            )
-        )
+        val patchOperations = listOf(JsonPatchOperation(ADD_EXTENSION, DOC_EXTENSION, listOf(extensionValue)),
+            JsonPatchOperation(REPLACE, DOC_STATUS, DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()))
         val patchJson = gson.toJson(patchOperations)
 
         Timber.d("Sending JSON Patch for ${docReference.logicalId}: $patchJson")
@@ -433,10 +424,9 @@ private fun filesExists(uri: Uri?): Boolean {
             )
         )
 
-        // Check if the update was successful
+        Timber.i("Step 3 updateDocResource: ${docReference.logicalId} status:${result.docStatus.name}")
         return result.docStatus.name.lowercase() == DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()
 
-        Timber.i("Step 3 completed: Document status finalized for ${docReference.logicalId}")
     }
 
     // The metadata fetch function remains the same

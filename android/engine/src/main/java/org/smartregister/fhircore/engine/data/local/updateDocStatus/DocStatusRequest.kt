@@ -9,3 +9,9 @@ data class DocStatusRequest(
     val path: String,
     val value: String
 )
+
+data class JsonPatchOperation(
+    val op: String,
+    val path: String,
+    val value: Any
+)
