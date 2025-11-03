@@ -69,6 +69,7 @@ import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.createNotification
 import timber.log.Timber
+import java.io.FileNotFoundException
 import java.util.Date
 
 @HiltWorker
@@ -235,8 +236,8 @@ private fun filesExists(uri: Uri?): Boolean {
     return try {
         applicationContext.contentResolver.openInputStream(uri)?.use { it.available() > 0 } ?: false
     } catch (e: Exception) {
-        Timber.e(e, "Error checking file existence for uri: $uri")
-        false
+        Timber.e(e, "Exception checking file existence for uri: $uri")
+        return e !is FileNotFoundException
     }
 }
 
