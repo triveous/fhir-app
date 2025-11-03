@@ -277,16 +277,26 @@ internal object CustomAttachmentViewHolderFactory :
             fun getFileUri(imageFileName: String): Uri {
                 //Existing images in the drafts will be in cache
                 //New images will be in files folder
+                //Try cache first for better backward compatibility
                 if (imageFileName.isNotEmpty()) {
                     val urisToTry = listOf(
-                        Uri.parse(IMAGE_FILES_BASE_URI + imageFileName),
-                        Uri.parse(IMAGE_CACHE_BASE_URI + imageFileName)
+                        Uri.parse(IMAGE_CACHE_BASE_URI + imageFileName),
+                        Uri.parse(IMAGE_FILES_BASE_URI + imageFileName)
                     )
                     for (uri in urisToTry) {
-                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                            if (inputStream.available() > 0) return uri
+                        try {
+                            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                                if (inputStream.available() > 0) {
+                                    Timber.d("Found image at: $uri")
+                                    return uri
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Timber.d("Failed to open URI: $uri, trying next location...")
+                            continue
                         }
                     }
+                    Timber.w("Image not found in any location: $imageFileName")
                 }
                 return Uri.EMPTY
             }
