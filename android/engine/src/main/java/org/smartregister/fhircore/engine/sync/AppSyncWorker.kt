@@ -24,7 +24,6 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
-import androidx.core.os.trace
 import androidx.hilt.work.HiltWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
@@ -50,16 +49,18 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.DateTimeType
 import org.hl7.fhir.r4.model.DocumentReference
-import org.hl7.fhir.r4.model.Resource
-import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.data.local.updateDocStatus.DocStatusRequest
+import org.smartregister.fhircore.engine.data.local.updateDocStatus.ExtensionValue
+import org.smartregister.fhircore.engine.data.local.updateDocStatus.JsonPatchOperation
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.domain.networkUtils.DocumentReferenceCaseType
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.HEADER_APPLICATION_JSON
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.UPLOAD_IMAGE_URL
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.ADD_EXTENSION
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.CONTENT_TYPE
+import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_EXTENSION
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
@@ -68,6 +69,7 @@ import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.createNotification
 import timber.log.Timber
+import java.io.FileNotFoundException
 import java.util.Date
 
 @HiltWorker
@@ -94,6 +96,7 @@ constructor(
         const val FLW_ID_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/flw-id"
         const val PENDING_IMAGES_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/pending-images"
         const val IMG_UPLOAD_ERROR_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-error"
+        const val IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-failed-permanently"
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
@@ -174,13 +177,21 @@ constructor(
             it.resource to uriString.toUri()
         }.filter { it.second !== null }.map {
             val docReference = it.first
+            val serverDocRef = getDocumentReferenceMetaDataFromServer(docReference)
+
+            //Image is not found on the device & server
+            if (!filesExists(it.second) && !serverDocRef.hasImageDataOnServer()){
+                if(imageNotPresentOnDeviceFinalizeDocumentOnServer(docReference)){
+                    openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+                }
+            }
             val fileUri = it.second ?: return@map false
 
             try {
                 uploadImageMutex.withLock {
                     Timber.i("Processing document reference with logicalId: ${docReference.logicalId}")
 
-                    val success = uploadDocumentReferenceVersionAware(docReference, fileUri, context)
+                    val success = uploadDocumentReferenceVersionAware(docReference, fileUri, context, serverDocRef)
 
                     if (success) {
                         atLeastOneSuccess = true
@@ -220,6 +231,16 @@ constructor(
         return result
     }
 
+private fun filesExists(uri: Uri?): Boolean {
+    if (uri == null) return false
+    return try {
+        applicationContext.contentResolver.openInputStream(uri)?.use { it.available() > 0 } ?: false
+    } catch (e: Exception) {
+        Timber.e(e, "Exception checking file existence for uri: $uri")
+        return e !is FileNotFoundException
+    }
+}
+
     /**
      * Checks if the DocumentReference on the server has been marked as 'final'.
      */
@@ -250,12 +271,11 @@ constructor(
     private suspend fun uploadDocumentReferenceVersionAware(
         docReference: DocumentReference,
         fileUri: Uri,
-        context: Context
+        context: Context,
+        serverDocRef: DocumentReference?
     ): Boolean {
         return runCatching {
             Timber.i("Starting version-aware upload for document: ${docReference.logicalId}")
-
-            val serverDocRef = getDocumentReferenceMetaDataFromServer(docReference)
 
             // 1. If the document is already fully uploaded and finalized, we're done.
             if (serverDocRef.isCompleteOnServer()) {
@@ -378,6 +398,36 @@ constructor(
             )
         )
         Timber.i("Step 3 completed: Document status finalized for ${docReference.logicalId}")
+    }
+
+    /**
+     * Update the DocumentReference with image permanent failure ext & status to 'final'.
+     */
+    private suspend fun imageNotPresentOnDeviceFinalizeDocumentOnServer(docReference: DocumentReference) : Boolean {
+        Timber.i("Finalizing image FAILED for ${docReference.logicalId}")
+
+        val extensionValue = ExtensionValue(
+            url = IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION,
+            valueString = "IMG_UPLOAD_FAILED_PERMANENTLY"
+        )
+
+        val patchOperations = listOf(JsonPatchOperation(ADD_EXTENSION, DOC_EXTENSION, listOf(extensionValue)),
+            JsonPatchOperation(REPLACE, DOC_STATUS, DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()))
+        val patchJson = gson.toJson(patchOperations)
+
+        Timber.d("Sending JSON Patch for ${docReference.logicalId}: $patchJson")
+
+        val result = fhirResourceService.updateDocResource(
+            docReference.fhirType(),
+            docReference.logicalId,
+            patchJson.toRequestBody(
+                CONTENT_TYPE.toMediaTypeOrNull()
+            )
+        )
+
+        Timber.i("Step 3 updateDocResource: ${docReference.logicalId} status:${result.docStatus.name}")
+        return result.docStatus.name.lowercase() == DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()
+
     }
 
     // The metadata fetch function remains the same
