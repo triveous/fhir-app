@@ -90,6 +90,8 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.daysPassed
 import org.smartregister.fhircore.engine.util.extension.encodeJson
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
+import org.smartregister.fhircore.engine.util.extension.isInCurrentMonth
+import org.smartregister.fhircore.engine.util.extension.isInCurrentWeek
 import org.smartregister.fhircore.engine.util.extension.isToday
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.monthsPassed
@@ -965,7 +967,7 @@ constructor(
                 if (extension != null && extension.value?.asStringValue()?.isNotEmpty() == true) {
                     val date = convertToDateStringToDate(extension.value?.asStringValue())
                     if (date != null) {
-                        date.daysPassed() < 7
+                        date.isInCurrentWeek()
                     } else {
                         false
                     }
@@ -981,7 +983,7 @@ constructor(
                 if (extension != null && extension.value?.asStringValue()?.isNotEmpty() == true) {
                     val date = convertToDateStringToDate(extension.value?.asStringValue())
                     if (date != null) {
-                        date.monthsPassed() <= 1
+                        date.isInCurrentMonth()
                     } else {
                         false
                     }

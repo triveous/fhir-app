@@ -73,6 +73,26 @@ fun Date.yearsPassed() = this.daysPassed().div(365).toInt()
 
 fun Date.monthsPassed() = this.daysPassed().div(30.5).toInt()
 
+fun Date.isInCurrentWeek(): Boolean {
+  val dateCalendar = this.calendar()
+  val currentCalendar = Calendar.getInstance()
+  
+  // Set both calendars to start of week (Monday)
+  dateCalendar.firstDayOfWeek = Calendar.MONDAY
+  currentCalendar.firstDayOfWeek = Calendar.MONDAY
+  
+  return dateCalendar.get(Calendar.YEAR) == currentCalendar.get(Calendar.YEAR) &&
+         dateCalendar.get(Calendar.WEEK_OF_YEAR) == currentCalendar.get(Calendar.WEEK_OF_YEAR)
+}
+
+fun Date.isInCurrentMonth(): Boolean {
+  val dateCalendar = this.calendar()
+  val currentCalendar = Calendar.getInstance()
+  
+  return dateCalendar.get(Calendar.YEAR) == currentCalendar.get(Calendar.YEAR) &&
+         dateCalendar.get(Calendar.MONTH) == currentCalendar.get(Calendar.MONTH)
+}
+
 fun DateType.plusWeeksAsString(weeks: Int): String {
   val clone = this.copy()
   clone.add(Calendar.DATE, weeks * 7)
