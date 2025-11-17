@@ -351,6 +351,16 @@ internal object CustomAttachmentViewHolderFactory :
                             val answer =
                                 QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
                                     .apply {
+                                        extension = listOf(
+                                            addExtension().apply {
+                                                url = SUSPICIOUS_NON_SUSPICIOUS_URL
+                                                setValue(StringType(predictionResult.orEmpty()))
+                                            },
+                                            addExtension().apply {
+                                                url = CONFIDENCE_PERCENTAGE_URL
+                                                setValue(StringType(confidence))
+                                            }
+                                        )
                                         value =
                                             Attachment().apply {
                                                 contentType = attachmentMimeTypeWithSubType
@@ -361,6 +371,12 @@ internal object CustomAttachmentViewHolderFactory :
                                                 creation = Date()
                                             }
                                     }
+
+                            //Suspicious/NonSuspicious
+                            questionnaireItem.addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL,StringType(predictionResult))
+
+                            //Confidence percentage
+                            questionnaireItem.addExtension(CONFIDENCE_PERCENTAGE_URL,StringType(confidence))
 
                             context.lifecycleScope.launch {
                                 documentReference?.let {
@@ -374,7 +390,8 @@ internal object CustomAttachmentViewHolderFactory :
                                     attachmentTitle = capturedFile.name,
                                     attachmentUri = attachmentUri,
                                 )
-                                displaySnackBarOnUpload(view, attachmentMimeType)
+                                //setAnswerFromAI(predictionResult,confidence)
+                                displaySnackbarOnUpload(view, attachmentMimeType)
                             }
                         } catch (e: Exception) {
                             Timber.e(e, "CustomAttachment")
@@ -528,7 +545,22 @@ internal object CustomAttachmentViewHolderFactory :
             private fun loadPhotoPreview(uri: Uri, title: String) {
                 photoPreview.visibility = View.VISIBLE
                 Glide.with(context).load(uri).into(photoThumbnail)
-                photoTitle.text = title
+                this.photoTitle.text = photoTitle
+
+                //Suspicious/NonSuspicious
+                val result =questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
+                //Confidence percentage
+                val confidence = questionnaireItem?.getExtensionString(CONFIDENCE_PERCENTAGE_URL)
+                //setAnswerFromAI(result,confidence)
+            }
+
+            private fun setAnswerFromAI(predictionResult: String?, confidence: String?) {
+                predictionResult?.isNotEmpty().let {
+                    photoResult.text = context.getString(R.string.result,predictionResult)
+                }
+                confidence?.isNotEmpty().let {
+                    photoConfidence.text = context.getString(R.string.confidence,confidence)
+                }
             }
 
             private fun clearPhotoPreview() {
