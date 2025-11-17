@@ -470,7 +470,7 @@ class CameraxLauncherFragment : DialogFragment() {
             setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
                 putString(CAMERA_RESULT_URI_KEY, absolutePath)
                 putString(CAMERA_PREDICTION_KEY, "${score?.first ?: "Error in processing"}")
-                putString(CAMERA_CONFIDENCE_KEY, "${score?.second ?: "Error in processing"}%")
+                putString(CAMERA_CONFIDENCE_KEY, "${score?.second ?: "Error in processing"}")
                 putBoolean(CAMERA_RESULT_KEY, true)
             })
             requireActivity().showToast("Image processed successfully", Toast.LENGTH_SHORT)

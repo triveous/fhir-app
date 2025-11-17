@@ -351,6 +351,16 @@ internal object CustomAttachmentViewHolderFactory :
                             val answer =
                                 QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
                                     .apply {
+                                        extension = listOf(
+                                            addExtension().apply {
+                                                url = SUSPICIOUS_NON_SUSPICIOUS_URL
+                                                setValue(StringType(predictionResult.orEmpty()))
+                                            },
+                                            addExtension().apply {
+                                                url = CONFIDENCE_PERCENTAGE_URL
+                                                setValue(StringType(confidence))
+                                            }
+                                        )
                                         value =
                                             Attachment().apply {
                                                 contentType = attachmentMimeTypeWithSubType
@@ -362,7 +372,6 @@ internal object CustomAttachmentViewHolderFactory :
 
                             //Suspicious/NonSuspicious
                             questionnaireItem.addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL,StringType(predictionResult))
-                            questionnaireItem.getExtensionsByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL)
 
                             //Confidence percentage
                             questionnaireItem.addExtension(CONFIDENCE_PERCENTAGE_URL,StringType(confidence))
@@ -378,7 +387,7 @@ internal object CustomAttachmentViewHolderFactory :
                                     attachmentUri = attachmentUri,
                                     questionnaireItem = questionnaireItem
                                 )
-                                setAnswerFromAI(predictionResult,confidence)
+                                //setAnswerFromAI(predictionResult,confidence)
                                 displaySnackbarOnUpload(view, attachmentMimeType)
                             }
                         } catch (e: Exception) {
@@ -539,7 +548,7 @@ internal object CustomAttachmentViewHolderFactory :
                 val result =questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
                 //Confidence percentage
                 val confidence = questionnaireItem?.getExtensionString(CONFIDENCE_PERCENTAGE_URL)
-                setAnswerFromAI(result,confidence)
+                //setAnswerFromAI(result,confidence)
             }
 
             private fun setAnswerFromAI(predictionResult: String?, confidence: String?) {
