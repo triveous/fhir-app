@@ -434,6 +434,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             }
             Timber.d("=== Finished DocumentReference update processing ===")
 
+            var isSuspicious = false
             try {
               Timber.d("=== Starting to set AI results in hidden items ===")
               for (item in questionnaireResponse.item) {
@@ -480,6 +481,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                                     if (hiddenItem.answer.isEmpty()) {
                                       Timber.d("Adding new answer to hidden item")
                                       hiddenItem.addAnswer()
+                                      isSuspicious = (result.toString() == "suspicious")
                                       firstAnswer.extension.remove(firstAnswer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL))
                                       firstAnswer.extension.remove(firstAnswer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL))
                                     }
@@ -530,6 +532,10 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 },
               )
               Timber.d("=== About to call finish() ===")
+              //Goto AIResultActivity with a flag isSuspicious
+              val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
+              intent.putExtra("isSuspicious", isSuspicious)
+              startActivity(intent)
               finish()
               Timber.d("=== Called finish() ===")
             }
