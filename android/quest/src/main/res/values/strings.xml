@@ -302,4 +302,10 @@
     <string name="button_pagination_previous">Previous</string>
     <string name="location_permission_reason">App needs location permission to capture the site location.</string>
 
+    <string name="result">RESULT : %s</string>
+    <string name="confidence">CONFIDENCE : %s</string>
+    <string name="suspicious_result">Doctor\'s review needed</string>
+    <string name="suspicious_result_desc">Check the recommendation \n section for next steps.</string>
+    <string name="nonsuspicious_result">No signs found</string>
+    <string name="nonsuspicious_result_desc">    In case of doubts, reach out \n to your supervisor.</string>
 </resources>

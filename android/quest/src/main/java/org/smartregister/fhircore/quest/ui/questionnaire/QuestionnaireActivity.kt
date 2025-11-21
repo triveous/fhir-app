@@ -481,7 +481,9 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                                     if (hiddenItem.answer.isEmpty()) {
                                       Timber.d("Adding new answer to hidden item")
                                       hiddenItem.addAnswer()
-                                      isSuspicious = (result.toString() == "suspicious")
+                                      if(isSuspicious.not()){
+                                        isSuspicious = result.toString().equals("suspicious", ignoreCase = true)
+                                      }
                                       firstAnswer.extension.remove(firstAnswer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL))
                                       firstAnswer.extension.remove(firstAnswer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL))
                                     }
