@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.ui.theme.PrimaryColor
 import org.smartregister.fhircore.quest.R
@@ -123,7 +124,7 @@ fun SuspiciousResultContent(onClose: () -> Unit) {
 
             Text(
                 text = stringResource(R.string.suspicious_result_desc),
-                style = body18Medium().copy(color = Color(0xFF767B72), fontWeight = FontWeight.W400),
+                style = body18Medium().copy(color = Color(0xFF767B72), fontWeight = FontWeight.W400,  lineHeight = 1.5.em),
                 textAlign = TextAlign.Center
             )
         }
@@ -191,7 +192,7 @@ fun NonSuspiciousResultContent(onClose: () -> Unit) {
 
             Text(
                 text = stringResource(R.string.nonsuspicious_result_desc),
-                style = body18Medium().copy(color = Color(0xFF767B72), fontWeight = FontWeight.W400),
+                style = body18Medium().copy(color = Color(0xFF767B72), fontWeight = FontWeight.W400, lineHeight = 1.5.em),
                 textAlign = TextAlign.Center
             )
         }
