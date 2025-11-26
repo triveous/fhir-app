@@ -305,7 +305,7 @@
     <string name="result">RESULT : %s</string>
     <string name="confidence">CONFIDENCE : %s</string>
     <string name="suspicious_result">Doctor\'s review needed</string>
-    <string name="suspicious_result_desc">Check the recommendation \n section for next steps.</string>
-    <string name="nonsuspicious_result">No signs found</string>
-    <string name="nonsuspicious_result_desc">    In case of doubts, reach out \n to your supervisor.</string>
+    <string name="suspicious_result_desc">Recommendation will be \n sent to you in 3-5 days.</string>
+    <string name="nonsuspicious_result">No visible signs</string>
+    <string name="nonsuspicious_result_desc">In case of doubts, reach out \n to your supervisor.</string>
 </resources>
