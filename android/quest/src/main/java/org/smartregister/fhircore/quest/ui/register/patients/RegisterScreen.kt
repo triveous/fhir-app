@@ -72,6 +72,7 @@ import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
+import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
@@ -146,6 +147,13 @@ fun RegisterScreen(
                         viewModel.appMainEvent = it
                         viewModel.setShowDialog(true)
                         viewModel.setSentryUserProperties()
+                        if (AppSyncWorker.mutex.isLocked) {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     },
                 ) { event ->
                 }
@@ -175,10 +183,17 @@ fun RegisterScreen(
                                     viewModel.appMainEvent = AppMainEvent.SyncData(context)
                                     viewModel.setShowDialog(true)
                                     viewModel.setSentryUserProperties()
+                                    if (AppSyncWorker.mutex.isLocked) {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 }
                             ) {
                                 Text(
-                                    text = stringResource(id = R.string.sync_now),
+                                    text = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
                                     style = body14Medium().copy(color = LightColors.primary)
                                 )
                             }
@@ -412,16 +427,24 @@ fun RegisterScreen(
                     viewModel.setShowDialog(false)
                 },
                 onConfirm = {
-                    viewModel.setShowDialog(false)
-                    if (!viewModel.permissionGranted.value) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            viewModel.setPermissionGranted(true)
+                    if (AppSyncWorker.mutex.isLocked) {
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        viewModel.setShowDialog(false)
+                        if (!viewModel.permissionGranted.value) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                viewModel.setPermissionGranted(true)
+                                viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                            }
+                        }else{
                             viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
                         }
-                    }else{
-                        viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
                     }
                 }
             )
