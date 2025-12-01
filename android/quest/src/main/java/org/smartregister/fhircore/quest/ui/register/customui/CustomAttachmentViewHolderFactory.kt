@@ -275,9 +275,30 @@ internal object CustomAttachmentViewHolderFactory :
             }
 
             fun getFileUri(imageFileName: String): Uri {
-                imageFileName.isNotEmpty().let {
-                    return Uri.parse(IMAGE_CACHE_BASE_URI + imageFileName)
+                //Existing images in the drafts will be in cache
+                //New images will be in files folder
+                //Try cache first for better backward compatibility
+                if (imageFileName.isNotEmpty()) {
+                    val urisToTry = listOf(
+                        Uri.parse(IMAGE_CACHE_BASE_URI + imageFileName),
+                        Uri.parse(IMAGE_FILES_BASE_URI + imageFileName)
+                    )
+                    for (uri in urisToTry) {
+                        try {
+                            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                                if (inputStream.available() > 0) {
+                                    Timber.d("Found image at: $uri")
+                                    return uri
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Timber.d("Failed to open URI: $uri, trying next location...")
+                            continue
+                        }
+                    }
+                    Timber.w("Image not found in any location: $imageFileName")
                 }
+                return Uri.EMPTY
             }
 
             private fun clearAttachmentPreview() {
@@ -699,6 +720,8 @@ internal object CustomAttachmentViewHolderFactory :
         return doc
     }
 
+    private val IMAGE_FILES_BASE_URI: String =
+        "content://${BuildConfig.APPLICATION_ID}.fileprovider/files/"
     private val IMAGE_CACHE_BASE_URI: String =
         "content://${BuildConfig.APPLICATION_ID}.fileprovider/cache/"
     val EXTRA_MIME_TYPE_KEY = "mime_type"

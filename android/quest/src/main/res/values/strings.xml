@@ -233,6 +233,8 @@
     <string name="image_saved">Image Saved</string>
     <string name="sync_status">Sync Status</string>
     <string name="sync_now">Sync now</string>
+    <string name="syncing">Syncing…</string>
+    <string name="sync_in_progress">Please wait, sync is in progress</string>
     <string name="notification_sync_failed">Sync failed</string>
     <string name="notification_sync">Syncing…</string>
     <string name="image_left">Images Left: %s</string>

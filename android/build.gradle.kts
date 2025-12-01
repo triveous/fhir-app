@@ -46,7 +46,8 @@ allprojects {
     maven(url = "https://jcenter.bintray.com/")
     apply(plugin = "org.owasp.dependencycheck")
     maven(url = "https://s01.oss.sonatype.org/content/repositories/snapshots")
-    maven(url = "https://repo.spring.io/plugins-release")
+    //maven(url = "https://repo.spring.io/plugins-release")
+    maven(url = "https://central.sonatype.com/repository/maven-snapshots")
     maven(url = "https://repository.liferay.com/nexus/content/repositories/public")
     maven {
       url = uri("https://maven.pkg.github.com/midas-in/android-fhir")

@@ -321,7 +321,14 @@ constructor(
       onSuccessfulSubmission(idTypes, currentQuestionnaireResponse)
 
       // Trigger one time sync after question submission
-      syncBroadcaster.runOneTimeSync()
+      if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
+        context.showToast(
+          context.getString(R.string.sync_in_progress),
+          android.widget.Toast.LENGTH_SHORT
+        )
+      } else {
+        syncBroadcaster.runOneTimeSync()
+      }
     }
   }
 
