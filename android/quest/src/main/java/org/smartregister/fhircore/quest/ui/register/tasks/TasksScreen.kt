@@ -206,6 +206,7 @@ fun PendingTasksScreen(
     navController: NavController,
     isOnline: Boolean,
 ) {
+    val context = LocalContext.current
     val lazyListState: LazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val bottomSheetState = rememberModalBottomSheetState(
@@ -327,6 +328,13 @@ fun PendingTasksScreen(
                         onSync = {
                             viewModel.appMainEvent = it
                             viewModel.setShowDialog(true)
+                            if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         },
                         toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
                         isOnline = isOnline,
@@ -407,8 +415,6 @@ fun PendingTasksScreen(
                         val newTasks by viewModel.newTasksStateFlow.collectAsState()
                         val pendingTasks by viewModel.pendingTasksStateFlow.collectAsState()
                         val completedTasks by viewModel.completedTasksStateFlow.collectAsState()
-
-                        val context = LocalContext.current
 
                         //viewModel.imageCount = unSyncedImagesCount
                         //viewModel.unsyncedPatientsCount = unSyncedPatientsCount.size
@@ -612,24 +618,32 @@ fun PendingTasksScreen(
                         viewModel.setShowDialog(false)
                     },
                     onConfirm = {
-                        viewModel.setShowDialog(false)
-                        PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
-                        if (!viewModel.permissionGranted.value) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            viewModel.setShowDialog(false)
+                            PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
+                            if (!viewModel.permissionGranted.value) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    viewModel.setPermissionGranted(true)
+                                    viewModel.appMainEvent?.let { mainEvent ->
+                                        appMainViewModel.onEvent(
+                                            mainEvent, true
+                                        )
+                                    }
+                                }
                             } else {
-                                viewModel.setPermissionGranted(true)
                                 viewModel.appMainEvent?.let { mainEvent ->
                                     appMainViewModel.onEvent(
                                         mainEvent, true
                                     )
                                 }
-                            }
-                        } else {
-                            viewModel.appMainEvent?.let { mainEvent ->
-                                appMainViewModel.onEvent(
-                                    mainEvent, true
-                                )
                             }
                         }
                     })

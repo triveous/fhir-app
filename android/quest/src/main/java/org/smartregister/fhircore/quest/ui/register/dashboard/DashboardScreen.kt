@@ -117,6 +117,8 @@ fun DashboardScreen(
     viewModel.setPostHogUserProperties()
   }
 
+  val context = androidx.compose.ui.platform.LocalContext.current
+
   val launcher = rememberLauncherForActivityResult(
     ActivityResultContracts.RequestPermission()
   ) { isGranted: Boolean ->
@@ -182,6 +184,13 @@ fun DashboardScreen(
             onSync = {
               viewModel.appMainEvent = it
               viewModel.setShowDialog(true)
+              if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
+                android.widget.Toast.makeText(
+                  context,
+                  context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                  android.widget.Toast.LENGTH_SHORT
+                ).show()
+              }
             },
             toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
             isOnline = isOnline,
@@ -493,17 +502,25 @@ fun DashboardScreen(
             viewModel.setShowDialog(false)
           },
           onConfirm = {
-            viewModel.setShowDialog(false)
-            PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
-            if (!viewModel.permissionGranted.value) {
-              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-              } else {
-                viewModel.setPermissionGranted(true)
+            if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
+              android.widget.Toast.makeText(
+                context,
+                context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                android.widget.Toast.LENGTH_SHORT
+              ).show()
+            } else {
+              viewModel.setShowDialog(false)
+              PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
+              if (!viewModel.permissionGranted.value) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                  launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                  viewModel.setPermissionGranted(true)
+                  viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+                }
+              }else{
                 viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
               }
-            }else{
-              viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
             }
           }
         )

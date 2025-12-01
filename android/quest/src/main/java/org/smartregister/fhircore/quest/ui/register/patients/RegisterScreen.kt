@@ -72,6 +72,7 @@ import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
+import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
@@ -115,6 +116,7 @@ fun RegisterScreen(
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
     val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
     val isShowPendingSyncBanner by viewModel.isShowPendingSyncBanner.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.isShowPendingSyncBanner()
@@ -176,8 +178,16 @@ fun RegisterScreen(
                 dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
                 onDismiss = { viewModel.setShowDialog(false) },
                 onConfirm = {
-                    viewModel.setShowDialog(false)
-                    handleSyncConfirm(viewModel, appMainViewModel, launcher)
+                    if (AppSyncWorker.mutex.isLocked) {
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        viewModel.setShowDialog(false)
+                        handleSyncConfirm(viewModel, appMainViewModel, launcher)
+                    }
                 },
             )
         }
@@ -193,6 +203,7 @@ private fun RegisterTopBar(
     unSyncedImagesCount: Int,
     unSyncedPatientsCount: List<Any>,
 ) {
+    val context = LocalContext.current
     Column(Modifier.background(ANTI_FLASH_WHITE)) {
         TopScreenSection(
             modifier = modifier.testTag(TOP_REGISTER_SCREEN_TEST_TAG),
@@ -203,6 +214,13 @@ private fun RegisterTopBar(
                 viewModel.appMainEvent = it
                 viewModel.setShowDialog(true)
                 viewModel.setPostHogUserProperties()
+                if (AppSyncWorker.mutex.isLocked) {
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
             },
         ) { _ -> }
 
@@ -242,6 +260,13 @@ private fun PendingSyncBanner(viewModel: RegisterViewModel) {
                     viewModel.appMainEvent = AppMainEvent.SyncData(context)
                     viewModel.setShowDialog(true)
                     viewModel.setPostHogUserProperties()
+                    if (AppSyncWorker.mutex.isLocked) {
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
                 },
             ) {
                 Text(
