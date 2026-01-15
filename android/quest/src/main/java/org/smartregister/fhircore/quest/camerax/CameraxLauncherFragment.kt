@@ -88,7 +88,10 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var zoomSeekBar: CustomSeekBar
 
     private var fileAbsPath: String = ""
-    var module : Module? = null
+    var module6 : Module? = null
+    var module8 : Module? = null
+    var module82 : Module? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         //setStyle(STYLE_NO_FRAME, android.R.style.Theme_Holo_Light)
@@ -175,7 +178,9 @@ class CameraxLauncherFragment : DialogFragment() {
 
     private fun initModel() {
         try {
-            module =  Module.load(getAssetPath(requireContext(), "model6.pt"))
+            module6 = Module.load(getAssetPath(requireContext(), "model6.pt"))
+            module8 = Module.load(getAssetPath(requireContext(), "model8.pt"))
+            module82 = Module.load(getAssetPath(requireContext(), "model82.pt"))
         } catch (e: Exception) {
             Log.e("OCS", "Error reading assets", e)
         } finally {
@@ -421,7 +426,7 @@ class CameraxLauncherFragment : DialogFragment() {
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
-    private fun processImage(absolutePath: String): Pair<String, String>? {
+    private fun processImage(absolutePath: String): Map<String, Any>? {
         //val processStartTime = System.currentTimeMillis()
         try {
             val processedImage = OpenCVUtils.decodeFileToMat(absolutePath) ?: throw IllegalArgumentException("Failed to decode image")
@@ -433,19 +438,45 @@ class CameraxLauncherFragment : DialogFragment() {
 
             val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(processedImage, mean, std)
             val bgrTensor = convertRGBtoBGR(inputTensor) ?: throw IllegalStateException("Failed to convert RGB to BGR")
-            val outputTensor = module?.forward(IValue.from(bgrTensor))?.toTensor() ?: throw IllegalStateException("Module is null or forward operation failed")
-            var scores = outputTensor.dataAsFloatArray[0]
-            //Sigmoid
-            scores = 1 / (1 + exp(-scores))
-            val prediction = if (scores > 0.5f) 1 else 0
-            val className = classes.diseases[prediction]
-            val confidence = if (prediction == 1) (scores * 100).toString() else ((1 - scores) * 100).toString()
+            val inputIValue = IValue.from(bgrTensor)
 
-//            val processEndTime = System.currentTimeMillis()
-//            val processTimeSec = (processEndTime - processStartTime)
-//            val imageName = File(absolutePath).name
+            val runInference = { module: Module?, name: String ->
+                val outputTensor = module?.forward(inputIValue)?.toTensor()
+                    ?: throw IllegalStateException("Module $name is null or forward operation failed")
+                var scores = outputTensor.dataAsFloatArray[0]
+                scores = 1 / (1 + exp(-scores))
+                val prediction = if (scores > 0.5f) 1 else 0
+                val className = classes.diseases[prediction]
+                val confidence = if (prediction == 1) (scores * 100).toString() else ((1 - scores) * 100).toString()
+                Triple(prediction == 1, className, confidence)
+            }
 
-            return Pair(className, confidence)
+            val result6 = runInference(module6, "model6")
+            val result8 = runInference(module8, "model8")
+            val result82 = runInference(module82, "model82")
+
+            val allSuspicious = result6.first && result8.first && result82.first
+            val finalPrediction = if (allSuspicious) 1 else 0
+            val finalClassName = classes.diseases[finalPrediction]
+            
+            // Average confidence of the 3 models? Or just pass them all. 
+            // For the main display, we can use the average or the lowest (most conservative).
+            // Let's use average of "suspicious" score for simplicity if needed, or just "" since individual matters.
+            // But we need to return something for CAMERA_CONFIDENCE_KEY.
+            // Let's return the string "Combined" or average.
+            val finalConfidence = "See details" // Placeholder or calculation
+
+            return mapOf(
+                CAMERA_PREDICTION_KEY to finalClassName,
+                CAMERA_CONFIDENCE_KEY to finalConfidence,
+                "model6_prediction" to result6.second,
+                "model6_confidence" to result6.third,
+                "model8_prediction" to result8.second,
+                "model8_confidence" to result8.third,
+                "model82_prediction" to result82.second,
+                "model82_confidence" to result82.third
+            )
+
         } catch (e: Exception) {
             Log.d("Error", "Error processing image ${e.printStackTrace()}")
             return null
@@ -465,12 +496,26 @@ class CameraxLauncherFragment : DialogFragment() {
         setOnClickListener(safeClickListener)
     }
     private fun onPhotoSelected(absolutePath : String){
-        val score = processImage(fileAbsPath)
+        val resultMap = processImage(fileAbsPath)
         requireActivity().runOnUiThread {
             setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
                 putString(CAMERA_RESULT_URI_KEY, absolutePath)
-                putString(CAMERA_PREDICTION_KEY, "${score?.first ?: "Error in processing"}")
-                putString(CAMERA_CONFIDENCE_KEY, "${score?.second ?: "Error in processing"}")
+                if (resultMap != null) {
+                    putString(CAMERA_PREDICTION_KEY, resultMap[CAMERA_PREDICTION_KEY] as String)
+                    putString(CAMERA_CONFIDENCE_KEY, resultMap[CAMERA_CONFIDENCE_KEY] as String)
+                    
+                    putString(CAMERA_MODEL6_PREDICTION_KEY, resultMap["model6_prediction"] as String)
+                    putString(CAMERA_MODEL6_CONFIDENCE_KEY, resultMap["model6_confidence"] as String)
+                    
+                    putString(CAMERA_MODEL8_PREDICTION_KEY, resultMap["model8_prediction"] as String)
+                    putString(CAMERA_MODEL8_CONFIDENCE_KEY, resultMap["model8_confidence"] as String)
+                    
+                    putString(CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"] as String)
+                    putString(CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"] as String)
+                } else {
+                     putString(CAMERA_PREDICTION_KEY, "Error")
+                     putString(CAMERA_CONFIDENCE_KEY, "Error")
+                }
                 putBoolean(CAMERA_RESULT_KEY, true)
             })
             requireActivity().showToast("Image processed successfully", Toast.LENGTH_SHORT)
@@ -491,6 +536,13 @@ class CameraxLauncherFragment : DialogFragment() {
         const val CAMERA_RESULT_URI_KEY = "camera_result_uri"
         const val CAMERA_PREDICTION_KEY = "camera_prediction"
         const val CAMERA_CONFIDENCE_KEY = "camera_confidence"
+        
+        const val CAMERA_MODEL6_PREDICTION_KEY = "camera_model6_prediction"
+        const val CAMERA_MODEL6_CONFIDENCE_KEY = "camera_model6_confidence"
+        const val CAMERA_MODEL8_PREDICTION_KEY = "camera_model8_prediction"
+        const val CAMERA_MODEL8_CONFIDENCE_KEY = "camera_model8_confidence"
+        const val CAMERA_MODEL82_PREDICTION_KEY = "camera_model82_prediction"
+        const val CAMERA_MODEL82_CONFIDENCE_KEY = "camera_model82_confidence"
 
         fun newInstance(): CameraxLauncherFragment {
             return CameraxLauncherFragment()
