@@ -306,438 +306,731 @@ internal object CustomAttachmentViewHolderFactory :
                 photoTitle.text = ""
             }
 
-            private fun onTakePhotoClicked(
-                view: View,
-                questionnaireItem: Questionnaire.QuestionnaireItemComponent
-            ) {
-                context.supportFragmentManager.setFragmentResultListener(
-                    CameraLauncherFragment.CAMERA_RESULT_KEY,
-                    context,
-                ) { _, result ->
-                    val isSaved = result.getBoolean(CameraLauncherFragment.CAMERA_RESULT_KEY)
-                    if (!isSaved) return@setFragmentResultListener
+                        private fun onTakePhotoClicked(
+                            view: View,
+                            questionnaireItem: Questionnaire.QuestionnaireItemComponent
 
-                    val fileAbsolutePath =
-                        result.getString(CameraxLauncherFragment.CAMERA_RESULT_URI_KEY)
-                    val predictionResult =
-                        result.getString(CameraxLauncherFragment.CAMERA_PREDICTION_KEY)
-                    val confidence = result.getString(CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY)
+                        ) {
+                            context.supportFragmentManager.setFragmentResultListener(
+                                CameraxLauncherFragment.CAMERA_RESULT_KEY,
+                                context,
 
-                    if (!fileAbsolutePath.isNullOrEmpty()) {
-                        try {
-                            val capturedFile = File(fileAbsolutePath)
-                            val attachmentUri =
-                                FileProvider.getUriForFile(
-                                    context,
-                                    "${context.packageName}.fileprovider",
-                                    capturedFile
-                                )
-                            val attachmentMimeTypeWithSubType =
-                                context.getMimeTypeFromUri(attachmentUri)
-                            val attachmentMimeType = getMimeType(attachmentMimeTypeWithSubType)
-                            if (!questionnaireItem.hasMimeType(attachmentMimeType)) {
-                                displayError(R.string.mime_type_wrong_media_format_validation_error_msg)
-                                displaySnackbar(view, R.string.upload_failed)
-                                capturedFile.delete()
-                                return@setFragmentResultListener
+                            ) { _, result ->
+                                val isSaved = result.getBoolean(CameraxLauncherFragment.CAMERA_RESULT_KEY)
+                                if (!isSaved) return@setFragmentResultListener
+                                val fileAbsolutePath =
+                                    result.getString(CameraxLauncherFragment.CAMERA_RESULT_URI_KEY)
+                                val predictionResult =
+                                    result.getString(CameraxLauncherFragment.CAMERA_PREDICTION_KEY)
+                                val confidence = result.getString(CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY)
+                                val model6Prediction = result.getString(CameraxLauncherFragment.CAMERA_MODEL6_PREDICTION_KEY)
+                                val model6Confidence = result.getString(CameraxLauncherFragment.CAMERA_MODEL6_CONFIDENCE_KEY)
+                                val model8Prediction = result.getString(CameraxLauncherFragment.CAMERA_MODEL8_PREDICTION_KEY)
+                                val model8Confidence = result.getString(CameraxLauncherFragment.CAMERA_MODEL8_CONFIDENCE_KEY)
+                                val model82Prediction = result.getString(CameraxLauncherFragment.CAMERA_MODEL82_PREDICTION_KEY)
+                                val model82Confidence = result.getString(CameraxLauncherFragment.CAMERA_MODEL82_CONFIDENCE_KEY)
+
+                                if (!fileAbsolutePath.isNullOrEmpty()) {
+                                    try {
+                                        val capturedFile = File(fileAbsolutePath)
+                                        val attachmentUri =
+                                            FileProvider.getUriForFile(
+                                                context,
+                                                "${context.packageName}.fileprovider",
+                                                capturedFile
+                                            )
+                                        val attachmentMimeTypeWithSubType =
+                                            context.getMimeTypeFromUri(attachmentUri)
+                                        val attachmentMimeType = getMimeType(attachmentMimeTypeWithSubType)
+                                        if (!questionnaireItem.hasMimeType(attachmentMimeType)) {
+                                            displayError(R.string.mime_type_wrong_media_format_validation_error_msg)
+                                            displaySnackbar(view, R.string.upload_failed)
+                                            capturedFile.delete()
+                                            return@setFragmentResultListener
+                                        }
+
+                                        // Create a document reference to store the file later and use the document ref
+                                        // permanent link in attachment url
+                                        val doc = createDocumentReference(
+                                            attachmentUri,
+                                            attachmentMimeTypeWithSubType
+                                        ).apply {
+                                            // Add AI Model results to DocumentReference
+                                            if (!model6Prediction.isNullOrEmpty()) {
+                                                addExtension(MODEL6_PREDICTION_URL, StringType(model6Prediction))
+                                                addExtension(MODEL6_CONFIDENCE_URL, StringType(model6Confidence))
+                                            }
+
+                                            if (!model8Prediction.isNullOrEmpty()) {
+                                                addExtension(MODEL8_PREDICTION_URL, StringType(model8Prediction))
+                                                addExtension(MODEL8_CONFIDENCE_URL, StringType(model8Confidence))
+                                            }
+
+                                            if (!model82Prediction.isNullOrEmpty()) {
+                                                addExtension(MODEL82_PREDICTION_URL, StringType(model82Prediction))
+                                                addExtension(MODEL82_CONFIDENCE_URL, StringType(model82Confidence))
+                                            }
+                                        }
+
+                                        val answer =
+                                            QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                                                .apply {
+                                                    addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL, StringType(predictionResult.orEmpty()))
+                                                    addExtension(CONFIDENCE_PERCENTAGE_URL, StringType(confidence))
+
+                                                    if (!model6Prediction.isNullOrEmpty()) {
+                                                        addExtension(MODEL6_PREDICTION_URL, StringType(model6Prediction))
+                                                        addExtension(MODEL6_CONFIDENCE_URL, StringType(model6Confidence))
+                                                    }
+
+                                                    if (!model8Prediction.isNullOrEmpty()) {
+                                                        addExtension(MODEL8_PREDICTION_URL, StringType(model8Prediction))
+                                                        addExtension(MODEL8_CONFIDENCE_URL, StringType(model8Confidence))
+                                                    }
+
+                                                    if (!model82Prediction.isNullOrEmpty()) {
+                                                        addExtension(MODEL82_PREDICTION_URL, StringType(model82Prediction))
+                                                        addExtension(MODEL82_CONFIDENCE_URL, StringType(model82Confidence))
+                                                    }
+
+                                                    value =
+                                                        Attachment().apply {
+                                                            contentType = attachmentMimeTypeWithSubType
+                                                            url = doc.getUrl(sharedPreferencesHelper)
+                                                            title = capturedFile.name
+                                                            creation = Date()
+                                                        }
+                                                }
+
+            
+
+                                        //Suspicious/NonSuspicious
+                                        questionnaireItem.addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL,StringType(predictionResult))
+
+                                        //Confidence percentage
+                                        questionnaireItem.addExtension(CONFIDENCE_PERCENTAGE_URL,StringType(confidence))
+
+                                        // Add individual model results to questionnaire item
+                                        if (!model6Prediction.isNullOrEmpty()) {
+                                            questionnaireItem.addExtension(MODEL6_PREDICTION_URL, StringType(model6Prediction))
+                                            questionnaireItem.addExtension(MODEL6_CONFIDENCE_URL, StringType(model6Confidence))
+                                        }
+
+                                        if (!model8Prediction.isNullOrEmpty()) {
+                                            questionnaireItem.addExtension(MODEL8_PREDICTION_URL, StringType(model8Prediction))
+                                            questionnaireItem.addExtension(MODEL8_CONFIDENCE_URL, StringType(model8Confidence))
+                                        }
+
+                                        if (!model82Prediction.isNullOrEmpty()) {
+                                            questionnaireItem.addExtension(MODEL82_PREDICTION_URL, StringType(model82Prediction))
+                                            questionnaireItem.addExtension(MODEL82_CONFIDENCE_URL, StringType(model82Confidence))
+                                        }
+
+                                        context.lifecycleScope.launch {
+                                            FhirEngineProvider.getInstance(context.applicationContext)
+                                                .create(doc)
+                                            questionnaireViewItem.setAnswer(answer)
+                                            divider.visibility = View.VISIBLE
+                                            displayPreview(
+                                                attachmentType = attachmentMimeType,
+                                                attachmentTitle = "RESULT : $predictionResult",
+                                                attachmentUri = attachmentUri,
+                                                questionnaireItem = questionnaireItem
+                                            )
+
+                                            //setAnswerFromAI(predictionResult,confidence)
+                                            displaySnackbarOnUpload(view, attachmentMimeType)
+                                        }
+
+                                    } catch (e: Exception) {
+                                        Timber.i("TAG", "error --> " + e.printStackTrace())
+                                        e.printStackTrace()
+                                    }
+
+                                } else {
+                                    displaySnackbar(view, R.string.image_capture_failed)
+                                }
                             }
 
-                            // Create a document reference to store the file later and use the document ref
-                            // permanent link in attachment url
-                            val doc = createDocumentReference(
-                                attachmentUri,
-                                attachmentMimeTypeWithSubType
-                            )
-                            val answer =
-                                QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
-                                    .apply {
-                                        extension = listOf(
-                                            addExtension().apply {
-                                                url = SUSPICIOUS_NON_SUSPICIOUS_URL
-                                                setValue(StringType(predictionResult.orEmpty()))
-                                            },
-                                            addExtension().apply {
-                                                url = CONFIDENCE_PERCENTAGE_URL
-                                                setValue(StringType(confidence))
-                                            }
-                                        )
+                            CameraxLauncherFragment.newInstance()
+                                .show(
+                                    context.supportFragmentManager,
+                                    CustomAttachmentViewHolderFactory::class.java.simpleName
+                                )
+                        }
+
+            
+
+                        private fun onUploadClicked(
+                            view: View,
+                            questionnaireItem: Questionnaire.QuestionnaireItemComponent
+                        ) {
+                            context.supportFragmentManager.setFragmentResultListener(
+                                OpenDocumentLauncherFragment.OPEN_DOCUMENT_RESULT_KEY,
+                                context,
+                            ) { _, result ->
+                                val attachmentUri =
+                                    (result.get(OpenDocumentLauncherFragment.OPEN_DOCUMENT_RESULT_KEY)
+                                        ?: return@setFragmentResultListener)
+                                            as Uri
+                                val attachmentByteArray = context.readBytesFromUri(attachmentUri)
+                                if (questionnaireItem.isGivenSizeOverLimit(attachmentByteArray.size.toBigDecimal())) {
+                                    displayError(
+                                        R.string.max_size_file_above_limit_validation_error_msg,
+                                        questionnaireItem.maxSizeInMiBs,
+                                    )
+
+                                    displaySnackbar(view, R.string.upload_failed)
+                                    return@setFragmentResultListener
+                                }
+
+                                val attachmentMimeTypeWithSubType = context.getMimeTypeFromUri(attachmentUri)
+                                val attachmentMimeType = getMimeType(attachmentMimeTypeWithSubType)
+                                if (!questionnaireItem.hasMimeType(attachmentMimeType)) {
+                                    displayError(R.string.mime_type_wrong_media_format_validation_error_msg)
+                                    displaySnackbar(view, R.string.upload_failed)
+                                    return@setFragmentResultListener
+                                }
+
+                                val attachmentTitle = getFileName(attachmentUri)
+                                // Create a document reference to store the file later and use the document ref
+                                // permanent link in attachment url
+                                val doc = createDocumentReference(attachmentUri, attachmentMimeTypeWithSubType)
+                                val answer =
+                                    QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
                                         value =
                                             Attachment().apply {
                                                 contentType = attachmentMimeTypeWithSubType
                                                 url = doc.getUrl(sharedPreferencesHelper)
-                                                title = capturedFile.name
+                                                title = attachmentTitle
                                                 creation = Date()
+                                                language=""
                                             }
                                     }
 
+                                context.lifecycleScope.launch {
+                                    FhirEngineProvider.getInstance(context.applicationContext).create(doc)
+                                    questionnaireViewItem.setAnswer(answer)
+                                    divider.visibility = View.VISIBLE
+                                    displayPreview(
+                                        attachmentType = attachmentMimeType,
+                                        attachmentTitle = attachmentTitle,
+                                        attachmentUri = attachmentUri,
+                                        questionnaireItem = questionnaireItem
+                                    )
+                                    displaySnackbarOnUpload(view, attachmentMimeType)
+                                }
+                            }
+                            OpenDocumentLauncherFragment()
+                                .apply {
+                                    arguments =
+                                        bundleOf(EXTRA_MIME_TYPE_KEY to questionnaireItem.mimeTypes.toTypedArray())
+                                }
+                                .show(
+                                    context.supportFragmentManager,
+                                    CustomAttachmentViewHolderFactory::class.java.simpleName
+                                )
+                        }
+
+            
+
+                        private fun displayPreview(
+                            attachmentType: String,
+                            attachmentTitle: String,
+                            attachmentByteArray: ByteArray? = null,
+                            attachmentUri: Uri? = null,
+                            questionnaireItem: Questionnaire.QuestionnaireItemComponent? = null,
+                        ) {
+                            when (attachmentType) {
+                                MimeType.AUDIO.value -> {
+                                    loadFilePreview(
+                                        com.google.android.fhir.datacapture.R.drawable.ic_audio_file,
+                                        attachmentTitle
+                                    )
+                                    clearPhotoPreview()
+                                }
+
+                                MimeType.DOCUMENT.value -> {
+                                    loadFilePreview(
+                                        com.google.android.fhir.datacapture.R.drawable.ic_document_file,
+                                        attachmentTitle
+                                    )
+                                    clearPhotoPreview()
+                                }
+
+                                MimeType.IMAGE.value -> {
+                                    if (attachmentByteArray != null) {
+                                        loadPhotoPreview(attachmentByteArray, attachmentTitle)
+                                    } else if (attachmentUri != null) {
+                                        loadPhotoPreview(attachmentUri, attachmentTitle,questionnaireItem)
+                                    }
+                                    clearFilePreview()
+                                }
+
+                                MimeType.VIDEO.value -> {
+                                    loadFilePreview(
+                                        com.google.android.fhir.datacapture.R.drawable.ic_video_file,
+                                        attachmentTitle
+                                    )
+                                    clearPhotoPreview()
+                                }
+                            }
+                        }
+
+            
+
+                        private fun loadFilePreview(@DrawableRes iconResource: Int, title: String) {
+
+                            filePreview.visibility = View.VISIBLE
+
+                            Glide.with(context).load(iconResource).into(fileIcon)
+
+                            fileTitle.text = title
+
+                        }
+
+            
+
+                        private fun clearFilePreview() {
+
+                            filePreview.visibility = View.GONE
+
+                            Glide.with(context).clear(fileIcon)
+
+                            fileTitle.text = ""
+
+                        }
+
+            
+
+                        private fun loadPhotoPreview(byteArray: ByteArray, title: String) {
+
+                            photoPreview.visibility = View.VISIBLE
+
+                            Glide.with(context).load(byteArray).into(photoThumbnail)
+
+                            photoTitle.text = title
+
+                        }
+
+            
+
+                        private fun loadPhotoPreview(uri: Uri, photoTitle: String,questionnaireItem: Questionnaire.QuestionnaireItemComponent?) {
+
+                            photoPreview.visibility = View.VISIBLE
+
+                            Glide.with(context).load(uri).into(photoThumbnail)
+
+                            this.photoTitle.text = photoTitle
+
+            
+
                             //Suspicious/NonSuspicious
-                            questionnaireItem.addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL,StringType(predictionResult))
+
+                            val result =questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
 
                             //Confidence percentage
-                            questionnaireItem.addExtension(CONFIDENCE_PERCENTAGE_URL,StringType(confidence))
+
+                            val confidence = questionnaireItem?.getExtensionString(CONFIDENCE_PERCENTAGE_URL)
+
+                            //setAnswerFromAI(result,confidence)
+
+                        }
+
+            
+
+                        private fun setAnswerFromAI(predictionResult: String?, confidence: String?) {
+
+                            predictionResult?.isNotEmpty().let {
+
+                                photoResult.text = context.getString(R.string.result,predictionResult)
+
+                            }
+
+                            confidence?.isNotEmpty().let {
+
+                                photoConfidence.text = context.getString(R.string.confidence,confidence)
+
+                            }
+
+                        }
+
+            
+
+                        private fun clearPhotoPreview() {
+
+                            photoPreview.visibility = View.GONE
+
+                            Glide.with(context).clear(photoThumbnail)
+
+                            photoTitle.text = ""
+
+                        }
+
+            
+
+                        private fun onDeleteClicked(view: View) {
 
                             context.lifecycleScope.launch {
-                                FhirEngineProvider.getInstance(context.applicationContext)
-                                    .create(doc)
-                                questionnaireViewItem.setAnswer(answer)
-                                divider.visibility = View.VISIBLE
-                                displayPreview(
-                                    attachmentType = attachmentMimeType,
-                                    attachmentTitle = "RESULT : $predictionResult",
-                                    attachmentUri = attachmentUri,
-                                    questionnaireItem = questionnaireItem
+
+                                questionnaireViewItem.clearAnswer()
+
+                                divider.visibility = View.GONE
+
+                                clearPhotoPreview()
+
+                                clearFilePreview()
+
+                                displaySnackbarOnDelete(
+
+                                    view,
+
+                                    getMimeType(questionnaireViewItem.answers.first().valueAttachment.contentType),
+
                                 )
-                                //setAnswerFromAI(predictionResult,confidence)
-                                displaySnackbarOnUpload(view, attachmentMimeType)
+
                             }
-                        } catch (e: Exception) {
-                            Timber.i("TAG", "error --> " + e.printStackTrace())
-                            e.printStackTrace()
+
                         }
-                    } else {
-                        displaySnackbar(view, R.string.image_capture_failed)
-                    }
-                }
 
-                CameraxLauncherFragment.newInstance()
-                    .show(
-                        context.supportFragmentManager,
-                        CustomAttachmentViewHolderFactory::class.java.simpleName
-                    )
-            }
+            
 
-            private fun onUploadClicked(
-                view: View,
-                questionnaireItem: Questionnaire.QuestionnaireItemComponent
-            ) {
-                context.supportFragmentManager.setFragmentResultListener(
-                    OpenDocumentLauncherFragment.OPEN_DOCUMENT_RESULT_KEY,
-                    context,
-                ) { _, result ->
-                    val attachmentUri =
-                        (result.get(OpenDocumentLauncherFragment.OPEN_DOCUMENT_RESULT_KEY)
-                            ?: return@setFragmentResultListener)
-                                as Uri
+                        private fun displaySnackbar(view: View, @StringRes textResource: Int) {
 
-                    val attachmentByteArray = context.readBytesFromUri(attachmentUri)
-                    if (questionnaireItem.isGivenSizeOverLimit(attachmentByteArray.size.toBigDecimal())) {
-                        displayError(
-                            R.string.max_size_file_above_limit_validation_error_msg,
-                            questionnaireItem.maxSizeInMiBs,
-                        )
-                        displaySnackbar(view, R.string.upload_failed)
-                        return@setFragmentResultListener
-                    }
+                            Snackbar.make(view, context.getString(textResource), Snackbar.LENGTH_SHORT).show()
 
-                    val attachmentMimeTypeWithSubType = context.getMimeTypeFromUri(attachmentUri)
-                    val attachmentMimeType = getMimeType(attachmentMimeTypeWithSubType)
-                    if (!questionnaireItem.hasMimeType(attachmentMimeType)) {
-                        displayError(R.string.mime_type_wrong_media_format_validation_error_msg)
-                        displaySnackbar(view, R.string.upload_failed)
-                        return@setFragmentResultListener
-                    }
+                        }
 
-                    val attachmentTitle = getFileName(attachmentUri)
-                    // Create a document reference to store the file later and use the document ref
-                    // permanent link in attachment url
-                    val doc = createDocumentReference(attachmentUri, attachmentMimeTypeWithSubType)
-                    val answer =
-                        QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
-                            value =
-                                Attachment().apply {
-                                    contentType = attachmentMimeTypeWithSubType
-                                    url = doc.getUrl(sharedPreferencesHelper)
-                                    title = attachmentTitle
-                                    creation = Date()
-                                    language=""
+            
+
+                        private fun displaySnackbarOnUpload(view: View, attachmentType: String) {
+
+                            when (attachmentType) {
+
+                                MimeType.AUDIO.value -> {
+
+                                    displaySnackbar(view, R.string.audio_uploaded)
+
                                 }
+
+            
+
+                                MimeType.DOCUMENT.value -> {
+
+                                    displaySnackbar(
+
+                                        view,
+
+                                        com.google.android.fhir.datacapture.R.string.file_uploaded
+
+                                    )
+
+                                }
+
+            
+
+                                MimeType.IMAGE.value -> {
+
+            //            displaySnackbar(view, com.google.android.fhir.datacapture.R.string.image_uploaded)
+
+                                    displaySnackbar(view, R.string.image_saved)
+
+                                }
+
+            
+
+                                MimeType.VIDEO.value -> {
+
+                                    displaySnackbar(view, R.string.video_uploaded)
+
+                                }
+
+                            }
+
                         }
-                    context.lifecycleScope.launch {
-                        FhirEngineProvider.getInstance(context.applicationContext).create(doc)
-                        questionnaireViewItem.setAnswer(answer)
 
-                        divider.visibility = View.VISIBLE
-                        displayPreview(
-                            attachmentType = attachmentMimeType,
-                            attachmentTitle = attachmentTitle,
-                            attachmentUri = attachmentUri,
-                            questionnaireItem = questionnaireItem
-                        )
-                        displaySnackbarOnUpload(view, attachmentMimeType)
-                    }
-                }
+            
 
-                OpenDocumentLauncherFragment()
-                    .apply {
-                        arguments =
-                            bundleOf(EXTRA_MIME_TYPE_KEY to questionnaireItem.mimeTypes.toTypedArray())
-                    }
-                    .show(
-                        context.supportFragmentManager,
-                        CustomAttachmentViewHolderFactory::class.java.simpleName
-                    )
-            }
+                        private fun displaySnackbarOnDelete(view: View, attachmentType: String) {
 
-            private fun displayPreview(
-                attachmentType: String,
-                attachmentTitle: String,
-                attachmentByteArray: ByteArray? = null,
-                attachmentUri: Uri? = null,
-                questionnaireItem: Questionnaire.QuestionnaireItemComponent? = null,
-            ) {
-                when (attachmentType) {
-                    MimeType.AUDIO.value -> {
-                        loadFilePreview(
-                            com.google.android.fhir.datacapture.R.drawable.ic_audio_file,
-                            attachmentTitle
-                        )
-                        clearPhotoPreview()
-                    }
+                            when (attachmentType) {
 
-                    MimeType.DOCUMENT.value -> {
-                        loadFilePreview(
-                            com.google.android.fhir.datacapture.R.drawable.ic_document_file,
-                            attachmentTitle
-                        )
-                        clearPhotoPreview()
-                    }
+                                MimeType.AUDIO.value -> {
 
-                    MimeType.IMAGE.value -> {
-                        if (attachmentByteArray != null) {
-                            loadPhotoPreview(attachmentByteArray, attachmentTitle)
-                        } else if (attachmentUri != null) {
-                            loadPhotoPreview(attachmentUri, attachmentTitle,questionnaireItem)
+                                    displaySnackbar(view, R.string.audio_deleted)
+
+                                }
+
+            
+
+                                MimeType.DOCUMENT.value -> {
+
+                                    displaySnackbar(
+
+                                        view,
+
+                                        com.google.android.fhir.datacapture.R.string.file_deleted
+
+                                    )
+
+                                }
+
+            
+
+                                MimeType.IMAGE.value -> {
+
+                                    displaySnackbar(
+
+                                        view,
+
+                                        com.google.android.fhir.datacapture.R.string.image_deleted
+
+                                    )
+
+                                }
+
+            
+
+                                MimeType.VIDEO.value -> {
+
+                                    displaySnackbar(view, R.string.video_deleted)
+
+                                }
+
+                            }
+
                         }
-                        clearFilePreview()
-                    }
 
-                    MimeType.VIDEO.value -> {
-                        loadFilePreview(
-                            com.google.android.fhir.datacapture.R.drawable.ic_video_file,
-                            attachmentTitle
-                        )
-                        clearPhotoPreview()
-                    }
-                }
-            }
+            
 
-            private fun loadFilePreview(@DrawableRes iconResource: Int, title: String) {
-                filePreview.visibility = View.VISIBLE
-                Glide.with(context).load(iconResource).into(fileIcon)
-                fileTitle.text = title
-            }
+                        private fun displayError(@StringRes textResource: Int) {
 
-            private fun clearFilePreview() {
-                filePreview.visibility = View.GONE
-                Glide.with(context).clear(fileIcon)
-                fileTitle.text = ""
-            }
+                            displayValidationResult(
 
-            private fun loadPhotoPreview(byteArray: ByteArray, title: String) {
-                photoPreview.visibility = View.VISIBLE
-                Glide.with(context).load(byteArray).into(photoThumbnail)
-                photoTitle.text = title
-            }
+                                Invalid(
 
-            private fun loadPhotoPreview(uri: Uri, photoTitle: String,questionnaireItem: Questionnaire.QuestionnaireItemComponent?) {
-                photoPreview.visibility = View.VISIBLE
-                Glide.with(context).load(uri).into(photoThumbnail)
-                this.photoTitle.text = photoTitle
+                                    listOf(
 
-                //Suspicious/NonSuspicious
-                val result =questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
-                //Confidence percentage
-                val confidence = questionnaireItem?.getExtensionString(CONFIDENCE_PERCENTAGE_URL)
-                //setAnswerFromAI(result,confidence)
-            }
+                                        context.getString(
 
-            private fun setAnswerFromAI(predictionResult: String?, confidence: String?) {
-                predictionResult?.isNotEmpty().let {
-                    photoResult.text = context.getString(R.string.result,predictionResult)
-                }
-                confidence?.isNotEmpty().let {
-                    photoConfidence.text = context.getString(R.string.confidence,confidence)
-                }
-            }
+                                            textResource,
 
-            private fun clearPhotoPreview() {
-                photoPreview.visibility = View.GONE
-                Glide.with(context).clear(photoThumbnail)
-                photoTitle.text = ""
-            }
+                                        ),
 
-            private fun onDeleteClicked(view: View) {
-                context.lifecycleScope.launch {
-                    questionnaireViewItem.clearAnswer()
-                    divider.visibility = View.GONE
-                    clearPhotoPreview()
-                    clearFilePreview()
-                    displaySnackbarOnDelete(
-                        view,
-                        getMimeType(questionnaireViewItem.answers.first().valueAttachment.contentType),
-                    )
-                }
-            }
+                                    ),
 
-            private fun displaySnackbar(view: View, @StringRes textResource: Int) {
-                Snackbar.make(view, context.getString(textResource), Snackbar.LENGTH_SHORT).show()
-            }
+                                ),
 
-            private fun displaySnackbarOnUpload(view: View, attachmentType: String) {
-                when (attachmentType) {
-                    MimeType.AUDIO.value -> {
-                        displaySnackbar(view, R.string.audio_uploaded)
-                    }
-
-                    MimeType.DOCUMENT.value -> {
-                        displaySnackbar(
-                            view,
-                            com.google.android.fhir.datacapture.R.string.file_uploaded
-                        )
-                    }
-
-                    MimeType.IMAGE.value -> {
-//            displaySnackbar(view, com.google.android.fhir.datacapture.R.string.image_uploaded)
-                        displaySnackbar(view, R.string.image_saved)
-                    }
-
-                    MimeType.VIDEO.value -> {
-                        displaySnackbar(view, R.string.video_uploaded)
-                    }
-                }
-            }
-
-            private fun displaySnackbarOnDelete(view: View, attachmentType: String) {
-                when (attachmentType) {
-                    MimeType.AUDIO.value -> {
-                        displaySnackbar(view, R.string.audio_deleted)
-                    }
-
-                    MimeType.DOCUMENT.value -> {
-                        displaySnackbar(
-                            view,
-                            com.google.android.fhir.datacapture.R.string.file_deleted
-                        )
-                    }
-
-                    MimeType.IMAGE.value -> {
-                        displaySnackbar(
-                            view,
-                            com.google.android.fhir.datacapture.R.string.image_deleted
-                        )
-                    }
-
-                    MimeType.VIDEO.value -> {
-                        displaySnackbar(view, R.string.video_deleted)
-                    }
-                }
-            }
-
-            private fun displayError(@StringRes textResource: Int) {
-                displayValidationResult(
-                    Invalid(
-                        listOf(
-                            context.getString(
-                                textResource,
-                            ),
-                        ),
-                    ),
-                )
-            }
-
-            private fun displayError(@StringRes textResource: Int, vararg formatArgs: Any?) {
-                displayValidationResult(
-                    Invalid(
-                        listOf(
-                            context.getString(
-                                textResource,
-                                *formatArgs
                             )
-                        )
-                    )
-                )
-            }
 
-            private fun getFileName(uri: Uri): String {
-                var fileName = ""
-                val columns = arrayOf(OpenableColumns.DISPLAY_NAME)
-                context.contentResolver.query(uri, columns, null, null, null)?.use { cursor ->
-                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    cursor.moveToFirst()
-                    fileName = cursor.getString(nameIndex)
+                        }
+
+            
+
+                        private fun displayError(@StringRes textResource: Int, vararg formatArgs: Any?) {
+
+                            displayValidationResult(
+
+                                Invalid(
+
+                                    listOf(
+
+                                        context.getString(
+
+                                            textResource,
+
+                                            *formatArgs
+
+                                        )
+
+                                    )
+
+                                )
+
+                            )
+
+                        }
+
+            
+
+                        private fun getFileName(uri: Uri): String {
+
+                            var fileName = ""
+
+                            val columns = arrayOf(OpenableColumns.DISPLAY_NAME)
+
+                            context.contentResolver.query(uri, columns, null, null, null)?.use { cursor ->
+
+                                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+
+                                cursor.moveToFirst()
+
+                                fileName = cursor.getString(nameIndex)
+
+                            }
+
+                            return fileName
+
+                        }
+
+                    }
+
+            
+
+            
+
+                private fun createDocumentReference(attachmentUri: Uri, mimeType: String): DocumentReference {
+
+                    val doc = DocumentReference().apply {
+
+                        id = UUID.randomUUID().toString()
+
+                        addExtension(EXTENSION_FILE_LOCATION, StringType(attachmentUri.toString()))
+
+                        addContent().apply {
+
+                            attachment = Attachment().apply { contentType = mimeType }
+
+                        }
+
+                        date = Date()
+
+                        docStatus = DocumentReference.ReferredDocumentStatus.FINAL
+
+                        status = Enumerations.DocumentReferenceStatus.CURRENT
+
+                        description = "DRAFT"
+
+                    }
+
+                    return doc
+
                 }
-                return fileName
+
+            
+
+                private val IMAGE_FILES_BASE_URI: String =
+
+                    "content://${BuildConfig.APPLICATION_ID}.fileprovider/files/"
+
+                private val IMAGE_CACHE_BASE_URI: String =
+
+                    "content://${BuildConfig.APPLICATION_ID}.fileprovider/cache/"
+
+                val EXTRA_MIME_TYPE_KEY = "mime_type"
+
+                val EXTRA_SAVED_PHOTO_URI_KEY = "saved_photo_uri"
+
+            
+
+                fun matcher(questionnaireItem: Questionnaire.QuestionnaireItemComponent): Boolean {
+
+                    return questionnaireItem.type == Questionnaire.QuestionnaireItemType.ATTACHMENT
+
+                }
+
+            
+
             }
-        }
 
+            
 
-    private fun createDocumentReference(attachmentUri: Uri, mimeType: String): DocumentReference {
-        val doc = DocumentReference().apply {
-            id = UUID.randomUUID().toString()
-            addExtension(EXTENSION_FILE_LOCATION, StringType(attachmentUri.toString()))
-            addContent().apply {
-                attachment = Attachment().apply { contentType = mimeType }
+            private fun getMimeType(mimeType: String): String = mimeType.substringBefore("/")
+
+            
+
+            private fun Context.readBytesFromUri(uri: Uri): ByteArray {
+
+                return contentResolver.openInputStream(uri)?.use { it.buffered().readBytes() } ?: ByteArray(0)
+
             }
-            date = Date()
-            docStatus = DocumentReference.ReferredDocumentStatus.FINAL
-            status = Enumerations.DocumentReferenceStatus.CURRENT
-            description = "DRAFT"
-        }
-        return doc
-    }
 
-    private val IMAGE_FILES_BASE_URI: String =
-        "content://${BuildConfig.APPLICATION_ID}.fileprovider/files/"
-    private val IMAGE_CACHE_BASE_URI: String =
-        "content://${BuildConfig.APPLICATION_ID}.fileprovider/cache/"
-    val EXTRA_MIME_TYPE_KEY = "mime_type"
-    val EXTRA_SAVED_PHOTO_URI_KEY = "saved_photo_uri"
+            
 
-    fun matcher(questionnaireItem: Questionnaire.QuestionnaireItemComponent): Boolean {
-        return questionnaireItem.type == Questionnaire.QuestionnaireItemType.ATTACHMENT
-    }
+            private fun Context.getMimeTypeFromUri(uri: Uri): String {
 
-}
+                return contentResolver.getType(uri) ?: "*/*"
 
-private fun getMimeType(mimeType: String): String = mimeType.substringBefore("/")
+            }
 
-private fun Context.readBytesFromUri(uri: Uri): ByteArray {
-    return contentResolver.openInputStream(uri)?.use { it.buffered().readBytes() } ?: ByteArray(0)
-}
+            
 
-private fun Context.getMimeTypeFromUri(uri: Uri): String {
-    return contentResolver.getType(uri) ?: "*/*"
-}
+            
 
+            internal const val EXTENSION_MAX_SIZE = "http://hl7.org/fhir/StructureDefinition/maxSize"
 
-internal const val EXTENSION_MAX_SIZE = "http://hl7.org/fhir/StructureDefinition/maxSize"
-internal const val EXTENSION_FILE_LOCATION = "http://hl7.org/fhir/StructureDefinition/file-location"
+            internal const val EXTENSION_FILE_LOCATION = "http://hl7.org/fhir/StructureDefinition/file-location"
 
-/** The default maximum size of an attachment is 1 Mebibytes. */
-private val DEFAULT_SIZE = BigDecimal(1048576)
+            
 
-/** The maximum size of an attachment in Bytes. */
-internal val Questionnaire.QuestionnaireItemComponent.maxSizeInBytes: BigDecimal?
-    get() =
-        (extension.firstOrNull { it.url == EXTENSION_MAX_SIZE }?.valueAsPrimitive as DecimalType?)
-            ?.value
+            /** The default maximum size of an attachment is 1 Mebibytes. */
 
-private val BYTES_PER_MIB = BigDecimal(1048576)
+            private val DEFAULT_SIZE = BigDecimal(1048576)
 
-/** The maximum size of an attachment in Mebibytes. */
-internal val Questionnaire.QuestionnaireItemComponent.maxSizeInMiBs: BigDecimal?
-    get() = maxSizeInBytes?.div(BYTES_PER_MIB)
+            
 
-/** Returns true if given size is above maximum size allowed. */
-private fun Questionnaire.QuestionnaireItemComponent.isGivenSizeOverLimit(
-    size: BigDecimal,
-): Boolean {
-    return size > (maxSizeInBytes ?: DEFAULT_SIZE)
-}
+            /** The maximum size of an attachment in Bytes. */
 
-//private val DocumentReference.url
-//  get() = "${BuildConfig.FHIR_BASE_URL}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
+            internal val Questionnaire.QuestionnaireItemComponent.maxSizeInBytes: BigDecimal?
 
-fun DocumentReference.getUrl(sharedPreferencesHelper: SharedPreferencesHelper?): String {
-    return "${sharedPreferencesHelper?.getFhirBaseUrl()}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
-}
+                get() =
+
+                    (extension.firstOrNull { it.url == EXTENSION_MAX_SIZE }?.valueAsPrimitive as DecimalType?)
+
+                        ?.value
+
+            
+
+            private val BYTES_PER_MIB = BigDecimal(1048576)
+
+            
+
+            /** The maximum size of an attachment in Mebibytes. */
+
+            internal val Questionnaire.QuestionnaireItemComponent.maxSizeInMiBs: BigDecimal?
+
+                get() = maxSizeInBytes?.div(BYTES_PER_MIB)
+
+            
+
+            /** Returns true if given size is above maximum size allowed. */
+
+            private fun Questionnaire.QuestionnaireItemComponent.isGivenSizeOverLimit(
+
+                size: BigDecimal,
+
+            ): Boolean {
+
+                return size > (maxSizeInBytes ?: DEFAULT_SIZE)
+
+            }
+
+            
+
+            //private val DocumentReference.url
+
+            //  get() = "${BuildConfig.FHIR_BASE_URL}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
+
+            
+
+            fun DocumentReference.getUrl(sharedPreferencesHelper: SharedPreferencesHelper?): String {
+
+                return "${sharedPreferencesHelper?.getFhirBaseUrl()}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
+
+            }
+
+            
+
+            internal const val MODEL6_PREDICTION_URL = "http://smartregister.org/ai-model-result/model6-prediction"
+
+            internal const val MODEL6_CONFIDENCE_URL = "http://smartregister.org/ai-model-result/model6-confidence"
+
+            internal const val MODEL8_PREDICTION_URL = "http://smartregister.org/ai-model-result/model8-prediction"
+
+            internal const val MODEL8_CONFIDENCE_URL = "http://smartregister.org/ai-model-result/model8-confidence"
+
+            internal const val MODEL82_PREDICTION_URL = "http://smartregister.org/ai-model-result/model82-prediction"
+
+            internal const val MODEL82_CONFIDENCE_URL = "http://smartregister.org/ai-model-result/model82-confidence"
+
+            
