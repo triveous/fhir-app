@@ -38,10 +38,9 @@ fun ForegroundSyncDialog(
                 }
             },
             dismissButton = { // sync button
-                if (imageCount > 0 || patientsCount > 0) {
-                    TextButton(onClick = onConfirm) {
-                        Text(confirmButtonText, style = bodyMedium(16.sp))
-                    }
+                //Allowing users always have an option to trigger sync manually
+                TextButton(onClick = onConfirm) {
+                    Text(confirmButtonText, style = bodyMedium(16.sp))
                 }
             }
         )

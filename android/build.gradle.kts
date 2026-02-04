@@ -4,6 +4,8 @@ import org.jetbrains.dokka.base.DokkaBaseConfiguration
 
 
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
+import java.util.Properties
+
 buildscript {
   dependencies {
     classpath(libs.kotlin.gradle.plugin)
@@ -23,7 +25,7 @@ plugins {
   alias(libs.plugins.org.owasp.dependencycheck)
   alias(libs.plugins.com.diffplug.spotless) apply false
   alias(libs.plugins.android.junit5) apply false
-    alias(libs.plugins.jetbrainsKotlinAndroid) apply false
+  alias(libs.plugins.jetbrainsKotlinAndroid) apply false
 
 }
 
@@ -49,13 +51,28 @@ allprojects {
     //maven(url = "https://repo.spring.io/plugins-release")
     maven(url = "https://central.sonatype.com/repository/maven-snapshots")
     maven(url = "https://repository.liferay.com/nexus/content/repositories/public")
+    maven { url = uri("https://jitpack.io") }
     maven {
       url = uri("https://maven.pkg.github.com/midas-in/android-fhir")
       credentials {
+        val localProperties = Properties()
+        val localPropertiesFile = project.rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+          localProperties.load(localPropertiesFile.inputStream())
+        }
+        username = localProperties.getProperty("gpr.user") ?: System.getenv("GITHUB_USER")
+        password = localProperties.getProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
       }
     }
     tasks.dependencyCheckAggregate{
       dependencyCheck.formats.add("XML")
+    }
+    configurations.all {
+      resolutionStrategy.cacheChangingModulesFor(0, "seconds")
+      resolutionStrategy.dependencySubstitution {
+        substitute(module("org.smartregister:p2p-lib")).using(module("com.github.onaio:android-p2p:main-SNAPSHOT"))
+        substitute(module("org.smartregister:fhir-common-utils")).using(module("com.github.opensrp:fhir-common-utils:v1.0.3-SNAPSHOT"))
+      }
     }
   }
 }
@@ -106,7 +123,7 @@ subprojects {
     }
   }
 
- tasks.withType<Test> {
+  tasks.withType<Test> {
     configure<JacocoTaskExtension> {
       isIncludeNoLocationClasses = true
       excludes = listOf("jdk.internal.*", "**org.hl7*")
