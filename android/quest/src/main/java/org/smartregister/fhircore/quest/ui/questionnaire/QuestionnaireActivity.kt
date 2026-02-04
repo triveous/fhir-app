@@ -61,7 +61,9 @@ import org.smartregister.fhircore.engine.util.extension.parcelableArrayList
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.databinding.QuestionnaireActivityBinding
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_PREDICTION_URL
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
+import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_URL
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.LocationUtils
 import org.smartregister.fhircore.quest.util.PermissionUtils
@@ -434,82 +436,12 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             }
             Timber.d("=== Finished DocumentReference update processing ===")
 
-            var isSuspicious = false
-            try {
-              Timber.d("=== Starting to set AI results in hidden items ===")
-              for (item in questionnaireResponse.item) {
-                if (item.linkId == "screening-group") {
-                  Timber.d("Found screening-group for AI result processing")
-                  item.item.forEach { group ->
-                    if (group.linkId == "patient-screening-image-group") {
-                      Timber.d("Found patient-screening-image-group, total items: ${group.item.size}")
-                      group.item.forEach { imageOrHiddenItem ->
-                        // Skip items that are AI result items (ending with -ai-result)
-                        if (imageOrHiddenItem.linkId.endsWith("-ai-result")) {
-                          Timber.d("Skipping AI result item: ${imageOrHiddenItem.linkId}")
-                          return@forEach
-                        }
+            var isSuspicious = viewModel.checkIfSuspicious(questionnaireResponse)
 
-                        try {
-                          Timber.d("Processing item: ${imageOrHiddenItem.linkId}, has answers: ${imageOrHiddenItem.answer.isNotEmpty()}")
-                          if (imageOrHiddenItem.answer.isNotEmpty()) {
-                            val firstAnswer = imageOrHiddenItem.answer.firstOrNull()
-                            Timber.d("First answer exists: ${firstAnswer != null}, has extensions: ${firstAnswer?.hasExtension()}, extension count: ${firstAnswer?.extension?.size}")
-
-                            if (firstAnswer != null && firstAnswer.hasExtension() && firstAnswer.extension.size > 1) {
-                              val resultExtension = firstAnswer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL)
-                              val confidenceExtension = firstAnswer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL)
-
-                              Timber.d("Result extension: ${resultExtension != null}, Confidence extension: ${confidenceExtension != null}")
-
-                              if (resultExtension != null && confidenceExtension != null) {
-                                val result = resultExtension.value
-                                val confidence = confidenceExtension.value
-
-                                Timber.d("Result value: $result, Confidence value: $confidence")
-
-                                if (result != null && confidence != null) {
-                                  val hiddenLinkId = "${imageOrHiddenItem.linkId}-ai-result"
-                                  val hiddenItem = group.item.find { it.linkId == hiddenLinkId }
-
-                                  Timber.d("Looking for hidden item: $hiddenLinkId, found: ${hiddenItem != null}")
-
-                                  if (hiddenItem != null) {
-                                    Timber.d("BEFORE: Hidden item $hiddenLinkId has ${hiddenItem.answer.size} answers")
- 
-                                    // Set or update the answer
-                                    if (hiddenItem.answer.isEmpty()) {
-                                      Timber.d("Adding new answer to hidden item")
-                                      hiddenItem.addAnswer()
-                                      if(isSuspicious.not()){
-                                        isSuspicious = result.toString().equals("suspicious", ignoreCase = true)
-                                      }
-                                      firstAnswer.extension.remove(firstAnswer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL))
-                                      firstAnswer.extension.remove(firstAnswer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL))
-                                    }
-
-                                    Timber.d("Setting value on hidden item answer")
-                                    hiddenItem.answer[0].value = StringType("$result|$confidence")
-
-                                    Timber.d("AFTER: Successfully set AI result for $hiddenLinkId: $result|$confidence")
-                                  } else {
-                                    Timber.w("Hidden item not found for linkId: $hiddenLinkId")
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        } catch (e: Exception) {
-                          Timber.e(e, "!!! EXCEPTION processing image item: ${imageOrHiddenItem.linkId}")
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-              Timber.d("=== Finished setting AI results in hidden items ===")
-            } catch (e: Exception) {
-              Timber.e(e, "!!! EXCEPTION in outer try-catch for AI result processing")
+            if(isSuspicious){
+              questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("suspicious"))
+            }else{
+              questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("non-suspicious"))
             }
 
             Timber.d("=== About to call handleQuestionnaireSubmission ===")
