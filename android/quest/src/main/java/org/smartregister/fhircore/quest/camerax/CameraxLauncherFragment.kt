@@ -63,6 +63,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.collections.get
 import kotlin.math.exp
+import androidx.core.view.isVisible
 
 class CameraxLauncherFragment : DialogFragment() {
 
@@ -88,9 +89,29 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var zoomSeekBar: CustomSeekBar
 
     private var fileAbsPath: String = ""
+    private var isCapturing = false
     var module6 : Module? = null
     var module8 : Module? = null
     var module82 : Module? = null
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted, start camera
+            startCamera()
+        } else {
+            // Permission denied, dismiss fragment
+            activity?.let {
+                Toast.makeText(
+                    it,
+                    getString(R.string.camera_permissions_denied),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            dismiss()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,10 +146,6 @@ class CameraxLauncherFragment : DialogFragment() {
         previewImage = view.findViewById(R.id.previewImage)
         zoomSeekBar = view.findViewById(R.id.zoomSeekBar)
 
-        lifecycleScope.launch {
-            initModel()
-        }
-
         selectButton.setSafeOnClickListener(interval = 6000) {
             /*requireActivity().runOnUiThread {
                 progressBar.visibility = View.VISIBLE
@@ -145,12 +162,14 @@ class CameraxLauncherFragment : DialogFragment() {
         }
 
         zoomIv.setOnClickListener {
-            zoomIndicatorll.visibility = if (zoomIndicatorll.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            zoomIndicatorll.visibility = if (zoomIndicatorll.isVisible) View.GONE else View.VISIBLE
         }
 
         retakeButton.setOnClickListener {
             val flashOfDrawable = context?.getDrawable(R.drawable.flash_off)
             flashButton.setImageDrawable(flashOfDrawable)
+            isCapturing = false
+            captureButton.isEnabled = true
             checkPermissionAndStartCamera()
             previewViewImageLay.visibility = View.GONE
             cameraPreviewViewLay.visibility = View.VISIBLE
@@ -174,6 +193,10 @@ class CameraxLauncherFragment : DialogFragment() {
         }
 
         checkPermissionAndStartCamera()
+
+        lifecycleScope.launch {
+            initModel()
+        }
     }
 
     private fun initModel() {
@@ -226,20 +249,7 @@ class CameraxLauncherFragment : DialogFragment() {
     }
 
     private fun requestCameraPermission() {
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                // Permission granted, start camera
-                startCamera()
-            } else {
-                // Permission denied, dismiss fragment
-                Toast.makeText(
-                    requireActivity(),
-                    getString(R.string.camera_permissions_denied),
-                    Toast.LENGTH_SHORT,
-                ).show()
-                dismiss()
-            }
-        }.launch(Manifest.permission.CAMERA)
+        requestPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     private fun setupTapToFocus() {
@@ -322,6 +332,9 @@ class CameraxLauncherFragment : DialogFragment() {
     }
 
     private fun takePhoto(imageCapture: ImageCapture) {
+        if (isCapturing) return
+        isCapturing = true
+        captureButton.isEnabled = false
         try {
             val file = File.createTempFile("IMG_", ".jpeg", requireContext().filesDir)
             val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
@@ -339,19 +352,25 @@ class CameraxLauncherFragment : DialogFragment() {
                             fileAbsPath = file.absolutePath
                             val flashOffDrawable = context?.getDrawable(R.drawable.flash_off)
                             flashButton.setImageDrawable(flashOffDrawable)
-                            requireActivity().runOnUiThread {
+                            if (::cameraExecutor.isInitialized) {
                                 cameraExecutor.shutdown()
                             }
                         }
                     }
 
                     override fun onError(exception: ImageCaptureException) {
+                        isCapturing = false
+                        lifecycleScope.launch {
+                             captureButton.isEnabled = true
+                        }
                         Timber.e(exception,"Photo exception = {ImageCaptureException@35501} \"androidx.camera.core.ImageCaptureException: Failed to write temp file\"capture failed: ${exception.message}")
                         dismiss()
                     }
                 }
             )
         }catch (e: Exception){
+            isCapturing = false
+            captureButton.isEnabled = true
             e.printStackTrace()
         }
     }
@@ -497,30 +516,28 @@ class CameraxLauncherFragment : DialogFragment() {
     }
     private fun onPhotoSelected(absolutePath : String){
         val resultMap = processImage(fileAbsPath)
-        requireActivity().runOnUiThread {
-            setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
-                putString(CAMERA_RESULT_URI_KEY, absolutePath)
-                if (resultMap != null) {
-                    putString(CAMERA_PREDICTION_KEY, resultMap[CAMERA_PREDICTION_KEY] as String)
-                    putString(CAMERA_CONFIDENCE_KEY, resultMap[CAMERA_CONFIDENCE_KEY] as String)
-                    
-                    putString(CAMERA_MODEL6_PREDICTION_KEY, resultMap["model6_prediction"] as String)
-                    putString(CAMERA_MODEL6_CONFIDENCE_KEY, resultMap["model6_confidence"] as String)
-                    
-                    putString(CAMERA_MODEL8_PREDICTION_KEY, resultMap["model8_prediction"] as String)
-                    putString(CAMERA_MODEL8_CONFIDENCE_KEY, resultMap["model8_confidence"] as String)
-                    
-                    putString(CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"] as String)
-                    putString(CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"] as String)
-                } else {
-                     putString(CAMERA_PREDICTION_KEY, "Error")
-                     putString(CAMERA_CONFIDENCE_KEY, "Error")
-                }
-                putBoolean(CAMERA_RESULT_KEY, true)
-            })
-            requireActivity().showToast("Image processed successfully", Toast.LENGTH_SHORT)
-            dismiss()
-        }
+        setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
+            putString(CAMERA_RESULT_URI_KEY, absolutePath)
+            if (resultMap != null) {
+                putString(CAMERA_PREDICTION_KEY, resultMap[CAMERA_PREDICTION_KEY] as String)
+                putString(CAMERA_CONFIDENCE_KEY, resultMap[CAMERA_CONFIDENCE_KEY] as String)
+                
+                putString(CAMERA_MODEL6_PREDICTION_KEY, resultMap["model6_prediction"] as String)
+                putString(CAMERA_MODEL6_CONFIDENCE_KEY, resultMap["model6_confidence"] as String)
+                
+                putString(CAMERA_MODEL8_PREDICTION_KEY, resultMap["model8_prediction"] as String)
+                putString(CAMERA_MODEL8_CONFIDENCE_KEY, resultMap["model8_confidence"] as String)
+                
+                putString(CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"] as String)
+                putString(CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"] as String)
+            } else {
+                 putString(CAMERA_PREDICTION_KEY, "Error")
+                 putString(CAMERA_CONFIDENCE_KEY, "Error")
+            }
+            putBoolean(CAMERA_RESULT_KEY, true)
+        })
+        activity?.showToast("Image processed successfully", Toast.LENGTH_SHORT)
+        dismiss()
     }
 
     override fun onDestroy() {
