@@ -304,8 +304,8 @@
 
     <string name="result">RESULT : %s</string>
     <string name="confidence">CONFIDENCE : %s</string>
-    <string name="suspicious_result">Doctor\'s review needed</string>
-    <string name="suspicious_result_desc">Recommendation will be \n sent to you in 3-5 days.</string>
-    <string name="nonsuspicious_result">No visible signs</string>
-    <string name="nonsuspicious_result_desc">In case of doubts, reach out \n to your supervisor.</string>
+    <string name="suspicious_result">Refer to a Dentist</string>
+    <string name="suspicious_result_desc">Decision based on AI. In case of doubt, talk to your supervisor.</string>
+    <string name="nonsuspicious_result">No referral required</string>
+    <string name="nonsuspicious_result_desc">Decision based on AI. In case of doubt, talk to your supervisor.</string>
 </resources>
