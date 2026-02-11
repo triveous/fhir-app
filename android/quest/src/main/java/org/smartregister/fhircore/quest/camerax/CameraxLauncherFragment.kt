@@ -454,7 +454,6 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     private fun processImage(absolutePath: String): Map<String, Any>? {
         //val processStartTime = System.currentTimeMillis()
         try {
