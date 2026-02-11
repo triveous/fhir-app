@@ -362,6 +362,16 @@ internal object CustomAttachmentViewHolderFactory :
                                 return@setFragmentResultListener
                             }
 
+                            // Remove existing extensions before adding new ones
+                            questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
+                            questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
+                            questionnaireItem.removeExtension(MODEL6_PREDICTION_URL)
+                            questionnaireItem.removeExtension(MODEL6_CONFIDENCE_URL)
+                            questionnaireItem.removeExtension(MODEL8_PREDICTION_URL)
+                            questionnaireItem.removeExtension(MODEL8_CONFIDENCE_URL)
+                            questionnaireItem.removeExtension(MODEL82_PREDICTION_URL)
+                            questionnaireItem.removeExtension(MODEL82_CONFIDENCE_URL)
+
                             // Create a document reference to store the file later and use the document ref
                             // permanent link in attachment url
                             val doc = createDocumentReference(
@@ -692,21 +702,27 @@ internal object CustomAttachmentViewHolderFactory :
                 photoTitle: String,
                 questionnaireItem: Questionnaire.QuestionnaireItemComponent?
             ) {
-                photoPreview.visibility = View.VISIBLE
-                Glide.with(context).load(uri).into(photoThumbnail)
-                this.photoTitle.text = photoTitle
+                try {
+                    photoPreview.visibility = View.VISIBLE
+                    Glide.with(context).load(uri).into(photoThumbnail)
+                    this.photoTitle.text = photoTitle
 
-                val result = questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
-
-                if (result?.isNotEmpty() == true) {
-                    photoResult.text = result
-                    photoResult.visibility = View.VISIBLE
-                    // Hide separate confidence view as it is merged into the main text
-                    photoConfidence.visibility = View.GONE
-                } else {
-                    photoResult.visibility = View.GONE
-                    photoConfidence.visibility = View.GONE
+//                    val result = questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
+//
+//                    if (result?.isNotEmpty() == true) {
+//                        photoResult.text = result
+//                        photoResult.visibility = View.VISIBLE
+//                        // Hide separate confidence view as it is merged into the main text
+//                        photoConfidence.visibility = View.GONE
+//                    } else {
+//                        photoResult.visibility = View.GONE
+//                        photoConfidence.visibility = View.GONE
+//                    }
+                }catch (exc: Exception) {
+                    Timber.e("Failed to load photo preview: ${exc.message}")
                 }
+
+
 
                 //Suspicious/NonSuspicious
 //                //Confidence percentage
@@ -832,10 +848,20 @@ internal object CustomAttachmentViewHolderFactory :
 
 
             private fun onDeleteClicked(view: View) {
-
                 context.lifecycleScope.launch {
-
+                    val attachmentType =
+                        getMimeType(questionnaireViewItem.answers.first().valueAttachment.contentType)
                     questionnaireViewItem.clearAnswer()
+
+                    val questionnaireItem = questionnaireViewItem.questionnaireItem
+                    questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
+                    questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
+                    questionnaireItem.removeExtension(MODEL6_PREDICTION_URL)
+                    questionnaireItem.removeExtension(MODEL6_CONFIDENCE_URL)
+                    questionnaireItem.removeExtension(MODEL8_PREDICTION_URL)
+                    questionnaireItem.removeExtension(MODEL8_CONFIDENCE_URL)
+                    questionnaireItem.removeExtension(MODEL82_PREDICTION_URL)
+                    questionnaireItem.removeExtension(MODEL82_CONFIDENCE_URL)
 
                     divider.visibility = View.GONE
 
@@ -844,15 +870,10 @@ internal object CustomAttachmentViewHolderFactory :
                     clearFilePreview()
 
                     displaySnackbarOnDelete(
-
                         view,
-
-                        getMimeType(questionnaireViewItem.answers.first().valueAttachment.contentType),
-
-                        )
-
+                        attachmentType,
+                    )
                 }
-
             }
 
             private fun onViewPhotoClicked(view: View) {
