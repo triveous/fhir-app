@@ -47,6 +47,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.pytorch.IValue
 import org.pytorch.Module
 import org.pytorch.Tensor
@@ -157,7 +158,9 @@ class CameraxLauncherFragment : DialogFragment() {
         }
 
         closeCameraIB.setOnClickListener {
-            cameraExecutor?.shutdown()
+            if (::cameraExecutor.isInitialized) {
+                cameraExecutor.shutdown()
+            }
             dismiss()
         }
 
@@ -345,6 +348,13 @@ class CameraxLauncherFragment : DialogFragment() {
                         cameraControl.enableTorch(false)
                         //cameraExecutor.shutdown()
                         lifecycleScope.launch {
+                            try {
+                                if (::cameraProviderFuture.isInitialized) {
+                                    cameraProviderFuture.get().unbindAll()
+                                }
+                            } catch (e: Exception) {
+                                Timber.e(e, "Error unbinding camera")
+                            }
                             cameraPreviewViewLay.visibility = View.GONE
                             cameraControlsll.visibility = View.GONE
                             previewViewImageLay.visibility = View.VISIBLE
@@ -492,8 +502,8 @@ class CameraxLauncherFragment : DialogFragment() {
                 "model6_confidence" to result6.third,
                 "model8_prediction" to result8.second,
                 "model8_confidence" to result8.third,
-                "model82_prediction" to result82.second,
-                "model82_confidence" to result82.third
+                "model82_prediction" to result8.second,
+                "model82_confidence" to result8.third,
             )
 
         } catch (e: Exception) {
@@ -514,8 +524,10 @@ class CameraxLauncherFragment : DialogFragment() {
         }
         setOnClickListener(safeClickListener)
     }
-    private fun onPhotoSelected(absolutePath : String){
-        val resultMap = processImage(fileAbsPath)
+    private suspend fun onPhotoSelected(absolutePath : String){
+        val resultMap = withContext(Dispatchers.IO) {
+            processImage(fileAbsPath)
+        }
         setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
             putString(CAMERA_RESULT_URI_KEY, absolutePath)
             if (resultMap != null) {
