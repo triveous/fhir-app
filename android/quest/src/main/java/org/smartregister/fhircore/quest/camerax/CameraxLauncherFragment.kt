@@ -38,6 +38,12 @@ import com.bumptech.glide.Glide.with
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.pytorch.IValue
+import org.pytorch.Module
+import org.pytorch.Tensor
+import org.pytorch.torchvision.TensorImageUtils
+import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.ui.register.customui.ZoomableImageView
 import timber.log.Timber
@@ -484,8 +490,8 @@ class CameraxLauncherFragment : DialogFragment() {
                 "model6_confidence" to result6.third,
                 "model8_prediction" to result8.second,
                 "model8_confidence" to result8.third,
-                "model82_prediction" to result82.second,
-                "model82_confidence" to result82.third
+                "model82_prediction" to result8.second,
+                "model82_confidence" to result8.third,
             )
 
         } catch (e: Exception) {
@@ -506,9 +512,10 @@ class CameraxLauncherFragment : DialogFragment() {
         }
         setOnClickListener(safeClickListener)
     }
-
-    private fun onPhotoSelected(absolutePath : String){
-        val resultMap = processImage(fileAbsPath)
+    private suspend fun onPhotoSelected(absolutePath : String){
+        val resultMap = withContext(Dispatchers.IO) {
+            processImage(fileAbsPath)
+        }
         setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
             putString(CAMERA_RESULT_URI_KEY, absolutePath)
             if (resultMap != null) {
