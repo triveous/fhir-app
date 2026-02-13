@@ -46,6 +46,7 @@ import org.pytorch.torchvision.TensorImageUtils
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.ui.register.customui.ZoomableImageView
+import org.smartregister.fhircore.quest.util.OpenCVUtils
 import timber.log.Timber
 import java.io.File
 import java.util.concurrent.ExecutorService
