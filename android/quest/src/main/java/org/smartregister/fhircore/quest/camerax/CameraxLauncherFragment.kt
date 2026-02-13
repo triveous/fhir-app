@@ -43,6 +43,7 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide.with
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,7 @@ import org.pytorch.Tensor
 import org.pytorch.torchvision.TensorImageUtils
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ui.register.customui.ZoomableImageView
 import org.smartregister.fhircore.quest.util.OpenCVUtils
 import timber.log.Timber
 import java.io.File
@@ -83,7 +85,7 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var zoomIndicatorll: LinearLayout
     private lateinit var selectButton: LinearLayout
     private lateinit var cameraControlsll: LinearLayout
-    private lateinit var previewImage: AppCompatImageView
+    private lateinit var previewImage: ZoomableImageView
     private lateinit var scaleGestureDetector: ScaleGestureDetector
     private lateinit var cameraControl: CameraControl
     private lateinit var cameraInfo: CameraInfo
@@ -358,7 +360,13 @@ class CameraxLauncherFragment : DialogFragment() {
                             cameraPreviewViewLay.visibility = View.GONE
                             cameraControlsll.visibility = View.GONE
                             previewViewImageLay.visibility = View.VISIBLE
-                            context?.let { with(it).load(file).into(previewImage) }
+                            context?.let {
+                                with(it)
+                                    .load(file)
+                                    .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                    .skipMemoryCache(true)
+                                    .into(previewImage)
+                            }
                             fileAbsPath = file.absolutePath
                             val flashOffDrawable = context?.getDrawable(R.drawable.flash_off)
                             flashButton.setImageDrawable(flashOffDrawable)
