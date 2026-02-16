@@ -84,7 +84,7 @@ internal object CustomAttachmentViewHolderFactory :
             private lateinit var photoDeleteButton: Button
             private lateinit var photoDeleteButton2: ImageView
             private lateinit var photoView: ImageView
-      private lateinit var filePreview: ConstraintLayout
+            private lateinit var filePreview: ConstraintLayout
             private lateinit var fileIcon: ImageView
             private lateinit var fileTitle: TextView
             private lateinit var fileDeleteButton: Button
@@ -175,7 +175,7 @@ internal object CustomAttachmentViewHolderFactory :
                 when (validationResult) {
                     is NotValidated,
                     Valid,
-                    -> errorTextView.visibility = View.GONE
+                        -> errorTextView.visibility = View.GONE
 
                     is Invalid -> {
                         errorTextView.text = validationResult.getSingleStringValidationMessage()
@@ -564,56 +564,58 @@ internal object CustomAttachmentViewHolderFactory :
             }
 
             fun showFullScreenImageDialog(context: Context, imageUri: Uri) {
-        val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.window?.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+                val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+                dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+                dialog.window?.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
 
-        val rootLayout = FrameLayout(context)
+                val rootLayout = FrameLayout(context)
 
-        val imageView = ImageView(context).apply {
-          adjustViewBounds = true
-          scaleType = ImageView.ScaleType.FIT_CENTER
-        }
+                val imageView = ZoomableImageView(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    )
+                }
 
-        val closeButton = ImageButton(context).apply {
-          setImageDrawable(ContextCompat.getDrawable(context, android.R.drawable.ic_menu_close_clear_cancel))
-          background = null
-          setPadding(20, 20, 20, 20)
-        }
+                val closeButton = ImageButton(context).apply {
+                    setImageDrawable(ContextCompat.getDrawable(context, android.R.drawable.ic_menu_close_clear_cancel))
+                    background = null
+                    setPadding(20, 20, 20, 20)
+                }
 
-        val closeButtonParams = FrameLayout.LayoutParams(
-          FrameLayout.LayoutParams.WRAP_CONTENT,
-          FrameLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-          gravity = Gravity.TOP or Gravity.END
-          topMargin = 20
-          rightMargin = 20
-        }
+                val closeButtonParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    gravity = Gravity.TOP or Gravity.END
+                    topMargin = 20
+                    rightMargin = 20
+                }
 
-        rootLayout.addView(imageView)
-        rootLayout.addView(closeButton, closeButtonParams)
+                rootLayout.addView(imageView)
+                rootLayout.addView(closeButton, closeButtonParams)
 
-        dialog.setContentView(rootLayout)
+                dialog.setContentView(rootLayout)
 
-        Glide.with(context)
-          .load(imageUri)
-          .into(imageView)
+                Glide.with(context)
+                    .load(imageUri)
+                    .into(imageView)
 
-        closeButton.setOnClickListener {
-          dialog.dismiss()
-        }
+                closeButton.setOnClickListener {
+                    dialog.dismiss()
+                }
 
-        dialog.show()
-      }
+                dialog.show()
+            }
 
-      private fun onViewPhotoClicked(view: View) {
-        context.lifecycleScope.launch {
-          val attachmentUri = getFileUri(questionnaireViewItem.answers.first().valueAttachment.title ?: "")
-          showFullScreenImageDialog(context, attachmentUri)
-        }
-      }
+            private fun onViewPhotoClicked(view: View) {
+                context.lifecycleScope.launch {
+                    val attachmentUri = getFileUri(questionnaireViewItem.answers.first().valueAttachment.title ?: "")
+                    showFullScreenImageDialog(context, attachmentUri)
+                }
+            }
 
-      private fun displaySnackBar(view: View, @StringRes textResource: Int) {
+            private fun displaySnackBar(view: View, @StringRes textResource: Int) {
                 Snackbar.make(view, context.getString(textResource), Snackbar.LENGTH_SHORT).show()
             }
 
