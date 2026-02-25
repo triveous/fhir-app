@@ -1,7 +1,7 @@
 object BuildConfigs {
     const val minSdk = 26
-    const val compileSdk = 34
-    const val targetSdk = 34
+    const val compileSdk = 35
+    const val targetSdk = 35
     const val versionCode = 16
     const val versionName = "AA_v1.3.2-16"
     const val applicationId = "in.ac.iisc.arogyam"

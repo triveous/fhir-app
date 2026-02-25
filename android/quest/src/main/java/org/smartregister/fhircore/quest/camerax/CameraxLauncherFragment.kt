@@ -1,17 +1,15 @@
 package org.smartregister.fhircore.quest.camerax
 
 import android.Manifest
-import android.app.Dialog
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
-import android.view.Window
-import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -20,7 +18,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.appcompat.widget.AppCompatImageView
-import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
@@ -32,23 +29,22 @@ import androidx.camera.core.Preview
 import androidx.camera.core.TorchState
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.ui.geometry.Rect
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
-import com.bumptech.glide.Glide
-import com.bumptech.glide.Glide.*
+import com.bumptech.glide.Glide.with
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.common.util.concurrent.ListenableFuture
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ui.register.customui.ZoomableImageView
 import timber.log.Timber
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import androidx.core.view.isVisible
 
 class CameraxLauncherFragment : DialogFragment() {
 
@@ -66,13 +62,33 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var zoomIndicatorll: LinearLayout
     private lateinit var selectButton: LinearLayout
     private lateinit var cameraControlsll: LinearLayout
-    private lateinit var previewImage: AppCompatImageView
+    private lateinit var previewImage: ZoomableImageView
     private lateinit var scaleGestureDetector: ScaleGestureDetector
     private lateinit var cameraControl: CameraControl
     private lateinit var cameraInfo: CameraInfo
     private lateinit var zoomSeekBar: CustomSeekBar
 
     private var fileAbsPath: String = ""
+    private var isCapturing = false
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted, start camera
+            startCamera()
+        } else {
+            // Permission denied, dismiss fragment
+            activity?.let {
+                Toast.makeText(
+                    it,
+                    getString(R.string.camera_permissions_denied),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            dismiss()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,22 +122,28 @@ class CameraxLauncherFragment : DialogFragment() {
         previewImage = view.findViewById(R.id.previewImage)
         zoomSeekBar = view.findViewById(R.id.zoomSeekBar)
 
-        selectButton.setOnClickListener {
-            onPhotoSelected(fileAbsPath)
+        selectButton.setSafeOnClickListener(interval = 6000) {
+            lifecycleScope.launch {
+                onPhotoSelected(fileAbsPath)
+            }
         }
 
         closeCameraIB.setOnClickListener {
-            cameraExecutor?.shutdown()
+            if (::cameraExecutor.isInitialized) {
+                cameraExecutor.shutdown()
+            }
             dismiss()
         }
 
         zoomIv.setOnClickListener {
-            zoomIndicatorll.visibility = if (zoomIndicatorll.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            zoomIndicatorll.visibility = if (zoomIndicatorll.isVisible) View.GONE else View.VISIBLE
         }
 
         retakeButton.setOnClickListener {
             val flashOfDrawable = context?.getDrawable(R.drawable.flash_off)
             flashButton.setImageDrawable(flashOfDrawable)
+            isCapturing = false
+            captureButton.isEnabled = true
             checkPermissionAndStartCamera()
             previewViewImageLay.visibility = View.GONE
             cameraPreviewViewLay.visibility = View.VISIBLE
@@ -185,20 +207,7 @@ class CameraxLauncherFragment : DialogFragment() {
     }
 
     private fun requestCameraPermission() {
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                // Permission granted, start camera
-                startCamera()
-            } else {
-                // Permission denied, dismiss fragment
-                Toast.makeText(
-                    requireActivity(),
-                    getString(R.string.camera_permissions_denied),
-                    Toast.LENGTH_SHORT,
-                ).show()
-                dismiss()
-            }
-        }.launch(Manifest.permission.CAMERA)
+        requestPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     private fun setupTapToFocus() {
@@ -281,6 +290,9 @@ class CameraxLauncherFragment : DialogFragment() {
     }
 
     private fun takePhoto(imageCapture: ImageCapture) {
+        if (isCapturing) return
+        isCapturing = true
+        captureButton.isEnabled = false
         try {
             val file = File.createTempFile("IMG_", ".jpeg", requireContext().filesDir)
             val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
@@ -291,28 +303,61 @@ class CameraxLauncherFragment : DialogFragment() {
                         cameraControl.enableTorch(false)
                         //cameraExecutor.shutdown()
                         lifecycleScope.launch {
+                            try {
+                                if (::cameraProviderFuture.isInitialized) {
+                                    cameraProviderFuture.get().unbindAll()
+                                }
+                            } catch (e: Exception) {
+                                Timber.e(e, "Error unbinding camera")
+                            }
                             cameraPreviewViewLay.visibility = View.GONE
                             cameraControlsll.visibility = View.GONE
                             previewViewImageLay.visibility = View.VISIBLE
-                            context?.let { with(it).load(file).into(previewImage) }
+                            context?.let {
+                                with(it)
+                                    .load(file)
+                                    .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                    .skipMemoryCache(true)
+                                    .into(previewImage)
+                            }
                             fileAbsPath = file.absolutePath
                             val flashOffDrawable = context?.getDrawable(R.drawable.flash_off)
                             flashButton.setImageDrawable(flashOffDrawable)
+                            if (::cameraExecutor.isInitialized) {
+                                cameraExecutor.shutdown()
+                            }
                         }
                     }
 
                     override fun onError(exception: ImageCaptureException) {
+                        isCapturing = false
+                        lifecycleScope.launch {
+                            captureButton.isEnabled = true
+                        }
                         Timber.e(exception,"Photo exception = {ImageCaptureException@35501} \"androidx.camera.core.ImageCaptureException: Failed to write temp file\"capture failed: ${exception.message}")
                         dismiss()
                     }
                 }
             )
         }catch (e: Exception){
+            isCapturing = false
+            captureButton.isEnabled = true
             e.printStackTrace()
         }
     }
 
-
+    fun View.setSafeOnClickListener(interval: Long = 1000, onSafeClick: (View) -> Unit) {
+        var lastClickTime = 0L
+        val safeClickListener = object : View.OnClickListener {
+            override fun onClick(v: View) {
+                val currentTime = SystemClock.elapsedRealtime()
+                if (currentTime - lastClickTime < interval) return
+                lastClickTime = currentTime
+                onSafeClick(v)
+            }
+        }
+        setOnClickListener(safeClickListener)
+    }
 
     private fun onPhotoSelected(absolutePath : String){
         setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
