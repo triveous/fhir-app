@@ -97,6 +97,7 @@ constructor(
         const val PENDING_IMAGES_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/pending-images"
         const val IMG_UPLOAD_ERROR_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-error"
         const val IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-failed-permanently"
+        const val TIME_TAKEN_TOUPLOAD_IMG_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/time-taken-to-upload-img"
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
@@ -300,7 +301,10 @@ private fun filesExists(uri: Uri?): Boolean {
 
             // Step 3b: Upload the file's binary content if it's missing.
             if (!serverDocRef.hasImageDataOnServer()) {
+                val startTime = System.currentTimeMillis()
                 uploadFileContent(docReference, fileUri, context)
+                val timeTaken = System.currentTimeMillis() - startTime
+                addUploadTimeTaken(docReference, timeTaken)
                 // After upload, update local status to FINAL to track progress
                 docReference.docStatus = DocumentReference.ReferredDocumentStatus.FINAL
                 openSrpFhirEngine.update(docReference)
@@ -398,6 +402,33 @@ private fun filesExists(uri: Uri?): Boolean {
             )
         )
         Timber.i("Step 3 completed: Document status finalized for ${docReference.logicalId}")
+    }
+
+    /**
+     * Updates the DocumentReference status time taken to upload image using a JSON Patch.
+     */
+    private suspend fun addUploadTimeTaken(docReference: DocumentReference, timeTaken: Long) {
+        Timber.i("addUploadTimeTaken ${docReference.logicalId}")
+
+        val extensionValue = ExtensionValue(
+            url = TIME_TAKEN_TOUPLOAD_IMG_EXTENSION,
+            valueString = timeTaken.toString()
+        )
+
+        val patchOperations = listOf(JsonPatchOperation(ADD_EXTENSION, DOC_EXTENSION, listOf(extensionValue)))
+        val patchJson = gson.toJson(patchOperations)
+
+        Timber.d("Sending JSON Patch for ${docReference.logicalId}: $patchJson")
+
+        val result = fhirResourceService.updateDocResource(
+            docReference.fhirType(),
+            docReference.logicalId,
+            patchJson.toRequestBody(
+                CONTENT_TYPE.toMediaTypeOrNull()
+            )
+        )
+
+        Timber.i("Added Upload Time Taken: ${docReference.logicalId} status:${result.docStatus.name}")
     }
 
     /**
