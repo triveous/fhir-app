@@ -1050,7 +1050,8 @@ constructor(
   }
 
   fun checkIfSuspicious(questionnaireResponse: QuestionnaireResponse): Boolean {
-    var isSuspicious = false
+    return true
+    var isSuspicious = true
     try {
       Timber.d("=== Starting to set AI results in hidden items ===")
       for (item in questionnaireResponse.item) {
@@ -1100,8 +1101,6 @@ constructor(
                               if(isSuspicious.not()){
                                 isSuspicious = result.toString().equals("suspicious", ignoreCase = true)
                               }
-                              firstAnswer.extension.remove(firstAnswer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL))
-                              firstAnswer.extension.remove(firstAnswer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL))
                             }
 
                             Timber.d("Setting value on hidden item answer")
@@ -1129,6 +1128,37 @@ constructor(
       throw e
     }
     return isSuspicious
+  }
+
+  fun getSuspiciousImages(questionnaireResponse: QuestionnaireResponse): List<String> {
+    val suspiciousImages = mutableListOf<String>()
+    try {
+      for (item in questionnaireResponse.item) {
+        if (item.linkId == "screening-group") {
+          item.item.forEach { group ->
+            if (group.linkId == "patient-screening-image-group") {
+              group.item.forEach { item ->
+                if (item.linkId.endsWith("-ai-result")) {
+                  if (item.answer.isNotEmpty()) {
+                    val answer = item.answer[0].value.toString()
+                    if (answer.startsWith("suspicious", ignoreCase = true)) {
+                      val originalLinkId = item.linkId.removeSuffix("-ai-result")
+                      val originalItem = group.item.find { it.linkId == originalLinkId }
+                      originalItem?.answer?.firstOrNull()?.valueAttachment?.title?.let {
+                        suspiciousImages.add(it)
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e: Exception) {
+      Timber.e(e)
+    }
+    return suspiciousImages
   }
 
   companion object {

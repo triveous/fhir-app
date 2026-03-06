@@ -23,7 +23,7 @@ desugar-jdk-libs = "2.0.4"
 dokkaBase = "1.8.20"
 easy-rules-jexl = "4.1.0"
 espresso-core = "3.5.1"
-fhir-common-utils = "1.0.3-SNAPSHOT"
+common-utils = "1.0.3-SNAPSHOT"
 fhir-engine = "1.0.0-preview11-build2-SNAPSHOT"
 foundation = "1.6.3"
 fragment-ktx = "1.6.2"
@@ -120,7 +120,7 @@ datastore-preferences = { group = "androidx.datastore", name = "datastore-prefer
 dokka-base = { module = "org.jetbrains.dokka:dokka-base", version.ref = "dokkaBase" }
 easy-rules-jexl = { group = "org.jeasy", name = "easy-rules-jexl", version.ref = "easy-rules-jexl" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso-core" }
-fhir-common-utils = { group = "com.github.opensrp", name = "fhir-common-utils", version = "v1.0.3-SNAPSHOT" }
+fhir-common-utils = { group = "org.smartregister", name = "fhir-common-utils", version.ref = "common-utils" }
 fhir-engine = { group = "org.smartregister", name = "engine", version.ref = "fhir-engine" }
 foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "fragment-ktx" }
