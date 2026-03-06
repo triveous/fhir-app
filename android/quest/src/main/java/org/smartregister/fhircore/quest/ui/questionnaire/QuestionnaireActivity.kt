@@ -437,6 +437,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             Timber.d("=== Finished DocumentReference update processing ===")
 
             var isSuspicious = viewModel.checkIfSuspicious(questionnaireResponse)
+            val suspiciousImages = viewModel.getSuspiciousImages(questionnaireResponse)
 
             if(isSuspicious){
               questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("suspicious"))
@@ -469,6 +470,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               //Goto AIResultActivity with a flag isSuspicious
               val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
               intent.putExtra("isSuspicious", isSuspicious)
+              intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
               startActivity(intent)
               finish()
               Timber.d("=== Called finish() ===")

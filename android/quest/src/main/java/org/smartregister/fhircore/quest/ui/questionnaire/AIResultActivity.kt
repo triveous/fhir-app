@@ -2,37 +2,56 @@ package org.smartregister.fhircore.quest.ui.questionnaire
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import java.io.File
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.bumptech.glide.Glide
+import org.smartregister.fhircore.engine.ui.theme.LighterBlue
 import org.smartregister.fhircore.engine.ui.theme.PrimaryColor
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.WHITE
 import org.smartregister.fhircore.quest.theme.body18Medium
+import org.smartregister.fhircore.quest.ui.register.customui.ZoomableImageView
 
 class AIResultActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val isSuspicious = intent.getBooleanExtra("isSuspicious", false)
+        val suspiciousImages = intent.getStringArrayListExtra("suspiciousImages") ?: emptyList<String>()
 
         setContent {
             MaterialTheme {
                 AIResultScreen(
                     isSuspicious = isSuspicious,
+                    suspiciousImages = suspiciousImages,
                     onClose = { finish() }
                 )
             }
@@ -44,175 +63,343 @@ class AIResultActivity : ComponentActivity() {
 @Composable
 fun AIResultScreen(
     isSuspicious: Boolean,
+    suspiciousImages: List<String>,
     onClose: () -> Unit
 ) {
+    val backgroundColor = if (isSuspicious) Colors.CORNSILK else LighterBlue
+    val title = if (isSuspicious) stringResource(R.string.add_patient) else "AI Result"
+    var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (isSuspicious) Color(0xFFFFF8E0) else Color(0xFFE9FFF3))
+            .background(backgroundColor)
     ) {
         // Top App Bar
         TopAppBar(
             title = {
                 Text(
-                    text = "Add New Case",
+                    text = title,
                     fontSize = 20.sp,
                     style = body18Medium().copy(color = WHITE)
-
                 )
             },
             navigationIcon = {
-//                IconButton(onClick = onClose) {
-//                    Icon(
-//                        painter = painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
-//                        contentDescription = "Back",
-//                        tint = Color.White
-//                    )
-//                }
+                IconButton(onClick = onClose) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_arrow_back),
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color(0xFF1976D2)
+                containerColor = PrimaryColor
             )
         )
 
         // Content
-        if (isSuspicious) {
-            SuspiciousResultContent(onClose = onClose)
-        } else {
-            NonSuspiciousResultContent(onClose = onClose)
-        }
-    }
-}
-
-@Composable
-fun SuspiciousResultContent(onClose: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-
         Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Warning Icon/Illustration
-            Box(
-                modifier = Modifier
-                    .size(124.dp),
-                contentAlignment = Alignment.Center
+            // Main Illustration and Text
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 48.dp)
             ) {
+                // Illustration
                 Box(
+                    modifier = Modifier.size(124.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.positive_sign),
-                        contentDescription = "Warning sign",
+                        painter = painterResource(
+                            id = if (isSuspicious) R.drawable.positive_sign else R.drawable.negative_sign
+                        ),
+                        contentDescription = "Result Illustration",
                         modifier = Modifier.size(120.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = stringResource(
+                        if (isSuspicious) R.string.suspicious_result else R.string.nonsuspicious_result
+                    ),
+                    style = body18Medium().copy(
+                        color = Color(0xFF3D392E),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = stringResource(
+                        if (isSuspicious) R.string.suspicious_result_desc else R.string.nonsuspicious_result_desc
+                    ),
+                    style = body18Medium().copy(
+                        color = Color(0xAB3D392E),
+                        fontWeight = FontWeight.Normal,
+                        lineHeight = 24.sp,
+                        fontSize = 18.sp
+                    ),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+
+            // AI-DETECTED LESIONS Section
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.ai_detected_lesions),
+                    style = body18Medium().copy(
+                        color = Color(0xAB2F363D),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.8.sp
+                    ),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                if (isSuspicious && suspiciousImages.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(suspiciousImages) { imagePath ->
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 264.dp, height = 237.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.White)
+                                    .clickable { fullScreenImageUrl = imagePath },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                LocalGlideImage(
+                                    path = imagePath,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+                } else if (!isSuspicious) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.64f)),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = stringResource(R.string.none),
+                            modifier = Modifier.padding(start = 16.dp),
+                            style = body18Medium().copy(
+                                color = Color(0xFF3D392E),
+                                fontSize = 18.sp
+                            )
+                        )
+                    }
+                } else {
+                    // Suspicious but no images found
+                    Text(
+                        text = "No images available",
+                        color = Color.Gray,
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
             }
 
-
-            Text(
-                text = stringResource(R.string.suspicious_result),
-                style = body18Medium().copy(color = Color(0xFF424242), fontSize = 20.sp)
-            )
-
-            Text(
-                text = stringResource(R.string.suspicious_result_desc),
-                style = body18Medium().copy(color = Color(0xFF767B72), fontWeight = FontWeight.W400,  lineHeight = 1.5.em),
-                textAlign = TextAlign.Center
-            )
+            // Bottom Buttons
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+            ) {
+                if (isSuspicious) {
+                    Button(
+                        onClick = onClose,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryColor
+                        ),
+                        shape = RoundedCornerShape(2.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.close).uppercase(),
+                            style = body18Medium().copy(
+                                color = WHITE,
+                                letterSpacing = 2.25.sp,
+                                fontSize = 16.sp
+                            )
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onClose,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            shape = RoundedCornerShape(2.dp),
+                            border = BorderStroke(1.dp, PrimaryColor)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.refer_case),
+                                style = body18Medium().copy(
+                                    color = PrimaryColor,
+                                    letterSpacing = 1.25.sp,
+                                    fontSize = 16.sp
+                                )
+                            )
+                        }
+                        Button(
+                            onClick = onClose,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PrimaryColor
+                            ),
+                            shape = RoundedCornerShape(2.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.done_upper),
+                                style = body18Medium().copy(
+                                    color = WHITE,
+                                    letterSpacing = 1.25.sp,
+                                    fontSize = 16.sp
+                                )
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
 
-        // Close Button
-        Button(
-            onClick = onClose,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp)
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = PrimaryColor
-            ),
-            shape = MaterialTheme.shapes.small
-        ) {
-            Text(
-                text = "CLOSE",
-                style = body18Medium().copy(color = WHITE)
-            )
-        }
+    // Full Screen Overlay
+    if (fullScreenImageUrl != null) {
+        FullscreenImageOverlay(
+            path = fullScreenImageUrl!!,
+            onClose = { fullScreenImageUrl = null }
+        )
     }
 }
 
 @Composable
-fun NonSuspiciousResultContent(onClose: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
+fun LocalGlideImage(
+    path: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    AndroidView(
+        factory = { ctx ->
+            androidx.appcompat.widget.AppCompatImageView(ctx).apply {
+                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+            }
+        },
+        modifier = modifier,
+        update = { view ->
+            val finalPath = if (File(path).isAbsolute) path else File(context.filesDir, path).absolutePath
+            Glide.with(view.context)
+                .load(finalPath)
+                .placeholder(android.R.drawable.ic_menu_gallery)
+                .error(android.R.drawable.ic_menu_gallery)
+                .into(view)
+        }
+    )
+}
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
+@Composable
+fun FullscreenImageOverlay(
+    path: String,
+    onClose: () -> Unit
+) {
+    val context = LocalContext.current
+    val finalPath = if (File(path).isAbsolute) path else File(context.filesDir, path).absolutePath
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        BackHandler(onBack = onClose)
+        
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
         ) {
-            // Success Icon/Illustration
+            // Blurred background image
+            AndroidView(
+                factory = { ctx ->
+                    androidx.appcompat.widget.AppCompatImageView(ctx).apply {
+                        scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(10.dp) // Strong blur for background
+                    .background(Color.Black.copy(alpha = 0.52f)), // Adjust opacity
+                update = { view ->
+                    Glide.with(view.context)
+                        .load(finalPath)
+                        .into(view)
+                }
+            )
+
+            // Main Zoomable Image
+            AndroidView(
+                factory = { ctx ->
+                    ZoomableImageView(ctx)
+                },
+                modifier = Modifier.fillMaxSize(),
+                update = { view ->
+                    Glide.with(view.context)
+                        .load(finalPath)
+                        .into(view)
+                }
+            )
+
+            // Close Button as per Figma
             Box(
                 modifier = Modifier
-                    .size(124.dp),
+                    .align(Alignment.TopEnd)
+                    .padding(top = 40.dp, end = 16.dp)
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.2f))
+                    .clickable { onClose() },
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.negative_sign),
-                        contentDescription = "No signs found icon",
-                        modifier = Modifier.size(120.dp)
-                    )
-                }
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_cancel),
+                    contentDescription = "Close",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = stringResource(R.string.nonsuspicious_result),
-                style = body18Medium().copy(color = Color(0xFF424242), fontSize = 20.sp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = stringResource(R.string.nonsuspicious_result_desc),
-                style = body18Medium().copy(color = Color(0xFF767B72), fontWeight = FontWeight.W400, lineHeight = 1.5.em),
-                textAlign = TextAlign.Center
-            )
-        }
-
-        // Close Button
-        Button(
-            onClick = onClose,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp)
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1976D2)
-            ),
-            shape = MaterialTheme.shapes.small
-        ) {
-            Text(
-                text = "CLOSE",
-                style = body18Medium().copy(color = WHITE)
-            )
         }
     }
 }
