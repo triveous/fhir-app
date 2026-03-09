@@ -1043,8 +1043,7 @@ constructor(
   }
 
   fun checkIfSuspicious(questionnaireResponse: QuestionnaireResponse): Boolean {
-    return true
-    var isSuspicious = true
+    var isSuspicious = false
     try {
       Timber.d("=== Starting to set AI results in hidden items ===")
       for (item in questionnaireResponse.item) {

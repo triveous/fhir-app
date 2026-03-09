@@ -500,8 +500,8 @@ class CameraxLauncherFragment : DialogFragment() {
             // Let's use average of "suspicious" score for simplicity if needed, or just "" since individual matters.
             // But we need to return something for CAMERA_CONFIDENCE_KEY.
             // Let's return the string "Combined" or average.
-            val finalConfidence = "See details" // Placeholder or calculation
-
+            val finalConfidence = "" // Placeholder or calculation
+            Timber.d("Final prediction: $finalPrediction, Class: $finalClassName")
             return mapOf(
                 CAMERA_PREDICTION_KEY to finalClassName,
                 CAMERA_CONFIDENCE_KEY to finalConfidence,
