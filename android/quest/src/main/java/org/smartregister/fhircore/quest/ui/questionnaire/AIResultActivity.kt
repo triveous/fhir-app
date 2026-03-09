@@ -149,9 +149,10 @@ fun AIResultScreen(
                         color = Color(0xAB3D392E),
                         fontWeight = FontWeight.Normal,
                         lineHeight = 24.sp,
-                        fontSize = 18.sp
+                        fontSize = 18.sp,
                     ),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.width(264.dp).height(64.dp)
                 )
             }
 
@@ -258,6 +259,7 @@ fun AIResultScreen(
                             onClick = onClose,
                             modifier = Modifier
                                 .weight(1f)
+                                .background(Color.White)
                                 .fillMaxHeight(),
                             shape = RoundedCornerShape(2.dp),
                             border = BorderStroke(1.dp, PrimaryColor)
@@ -378,6 +380,7 @@ fun FullscreenImageOverlay(
                 update = { view ->
                     Glide.with(view.context)
                         .load(finalPath)
+                        .error(android.R.drawable.ic_menu_delete)
                         .into(view)
                 }
             )
