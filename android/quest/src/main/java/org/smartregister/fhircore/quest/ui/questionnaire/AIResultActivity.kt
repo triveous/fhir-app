@@ -52,7 +52,16 @@ class AIResultActivity : ComponentActivity() {
                 AIResultScreen(
                     isSuspicious = isSuspicious,
                     suspiciousImages = suspiciousImages,
-                    onClose = { finish() }
+                    onClose = {
+                        intent.putExtra("refer_case", false)
+                        setResult(RESULT_OK, intent)
+                        finish()
+                    },
+                    onRefer = {
+                        intent.putExtra("refer_case", true)
+                        setResult(RESULT_OK, intent)
+                        finish()
+                    }
                 )
             }
         }
@@ -64,7 +73,8 @@ class AIResultActivity : ComponentActivity() {
 fun AIResultScreen(
     isSuspicious: Boolean,
     suspiciousImages: List<String>,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onRefer: () -> Unit
 ) {
     val backgroundColor = if (isSuspicious) Colors.CORNSILK else LighterBlue
     val title = if (isSuspicious) stringResource(R.string.add_patient) else "AI Result"
@@ -256,7 +266,7 @@ fun AIResultScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         OutlinedButton(
-                            onClick = onClose,
+                            onClick = onRefer,
                             modifier = Modifier
                                 .weight(1f)
                                 .background(Color.White)
