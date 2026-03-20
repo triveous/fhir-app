@@ -67,8 +67,16 @@ import java.util.concurrent.Executors
 import kotlin.collections.get
 import kotlin.math.exp
 import androidx.core.view.isVisible
+import com.google.android.fhir.FhirEngine
+import dagger.hilt.android.AndroidEntryPoint
+import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class CameraxLauncherFragment : DialogFragment() {
+
+    @Inject
+    lateinit var fhirEngine: FhirEngine
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var cameraExecutor: ExecutorService
@@ -200,8 +208,14 @@ class CameraxLauncherFragment : DialogFragment() {
         checkPermissionAndStartCamera()
 
         lifecycleScope.launch {
-            initModel()
+            if (isAiInferenceEnabled()) {
+                initModel()
+            }
         }
+    }
+
+    private suspend fun isAiInferenceEnabled(): Boolean {
+        return FeatureFlagUtil.isAiInferenceEnabled(fhirEngine)
     }
 
     private fun initModel() {
@@ -495,12 +509,10 @@ class CameraxLauncherFragment : DialogFragment() {
             val finalPrediction = if (allSuspicious) 1 else 0
             val finalClassName = classes.diseases[finalPrediction]
             
-            // Average confidence of the 3 models? Or just pass them all. 
-            // For the main display, we can use the average or the lowest (most conservative).
-            // Let's use average of "suspicious" score for simplicity if needed, or just "" since individual matters.
-            // But we need to return something for CAMERA_CONFIDENCE_KEY.
-            // Let's return the string "Combined" or average.
-            val finalConfidence = "" // Placeholder or calculation
+            val avgConfidence = listOf(result6.third, result8.third, result82.third)
+                .mapNotNull { it.toFloatOrNull() }
+                .let { values -> if (values.isNotEmpty()) DecimalFormat("#.##").format(values.average()) else "" }
+            val finalConfidence = avgConfidence
             Timber.d("Final prediction: $finalPrediction, Class: $finalClassName")
             return mapOf(
                 CAMERA_PREDICTION_KEY to finalClassName,
@@ -509,8 +521,8 @@ class CameraxLauncherFragment : DialogFragment() {
                 "model6_confidence" to result6.third,
                 "model8_prediction" to result8.second,
                 "model8_confidence" to result8.third,
-                "model82_prediction" to result8.second,
-                "model82_confidence" to result8.third,
+                "model82_prediction" to result82.second,
+                "model82_confidence" to result82.third,
             )
 
         } catch (e: Exception) {
@@ -532,9 +544,12 @@ class CameraxLauncherFragment : DialogFragment() {
         setOnClickListener(safeClickListener)
     }
     private suspend fun onPhotoSelected(absolutePath : String){
-        val resultMap = withContext(Dispatchers.IO) {
-            processImage(fileAbsPath)
-        }
+        val resultMap = if (isAiInferenceEnabled()) {
+            withContext(Dispatchers.IO) {
+                processImage(fileAbsPath)
+            }
+        } else null
+
         setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
             putString(CAMERA_RESULT_URI_KEY, absolutePath)
             if (resultMap != null) {
@@ -549,13 +564,14 @@ class CameraxLauncherFragment : DialogFragment() {
                 
                 putString(CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"] as String)
                 putString(CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"] as String)
-            } else {
+            } else if (isAiInferenceEnabled()) {
                  putString(CAMERA_PREDICTION_KEY, "Error")
                  putString(CAMERA_CONFIDENCE_KEY, "Error")
             }
             putBoolean(CAMERA_RESULT_KEY, true)
         })
-        activity?.showToast("Image processed successfully", Toast.LENGTH_SHORT)
+        val message = if (isAiInferenceEnabled()) "Image processed successfully" else "Image saved successfully"
+        activity?.showToast(message, Toast.LENGTH_SHORT)
         dismiss()
     }
 

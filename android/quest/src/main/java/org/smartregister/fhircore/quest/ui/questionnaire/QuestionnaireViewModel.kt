@@ -244,6 +244,19 @@ constructor(
     onSuccessfulSubmission: (List<IdType>, QuestionnaireResponse) -> Unit,
   ) {
     viewModelScope.launch(SupervisorJob()) {
+
+      val patientId = (10_000_000..99_999_999).random().toString()
+
+      val idItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+        linkId = "auto-patient-id"
+        addAnswer(
+          QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+            value = StringType(patientId)
+          }
+        )
+      }
+      currentQuestionnaireResponse.addItem(idItem)
+
       val questionnaireResponseValid =
         validateQuestionnaireResponse(
           questionnaire = questionnaire,
