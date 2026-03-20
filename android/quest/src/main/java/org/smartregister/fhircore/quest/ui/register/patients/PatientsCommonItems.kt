@@ -178,7 +178,20 @@ fun SyncedPatientCardItem(patientData: Patient, patient: RegisterViewModel.AllPa
 //                                )
 //                            }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = stringResource(id = org.smartregister.fhircore.quest.R.string.unique_id_label),
+                                style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            val uniqueId = patientData.identifierFirstRep?.value
+                            Text(
+                                text = if (!uniqueId.isNullOrEmpty()) uniqueId else stringResource(id = org.smartregister.fhircore.quest.R.string.not_available),
+                                style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = stringResource(id = org.smartregister.fhircore.quest.R.string.visited),

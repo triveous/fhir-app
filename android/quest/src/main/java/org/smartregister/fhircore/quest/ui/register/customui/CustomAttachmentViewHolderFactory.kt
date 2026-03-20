@@ -57,6 +57,8 @@ import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import kotlinx.coroutines.runBlocking
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
@@ -97,7 +99,8 @@ internal object CustomAttachmentViewHolderFactory :
             private lateinit var context: AppCompatActivity
             private lateinit var fhirEngine: FhirEngine
             private var sharedPreferencesHelper: SharedPreferencesHelper? = null
-            private var documentReference: DocumentReference? = null
+            private var aiInferenceEnabled: Boolean = false
+
             override fun init(itemView: View) {
 
                 header = itemView.findViewById(R.id.header)
@@ -122,6 +125,13 @@ internal object CustomAttachmentViewHolderFactory :
                 context = itemView.context.tryUnwrapContext()!!
                 fhirEngine = FhirEngineProvider.getInstance(context.applicationContext)
                 sharedPreferencesHelper = SharedPreferencesHelper(itemView.context, Gson())
+                context.lifecycleScope.launch {
+                    aiInferenceEnabled = FeatureFlagUtil.isAiInferenceEnabled(fhirEngine)
+                }
+            }
+
+            private fun isAiInferenceEnabled(): Boolean {
+                return aiInferenceEnabled
             }
 
             override fun bind(questionnaireViewItem: QuestionnaireViewItem) {
@@ -386,83 +396,87 @@ internal object CustomAttachmentViewHolderFactory :
                                 attachmentMimeTypeWithSubType
                             ).apply {
                                 // Add AI Model results to DocumentReference
-                                if (!model6Prediction.isNullOrEmpty()) {
-                                    addExtension(
-                                        MODEL6_PREDICTION_URL,
-                                        StringType(model6Prediction)
-                                    )
-                                    addExtension(
-                                        MODEL6_CONFIDENCE_URL,
-                                        StringType(model6Confidence)
-                                    )
-                                }
+                                if (isAiInferenceEnabled()) {
+                                    if (!model6Prediction.isNullOrEmpty()) {
+                                        addExtension(
+                                            MODEL6_PREDICTION_URL,
+                                            StringType(model6Prediction)
+                                        )
+                                        addExtension(
+                                            MODEL6_CONFIDENCE_URL,
+                                            StringType(model6Confidence)
+                                        )
+                                    }
 
-                                if (!model8Prediction.isNullOrEmpty()) {
-                                    addExtension(
-                                        MODEL8_PREDICTION_URL,
-                                        StringType(model8Prediction)
-                                    )
-                                    addExtension(
-                                        MODEL8_CONFIDENCE_URL,
-                                        StringType(model8Confidence)
-                                    )
-                                }
+                                    if (!model8Prediction.isNullOrEmpty()) {
+                                        addExtension(
+                                            MODEL8_PREDICTION_URL,
+                                            StringType(model8Prediction)
+                                        )
+                                        addExtension(
+                                            MODEL8_CONFIDENCE_URL,
+                                            StringType(model8Confidence)
+                                        )
+                                    }
 
-                                if (!model82Prediction.isNullOrEmpty()) {
-                                    addExtension(
-                                        MODEL82_PREDICTION_URL,
-                                        StringType(model82Prediction)
-                                    )
-                                    addExtension(
-                                        MODEL82_CONFIDENCE_URL,
-                                        StringType(model82Confidence)
-                                    )
+                                    if (!model82Prediction.isNullOrEmpty()) {
+                                        addExtension(
+                                            MODEL82_PREDICTION_URL,
+                                            StringType(model82Prediction)
+                                        )
+                                        addExtension(
+                                            MODEL82_CONFIDENCE_URL,
+                                            StringType(model82Confidence)
+                                        )
+                                    }
                                 }
                             }
 
                             val answer =
                                 QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
                                     .apply {
-                                        addExtension(
-                                            SUSPICIOUS_NON_SUSPICIOUS_URL,
-                                            StringType(predictionResult.orEmpty())
-                                        )
-                                        addExtension(
-                                            CONFIDENCE_PERCENTAGE_URL,
-                                            StringType(confidence)
-                                        )
+                                        if (isAiInferenceEnabled()) {
+                                            addExtension(
+                                                SUSPICIOUS_NON_SUSPICIOUS_URL,
+                                                StringType(predictionResult.orEmpty())
+                                            )
+                                            addExtension(
+                                                CONFIDENCE_PERCENTAGE_URL,
+                                                StringType(confidence)
+                                            )
 
-                                        if (!model6Prediction.isNullOrEmpty()) {
-                                            addExtension(
-                                                MODEL6_PREDICTION_URL,
-                                                StringType(model6Prediction)
-                                            )
-                                            addExtension(
-                                                MODEL6_CONFIDENCE_URL,
-                                                StringType(model6Confidence)
-                                            )
-                                        }
+                                            if (!model6Prediction.isNullOrEmpty()) {
+                                                addExtension(
+                                                    MODEL6_PREDICTION_URL,
+                                                    StringType(model6Prediction)
+                                                )
+                                                addExtension(
+                                                    MODEL6_CONFIDENCE_URL,
+                                                    StringType(model6Confidence)
+                                                )
+                                            }
 
-                                        if (!model8Prediction.isNullOrEmpty()) {
-                                            addExtension(
-                                                MODEL8_PREDICTION_URL,
-                                                StringType(model8Prediction)
-                                            )
-                                            addExtension(
-                                                MODEL8_CONFIDENCE_URL,
-                                                StringType(model8Confidence)
-                                            )
-                                        }
+                                            if (!model8Prediction.isNullOrEmpty()) {
+                                                addExtension(
+                                                    MODEL8_PREDICTION_URL,
+                                                    StringType(model8Prediction)
+                                                )
+                                                addExtension(
+                                                    MODEL8_CONFIDENCE_URL,
+                                                    StringType(model8Confidence)
+                                                )
+                                            }
 
-                                        if (!model82Prediction.isNullOrEmpty()) {
-                                            addExtension(
-                                                MODEL82_PREDICTION_URL,
-                                                StringType(model82Prediction)
-                                            )
-                                            addExtension(
-                                                MODEL82_CONFIDENCE_URL,
-                                                StringType(model82Confidence)
-                                            )
+                                            if (!model82Prediction.isNullOrEmpty()) {
+                                                addExtension(
+                                                    MODEL82_PREDICTION_URL,
+                                                    StringType(model82Prediction)
+                                                )
+                                                addExtension(
+                                                    MODEL82_CONFIDENCE_URL,
+                                                    StringType(model82Confidence)
+                                                )
+                                            }
                                         }
 
                                         value =
@@ -474,51 +488,52 @@ internal object CustomAttachmentViewHolderFactory :
                                             }
                                     }
 
+                            if (isAiInferenceEnabled()) {
+                                //Suspicious/NonSuspicious
+                                questionnaireItem.addExtension(
+                                    SUSPICIOUS_NON_SUSPICIOUS_URL,
+                                    StringType(predictionResult)
+                                )
 
-                            //Suspicious/NonSuspicious
-                            questionnaireItem.addExtension(
-                                SUSPICIOUS_NON_SUSPICIOUS_URL,
-                                StringType(predictionResult)
-                            )
+                                //Confidence percentage
+                                questionnaireItem.addExtension(
+                                    CONFIDENCE_PERCENTAGE_URL,
+                                    StringType(confidence)
+                                )
 
-                            //Confidence percentage
-                            questionnaireItem.addExtension(
-                                CONFIDENCE_PERCENTAGE_URL,
-                                StringType(confidence)
-                            )
+                                // Add individual model results to questionnaire item
+                                if (!model6Prediction.isNullOrEmpty()) {
+                                    questionnaireItem.addExtension(
+                                        MODEL6_PREDICTION_URL,
+                                        StringType(model6Prediction)
+                                    )
+                                    questionnaireItem.addExtension(
+                                        MODEL6_CONFIDENCE_URL,
+                                        StringType(model6Confidence)
+                                    )
+                                }
 
-                            // Add individual model results to questionnaire item
-                            if (!model6Prediction.isNullOrEmpty()) {
-                                questionnaireItem.addExtension(
-                                    MODEL6_PREDICTION_URL,
-                                    StringType(model6Prediction)
-                                )
-                                questionnaireItem.addExtension(
-                                    MODEL6_CONFIDENCE_URL,
-                                    StringType(model6Confidence)
-                                )
-                            }
+                                if (!model8Prediction.isNullOrEmpty()) {
+                                    questionnaireItem.addExtension(
+                                        MODEL8_PREDICTION_URL,
+                                        StringType(model8Prediction)
+                                    )
+                                    questionnaireItem.addExtension(
+                                        MODEL8_CONFIDENCE_URL,
+                                        StringType(model8Confidence)
+                                    )
+                                }
 
-                            if (!model8Prediction.isNullOrEmpty()) {
-                                questionnaireItem.addExtension(
-                                    MODEL8_PREDICTION_URL,
-                                    StringType(model8Prediction)
-                                )
-                                questionnaireItem.addExtension(
-                                    MODEL8_CONFIDENCE_URL,
-                                    StringType(model8Confidence)
-                                )
-                            }
-
-                            if (!model82Prediction.isNullOrEmpty()) {
-                                questionnaireItem.addExtension(
-                                    MODEL82_PREDICTION_URL,
-                                    StringType(model82Prediction)
-                                )
-                                questionnaireItem.addExtension(
-                                    MODEL82_CONFIDENCE_URL,
-                                    StringType(model82Confidence)
-                                )
+                                if (!model82Prediction.isNullOrEmpty()) {
+                                    questionnaireItem.addExtension(
+                                        MODEL82_PREDICTION_URL,
+                                        StringType(model82Prediction)
+                                    )
+                                    questionnaireItem.addExtension(
+                                        MODEL82_CONFIDENCE_URL,
+                                        StringType(model82Confidence)
+                                    )
+                                }
                             }
 
                             context.lifecycleScope.launch {
@@ -528,7 +543,7 @@ internal object CustomAttachmentViewHolderFactory :
                                 divider.visibility = View.VISIBLE
                                 displayPreview(
                                     attachmentType = attachmentMimeType,
-                                    attachmentTitle = "RESULT : $predictionResult",
+                                    attachmentTitle = if (predictionResult.isNullOrEmpty() || !isAiInferenceEnabled()) capturedFile.name else "RESULT : $predictionResult",
                                     attachmentUri = attachmentUri,
                                     questionnaireItem = questionnaireItem
                                 )

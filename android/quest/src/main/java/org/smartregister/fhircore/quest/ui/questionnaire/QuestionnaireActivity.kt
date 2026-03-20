@@ -32,11 +32,13 @@ import androidx.activity.viewModels
 import androidx.core.os.bundleOf
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
+import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.fhir.datacapture.QuestionnaireFragment
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import org.hl7.fhir.r4.model.BooleanType
 import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
@@ -67,6 +69,7 @@ import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_URL
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.LocationUtils
 import org.smartregister.fhircore.quest.util.PermissionUtils
+import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.ResourceUtils
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import timber.log.Timber
@@ -89,6 +92,38 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private lateinit var locationPermissionLauncher: ActivityResultLauncher<Array<String>>
   private lateinit var activityResultLauncher: ActivityResultLauncher<Intent>
   private var questionnaireResponse: String? = null
+  private var currentQR: QuestionnaireResponse? = null
+  private var isSuspiciousResult: Boolean = false
+  private var suspiciousImagesList: List<String> = emptyList()
+
+  private val aiResultLauncher =
+    registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+      if (result.resultCode == Activity.RESULT_OK) {
+        val referCase = result.data?.getBooleanExtra("refer_case", false) ?: false
+        currentQR?.let { qr ->
+          qr.addExtension(REFER_CASE_URL, BooleanType(referCase))
+          viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(true))
+          viewModel.handleQuestionnaireSubmission(
+            questionnaire = questionnaire!!,
+            currentQuestionnaireResponse = qr,
+            questionnaireConfig = questionnaireConfig,
+            actionParameters = actionParameters,
+            context = this@QuestionnaireActivity,
+          ) { idTypes, qrResult ->
+            viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+            setResult(
+              Activity.RESULT_OK,
+              Intent().apply {
+                putExtra(QUESTIONNAIRE_RESPONSE, qrResult as Serializable)
+                putExtra(QUESTIONNAIRE_SUBMISSION_EXTRACTED_RESOURCE_IDS, idTypes as Serializable)
+                putExtra(QUESTIONNAIRE_CONFIG, questionnaireConfig as Parcelable)
+              },
+            )
+            finish()
+          }
+        }
+      }
+    }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -384,8 +419,6 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         }
         if (questionnaireResponse != null && questionnaire != null) {
           viewModel.run {
-            setProgressState(QuestionnaireProgressState.ExtractionInProgress(true))
-
             if (currentLocation != null) {
               questionnaireResponse.contained.add(
                 ResourceUtils.createFhirLocationFromGpsLocation(gpsLocation = currentLocation!!),
@@ -445,36 +478,15 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("non-suspicious"))
             }
 
-            Timber.d("=== About to call handleQuestionnaireSubmission ===")
+            Timber.d("=== About to launch AIResultActivity ===")
+            currentQR = questionnaireResponse
+            isSuspiciousResult = isSuspicious
+            suspiciousImagesList = suspiciousImages
 
-            handleQuestionnaireSubmission(
-              questionnaire = questionnaire!!,
-              currentQuestionnaireResponse = questionnaireResponse,
-              questionnaireConfig = questionnaireConfig,
-              actionParameters = actionParameters,
-              context = this@QuestionnaireActivity,
-            ) { idTypes, questionnaireResponse ->
-              Timber.d("=== Inside handleQuestionnaireSubmission callback ===")
-              // Dismiss progress indicator dialog, submit result then finish activity
-              // TODO Ensure this dialog is dismissed even when an exception is encountered
-              setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
-              setResult(
-                Activity.RESULT_OK,
-                Intent().apply {
-                  putExtra(QUESTIONNAIRE_RESPONSE, questionnaireResponse as Serializable)
-                  putExtra(QUESTIONNAIRE_SUBMISSION_EXTRACTED_RESOURCE_IDS, idTypes as Serializable)
-                  putExtra(QUESTIONNAIRE_CONFIG, questionnaireConfig as Parcelable)
-                },
-              )
-              Timber.d("=== About to call finish() ===")
-              //Goto AIResultActivity with a flag isSuspicious
-              val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
-              intent.putExtra("isSuspicious", isSuspicious)
-              intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
-              startActivity(intent)
-              finish()
-              Timber.d("=== Called finish() ===")
-            }
+            val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
+            intent.putExtra("isSuspicious", isSuspicious)
+            intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
+            aiResultLauncher.launch(intent)
           }
         }
       }

@@ -213,6 +213,8 @@
 
     <!-- Cases-->
     <string name="visited">Visited</string>
+    <string name="unique_id_label">ID</string>
+    <string name="not_available">Not Available</string>
     <string name="cases_sync">Sync: %s</string>
     <string name="dynamic_see_more">SEE %s MORE</string>
     <string name="dynamic_total_drafts">TOTAL DRAFTS: %s</string>
