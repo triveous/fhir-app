@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
@@ -27,6 +28,7 @@ import com.google.android.fhir.datacapture.extensions.asStringValue
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
+import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
@@ -37,41 +39,36 @@ import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.getRegistrationDateFromExtension
 
-/**
- * Created by Jeetesh Surana.
- */
-
 @Composable
 internal fun DraftsItem(
     response: QuestionnaireResponse,
     modifier: Modifier,
     viewModel: RegisterViewModel,
     onEditResponse: (String) -> Unit?,
-    onDeleteResponse: (String, Boolean) -> Unit
+    onDeleteResponse: (String, Boolean) -> Unit,
 ) {
     val result = response.item?.firstOrNull()?.item.takeIf { (it?.size ?: 0) >= 1 }
     val title = result?.get(1)?.answer?.firstOrNull()?.value?.asStringValue() ?: "Guest"
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     ) {
-        Box(
-            modifier = modifier.background(Color.White)
-        ) {
+        Box(modifier = modifier.background(Color.White)) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
-                    .background(Color.White)
+                    .background(Color.White),
             ) {
                 Row {
-                    androidx.compose.material.Icon(
-                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_draft),
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_draft),
                         contentDescription = FILTER,
-                        modifier= Modifier.padding(8.dp),
+                        modifier = Modifier.padding(8.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Column {
@@ -81,44 +78,46 @@ internal fun DraftsItem(
                                     .weight(1f)
                                     .padding(end = 8.dp, top = 8.dp),
                                 text = title,
-                                style = body18Medium().copy(color = CRAYOLA)
+                                style = body18Medium().copy(color = CRAYOLA),
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Box(modifier = Modifier.clickable {
-                                val json = response.encodeResourceToString()
-                                onEditResponse(json)
-                                viewModel.deleteIfNotOldDraft(response.id)
-                            }) {
+                            Box(
+                                modifier = Modifier.clickable {
+                                    val json = response.encodeResourceToString()
+                                    onEditResponse(json)
+                                    viewModel.deleteIfNotOldDraft(response.id)
+                                },
+                            ) {
                                 Image(
                                     modifier = Modifier.padding(8.dp),
-                                    painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.edit_draft),
+                                    painter = painterResource(id = R.drawable.edit_draft),
                                     contentDescription = FILTER,
                                 )
                             }
-                            Box(modifier = modifier.clickable {
-                                onDeleteResponse(
-                                    response.id, true
-                                )
-                            }) {
-                                androidx.compose.material.Icon(
+                            Box(
+                                modifier = modifier.clickable {
+                                    onDeleteResponse(response.id, true)
+                                },
+                            ) {
+                                Icon(
                                     modifier = Modifier.padding(8.dp),
-                                    painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_delete_draft),
+                                    painter = painterResource(id = R.drawable.ic_delete_draft),
                                     contentDescription = FILTER,
                                 )
                             }
                         }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                            modifier = Modifier.padding(bottom = 8.dp),
                         ) {
                             Text(
-                                text = stringResource(id = org.smartregister.fhircore.quest.R.string.created),
-                                style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT)
+                                text = stringResource(id = R.string.created),
+                                style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = convertToDate(response.meta.lastUpdated),
-                                style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT)
+                                style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT),
                             )
                         }
                     }
@@ -128,82 +127,53 @@ internal fun DraftsItem(
     }
 }
 
-
-
 @Composable
-fun SyncedPatientCardItem(patientData: Patient, patient: RegisterViewModel.AllPatientsResourceData) {
+fun SyncedPatientCardItem(
+    patientData: Patient,
+    patient: RegisterViewModel.AllPatientsResourceData,
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
     ) {
-
         Box(modifier = Modifier.background(Color.White)) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .background(Color.White)
+                    .background(Color.White),
             ) {
                 Row(
-                    modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    androidx.compose.material.Icon(
-                        painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_patient_male),
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_patient_male),
                         contentDescription = FILTER,
-                        tint = BRANDEIS_BLUE
+                        tint = BRANDEIS_BLUE,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.Top) {
-                            val stringData = patientData.name?.firstOrNull()?.given?.firstOrNull()?.value
-                            Text(
-                                text = stringData ?: "",
-                                style = body18Medium(), color = BRANDEIS_BLUE,
-                                modifier = Modifier
-                                    .weight(0.7f)
-                                    .padding(end = 10.dp)
-                            )
-                            // TODO: need to add the sync status
-//                            if (true) {
-//                                Text(
-//                                    text = stringResource(
-//                                        id = org.smartregister.fhircore.quest.R.string.cases_sync,
-//                                        "Pending"
-//                                    ),
-//                                    style = bodyNormal(16.sp).copy(color = CRAYOLA_THIN_LIGHT),
-//                                    modifier = Modifier.weight(.4f)
-//                                )
-//                            }
-                        }
+                        val patientName = patientData.name?.firstOrNull()?.given?.firstOrNull()?.value.orEmpty()
+                        Text(
+                            text = patientName,
+                            style = body18Medium(),
+                            color = BRANDEIS_BLUE,
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = stringResource(id = org.smartregister.fhircore.quest.R.string.unique_id_label),
-                                style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            val uniqueId = patientData.identifierFirstRep?.value
-                            Text(
-                                text = if (!uniqueId.isNullOrEmpty()) uniqueId else stringResource(id = org.smartregister.fhircore.quest.R.string.not_available),
-                                style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                        }
+                        PatientDetailRow(
+                            label = stringResource(id = R.string.unique_id_label),
+                            value = patientData.identifierFirstRep?.value.takeUnless { it.isNullOrEmpty() }
+                                ?: stringResource(id = R.string.not_available),
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = stringResource(id = org.smartregister.fhircore.quest.R.string.visited),
-                                style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Text(
-                                text = "${getRegistrationDateFromExtension(patient.patient)}",
-                                style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT)
-                            )
-                        }
+                        PatientDetailRow(
+                            label = stringResource(id = R.string.visited),
+                            value = getRegistrationDateFromExtension(patient.patient),
+                        )
                     }
                 }
             }
@@ -211,11 +181,25 @@ fun SyncedPatientCardItem(patientData: Patient, patient: RegisterViewModel.AllPa
     }
 }
 
+@Composable
+private fun PatientDetailRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = label,
+            style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = value,
+            style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT),
+        )
+    }
+}
 
 @Composable
-fun getSyncImageList(imageCount: Int) =
-    stringResource(id = org.smartregister.fhircore.quest.R.string.image_left, imageCount.toString())
+fun getSyncImageList(imageCount: Int): String =
+    stringResource(id = R.string.image_left, imageCount.toString())
 
 @Composable
-fun getPatientsCount(patientsCount: Int) =
-    stringResource(id = org.smartregister.fhircore.quest.R.string.patients_left, patientsCount.toString())
+fun getPatientsCount(patientsCount: Int): String =
+    stringResource(id = R.string.patients_left, patientsCount.toString())
