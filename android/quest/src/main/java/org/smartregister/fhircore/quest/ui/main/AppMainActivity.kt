@@ -34,7 +34,6 @@ import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import dagger.hilt.android.AndroidEntryPoint
-import io.sentry.android.navigation.SentryNavigationListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -84,9 +83,6 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
   private val geoWidgetViewModel by viewModels<GeoWidgetViewModel>()
   lateinit var navController: NavController
   private lateinit var bottomNavigationView: BottomNavigationView
-  private val sentryNavListener =
-    SentryNavigationListener(enableNavigationBreadcrumbs = true, enableNavigationTracing = true)
-
   // Network connectivity state flow
   private val _isOnline = MutableStateFlow(true)
   val isOnline: StateFlow<Boolean> = _isOnline
@@ -160,7 +156,7 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
       lifecycleScope.launch {
 //        retrieveAppMainUiState()
         if (isDeviceOnline()) {
-          appMainViewModel.setSentryUserProperties()
+          appMainViewModel.setPostHogUserProperties()
           syncBroadcaster.schedulePeriodicSync(applicationConfiguration.syncInterval)
         } else {
           showToast(
@@ -231,13 +227,11 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
 
   override fun onResume() {
     super.onResume()
-    navHostFragment.navController.addOnDestinationChangedListener(sentryNavListener)
     syncListenerManager.registerSyncListener(this, lifecycle)
   }
 
   override fun onPause() {
     super.onPause()
-    navHostFragment.navController.removeOnDestinationChangedListener(sentryNavListener)
   }
 
   override fun onDestroy() {

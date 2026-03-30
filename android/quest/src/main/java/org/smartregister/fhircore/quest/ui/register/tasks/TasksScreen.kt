@@ -64,6 +64,7 @@ import androidx.compose.material3.RadioButtonColors
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -128,6 +129,7 @@ import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStrin
 import org.smartregister.fhircore.quest.util.SectionTitles
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 import kotlin.collections.find
 
@@ -222,6 +224,11 @@ fun PendingTasksScreen(
     var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
     var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
 
+    LaunchedEffect(Unit) {
+        PostHogAnalytics.captureScreenView("TasksScreen")
+        viewModel.setPostHogUserProperties()
+    }
+
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -280,6 +287,13 @@ fun PendingTasksScreen(
 
                     if (taskPriority != TaskProgressState.NONE) {
                         viewModel.updateTask(task.task, status, taskPriority)
+                        PostHogAnalytics.capture(
+                            PostHogAnalytics.Events.TASK_STATUS_UPDATED,
+                            mapOf(
+                                PostHogAnalytics.Props.TASK_ID to task.task.id,
+                                PostHogAnalytics.Props.TASK_STATUS to status.display,
+                            )
+                        )
 
                         coroutineScope.launch {
                             viewModel.emitSnackBarState(
@@ -599,6 +613,7 @@ fun PendingTasksScreen(
                     },
                     onConfirm = {
                         viewModel.setShowDialog(false)
+                        PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
                         if (!viewModel.permissionGranted.value) {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 launcher.launch(Manifest.permission.POST_NOTIFICATIONS)

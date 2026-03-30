@@ -38,10 +38,6 @@
             android:shell="true"
             tools:targetApi="29" />
 
-        <meta-data
-            android:name="io.sentry.auto-init"
-            android:value="false" />
-
         <activity
             android:name=".ui.splash.SplashActivity"
             android:exported="true"

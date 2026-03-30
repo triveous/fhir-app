@@ -28,8 +28,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.sentry.Sentry
-import io.sentry.protocol.User
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,8 +53,6 @@ import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.BuildConfig
-import org.smartregister.fhircore.quest.util.VERSION_CODE
-import org.smartregister.fhircore.quest.util.VERSION_NAME
 import org.smartregister.model.location.LocationHierarchy
 import org.smartregister.model.practitioner.PractitionerDetails
 import retrofit2.HttpException
@@ -142,7 +139,7 @@ constructor(
             },
             onFetchPractitioner = { bundleResult, userInfo ->
               if (bundleResult.isSuccess) {
-                setSentryConfiguration(trimmedUsername)
+                setPostHogConfiguration(trimmedUsername)
                 val bundle = bundleResult.getOrDefault(FhirR4ModelBundle())
                 savePractitionerDetails(bundle, userInfo) {
                   _showProgressBar.postValue(false)
@@ -161,7 +158,7 @@ constructor(
             _showProgressBar.postValue(false)
             _loginErrorState.postValue(LoginErrorState.INVALID_OFFLINE_STATE)
           } else if (accountAuthenticator.validateLoginCredentials(trimmedUsername, passwordAsCharArray)) {
-            setSentryConfiguration(trimmedUsername)
+            setPostHogConfiguration(trimmedUsername)
             _showProgressBar.postValue(false)
             updateNavigateHome(true)
           } else {
@@ -174,14 +171,10 @@ constructor(
     }
   }
 
-  private fun setSentryConfiguration(trimmedUsername: String) {
+  private fun setPostHogConfiguration(trimmedUsername: String) {
     try {
-      // Configure Sentry scope
-      Sentry.configureScope { scope ->
-        scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
-        scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
-        scope.user = User().apply { username = trimmedUsername }
-      }
+      val site = sharedPreferences.getSiteName()
+      PostHogAnalytics.identifyUser(flwId = trimmedUsername, site = site)
     } catch (e: Exception) {
       Timber.e(e)
     }

@@ -26,10 +26,8 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.search.search
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.sentry.Sentry
-import io.sentry.protocol.User
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import kotlinx.coroutines.launch
-import org.hl7.fhir.r4.model.DocumentReference
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
@@ -40,10 +38,6 @@ import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.clearPasswordInMemory
 import org.smartregister.fhircore.engine.util.toPasswordHash
-import org.smartregister.fhircore.quest.BuildConfig
-import org.smartregister.fhircore.quest.util.IMAGES_LEFT
-import org.smartregister.fhircore.quest.util.VERSION_CODE
-import org.smartregister.fhircore.quest.util.VERSION_NAME
 import timber.log.Timber
 import java.util.Base64
 import javax.inject.Inject
@@ -91,7 +85,7 @@ constructor(
   fun setPinUiState(setupPin: Boolean = false, context: Context) {
     val username = secureSharedPreference.retrieveSessionUsername()
     if(!username.isNullOrEmpty()){
-      setSentryConfiguration(username)
+      setPostHogConfiguration(username)
     }
     pinUiState.value =
       PinUiState(
@@ -110,22 +104,10 @@ constructor(
       )
   }
 
-  private fun setSentryConfiguration(trimmedUsername: String) {
+  private fun setPostHogConfiguration(trimmedUsername: String) {
     try {
-      viewModelScope.launch {
-        val docReferences = openSrpFhirEngine.search<DocumentReference> {}.size
-        // Configure Sentry scope
-        Sentry.configureScope { scope ->
-          scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
-          scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
-          val user = User().apply {
-            username = trimmedUsername
-            data = data ?: mutableMapOf()
-            data?.put(IMAGES_LEFT,  "$docReferences")
-          }
-          scope.user = user
-        }
-      }
+      val site = sharedPreferences.getSiteName()
+      PostHogAnalytics.identifyUser(flwId = trimmedUsername, site = site)
     } catch (e: Exception) {
       Timber.e(e)
     }

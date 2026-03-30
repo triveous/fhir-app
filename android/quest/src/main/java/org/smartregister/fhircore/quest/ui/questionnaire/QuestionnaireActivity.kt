@@ -72,6 +72,8 @@ import org.smartregister.fhircore.quest.util.PermissionUtils
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.ResourceUtils
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
+import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import timber.log.Timber
 import java.io.Serializable
 import java.util.LinkedList
@@ -100,6 +102,13 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
       if (result.resultCode == Activity.RESULT_OK) {
         val referCase = result.data?.getBooleanExtra("refer_case", false) ?: false
+        PostHogAnalytics.capture(
+          PostHogAnalytics.Events.QUESTIONNAIRE_SUBMITTED,
+          mapOf(
+            PostHogAnalytics.Props.QUESTIONNAIRE_ID to (if (::questionnaireConfig.isInitialized) questionnaireConfig.id else "unknown"),
+            PostHogAnalytics.Props.REFER_CASE to referCase,
+          ),
+        )
         currentQR?.let { qr ->
           qr.addExtension(REFER_CASE_URL, BooleanType(referCase))
           viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(true))
@@ -161,6 +170,12 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     }
 
     if (savedInstanceState == null) renderQuestionnaire()
+
+    PostHogAnalytics.captureScreenView("QuestionnaireActivity")
+    PostHogAnalytics.capture(
+      PostHogAnalytics.Events.QUESTIONNAIRE_OPENED,
+      mapOf(PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id),
+    )
 
     setupLocationServices()
 
@@ -469,24 +484,61 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             }
             Timber.d("=== Finished DocumentReference update processing ===")
 
-            var isSuspicious = viewModel.checkIfSuspicious(questionnaireResponse)
-            val suspiciousImages = viewModel.getSuspiciousImages(questionnaireResponse)
+            val aiEnabled = FeatureFlagUtil.isAiInferenceEnabled(viewModel.fhirEngine)
 
-            if(isSuspicious){
-              questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("suspicious"))
-            }else{
-              questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("non-suspicious"))
+            if (aiEnabled) {
+              var isSuspicious = viewModel.checkIfSuspicious(questionnaireResponse)
+              val suspiciousImages = viewModel.getSuspiciousImages(questionnaireResponse)
+
+              if(isSuspicious){
+                questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("suspicious"))
+              }else{
+                questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("non-suspicious"))
+              }
+
+              PostHogAnalytics.capture(
+                PostHogAnalytics.Events.AI_INFERENCE_COMPLETED,
+                mapOf(
+                  PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
+                  PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id,
+                ),
+              )
+              Timber.d("=== About to launch AIResultActivity ===")
+              currentQR = questionnaireResponse
+              isSuspiciousResult = isSuspicious
+              suspiciousImagesList = suspiciousImages
+
+              val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
+              intent.putExtra("isSuspicious", isSuspicious)
+              intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
+              aiResultLauncher.launch(intent)
+            } else {
+              // AI inference disabled — skip AI result screen and submit directly
+              Timber.d("=== AI inference disabled, submitting directly ===")
+              PostHogAnalytics.capture(
+                PostHogAnalytics.Events.QUESTIONNAIRE_SUBMITTED,
+                mapOf(PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id),
+              )
+              viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(true))
+              viewModel.handleQuestionnaireSubmission(
+                questionnaire = questionnaire!!,
+                currentQuestionnaireResponse = questionnaireResponse,
+                questionnaireConfig = questionnaireConfig,
+                actionParameters = actionParameters,
+                context = this@QuestionnaireActivity,
+              ) { idTypes, qrResult ->
+                viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+                setResult(
+                  Activity.RESULT_OK,
+                  Intent().apply {
+                    putExtra(QUESTIONNAIRE_RESPONSE, qrResult as Serializable)
+                    putExtra(QUESTIONNAIRE_SUBMISSION_EXTRACTED_RESOURCE_IDS, idTypes as Serializable)
+                    putExtra(QUESTIONNAIRE_CONFIG, questionnaireConfig as Parcelable)
+                  },
+                )
+                finish()
+              }
             }
-
-            Timber.d("=== About to launch AIResultActivity ===")
-            currentQR = questionnaireResponse
-            isSuspiciousResult = isSuspicious
-            suspiciousImagesList = suspiciousImages
-
-            val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
-            intent.putExtra("isSuspicious", isSuspicious)
-            intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
-            aiResultLauncher.launch(intent)
           }
         }
       }
@@ -531,6 +583,10 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             }
           }
           viewModel.saveDraftQuestionnaire(questionnaireResponse)
+          PostHogAnalytics.capture(
+            PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_SAVED,
+            mapOf(PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id),
+          )
         }
       }
     } else {
