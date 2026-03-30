@@ -41,8 +41,6 @@ import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.search.search
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.sentry.Sentry
-import io.sentry.protocol.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
@@ -105,11 +103,9 @@ import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSha
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import org.smartregister.fhircore.quest.util.DraftsUtils.removeDraftFromBundle
 import org.smartregister.fhircore.quest.util.DraftsUtils.saveBundleToSharedPreferences
-import org.smartregister.fhircore.quest.util.IMAGES_LEFT
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.TaskProgressState
-import org.smartregister.fhircore.quest.util.VERSION_CODE
-import org.smartregister.fhircore.quest.util.VERSION_NAME
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import org.smartregister.model.practitioner.FhirPractitionerDetails
 import timber.log.Timber
@@ -244,25 +240,20 @@ constructor(
                 (System.currentTimeMillis() - secureSharedPreference.getLastSyncDataTime() > 1000 * 60 * 60 * 48)
     }
 
-    fun setSentryUserProperties() {
-        val userName = secureSharedPreference.getPractitionerUserId()
+    fun setPostHogUserProperties() {
         try {
-            viewModelScope.launch {
-                val docReferences = fhirEngine.search<DocumentReference> {}.size
-                // Configure Sentry scope
-                Sentry.configureScope { scope ->
-                    scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
-                    scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
-                    val user = User().apply {
-                        username = userName
-                        data = data ?: mutableMapOf()
-                        data?.put(IMAGES_LEFT, "$docReferences")
-                    }
-                    scope.user = user
-                }
-            }
+            val flwId = secureSharedPreference.getPractitionerUserId()
+            val site = sharedPreferencesHelper.getSiteName()
+            val pendingImages = _allUnSyncedImages.value
+            val pendingCases = _allUnSyncedStateFlow.value.size
+            PostHogAnalytics.identifyUser(
+                flwId = flwId,
+                site = site,
+                pendingSyncImages = pendingImages,
+                pendingSyncCases = pendingCases,
+            )
         } catch (e: Exception) {
-            Timber.e(e)
+            Timber.e(e, "PostHog setUserProperties failed")
         }
     }
 

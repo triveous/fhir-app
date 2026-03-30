@@ -26,15 +26,12 @@ import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.google.android.fhir.FhirEngine
-import com.google.android.fhir.search.search
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.sentry.Sentry
-import io.sentry.protocol.User
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.model.Binary
-import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.ResourceType
@@ -74,9 +71,6 @@ import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.report.measure.worker.MeasureReportMonthPeriodWorker
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
-import org.smartregister.fhircore.quest.util.IMAGES_LEFT
-import org.smartregister.fhircore.quest.util.VERSION_CODE
-import org.smartregister.fhircore.quest.util.VERSION_NAME
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.schedulePeriodically
 import timber.log.Timber
@@ -135,23 +129,11 @@ constructor(
       }
   }
 
-  fun setSentryUserProperties() {
-    val userName = secureSharedPreference.getPractitionerUserId()
+  fun setPostHogUserProperties() {
     try {
-      viewModelScope.launch {
-        val docReferences = fhirEngine.search<DocumentReference> {}.size
-        // Configure Sentry scope
-        Sentry.configureScope { scope ->
-          scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
-          scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
-          val user = User().apply {
-            username = userName
-            data = data ?: mutableMapOf()
-            data?.put(IMAGES_LEFT,  "$docReferences")
-          }
-          scope.user = user
-        }
-      }
+      val flwId = secureSharedPreference.getPractitionerUserId()
+      val site = sharedPreferencesHelper.getSiteName()
+      PostHogAnalytics.identifyUser(flwId = flwId, site = site)
     } catch (e: Exception) {
       Timber.e(e)
     }
@@ -170,7 +152,7 @@ constructor(
       is AppMainEvent.SyncData -> {
         Timber.e("TAG SyncData onEvent --> isForeground -->$isForeground event--> ${event}")
         if (event.context.isDeviceOnline()) {
-          setSentryUserProperties()
+          setPostHogUserProperties()
           if (!isForeground) {
             viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
           } else {
