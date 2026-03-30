@@ -87,6 +87,7 @@ import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity.Companion.QUESTIONNAIRE_RESPONSE_PREFILL
 import org.smartregister.fhircore.quest.ui.register.components.EmptyStateSection
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 
@@ -118,6 +119,8 @@ fun RegisterScreen(
 
     LaunchedEffect(Unit) {
         viewModel.isShowPendingSyncBanner()
+        viewModel.setPostHogUserProperties()
+        PostHogAnalytics.captureScreenView("RegisterScreen")
     }
 
     val launcher = rememberLauncherForActivityResult(
@@ -200,7 +203,7 @@ private fun RegisterTopBar(
             onSync = {
                 viewModel.appMainEvent = it
                 viewModel.setShowDialog(true)
-                viewModel.setSentryUserProperties()
+                viewModel.setPostHogUserProperties()
             },
         ) { _ -> }
 
@@ -239,7 +242,7 @@ private fun PendingSyncBanner(viewModel: RegisterViewModel) {
                 onClick = {
                     viewModel.appMainEvent = AppMainEvent.SyncData(context)
                     viewModel.setShowDialog(true)
-                    viewModel.setSentryUserProperties()
+                    viewModel.setPostHogUserProperties()
                 },
             ) {
                 Text(
@@ -288,6 +291,7 @@ private fun RegisterContent(
             },
             onConfirmDelete = {
                 viewModel.softDeleteDraft(deleteDraftId)
+                PostHogAnalytics.capture(PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_DELETED)
                 deleteDraftId = ""
                 showDeleteDialog = false
             },
@@ -755,6 +759,7 @@ private fun handleSyncConfirm(
     appMainViewModel: AppMainViewModel,
     launcher: androidx.activity.result.ActivityResultLauncher<String>,
 ) {
+    PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
     if (!viewModel.permissionGranted.value) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)

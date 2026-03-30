@@ -48,6 +48,7 @@ import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,6 +81,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN
 import org.smartregister.fhircore.quest.ui.register.patients.getPatientsCount
 import org.smartregister.fhircore.quest.ui.register.patients.getSyncImageList
 import org.smartregister.fhircore.quest.ui.register.tasks.BottomSheetContent
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 
 
@@ -110,7 +112,10 @@ fun DashboardScreen(
   var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
   var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
 
-  val context = androidx.compose.ui.platform.LocalContext.current
+  LaunchedEffect(Unit) {
+    PostHogAnalytics.captureScreenView("DashboardScreen")
+    viewModel.setPostHogUserProperties()
+  }
 
   val launcher = rememberLauncherForActivityResult(
     ActivityResultContracts.RequestPermission()
@@ -495,22 +500,13 @@ fun DashboardScreen(
             viewModel.setShowDialog(false)
           },
           onConfirm = {
-            if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
-              android.widget.Toast.makeText(
-                context,
-                context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
-                android.widget.Toast.LENGTH_SHORT
-              ).show()
-            } else {
-              viewModel.setShowDialog(false)
-              if (!viewModel.permissionGranted.value) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                  launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else {
-                  viewModel.setPermissionGranted(true)
-                  viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
-                }
-              }else{
+            viewModel.setShowDialog(false)
+            PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
+            if (!viewModel.permissionGranted.value) {
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+              } else {
+                viewModel.setPermissionGranted(true)
                 viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
               }
             }
