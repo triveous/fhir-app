@@ -12,5 +12,6 @@ data class SelectSite(
     var authClientId: String?=null,
     var authScope: String?=null,
     var openSrpAppId: String?=null,
-    var sentryDsn: String?=null
+    var posthogApiKey: String?=null,
+    var posthogHost: String?=null
 )

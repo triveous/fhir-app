@@ -35,6 +35,7 @@ import com.bumptech.glide.Glide
 import org.smartregister.fhircore.engine.ui.theme.LighterBlue
 import org.smartregister.fhircore.engine.ui.theme.PrimaryColor
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.WHITE
 import org.smartregister.fhircore.quest.theme.body18Medium
@@ -47,6 +48,11 @@ class AIResultActivity : ComponentActivity() {
         val isSuspicious = intent.getBooleanExtra("isSuspicious", false)
         val suspiciousImages = intent.getStringArrayListExtra("suspiciousImages") ?: emptyList<String>()
 
+        PostHogAnalytics.capture(
+            PostHogAnalytics.Events.AI_RESULT_VIEWED,
+            mapOf(PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious),
+        )
+
         setContent {
             MaterialTheme {
                 AIResultScreen(
@@ -58,6 +64,10 @@ class AIResultActivity : ComponentActivity() {
                         finish()
                     },
                     onRefer = {
+                        PostHogAnalytics.capture(
+                            PostHogAnalytics.Events.AI_REFER_CASE,
+                            mapOf(PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious),
+                        )
                         intent.putExtra("refer_case", true)
                         setResult(RESULT_OK, intent)
                         finish()

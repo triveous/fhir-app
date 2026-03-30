@@ -79,6 +79,7 @@ jetbrains = "1.9.20"
 owasp = "8.2.1"
 kotlin-serialization = "1.8.10"
 dagger-hilt = "2.50"
+posthog = "3.38.2"
 accompanist = "0.23.1"
 jetbrains-kotlin-jvm="1.9.22"
 kt3k-coveralls-ver="2.12.0"
@@ -88,6 +89,7 @@ camerax_version = "1.2.2"
 fragment = "1.7.1"
 
 [libraries]
+posthog = { group = "com.posthog", name = "posthog-android", version.ref = "posthog" }
 accompanist-flowlayout = { group = "com.google.accompanist", name = "accompanist-flowlayout", version.ref = "accompanist" }
 accompanist-placeholder = { group = "com.google.accompanist", name = "accompanist-placeholder", version.ref = "accompanist" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }

@@ -70,6 +70,7 @@ import androidx.core.view.isVisible
 import com.google.android.fhir.FhirEngine
 import dagger.hilt.android.AndroidEntryPoint
 import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -527,6 +528,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
         } catch (e: Exception) {
             Log.d("Error", "Error processing image ${e.printStackTrace()}")
+            PostHogAnalytics.captureError("CameraxLauncherFragment", "Image processing failed: ${e.message}")
             return null
         }
     }
@@ -549,6 +551,12 @@ class CameraxLauncherFragment : DialogFragment() {
                 processImage(fileAbsPath)
             }
         } else null
+
+        val predictionProps = mutableMapOf<String, Any>(
+            PostHogAnalytics.Props.AI_PREDICTION to (resultMap?.get(CAMERA_PREDICTION_KEY) ?: "none"),
+            PostHogAnalytics.Props.AI_CONFIDENCE to (resultMap?.get(CAMERA_CONFIDENCE_KEY) ?: "none"),
+        )
+        PostHogAnalytics.capture(PostHogAnalytics.Events.PHOTO_CAPTURED, predictionProps)
 
         setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
             putString(CAMERA_RESULT_URI_KEY, absolutePath)

@@ -48,6 +48,7 @@ import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,6 +81,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN
 import org.smartregister.fhircore.quest.ui.register.patients.getPatientsCount
 import org.smartregister.fhircore.quest.ui.register.patients.getSyncImageList
 import org.smartregister.fhircore.quest.ui.register.tasks.BottomSheetContent
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 
 
@@ -109,6 +111,11 @@ fun DashboardScreen(
   var totalPatientsLeftCountData = getPatientsCount(unSyncedPatientsCount.size)
   var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
   var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
+
+  LaunchedEffect(Unit) {
+    PostHogAnalytics.captureScreenView("DashboardScreen")
+    viewModel.setPostHogUserProperties()
+  }
 
   val launcher = rememberLauncherForActivityResult(
     ActivityResultContracts.RequestPermission()
@@ -487,6 +494,7 @@ fun DashboardScreen(
           },
           onConfirm = {
             viewModel.setShowDialog(false)
+            PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
             if (!viewModel.permissionGranted.value) {
               if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
