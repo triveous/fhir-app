@@ -27,6 +27,7 @@ import dagger.hilt.EntryPoints
 import dagger.hilt.InstallIn
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
+import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 import org.smartregister.fhircore.engine.OpenSrpApplication
@@ -91,6 +92,9 @@ class QuestApplication : OpenSrpApplication(), DataCaptureConfig.Provider, Confi
         errorTrackingConfig.inAppIncludes.add("org.smartregister.fhircore")
       }
       PostHogAndroid.setup(this, config)
+
+      // Disable GeoIP processing to prevent lat/long inference from IP addresses
+      PostHog.register("\$geoip_disable", true)
     }
   }
 

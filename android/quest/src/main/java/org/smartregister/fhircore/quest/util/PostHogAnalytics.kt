@@ -3,6 +3,7 @@ package org.smartregister.fhircore.quest.util
 import com.posthog.PostHog
 import org.smartregister.fhircore.quest.BuildConfig
 import timber.log.Timber
+import java.security.MessageDigest
 
 /**
  * Centralized PostHog analytics helper for capturing events,
@@ -12,7 +13,6 @@ object PostHogAnalytics {
 
     // ── User Property Keys ──
     private const val PROP_FLWID = "flwid"
-    private const val PROP_SITE = "site"
     private const val PROP_VERSION_CODE = "app_version_code"
     private const val PROP_VERSION_NAME = "app_version_name"
     private const val PROP_PENDING_SYNC_IMAGES = "pending_sync_images"
@@ -50,29 +50,39 @@ object PostHogAnalytics {
     }
 
     /**
+     * SHA-256 hash a string to anonymize PII before sending to PostHog.
+     */
+    fun hashId(id: String): String {
+        val bytes = MessageDigest.getInstance("SHA-256").digest(id.toByteArray())
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
      * Identify the user and set persistent user properties including
-     * flwid, site, and pending sync counts so all future events
+     * hashed flwid and pending sync counts so all future events
      * can be filtered by these in PostHog.
+     * Note: flwId is hashed using SHA-256 to avoid sending PII.
+     * Site name is intentionally excluded to protect location privacy.
      */
     fun identifyUser(
         flwId: String,
-        site: String?,
         pendingSyncImages: Int = 0,
         pendingSyncCases: Int = 0,
     ) {
         try {
             if (flwId.isBlank()) return
 
+            val hashedFlwId = hashId(flwId)
+
             val userProperties = mutableMapOf<String, Any>(
-                PROP_FLWID to flwId,
+                PROP_FLWID to hashedFlwId,
                 PROP_VERSION_CODE to BuildConfig.VERSION_CODE.toString(),
                 PROP_VERSION_NAME to BuildConfig.VERSION_NAME,
                 PROP_PENDING_SYNC_IMAGES to pendingSyncImages,
                 PROP_PENDING_SYNC_CASES to pendingSyncCases,
             )
-            site?.let { userProperties[PROP_SITE] = it }
 
-            PostHog.identify(flwId, userProperties = userProperties)
+            PostHog.identify(hashedFlwId, userProperties = userProperties)
         } catch (e: Exception) {
             Timber.e(e, "PostHog identifyUser failed")
         }
