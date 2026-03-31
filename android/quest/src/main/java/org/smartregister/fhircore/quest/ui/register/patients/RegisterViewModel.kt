@@ -243,12 +243,10 @@ constructor(
     fun setPostHogUserProperties() {
         try {
             val flwId = secureSharedPreference.getPractitionerUserId()
-            val site = sharedPreferencesHelper.getSiteName()
             val pendingImages = _allUnSyncedImages.value
             val pendingCases = _allUnSyncedStateFlow.value.size
             PostHogAnalytics.identifyUser(
                 flwId = flwId,
-                site = site,
                 pendingSyncImages = pendingImages,
                 pendingSyncCases = pendingCases,
             )

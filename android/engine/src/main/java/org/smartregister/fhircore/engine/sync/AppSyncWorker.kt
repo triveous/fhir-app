@@ -124,7 +124,7 @@ constructor(
     override suspend fun doWork(): Result {
         Timber.i("AppSyncWorker Running sync worker")
         if (mutex.isLocked) {
-            Timber.e("AppSyncWorker is locked. Returning failure")
+            Timber.e(Exception("AppSyncWorker is locked. Returning failure"))
             return Result.failure()
         }
         val metaSyncResult = super.doWork()
@@ -214,7 +214,7 @@ constructor(
                         Timber.i("Successfully completed version-aware upload for document: ${docReference.logicalId}")
                         true
                     } else {
-                        Timber.e("Failed version-aware upload for document: ${docReference.logicalId}")
+                        Timber.e(Exception("Failed version-aware upload for document: ${docReference.logicalId}"))
                         false
                     }
                 }

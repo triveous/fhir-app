@@ -139,7 +139,7 @@ constructor(
             },
             onFetchPractitioner = { bundleResult, userInfo ->
               if (bundleResult.isSuccess) {
-                setPostHogConfiguration(trimmedUsername)
+                setPostHogConfiguration()
                 val bundle = bundleResult.getOrDefault(FhirR4ModelBundle())
                 savePractitionerDetails(bundle, userInfo) {
                   _showProgressBar.postValue(false)
@@ -158,7 +158,7 @@ constructor(
             _showProgressBar.postValue(false)
             _loginErrorState.postValue(LoginErrorState.INVALID_OFFLINE_STATE)
           } else if (accountAuthenticator.validateLoginCredentials(trimmedUsername, passwordAsCharArray)) {
-            setPostHogConfiguration(trimmedUsername)
+            setPostHogConfiguration()
             _showProgressBar.postValue(false)
             updateNavigateHome(true)
           } else {
@@ -171,10 +171,10 @@ constructor(
     }
   }
 
-  private fun setPostHogConfiguration(trimmedUsername: String) {
+  private fun setPostHogConfiguration() {
     try {
-      val site = sharedPreferences.getSiteName()
-      PostHogAnalytics.identifyUser(flwId = trimmedUsername, site = site)
+      val flwId = secureSharedPreference.getPractitionerUserId()
+      PostHogAnalytics.identifyUser(flwId = flwId)
     } catch (e: Exception) {
       Timber.e(e)
     }
