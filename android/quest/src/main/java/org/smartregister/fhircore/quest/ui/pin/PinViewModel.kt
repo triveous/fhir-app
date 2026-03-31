@@ -85,7 +85,7 @@ constructor(
   fun setPinUiState(setupPin: Boolean = false, context: Context) {
     val username = secureSharedPreference.retrieveSessionUsername()
     if(!username.isNullOrEmpty()){
-      setPostHogConfiguration(username)
+      setPostHogConfiguration()
     }
     pinUiState.value =
       PinUiState(
@@ -104,10 +104,10 @@ constructor(
       )
   }
 
-  private fun setPostHogConfiguration(trimmedUsername: String) {
+  private fun setPostHogConfiguration() {
     try {
-      val site = sharedPreferences.getSiteName()
-      PostHogAnalytics.identifyUser(flwId = trimmedUsername, site = site)
+      val flwId = secureSharedPreference.getPractitionerUserId()
+      PostHogAnalytics.identifyUser(flwId = flwId)
     } catch (e: Exception) {
       Timber.e(e)
     }

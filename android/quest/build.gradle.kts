@@ -23,7 +23,7 @@ plugins {
   id("dagger.hilt.android.plugin")
   id("androidx.navigation.safeargs")
   id("org.sonarqube") version "3.5.0.2730"
-  id("io.sentry.android.gradle") version "3.5.0"
+
 }
 
 sonar {
@@ -75,7 +75,9 @@ android {
     buildConfigField("String", "OAUTH_SCOPE", """"${project.extra["OAUTH_SCOPE"]}"""")
     buildConfigField("String", "OPENSRP_APP_ID", """${project.extra["OPENSRP_APP_ID"]}""")
     buildConfigField("String", "CONFIGURATION_SYNC_PAGE_SIZE", """"100"""")
-    buildConfigField("String", "SENTRY_DSN", """"${project.extra["SENTRY_DSN"]}"""")
+
+    buildConfigField("String", "POSTHOG_API_KEY", """"${project.extra["POSTHOG_API_KEY"]}"""")
+    buildConfigField("String", "POSTHOG_HOST", """"${project.extra["POSTHOG_HOST"]}"""")
     buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
 
     testInstrumentationRunner = "org.smartregister.fhircore.quest.QuestTestRunner"
@@ -259,10 +261,6 @@ tasks.withType<Test> {
 
 configurations {
   all { exclude(group = "xpp3") }
-  sentry {
-    // Other configurations...
-    autoUploadProguardMapping = false
-  }
 }
 
 dependencies {
@@ -286,6 +284,7 @@ dependencies {
   implementation(libs.core.ktx)
   implementation(libs.appcompat)
   implementation(libs.material)
+  implementation(libs.posthog)
   implementation(libs.dagger.hilt.android)
   implementation(libs.hilt.work)
   implementation(libs.play.services.location)
