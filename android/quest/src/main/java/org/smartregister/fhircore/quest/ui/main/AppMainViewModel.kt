@@ -132,8 +132,7 @@ constructor(
   fun setPostHogUserProperties() {
     try {
       val flwId = secureSharedPreference.getPractitionerUserId()
-      val site = sharedPreferencesHelper.getSiteName()
-      PostHogAnalytics.identifyUser(flwId = flwId, site = site)
+      PostHogAnalytics.identifyUser(flwId = flwId)
     } catch (e: Exception) {
       Timber.e(e)
     }

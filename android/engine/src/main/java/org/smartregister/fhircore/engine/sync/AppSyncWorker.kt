@@ -19,6 +19,7 @@ package org.smartregister.fhircore.engine.sync
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
 import android.net.Uri
 import android.provider.Settings
@@ -117,7 +118,7 @@ constructor(
         return ForegroundInfo(
             NOTIFICATION_ID,
             notification,
-            FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
+            FOREGROUND_SERVICE_TYPE_DATA_SYNC
         )
     }
 
@@ -195,9 +196,17 @@ constructor(
                     val success = uploadDocumentReferenceVersionAware(docReference, fileUri, context, serverDocRef)
 
                     if (success) {
+                        // CRITICAL: Re-verify from server that image data exists before deleting locally.
+                        // This prevents data loss if the upload appeared successful but data didn't persist.
+                        val verifiedServerDoc = getDocumentReferenceMetaDataFromServer(docReference)
+                        if (!verifiedServerDoc.hasImageDataOnServer()) {
+                            Timber.e(Exception("SAFETY CHECK FAILED: Upload reported success but image NOT found on server for ${docReference.logicalId}. Keeping local image."))
+                            return@withLock false
+                        }
+
                         atLeastOneSuccess = true
 
-                        // Clean up local resources after successful upload
+                        // Clean up local resources — server confirmed to have image data
                         openSrpFhirEngine.purge(
                             docReference.resourceType,
                             docReference.logicalId,
@@ -238,7 +247,7 @@ private fun filesExists(uri: Uri?): Boolean {
         applicationContext.contentResolver.openInputStream(uri)?.use { it.available() > 0 } ?: false
     } catch (e: Exception) {
         Timber.e(e, "Exception checking file existence for uri: $uri")
-        return e !is FileNotFoundException
+        return false
     }
 }
 
@@ -284,12 +293,16 @@ private fun filesExists(uri: Uri?): Boolean {
                 return@runCatching true
             }
 
-            // 2. State correction: If local is 'final' but server is not, just patch the server status.
-            // This handles cases where the app was closed after uploading the image but before finalizing.
+            // 2. State correction: If local is 'final' but server is not, and image IS on server,
+            // just patch the server status. Only safe to skip upload if image is confirmed on server.
             if (docReference.docStatus == DocumentReference.ReferredDocumentStatus.FINAL && !serverDocRef.isFinalOnServer()) {
-                Timber.i("Local DocumentReference is final, updating server status for ${docReference.logicalId}")
-                finalizeDocumentOnServer(docReference)
-                return@runCatching true
+                if (serverDocRef.hasImageDataOnServer()) {
+                    Timber.i("Local DocumentReference is final and image exists on server, updating server status for ${docReference.logicalId}")
+                    finalizeDocumentOnServer(docReference)
+                    return@runCatching true
+                } else {
+                    Timber.w("Local DocumentReference is final but image is MISSING on server for ${docReference.logicalId}. Proceeding with upload.")
+                }
             }
 
             // 3. Main Upload Flow: Execute steps based on server state.
@@ -303,9 +316,10 @@ private fun filesExists(uri: Uri?): Boolean {
             if (!serverDocRef.hasImageDataOnServer()) {
                 val startTime = System.currentTimeMillis()
                 uploadFileContent(docReference, fileUri, context)
-                val timeTaken = System.currentTimeMillis() - startTime
-                addUploadTimeTaken(docReference, timeTaken)
-                // After upload, update local status to FINAL to track progress
+                // Track progress in-memory only. Do NOT call openSrpFhirEngine.update()
+                // here — that queues a local change, and the subsequent super.doWork()
+                // would PUT the full DocumentReference (without binary data) to the server,
+                // potentially overwriting the image we just uploaded.
                 docReference.docStatus = DocumentReference.ReferredDocumentStatus.FINAL
                 openSrpFhirEngine.update(docReference)
             }
@@ -374,7 +388,7 @@ private fun filesExists(uri: Uri?): Boolean {
             openSrpFhirEngine.update(docReference)
             
             // Handle specific cleanup logic for failed uploads
-            if (response.code() in listOf(422, 410)) {
+            if (response.code() in listOf(410)) {
                 openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
                 context.contentResolver.delete(fileUri, null, null)
             }
