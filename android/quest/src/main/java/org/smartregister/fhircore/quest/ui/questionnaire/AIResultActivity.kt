@@ -420,7 +420,7 @@ fun FullscreenImageOverlay(
                     painter = painterResource(id = R.drawable.ic_cancel),
                     contentDescription = "Close",
                     tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
