@@ -181,6 +181,7 @@ internal object CustomAttachmentViewHolderFactory :
                 photoDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
                 photoDeleteButton2.setOnClickListener { view -> onDeleteClicked(view) }
                 photoView.setOnClickListener { view -> onViewPhotoClicked(view) }
+                photoThumbnail.setOnClickListener { view -> onViewPhotoClicked(view) }
                 fileDeleteButton.setOnClickListener { view -> onDeleteClicked(view) }
                 displayValidationResult(questionnaireViewItem.validationResult)
 

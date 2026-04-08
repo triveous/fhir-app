@@ -316,6 +316,8 @@ private fun filesExists(uri: Uri?): Boolean {
             if (!serverDocRef.hasImageDataOnServer()) {
                 val startTime = System.currentTimeMillis()
                 uploadFileContent(docReference, fileUri, context)
+                val timeTaken = System.currentTimeMillis() - startTime
+                addUploadTimeTaken(docReference, timeTaken)
                 // Track progress in-memory only. Do NOT call openSrpFhirEngine.update()
                 // here — that queues a local change, and the subsequent super.doWork()
                 // would PUT the full DocumentReference (without binary data) to the server,

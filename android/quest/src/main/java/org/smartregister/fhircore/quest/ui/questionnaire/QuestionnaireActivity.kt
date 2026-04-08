@@ -40,6 +40,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.BooleanType
 import org.hl7.fhir.r4.model.DocumentReference
+import org.hl7.fhir.r4.model.IdType
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.Reference
@@ -97,6 +98,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private var currentQR: QuestionnaireResponse? = null
   private var isSuspiciousResult: Boolean = false
   private var suspiciousImagesList: List<String> = emptyList()
+  private var submissionIdTypes: List<IdType>? = null
+  private var submissionQRResult: QuestionnaireResponse? = null
 
   private val aiResultLauncher =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -109,28 +112,23 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             PostHogAnalytics.Props.REFER_CASE to referCase,
           ),
         )
-        currentQR?.let { qr ->
-          qr.addExtension(REFER_CASE_URL, BooleanType(referCase))
-          viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(true))
-          viewModel.handleQuestionnaireSubmission(
-            questionnaire = questionnaire!!,
-            currentQuestionnaireResponse = qr,
-            questionnaireConfig = questionnaireConfig,
-            actionParameters = actionParameters,
-            context = this@QuestionnaireActivity,
-          ) { idTypes, qrResult ->
-            viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
-            setResult(
-              Activity.RESULT_OK,
-              Intent().apply {
-                putExtra(QUESTIONNAIRE_RESPONSE, qrResult as Serializable)
-                putExtra(QUESTIONNAIRE_SUBMISSION_EXTRACTED_RESOURCE_IDS, idTypes as Serializable)
-                putExtra(QUESTIONNAIRE_CONFIG, questionnaireConfig as Parcelable)
-              },
-            )
-            finish()
+
+        if (referCase) {
+          submissionQRResult?.let { qr ->
+            qr.addExtension(REFER_CASE_URL, BooleanType(true))
+            viewModel.updateReferCase(qr.logicalId)
           }
         }
+
+        setResult(
+          Activity.RESULT_OK,
+          Intent().apply {
+            putExtra(QUESTIONNAIRE_RESPONSE, submissionQRResult as Serializable)
+            putExtra(QUESTIONNAIRE_SUBMISSION_EXTRACTED_RESOURCE_IDS, submissionIdTypes as Serializable)
+            putExtra(QUESTIONNAIRE_CONFIG, questionnaireConfig as Parcelable)
+          },
+        )
+        finish()
       }
     }
 
@@ -508,10 +506,24 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               isSuspiciousResult = isSuspicious
               suspiciousImagesList = suspiciousImages
 
-              val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
-              intent.putExtra("isSuspicious", isSuspicious)
-              intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
-              aiResultLauncher.launch(intent)
+              viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(true))
+              viewModel.handleQuestionnaireSubmission(
+                questionnaire = questionnaire!!,
+                currentQuestionnaireResponse = questionnaireResponse,
+                questionnaireConfig = questionnaireConfig,
+                actionParameters = actionParameters,
+                context = this@QuestionnaireActivity,
+              ) { idTypes, qrResult ->
+                viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+                submissionIdTypes = idTypes
+                submissionQRResult = qrResult
+
+                val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
+                intent.putExtra("isSuspicious", isSuspicious)
+                intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
+                intent.putExtra("questionnaireResponseId", qrResult.logicalId)
+                aiResultLauncher.launch(intent)
+              }
             } else {
               // AI inference disabled — skip AI result screen and submit directly
               Timber.d("=== AI inference disabled, submitting directly ===")
