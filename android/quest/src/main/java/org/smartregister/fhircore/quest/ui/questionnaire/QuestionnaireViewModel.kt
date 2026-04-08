@@ -98,8 +98,10 @@ import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_URL
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
+import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import org.smartregister.fhircore.quest.util.languageExtensionToActionParameters
+import org.hl7.fhir.r4.model.BooleanType
 import timber.log.Timber
 import java.util.Date
 import java.util.Locale
@@ -1171,6 +1173,19 @@ constructor(
       Timber.e(e)
     }
     return suspiciousImages
+  }
+
+  fun updateReferCase(qrId: String) {
+    viewModelScope.launch(dispatcherProvider.io()) {
+      try {
+        val qr = fhirEngine.get(ResourceType.QuestionnaireResponse, qrId) as QuestionnaireResponse
+        qr.addExtension(REFER_CASE_URL, BooleanType(true))
+        fhirEngine.update(qr)
+        syncBroadcaster.runOneTimeSync()
+      } catch (e: Exception) {
+        Timber.e(e, "Error updating QuestionnaireResponse with refer case")
+      }
+    }
   }
 
   companion object {
