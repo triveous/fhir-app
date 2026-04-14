@@ -1202,24 +1202,23 @@ fun DocumentReference.getUrl(sharedPreferencesHelper: SharedPreferencesHelper?):
 
 }
 
-
 internal const val MODEL6_PREDICTION_URL =
-    "http://smartregister.org/ai-model-result/model6-prediction"
+    "http://smartregister.org/ai-model-result/v38-model-v6-prediction"
 
 internal const val MODEL6_CONFIDENCE_URL =
-    "http://smartregister.org/ai-model-result/model6-confidence"
+    "http://smartregister.org/ai-model-result/v38-model-v6-confidence"
 
 internal const val MODEL8_PREDICTION_URL =
-    "http://smartregister.org/ai-model-result/model8-prediction"
+    "http://smartregister.org/ai-model-result/v38-model-v8-prediction"
 
 internal const val MODEL8_CONFIDENCE_URL =
-    "http://smartregister.org/ai-model-result/model8-confidence"
+    "http://smartregister.org/ai-model-result/v38-model-v8-confidence"
 
 internal const val MODEL82_PREDICTION_URL =
-    "http://smartregister.org/ai-model-result/model82-prediction"
+    "http://smartregister.org/ai-model-result/v38-model-v82-prediction"
 
 internal const val MODEL82_CONFIDENCE_URL =
-    "http://smartregister.org/ai-model-result/model82-confidence"
+    "http://smartregister.org/ai-model-result/v38-model82-confidence"
 
 internal const val CASE_PREDICTION_RESULT_URL =
     "http://smartregister.org/ai-model-result/case-prediction-result"

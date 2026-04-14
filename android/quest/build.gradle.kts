@@ -270,11 +270,11 @@ dependencies {
 
   // Application dependencies
   implementation(project(":engine")){
-    /*exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.r5")
+    exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.r5")
     exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.r4b")
     exclude (group ="ca.uhn.hapi.fhir", module = "hapi-fhir-validation-resources-r5")
     exclude (group ="ca.uhn.hapi.fhir", module = "hapi-fhir-structures-r5")
-    exclude (group ="ca.uhn.hapi.fhir", module = "hapi-fhir-structures-r4b")*/
+    exclude (group ="ca.uhn.hapi.fhir", module = "hapi-fhir-structures-r4b")
     exclude (group ="ca.uhn.hapi.fhir", module = "hapi-fhir-validation-resources-dstu3")
     exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.dstu2")
     exclude (group ="ca.uhn.hapi.fhir", module = "org.hl7.fhir.dstu3")

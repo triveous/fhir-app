@@ -213,7 +213,7 @@
 
     <!-- Cases-->
     <string name="visited">Visited</string>
-    <string name="unique_id_label">ID</string>
+    <string name="unique_id_label">Reference ID</string>
     <string name="not_available">Not Available</string>
     <string name="cases_sync">Sync: %s</string>
     <string name="dynamic_see_more">SEE %s MORE</string>
@@ -310,6 +310,7 @@
     <string name="nonsuspicious_result_desc">AI does not recommend referral. If lesion is visible, refer the case.</string>
     <string name="ai_detected_lesions">AI-DETECTED LESIONS</string>
     <string name="none">None</string>
-    <string name="refer_case">REFER CASE</string>
-    <string name="done_upper">DONE</string>
+    <string name="no_lesions_found">No lesions found.</string>
+    <string name="refer_case">STILL REFER?</string>
+    <string name="done_upper">COMPLETE</string>
 </resources>

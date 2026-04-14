@@ -64,15 +64,11 @@ import org.smartregister.fhircore.engine.util.extension.parcelableArrayList
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.databinding.QuestionnaireActivityBinding
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_PREDICTION_URL
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
-import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_URL
-import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.LocationUtils
 import org.smartregister.fhircore.quest.util.PermissionUtils
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.ResourceUtils
-import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import org.smartregister.fhircore.quest.util.FeatureFlagUtil
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import timber.log.Timber
@@ -488,11 +484,16 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               var isSuspicious = viewModel.checkIfSuspicious(questionnaireResponse)
               val suspiciousImages = viewModel.getSuspiciousImages(questionnaireResponse)
 
-              if(isSuspicious){
-                questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("suspicious"))
-              }else{
-                questionnaireResponse.addExtension(CASE_LEVEL_AI_RESULT_URL, StringType("non-suspicious"))
+              val aiResultValue = if (isSuspicious) "suspicious" else "non-suspicious"
+              val aiResultItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+                linkId = "case-level-ai-result"
+                addAnswer(
+                  QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+                    value = StringType(aiResultValue)
+                  }
+                )
               }
+              questionnaireResponse.addItem(aiResultItem)
 
               PostHogAnalytics.capture(
                 PostHogAnalytics.Events.AI_INFERENCE_COMPLETED,
