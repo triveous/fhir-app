@@ -15,10 +15,10 @@ object FeatureFlagUtil {
         return try {
             val featureFlags = fhirEngine.get<Basic>(FEATURE_FLAGS_RESOURCE_ID)
             featureFlags.getExtensionByUrl(AI_INFERENCE_ENABLED_URL)
-                ?.value?.primitiveValue()?.toBoolean() ?: true
+                ?.value?.primitiveValue()?.toBoolean() == true
         } catch (e: Exception) {
             Timber.e(e, "Failed to read feature flag: ai_inference_enabled")
-            true
+            false
         }
     }
 }
