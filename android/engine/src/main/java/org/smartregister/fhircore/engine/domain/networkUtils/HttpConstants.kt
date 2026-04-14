@@ -2,7 +2,7 @@ package org.smartregister.fhircore.engine.domain.networkUtils
 
 object HttpConstants {
     const val SOMETHING_WANT_WRONG  ="Oops, something went wrong. Our best minds are at work to bring it back to normal."
-    const val SELECT_YOUR_SITE_URL = "https://stg.arogyam.artpark.ai/api/sites"
+    const val SELECT_YOUR_SITE_URL = "https://storage.googleapis.com/aa-common-app-bkt/aa-api/sites.json"
     const val UPLOAD_IMAGE_URL = "http://hl7.org/fhir/StructureDefinition/file-location"
     const val HEADER_APPLICATION_JSON = "application/json"
 }
