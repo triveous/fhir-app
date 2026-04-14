@@ -42,11 +42,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.smartregister.fhircore.quest.util.FeatureFlagUtil
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -95,6 +97,10 @@ fun ProfileSectionScreen(
     val userNameText = viewModel.getUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var showChangePinDialog by remember { mutableStateOf(false) }
+    var aiInferenceEnabled by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        aiInferenceEnabled = FeatureFlagUtil.isAiInferenceEnabled(viewModel.fhirEngine)
+    }
     val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: ""
 
     Scaffold(
@@ -339,6 +345,10 @@ fun ProfileSectionScreen(
                                 BuildConfig.VERSION_CODE,
                                 BuildConfig.VERSION_NAME)
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = if (aiInferenceEnabled)
+                                stringResource(id = org.smartregister.fhircore.engine.R.string.ai_enabled) else
+                                    stringResource(id = org.smartregister.fhircore.engine.R.string.ai_disabled))
                         }
                     }}
                 }

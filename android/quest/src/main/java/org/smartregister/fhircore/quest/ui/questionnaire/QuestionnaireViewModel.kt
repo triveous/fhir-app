@@ -94,7 +94,7 @@ import org.smartregister.fhircore.engine.util.extension.updateLastUpdated
 import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
 import org.smartregister.fhircore.quest.R
-import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_URL
+
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
@@ -250,7 +250,7 @@ constructor(
       val patientId = (10_000_000..99_999_999).random().toString()
 
       val idItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
-        linkId = "auto-patient-id"
+        linkId = "aa-reference-id"
         addAnswer(
           QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
             value = StringType(patientId)

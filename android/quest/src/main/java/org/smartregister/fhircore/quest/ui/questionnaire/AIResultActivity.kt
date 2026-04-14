@@ -224,7 +224,7 @@ fun AIResultScreen(
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
-                            text = stringResource(R.string.none),
+                            text = stringResource(R.string.no_lesions_found),
                             modifier = Modifier.padding(start = 16.dp),
                             style = body18Medium().copy(
                                 color = Color(0xFF3D392E),
@@ -260,7 +260,7 @@ fun AIResultScreen(
                         shape = RoundedCornerShape(2.dp)
                     ) {
                         Text(
-                            text = stringResource(R.string.close).uppercase(),
+                            text = stringResource(R.string.done_upper),
                             style = body18Medium().copy(
                                 color = WHITE,
                                 letterSpacing = 2.25.sp,
@@ -373,24 +373,6 @@ fun FullscreenImageOverlay(
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
-            // Blurred background image
-            AndroidView(
-                factory = { ctx ->
-                    androidx.appcompat.widget.AppCompatImageView(ctx).apply {
-                        scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(10.dp) // Strong blur for background
-                    .background(Color.Black.copy(alpha = 0.52f)), // Adjust opacity
-                update = { view ->
-                    Glide.with(view.context)
-                        .load(finalPath)
-                        .into(view)
-                }
-            )
-
             // Main Zoomable Image
             AndroidView(
                 factory = { ctx ->
