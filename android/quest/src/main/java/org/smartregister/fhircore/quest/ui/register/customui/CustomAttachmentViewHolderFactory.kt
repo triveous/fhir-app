@@ -63,6 +63,8 @@ import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
+import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
+import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import timber.log.Timber
 import java.io.File
 import java.math.BigDecimal
@@ -89,6 +91,8 @@ internal object CustomAttachmentViewHolderFactory :
             private lateinit var photoPreview: ConstraintLayout
             private lateinit var photoThumbnail: ImageView
             private lateinit var photoTitle: TextView
+            private lateinit var photoResult: TextView
+            private lateinit var photoConfidence: TextView
             private lateinit var photoDeleteButton: Button
             private lateinit var photoDeleteButton2: ImageView
             private lateinit var photoView: ImageView
@@ -114,6 +118,8 @@ internal object CustomAttachmentViewHolderFactory :
                 divider = itemView.findViewById(R.id.divider)
                 photoPreview = itemView.findViewById(R.id.photo_preview)
                 photoThumbnail = itemView.findViewById(R.id.photo_thumbnail)
+                photoResult = itemView.findViewById(R.id.photo_result)
+                photoConfidence = itemView.findViewById(R.id.photo_confidence)
                 photoTitle = itemView.findViewById(R.id.photo_title)
                 photoDeleteButton = itemView.findViewById(R.id.photo_delete)
                 photoDeleteButton2 = itemView.findViewById(R.id.photo_delete2)
@@ -139,7 +145,8 @@ internal object CustomAttachmentViewHolderFactory :
                 header.bind(questionnaireViewItem)
                 header.showRequiredOrOptionalTextInHeaderView(questionnaireViewItem)
                 val questionnaireItem = questionnaireViewItem.questionnaireItem
-                displayOrClearInitialPreview()
+
+                displayOrClearInitialPreview(questionnaireItem)
                 displayTakePhotoButton(questionnaireItem)
                 displayUploadButton(questionnaireItem)
                 takePhotoButton.setOnClickListener { view ->
@@ -212,7 +219,7 @@ internal object CustomAttachmentViewHolderFactory :
                 fileDeleteButton.isEnabled = !isReadOnly
             }
 
-            private fun displayOrClearInitialPreview() {
+            private fun displayOrClearInitialPreview(questionnaireItem: Questionnaire.QuestionnaireItemComponent) {
                 val answer = questionnaireViewItem.answers.firstOrNull()
 
                 // Clear preview if there is no answer to prevent showing old previews in views that have
@@ -228,6 +235,7 @@ internal object CustomAttachmentViewHolderFactory :
                         attachmentType = getMimeType(attachment.contentType),
                         attachmentTitle = attachment.title,
                         attachmentByteArray = attachment.data,
+                        questionnaireItem = questionnaireItem
                     )
                 }
             }

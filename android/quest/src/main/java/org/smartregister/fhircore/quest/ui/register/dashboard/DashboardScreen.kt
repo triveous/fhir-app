@@ -182,13 +182,6 @@ fun DashboardScreen(
             onSync = {
               viewModel.appMainEvent = it
               viewModel.setShowDialog(true)
-              if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
-                android.widget.Toast.makeText(
-                  context,
-                  context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
-                  android.widget.Toast.LENGTH_SHORT
-                ).show()
-              }
             },
             toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
             isOnline = isOnline,
@@ -509,6 +502,8 @@ fun DashboardScreen(
                 viewModel.setPermissionGranted(true)
                 viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
               }
+            }else{
+              viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
             }
           }
         )

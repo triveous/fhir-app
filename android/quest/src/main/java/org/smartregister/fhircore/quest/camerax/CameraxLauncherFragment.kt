@@ -1,21 +1,29 @@
 package org.smartregister.fhircore.quest.camerax
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.util.Log
 import android.util.Size
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.annotation.RequiresApi
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.camera.core.CameraControl
@@ -37,6 +45,8 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide.with
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.pytorch.IValue
@@ -49,6 +59,9 @@ import org.smartregister.fhircore.quest.ui.register.customui.ZoomableImageView
 import org.smartregister.fhircore.quest.util.OpenCVUtils
 import timber.log.Timber
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.text.DecimalFormat
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.collections.get
@@ -73,6 +86,7 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var flashButton: AppCompatImageButton
     private lateinit var closeCameraIB: AppCompatImageView
     private lateinit var previewView: PreviewView
+    //private lateinit var predictionScore: TextView
 
     private lateinit var cameraPreviewViewLay: FrameLayout
     private lateinit var previewViewImageLay: ConstraintLayout
@@ -129,6 +143,7 @@ class CameraxLauncherFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         previewView = view.findViewById(R.id.previewView)
+        //predictionScore = view.findViewById(R.id.predictionScore)
         flashButton = view.findViewById(R.id.flashButton)
         closeCameraIB = view.findViewById(R.id.closeCameraIB)
         captureButton = view.findViewById(R.id.captureButton)
@@ -144,6 +159,10 @@ class CameraxLauncherFragment : DialogFragment() {
         zoomSeekBar = view.findViewById(R.id.zoomSeekBar)
 
         selectButton.setSafeOnClickListener(interval = 6000) {
+            /*requireActivity().runOnUiThread {
+                progressBar.visibility = View.VISIBLE
+                requireActivity().showToast("Processing image", Toast.LENGTH_SHORT)
+            }*/
             lifecycleScope.launch {
                 onPhotoSelected(fileAbsPath)
             }
