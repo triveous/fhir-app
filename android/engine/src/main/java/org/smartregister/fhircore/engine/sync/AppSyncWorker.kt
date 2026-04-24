@@ -159,7 +159,7 @@ constructor(
 
         val docReferences = openSrpFhirEngine.search<DocumentReference> {}.filter {
             it.resource.description != DocumentReferenceCaseType.DRAFT
-        }.shuffled()
+        }.sortedByDescending { it.resource.date }
         val totalDocuments = docReferences.size
         var pendingDocuments = totalDocuments
         var atLeastOneSuccess = false
