@@ -212,7 +212,7 @@ constructor(
         // Set barcode to the configured linkId default: "patient-barcode"
         if (!questionnaireConfig.resourceIdentifier.isNullOrEmpty()) {
           (questionnaireConfig.barcodeLinkId
-              ?: questionnaireConfig.linkIds?.firstOrNull { it.type == LinkIdType.BARCODE }?.linkId)
+            ?: questionnaireConfig.linkIds?.firstOrNull { it.type == LinkIdType.BARCODE }?.linkId)
             ?.let { barcodeLinkId ->
               find(barcodeLinkId)?.apply {
                 initial =
@@ -339,14 +339,7 @@ constructor(
       onSuccessfulSubmission(idTypes, currentQuestionnaireResponse)
 
       // Trigger one time sync after question submission
-      if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
-        context.showToast(
-          context.getString(R.string.sync_in_progress),
-          android.widget.Toast.LENGTH_SHORT
-        )
-      } else {
-        syncBroadcaster.runOneTimeSync()
-      }
+      syncBroadcaster.runOneTimeSync()
     }
   }
 
@@ -388,9 +381,9 @@ constructor(
         applyResourceMetadata(questionnaireConfig, questionnaireResponse, context)
         if (
           questionnaireResponse.subject.reference.isNullOrEmpty() &&
-            subjectType != null &&
-            resourceType == subjectType &&
-            logicalId.isNotEmpty()
+          subjectType != null &&
+          resourceType == subjectType &&
+          logicalId.isNotEmpty()
         ) {
           questionnaireResponse.subject = this.logicalId.asReference(subjectType)
         }
@@ -399,9 +392,9 @@ constructor(
             this.id = questionnaireResponse.subject.extractId()
           } else if (
             extractedResourceUniquePropertyExpressionsMap.containsKey(resourceType) &&
-              previouslyExtractedResources.containsKey(
-                resourceType,
-              )
+            previouslyExtractedResources.containsKey(
+              resourceType,
+            )
           ) {
             val fhirPathExpression =
               extractedResourceUniquePropertyExpressionsMap
@@ -423,7 +416,7 @@ constructor(
                     expression = fhirPathExpression,
                   )
                 extractedValue.isNotEmpty() &&
-                  extractedValue.equals(currentResourceIdentifier, true)
+                        extractedValue.equals(currentResourceIdentifier, true)
               }
 
             // Found match use the id on current resource; override identifiers for RelatedPerson
@@ -468,7 +461,7 @@ constructor(
 
     if (
       !questionnaireResponse.subject.reference.isNullOrEmpty() &&
-        questionnaireConfig.saveQuestionnaireResponse
+      questionnaireConfig.saveQuestionnaireResponse
     ) {
       // Set the Group's Related Entity Location meta tag on QuestionnaireResponse then save.
       questionnaireResponse.applyRelatedEntityLocationMetaTag(
@@ -491,8 +484,8 @@ constructor(
           Pair(subjectType, questionnaireConfig.resourceIdentifier!!)
         }
         !questionnaireConfig.groupResource?.groupIdentifier.isNullOrEmpty() &&
-          questionnaireConfig.groupResource?.removeGroup != true &&
-          questionnaireConfig.groupResource?.removeMember != true -> {
+                questionnaireConfig.groupResource?.removeGroup != true &&
+                questionnaireConfig.groupResource?.removeMember != true -> {
           Pair(ResourceType.Group, questionnaireConfig.groupResource!!.groupIdentifier)
         }
         else -> null
@@ -518,14 +511,14 @@ constructor(
     val referencedResources = mutableMapOf<ResourceType, MutableList<Resource>>()
     if (
       questionnaireConfig.isEditable() &&
-        !questionnaireConfig.resourceIdentifier.isNullOrEmpty() &&
-        subjectType != null
+      !questionnaireConfig.resourceIdentifier.isNullOrEmpty() &&
+      subjectType != null
     ) {
       searchLatestQuestionnaireResponse(
-          resourceId = questionnaireConfig.resourceIdentifier!!,
-          resourceType = questionnaireConfig.resourceType ?: subjectType,
-          questionnaireId = questionnaire.logicalId,
-        )
+        resourceId = questionnaireConfig.resourceIdentifier!!,
+        resourceType = questionnaireConfig.resourceType ?: subjectType,
+        questionnaireId = questionnaire.logicalId,
+      )
         ?.contained
         ?.asSequence()
         ?.filterIsInstance<ListResource>()
@@ -775,11 +768,11 @@ constructor(
     }
 
     return QuestionnaireResponseValidator.validateQuestionnaireResponse(
-        questionnaire = Questionnaire().apply { item = validQuestionnaireItems },
-        questionnaireResponse =
-          QuestionnaireResponse().apply { item = validQuestionnaireResponseItems },
-        context = context,
-      )
+      questionnaire = Questionnaire().apply { item = validQuestionnaireItems },
+      questionnaireResponse =
+        QuestionnaireResponse().apply { item = validQuestionnaireResponseItems },
+      context = context,
+    )
       .values
       .flatten()
       .all { it is Valid || it is NotValidated }
@@ -822,10 +815,10 @@ constructor(
 
           result.parameter.mapNotNull { cqlResultParameterComponent ->
             (cqlResultParameterComponent.value ?: cqlResultParameterComponent.resource)?.let {
-              resultParameterResource ->
+                resultParameterResource ->
               if (
                 cqlResultParameterComponent.name.equals(OUTPUT_PARAMETER_KEY) &&
-                  resultParameterResource.isResource
+                resultParameterResource.isResource
               ) {
                 defaultRepository.create(true, resultParameterResource as Resource)
               }
@@ -833,10 +826,10 @@ constructor(
               if (BuildConfig.DEBUG) {
                 Timber.d(
                   "CQL :: Param found: ${cqlResultParameterComponent.name} with value: ${
-                                        getStringRepresentation(
-                                            resultParameterResource,
-                                        )
-                                    }",
+                    getStringRepresentation(
+                      resultParameterResource,
+                    )
+                  }",
                 )
               }
             }
@@ -880,13 +873,13 @@ constructor(
     // Load the group from the database to get the updated Resource always.
     val group =
       groupIdentifier?.extractLogicalIdUuid()?.let { loadResource(ResourceType.Group, it) }
-        as Group?
+              as Group?
 
     if (
       group != null &&
-        resource is RelatedPerson &&
-        !resource.relationshipFirstRep.codingFirstRep.code.isNullOrEmpty() &&
-        resource.relationshipFirstRep.codingFirstRep.code == managingEntityRelationshipCode
+      resource is RelatedPerson &&
+      !resource.relationshipFirstRep.codingFirstRep.code.isNullOrEmpty() &&
+      resource.relationshipFirstRep.codingFirstRep.code == managingEntityRelationshipCode
     ) {
       defaultRepository.addOrUpdate(
         resource = group.apply { managingEntity = resource.asReference() },
@@ -907,7 +900,7 @@ constructor(
     // Load the Group resource from the database to get the updated one
     val group =
       groupIdentifier?.extractLogicalIdUuid()?.let { loadResource(ResourceType.Group, it) }
-        as Group? ?: return
+              as Group? ?: return
 
     val reference = resource.asReference()
     val member = group.member.find { it.entity.reference.equals(reference.reference, true) }
@@ -955,8 +948,8 @@ constructor(
 
     if (
       questionnaireConfig.removeResource == true &&
-        questionnaireConfig.resourceType != null &&
-        !questionnaireConfig.resourceIdentifier.isNullOrEmpty()
+      questionnaireConfig.resourceType != null &&
+      !questionnaireConfig.resourceIdentifier.isNullOrEmpty()
     ) {
       viewModelScope.launch {
         defaultRepository.delete(
@@ -1039,8 +1032,8 @@ constructor(
     return actionParameters
       .filter {
         it.paramType == ActionParameterType.QUESTIONNAIRE_RESPONSE_POPULATION_RESOURCE &&
-          it.resourceType != null &&
-          it.value.isNotEmpty()
+                it.resourceType != null &&
+                it.value.isNotEmpty()
       }
       .mapNotNull {
         try {
@@ -1112,9 +1105,14 @@ constructor(
                             if (hiddenItem.answer.isEmpty()) {
                               Timber.d("Adding new answer to hidden item")
                               hiddenItem.addAnswer()
-                              if(isSuspicious.not()){
-                                isSuspicious = result.toString().equals("suspicious", ignoreCase = true)
-                              }
+                            }
+
+                            // Update isSuspicious whenever a "suspicious" image result is found,
+                            // not only on first-time hidden-item population. Otherwise re-running
+                            // checkIfSuspicious on a draft (where hiddenItem already has an answer)
+                            // returns false even when an image is suspicious — i.e. a false negative.
+                            if (isSuspicious.not()) {
+                              isSuspicious = result.toString().equals("suspicious", ignoreCase = true)
                             }
 
                             Timber.d("Setting value on hidden item answer")
