@@ -47,6 +47,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.pytorch.IValue
@@ -102,9 +103,12 @@ class CameraxLauncherFragment : DialogFragment() {
 
     private var fileAbsPath: String = ""
     private var isCapturing = false
-    var module6 : Module? = null
-    var module8 : Module? = null
-    var module82 : Module? = null
+    @Volatile var module6 : Module? = null
+    @Volatile var module8 : Module? = null
+    @Volatile var module82 : Module? = null
+    // Init runs concurrently with photo capture; onPhotoSelected awaits this before
+    // running inference so the IO-thread forward pass can't race with module load.
+    private var initModelJob: Job? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -208,7 +212,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
         checkPermissionAndStartCamera()
 
-        lifecycleScope.launch {
+        initModelJob = lifecycleScope.launch {
             if (isAiInferenceEnabled()) {
                 initModel()
             }
@@ -394,7 +398,7 @@ class CameraxLauncherFragment : DialogFragment() {
                     override fun onError(exception: ImageCaptureException) {
                         isCapturing = false
                         lifecycleScope.launch {
-                             captureButton.isEnabled = true
+                            captureButton.isEnabled = true
                         }
                         Timber.e(exception,"Photo exception = {ImageCaptureException@35501} \"androidx.camera.core.ImageCaptureException: Failed to write temp file\"capture failed: ${exception.message}")
                         dismiss()
@@ -509,7 +513,7 @@ class CameraxLauncherFragment : DialogFragment() {
             val allSuspicious = result6.first && result8.first && result82.first
             val finalPrediction = if (allSuspicious) 1 else 0
             val finalClassName = classes.diseases[finalPrediction]
-            
+
             val avgConfidence = listOf(result6.third, result8.third, result82.third)
                 .mapNotNull { it.toFloatOrNull() }
                 .let { values -> if (values.isNotEmpty()) DecimalFormat("#.##").format(values.average()) else "" }
@@ -547,6 +551,11 @@ class CameraxLauncherFragment : DialogFragment() {
     }
     private suspend fun onPhotoSelected(absolutePath : String){
         val resultMap = if (isAiInferenceEnabled()) {
+            // Wait for model load to finish before forwarding on Dispatchers.IO.
+            // Without this the IO-thread forward pass can race with model load on
+            // Main, hit a null Module, throw, and surface as "Error" — which the
+            // case-level combine then reads as Non-Suspicious (false negative).
+            initModelJob?.join()
             withContext(Dispatchers.IO) {
                 processImage(fileAbsPath)
             }
@@ -563,18 +572,18 @@ class CameraxLauncherFragment : DialogFragment() {
             if (resultMap != null) {
                 putString(CAMERA_PREDICTION_KEY, resultMap[CAMERA_PREDICTION_KEY] as String)
                 putString(CAMERA_CONFIDENCE_KEY, resultMap[CAMERA_CONFIDENCE_KEY] as String)
-                
+
                 putString(CAMERA_MODEL6_PREDICTION_KEY, resultMap["model6_prediction"] as String)
                 putString(CAMERA_MODEL6_CONFIDENCE_KEY, resultMap["model6_confidence"] as String)
-                
+
                 putString(CAMERA_MODEL8_PREDICTION_KEY, resultMap["model8_prediction"] as String)
                 putString(CAMERA_MODEL8_CONFIDENCE_KEY, resultMap["model8_confidence"] as String)
-                
+
                 putString(CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"] as String)
                 putString(CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"] as String)
             } else if (isAiInferenceEnabled()) {
-                 putString(CAMERA_PREDICTION_KEY, "Error")
-                 putString(CAMERA_CONFIDENCE_KEY, "Error")
+                putString(CAMERA_PREDICTION_KEY, "Error")
+                putString(CAMERA_CONFIDENCE_KEY, "Error")
             }
             putBoolean(CAMERA_RESULT_KEY, true)
         })
@@ -596,7 +605,7 @@ class CameraxLauncherFragment : DialogFragment() {
         const val CAMERA_RESULT_URI_KEY = "camera_result_uri"
         const val CAMERA_PREDICTION_KEY = "camera_prediction"
         const val CAMERA_CONFIDENCE_KEY = "camera_confidence"
-        
+
         const val CAMERA_MODEL6_PREDICTION_KEY = "camera_model6_prediction"
         const val CAMERA_MODEL6_CONFIDENCE_KEY = "camera_model6_confidence"
         const val CAMERA_MODEL8_PREDICTION_KEY = "camera_model8_prediction"
