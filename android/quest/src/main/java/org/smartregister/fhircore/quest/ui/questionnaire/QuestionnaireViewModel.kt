@@ -1067,11 +1067,14 @@ constructor(
           item.item.forEach { group ->
             if (group.linkId == "patient-screening-image-group") {
               Timber.d("Found patient-screening-image-group, total items: ${group.item.size}")
-              group.item.forEach { imageOrHiddenItem ->
-                // Skip items that are AI result items (ending with -ai-result)
+              group.item.forEach imageItems@{ imageOrHiddenItem ->
                 if (imageOrHiddenItem.linkId.endsWith("-ai-result")) {
-                  Timber.d("Skipping AI result item: ${imageOrHiddenItem.linkId}")
-                  return@forEach
+                  val hiddenResult = imageOrHiddenItem.answer.firstOrNull()?.value.asPrimitiveString()
+                  if (hiddenResult.isSuspiciousAiResult()) {
+                    isSuspicious = true
+                  }
+                  Timber.d("Read AI result item: ${imageOrHiddenItem.linkId}")
+                  return@imageItems
                 }
 
                 try {
@@ -1080,48 +1083,42 @@ constructor(
                     val firstAnswer = imageOrHiddenItem.answer.firstOrNull()
                     Timber.d("First answer exists: ${firstAnswer != null}, has extensions: ${firstAnswer?.hasExtension()}, extension count: ${firstAnswer?.extension?.size}")
 
-                    if (firstAnswer != null && firstAnswer.hasExtension() && firstAnswer.extension.size > 1) {
+                    if (firstAnswer != null && firstAnswer.hasExtension()) {
                       val resultExtension = firstAnswer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL)
                       val confidenceExtension = firstAnswer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL)
 
                       Timber.d("Result extension: ${resultExtension != null}, Confidence extension: ${confidenceExtension != null}")
 
-                      if (resultExtension != null && confidenceExtension != null) {
-                        val result = resultExtension.value
-                        val confidence = confidenceExtension.value
+                      val result = resultExtension?.value.asPrimitiveString()
+                      val confidence = confidenceExtension?.value.asPrimitiveString()
 
-                        Timber.d("Result value: $result, Confidence value: $confidence")
+                      Timber.d("Result value: $result, Confidence value: $confidence")
 
-                        if (result != null && confidence != null) {
-                          val hiddenLinkId = "${imageOrHiddenItem.linkId}-ai-result"
-                          val hiddenItem = group.item.find { it.linkId == hiddenLinkId }
+                      if (result.isSuspiciousAiResult()) {
+                        isSuspicious = true
+                      }
 
-                          Timber.d("Looking for hidden item: $hiddenLinkId, found: ${hiddenItem != null}")
+                      if (!result.isNullOrBlank() && !confidence.isNullOrBlank()) {
+                        val hiddenLinkId = "${imageOrHiddenItem.linkId}-ai-result"
+                        val hiddenItem = group.item.find { it.linkId == hiddenLinkId }
 
-                          if (hiddenItem != null) {
-                            Timber.d("BEFORE: Hidden item $hiddenLinkId has ${hiddenItem.answer.size} answers")
+                        Timber.d("Looking for hidden item: $hiddenLinkId, found: ${hiddenItem != null}")
 
-                            // Set or update the answer
-                            if (hiddenItem.answer.isEmpty()) {
-                              Timber.d("Adding new answer to hidden item")
-                              hiddenItem.addAnswer()
-                            }
+                        if (hiddenItem != null) {
+                          Timber.d("BEFORE: Hidden item $hiddenLinkId has ${hiddenItem.answer.size} answers")
 
-                            // Update isSuspicious whenever a "suspicious" image result is found,
-                            // not only on first-time hidden-item population. Otherwise re-running
-                            // checkIfSuspicious on a draft (where hiddenItem already has an answer)
-                            // returns false even when an image is suspicious — i.e. a false negative.
-                            if (isSuspicious.not()) {
-                              isSuspicious = result.toString().equals("suspicious", ignoreCase = true)
-                            }
-
-                            Timber.d("Setting value on hidden item answer")
-                            hiddenItem.answer[0].value = StringType("$result|$confidence")
-
-                            Timber.d("AFTER: Successfully set AI result for $hiddenLinkId: $result|$confidence")
-                          } else {
-                            Timber.w("Hidden item not found for linkId: $hiddenLinkId")
+                          // Set or update the answer
+                          if (hiddenItem.answer.isEmpty()) {
+                            Timber.d("Adding new answer to hidden item")
+                            hiddenItem.addAnswer()
                           }
+
+                          Timber.d("Setting value on hidden item answer")
+                          hiddenItem.answer[0].value = StringType("$result|$confidence")
+
+                          Timber.d("AFTER: Successfully set AI result for $hiddenLinkId: $result|$confidence")
+                        } else {
+                          Timber.w("Hidden item not found for linkId: $hiddenLinkId")
                         }
                       }
                     }
@@ -1143,24 +1140,30 @@ constructor(
   }
 
   fun getSuspiciousImages(questionnaireResponse: QuestionnaireResponse): List<String> {
-    val suspiciousImages = mutableListOf<String>()
+    val suspiciousImages = linkedSetOf<String>()
     try {
       for (item in questionnaireResponse.item) {
         if (item.linkId == "screening-group") {
           item.item.forEach { group ->
             if (group.linkId == "patient-screening-image-group") {
-              group.item.forEach { item ->
+              group.item.forEach imageItems@{ item ->
                 if (item.linkId.endsWith("-ai-result")) {
-                  if (item.answer.isNotEmpty()) {
-                    val answer = item.answer[0].value.toString()
-                    if (answer.startsWith("suspicious", ignoreCase = true)) {
-                      val originalLinkId = item.linkId.removeSuffix("-ai-result")
-                      val originalItem = group.item.find { it.linkId == originalLinkId }
-                      originalItem?.answer?.firstOrNull()?.valueAttachment?.title?.let {
-                        suspiciousImages.add(it)
-                      }
+                  val answer = item.answer.firstOrNull()?.value.asPrimitiveString()
+                  if (answer.isSuspiciousAiResult()) {
+                    val originalLinkId = item.linkId.removeSuffix("-ai-result")
+                    val originalItem = group.item.find { it.linkId == originalLinkId }
+                    originalItem?.answer?.firstOrNull()?.valueAttachment?.title?.let {
+                      suspiciousImages.add(it)
                     }
                   }
+                  return@imageItems
+                }
+
+                val answer = item.answer.firstOrNull() ?: return@imageItems
+                val result =
+                  answer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL)?.value.asPrimitiveString()
+                if (result.isSuspiciousAiResult()) {
+                  answer.valueAttachment?.title?.let { suspiciousImages.add(it) }
                 }
               }
             }
@@ -1170,8 +1173,14 @@ constructor(
     } catch (e: Exception) {
       Timber.e(e)
     }
-    return suspiciousImages
+    return suspiciousImages.toList()
   }
+
+  private fun Base?.asPrimitiveString(): String? =
+    this?.primitiveValue()?.takeIf { it.isNotBlank() } ?: this?.toString()?.takeIf { it.isNotBlank() }
+
+  private fun String?.isSuspiciousAiResult(): Boolean =
+    this?.substringBefore("|")?.trim()?.equals("suspicious", ignoreCase = true) == true
 
   fun updateReferCase(qrId: String) {
     viewModelScope.launch(dispatcherProvider.io()) {

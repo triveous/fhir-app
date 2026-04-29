@@ -562,8 +562,8 @@ class CameraxLauncherFragment : DialogFragment() {
         } else null
 
         val predictionProps = mutableMapOf<String, Any>(
-            PostHogAnalytics.Props.AI_PREDICTION to (resultMap?.get(CAMERA_PREDICTION_KEY) ?: "none"),
-            PostHogAnalytics.Props.AI_CONFIDENCE to (resultMap?.get(CAMERA_CONFIDENCE_KEY) ?: "none"),
+            PostHogAnalytics.Props.AI_PREDICTION to (resultMap?.get(CAMERA_PREDICTION_KEY) ?: ""),
+            PostHogAnalytics.Props.AI_CONFIDENCE to (resultMap?.get(CAMERA_CONFIDENCE_KEY) ?: ""),
         )
         PostHogAnalytics.capture(PostHogAnalytics.Events.PHOTO_CAPTURED, predictionProps)
 
@@ -582,8 +582,8 @@ class CameraxLauncherFragment : DialogFragment() {
                 putString(CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"] as String)
                 putString(CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"] as String)
             } else if (isAiInferenceEnabled()) {
-                putString(CAMERA_PREDICTION_KEY, "Error")
-                putString(CAMERA_CONFIDENCE_KEY, "Error")
+                putString(CAMERA_PREDICTION_KEY, "")
+                putString(CAMERA_CONFIDENCE_KEY, "")
             }
             putBoolean(CAMERA_RESULT_KEY, true)
         })
