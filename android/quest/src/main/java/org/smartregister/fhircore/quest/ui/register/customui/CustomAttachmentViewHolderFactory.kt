@@ -368,6 +368,7 @@ internal object CustomAttachmentViewHolderFactory :
                         result.getString(CameraxLauncherFragment.CAMERA_MODEL82_PREDICTION_KEY)
                     val model82Confidence =
                         result.getString(CameraxLauncherFragment.CAMERA_MODEL82_CONFIDENCE_KEY)
+                    val hasAiInferenceResult = isAiInferenceEnabled() && !predictionResult.isNullOrBlank()
 
                     if (!fileAbsolutePath.isNullOrEmpty()) {
                         try {
@@ -405,7 +406,7 @@ internal object CustomAttachmentViewHolderFactory :
                                 attachmentMimeTypeWithSubType
                             ).apply {
                                 // Add AI Model results to DocumentReference
-                                if (isAiInferenceEnabled()) {
+                                if (hasAiInferenceResult) {
                                     if (!model6Prediction.isNullOrEmpty()) {
                                         addExtension(
                                             MODEL6_PREDICTION_URL,
@@ -444,14 +445,14 @@ internal object CustomAttachmentViewHolderFactory :
                             val answer =
                                 QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
                                     .apply {
-                                        if (isAiInferenceEnabled()) {
+                                        if (hasAiInferenceResult) {
                                             addExtension(
                                                 SUSPICIOUS_NON_SUSPICIOUS_URL,
                                                 StringType(predictionResult.orEmpty())
                                             )
                                             addExtension(
                                                 CONFIDENCE_PERCENTAGE_URL,
-                                                StringType(confidence)
+                                                StringType(confidence.orEmpty())
                                             )
 
                                             if (!model6Prediction.isNullOrEmpty()) {
@@ -497,17 +498,17 @@ internal object CustomAttachmentViewHolderFactory :
                                             }
                                     }
 
-                            if (isAiInferenceEnabled()) {
+                            if (hasAiInferenceResult) {
                                 //Suspicious/NonSuspicious
                                 questionnaireItem.addExtension(
                                     SUSPICIOUS_NON_SUSPICIOUS_URL,
-                                    StringType(predictionResult)
+                                    StringType(predictionResult.orEmpty())
                                 )
 
                                 //Confidence percentage
                                 questionnaireItem.addExtension(
                                     CONFIDENCE_PERCENTAGE_URL,
-                                    StringType(confidence)
+                                    StringType(confidence.orEmpty())
                                 )
 
                                 // Add individual model results to questionnaire item
@@ -552,7 +553,7 @@ internal object CustomAttachmentViewHolderFactory :
                                 divider.visibility = View.VISIBLE
                                 displayPreview(
                                     attachmentType = attachmentMimeType,
-                                    attachmentTitle = if (predictionResult.isNullOrEmpty() || !isAiInferenceEnabled()) capturedFile.name else "RESULT : $predictionResult",
+                                    attachmentTitle = if (hasAiInferenceResult) "RESULT : $predictionResult" else capturedFile.name,
                                     attachmentUri = attachmentUri,
                                     questionnaireItem = questionnaireItem
                                 )
@@ -562,7 +563,7 @@ internal object CustomAttachmentViewHolderFactory :
                             }
 
                         } catch (e: Exception) {
-                            Timber.i("TAG", "error --> " + e.printStackTrace())
+                            Timber.e(e, "error --> %s", e.printStackTrace())
                             e.printStackTrace()
                         }
 
@@ -1230,6 +1231,3 @@ internal const val MODEL82_CONFIDENCE_URL =
 
 internal const val CASE_PREDICTION_RESULT_URL =
     "http://smartregister.org/ai-model-result/case-prediction-result"
-
-
-            
