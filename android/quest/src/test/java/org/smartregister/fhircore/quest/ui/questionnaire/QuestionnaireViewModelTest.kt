@@ -510,7 +510,7 @@ class QuestionnaireViewModelTest : RobolectricTest() {
     }
 
   @Test
-  fun testCheckIfSuspiciousReturnsTrueFromAnswerExtensionWithoutHiddenItem() {
+  fun testSummarizeAiInferenceFlagsSuspiciousFromAnswerExtensionWithoutHiddenItem() {
     val questionnaireResponse =
       screeningQuestionnaireResponse(
         aiResult = "Suspicious",
@@ -518,11 +518,11 @@ class QuestionnaireViewModelTest : RobolectricTest() {
         includeHiddenItem = false,
       )
 
-    Assert.assertTrue(questionnaireViewModel.checkIfSuspicious(questionnaireResponse))
+    Assert.assertTrue(questionnaireViewModel.summarizeAiInference(questionnaireResponse).isSuspicious)
   }
 
   @Test
-  fun testCheckIfSuspiciousReturnsTrueFromExistingHiddenResult() {
+  fun testSummarizeAiInferenceFlagsSuspiciousFromExistingHiddenResult() {
     val questionnaireResponse =
       screeningQuestionnaireResponse(
         aiResult = null,
@@ -531,11 +531,11 @@ class QuestionnaireViewModelTest : RobolectricTest() {
         hiddenAiResult = "Suspicious|94.2",
       )
 
-    Assert.assertTrue(questionnaireViewModel.checkIfSuspicious(questionnaireResponse))
+    Assert.assertTrue(questionnaireViewModel.summarizeAiInference(questionnaireResponse).isSuspicious)
   }
 
   @Test
-  fun testCheckIfSuspiciousUpdatesHiddenResultAndSuspiciousImagesFromAnswerExtension() {
+  fun testSummarizeAiInferenceUpdatesHiddenResultAndCollectsSuspiciousImages() {
     val questionnaireResponse =
       screeningQuestionnaireResponse(
         aiResult = "Suspicious",
@@ -543,15 +543,14 @@ class QuestionnaireViewModelTest : RobolectricTest() {
         includeHiddenItem = true,
       )
 
-    Assert.assertTrue(questionnaireViewModel.checkIfSuspicious(questionnaireResponse))
+    val summary = questionnaireViewModel.summarizeAiInference(questionnaireResponse)
+
+    Assert.assertTrue(summary.isSuspicious)
+    Assert.assertEquals(listOf("screening-image.jpg"), summary.suspiciousImages)
 
     val imageGroup = questionnaireResponse.item.first().item.first()
     val hiddenItem = imageGroup.item.first { it.linkId == "patient-screening-image-1-ai-result" }
     Assert.assertEquals("Suspicious|94.2", hiddenItem.answer.first().value.primitiveValue())
-    Assert.assertEquals(
-      listOf("screening-image.jpg"),
-      questionnaireViewModel.getSuspiciousImages(questionnaireResponse),
-    )
   }
 
   private fun screeningQuestionnaireResponse(
