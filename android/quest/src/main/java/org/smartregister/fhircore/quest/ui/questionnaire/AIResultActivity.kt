@@ -1,5 +1,7 @@
 package org.smartregister.fhircore.quest.ui.questionnaire
 
+import android.content.Context
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -86,9 +88,16 @@ fun AIResultScreen(
     onClose: () -> Unit,
     onRefer: () -> Unit
 ) {
+    val context = LocalContext.current
     val backgroundColor = if (isSuspicious) Colors.CORNSILK else LighterBlue
     val title = if (isSuspicious) stringResource(R.string.add_patient) else "AI Result"
     var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
+    val displayableSuspiciousImages = remember(context, suspiciousImages) {
+        suspiciousImages
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && resolveImageLoadModel(context, it) != null }
+            .distinct()
+    }
 
     Column(
         modifier = Modifier
@@ -193,12 +202,12 @@ fun AIResultScreen(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                if (isSuspicious && suspiciousImages.isNotEmpty()) {
+                if (isSuspicious && displayableSuspiciousImages.isNotEmpty()) {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(suspiciousImages) { imagePath ->
+                        items(displayableSuspiciousImages, key = { it }) { imagePath ->
                             Box(
                                 modifier = Modifier
                                     .size(width = 264.dp, height = 237.dp)
@@ -333,6 +342,7 @@ fun LocalGlideImage(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val imageModel = remember(context, path) { resolveImageLoadModel(context, path) }
     AndroidView(
         factory = { ctx ->
             androidx.appcompat.widget.AppCompatImageView(ctx).apply {
@@ -341,12 +351,16 @@ fun LocalGlideImage(
         },
         modifier = modifier,
         update = { view ->
-            val finalPath = if (File(path).isAbsolute) path else File(context.filesDir, path).absolutePath
-            Glide.with(view.context)
-                .load(finalPath)
-                .placeholder(android.R.drawable.ic_menu_gallery)
-                .error(android.R.drawable.ic_menu_gallery)
-                .into(view)
+            if (imageModel == null) {
+                Glide.with(view.context).clear(view)
+                view.setImageResource(android.R.drawable.ic_menu_gallery)
+            } else {
+                Glide.with(view.context)
+                    .load(imageModel)
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_gallery)
+                    .into(view)
+            }
         }
     )
 }
@@ -357,7 +371,7 @@ fun FullscreenImageOverlay(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    val finalPath = if (File(path).isAbsolute) path else File(context.filesDir, path).absolutePath
+    val imageModel = remember(context, path) { resolveImageLoadModel(context, path) }
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(
@@ -381,7 +395,7 @@ fun FullscreenImageOverlay(
                 modifier = Modifier.fillMaxSize(),
                 update = { view ->
                     Glide.with(view.context)
-                        .load(finalPath)
+                        .load(imageModel)
                         .error(android.R.drawable.ic_menu_delete)
                         .into(view)
                 }
@@ -408,3 +422,31 @@ fun FullscreenImageOverlay(
         }
     }
 }
+
+private fun resolveImageLoadModel(context: Context, rawPath: String): Any? {
+    val path = rawPath.trim()
+    if (path.isEmpty()) return null
+
+    val uri = Uri.parse(path)
+    when (uri.scheme?.lowercase()) {
+        "content" -> return uri.takeIf { context.canOpenUri(it) }
+        "file" -> return uri.path
+            ?.let(::File)
+            ?.takeIf { it.isFile }
+            ?.let { Uri.fromFile(it) }
+        "http", "https" -> return path
+    }
+
+    val directFile = File(path)
+    if (directFile.isAbsolute) return directFile.takeIf { it.isFile }
+
+    return listOf(
+        File(context.filesDir, path),
+        File(context.cacheDir, path),
+    ).firstOrNull { it.isFile }
+}
+
+private fun Context.canOpenUri(uri: Uri): Boolean =
+    runCatching {
+        contentResolver.openInputStream(uri)?.use { true } == true
+    }.getOrDefault(false)

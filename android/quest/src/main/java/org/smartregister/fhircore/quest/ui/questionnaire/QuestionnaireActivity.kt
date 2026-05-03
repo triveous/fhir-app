@@ -65,6 +65,7 @@ import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.databinding.QuestionnaireActivityBinding
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
+import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_LINK_ID
 import org.smartregister.fhircore.quest.util.LocationUtils
 import org.smartregister.fhircore.quest.util.PermissionUtils
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
@@ -481,12 +482,14 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             val aiEnabled = FeatureFlagUtil.isAiInferenceEnabled(viewModel.fhirEngine)
 
             if (aiEnabled) {
-              var isSuspicious = viewModel.checkIfSuspicious(questionnaireResponse)
-              val suspiciousImages = viewModel.getSuspiciousImages(questionnaireResponse)
+              val aiSummary =
+                viewModel.summarizeAiInference(questionnaireResponse, questionnaire)
+              val isSuspicious = aiSummary.isSuspicious
+              val suspiciousImages = aiSummary.suspiciousImages
 
               val aiResultValue = if (isSuspicious) "suspicious" else "non-suspicious"
               val aiResultItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
-                linkId = "case-level-ai-result"
+                linkId = CASE_LEVEL_AI_RESULT_LINK_ID
                 addAnswer(
                   QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
                     value = StringType(aiResultValue)

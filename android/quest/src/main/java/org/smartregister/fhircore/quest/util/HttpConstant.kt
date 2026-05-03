@@ -8,3 +8,6 @@ const val SUSPICIOUS_NON_SUSPICIOUS_URL="https://midas.iisc.ac.in/CodeSystem/ai-
 const val CONFIDENCE_PERCENTAGE_URL="https://midas.iisc.ac.in/CodeSystem/ai-result-confidence"
 const val CASE_LEVEL_AI_RESULT_URL="https://midas.iisc.ac.in/CodeSystem/case-level-ai-result"
 const val REFER_CASE_URL="https://midas.iisc.ac.in/CodeSystem/refer-case"
+
+const val AI_RESULT_SUFFIX = "-ai-result"
+const val CASE_LEVEL_AI_RESULT_LINK_ID = "case-level-ai-result"
