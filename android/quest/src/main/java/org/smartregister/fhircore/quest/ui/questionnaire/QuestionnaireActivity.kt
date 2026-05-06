@@ -66,12 +66,14 @@ import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.databinding.QuestionnaireActivityBinding
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_LINK_ID
+import org.smartregister.fhircore.quest.util.DeviceMetrics
 import org.smartregister.fhircore.quest.util.LocationUtils
 import org.smartregister.fhircore.quest.util.PermissionUtils
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.ResourceUtils
 import org.smartregister.fhircore.quest.util.FeatureFlagUtil
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
+import org.smartregister.fhircore.quest.util.ScreeningTimer
 import timber.log.Timber
 import java.io.Serializable
 import java.util.LinkedList
@@ -97,17 +99,28 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private var suspiciousImagesList: List<String> = emptyList()
   private var submissionIdTypes: List<IdType>? = null
   private var submissionQRResult: QuestionnaireResponse? = null
+  private var screeningId: String? = null
 
   private val aiResultLauncher =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
       if (result.resultCode == Activity.RESULT_OK) {
         val referCase = result.data?.getBooleanExtra("refer_case", false) ?: false
+        val aiVerdict = if (isSuspiciousResult) "suspicious" else "non_suspicious"
         PostHogAnalytics.capture(
           PostHogAnalytics.Events.QUESTIONNAIRE_SUBMITTED,
-          mapOf(
-            PostHogAnalytics.Props.QUESTIONNAIRE_ID to (if (::questionnaireConfig.isInitialized) questionnaireConfig.id else "unknown"),
+          questionnaireAnalyticsProps(
             PostHogAnalytics.Props.REFER_CASE to referCase,
+            PostHogAnalytics.Props.AI_VERDICT to aiVerdict,
+            PostHogAnalytics.Props.AI_OVERRIDDEN to (referCase && !isSuspiciousResult),
           ),
+        )
+        ScreeningTimer.end(
+          screeningId,
+          outcome = if (referCase) "refer_case" else "submitted",
+          extraProps =
+            screeningCompletionProps(
+              PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspiciousResult,
+            ),
         )
 
         if (referCase) {
@@ -148,6 +161,10 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       return
     }
 
+    if (isFreshRegistrationQuestionnaire()) {
+      screeningId = ScreeningTimer.start(DeviceMetrics.batteryPct(this))
+    }
+
     viewModel.questionnaireProgressStateLiveData.observe(this) { progressState ->
       alertDialog =
         if (progressState?.active == false) {
@@ -169,7 +186,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     PostHogAnalytics.captureScreenView("QuestionnaireActivity")
     PostHogAnalytics.capture(
       PostHogAnalytics.Events.QUESTIONNAIRE_OPENED,
-      mapOf(PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id),
+      questionnaireAnalyticsProps(),
     )
 
     setupLocationServices()
@@ -316,6 +333,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           }
 
           registerFragmentResultListener()
+          ScreeningTimer.markStep(screeningId, "questionnaire_loaded")
         } catch (nullPointerException: NullPointerException) {
           Timber.e(nullPointerException, "questionnaire_not_found")
           showToast(getString(R.string.questionnaire_not_found))
@@ -498,18 +516,27 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               }
               questionnaireResponse.addItem(aiResultItem)
 
+              val aiInferenceProps =
+                questionnaireAnalyticsProps(
+                    PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
+                    PostHogAnalytics.Props.IMAGE_COUNT to aiSummary.imageCount,
+                    PostHogAnalytics.Props.SUSPICIOUS_IMAGE_COUNT to aiSummary.suspiciousImageCount,
+                    PostHogAnalytics.Props.NON_SUSPICIOUS_IMAGE_COUNT to aiSummary.nonSuspiciousImageCount,
+                    PostHogAnalytics.Props.LOW_CONFIDENCE_IMAGE_COUNT to aiSummary.lowConfidenceImageCount,
+                    PostHogAnalytics.Props.MEAN_CONFIDENCE to aiSummary.meanConfidence,
+                  )
+                  .toMutableMap()
+                  .apply { putAll(DeviceMetrics.snapshot(this@QuestionnaireActivity)) }
               PostHogAnalytics.capture(
                 PostHogAnalytics.Events.AI_INFERENCE_COMPLETED,
-                mapOf(
-                  PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
-                  PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id,
-                ),
+                aiInferenceProps,
               )
               Timber.d("=== About to launch AIResultActivity ===")
               currentQR = questionnaireResponse
               isSuspiciousResult = isSuspicious
               suspiciousImagesList = suspiciousImages
 
+              ScreeningTimer.markStep(screeningId, "submission_started")
               viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(true))
               viewModel.handleQuestionnaireSubmission(
                 questionnaire = questionnaire!!,
@@ -521,11 +548,13 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
                 submissionIdTypes = idTypes
                 submissionQRResult = qrResult
+                ScreeningTimer.markStep(screeningId, "submission_completed")
 
                 val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
                 intent.putExtra("isSuspicious", isSuspicious)
                 intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
                 intent.putExtra("questionnaireResponseId", qrResult.logicalId)
+                intent.putExtra(PostHogAnalytics.Props.SCREENING_ID, screeningId)
                 aiResultLauncher.launch(intent)
               }
             } else {
@@ -533,8 +562,12 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               Timber.d("=== AI inference disabled, submitting directly ===")
               PostHogAnalytics.capture(
                 PostHogAnalytics.Events.QUESTIONNAIRE_SUBMITTED,
-                mapOf(PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id),
+                questionnaireAnalyticsProps(
+                  PostHogAnalytics.Props.AI_VERDICT to "disabled",
+                  PostHogAnalytics.Props.AI_OVERRIDDEN to false,
+                ),
               )
+              ScreeningTimer.markStep(screeningId, "submission_started")
               viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(true))
               viewModel.handleQuestionnaireSubmission(
                 questionnaire = questionnaire!!,
@@ -544,6 +577,12 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 context = this@QuestionnaireActivity,
               ) { idTypes, qrResult ->
                 viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+                ScreeningTimer.markStep(screeningId, "submission_completed")
+                ScreeningTimer.end(
+                  screeningId,
+                  outcome = "submitted",
+                  extraProps = screeningCompletionProps(),
+                )
                 setResult(
                   Activity.RESULT_OK,
                   Intent().apply {
@@ -594,15 +633,20 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
           viewModel.isDraftSaved.observeForever {
             if (it){
+              PostHogAnalytics.capture(
+                PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_SAVED,
+                questionnaireAnalyticsProps(),
+              )
+              ScreeningTimer.end(
+                screeningId,
+                outcome = "draft_saved",
+                extraProps = screeningCompletionProps(),
+              )
               dialogue.dismiss()
               finish()
             }
           }
           viewModel.saveDraftQuestionnaire(questionnaireResponse)
-          PostHogAnalytics.capture(
-            PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_SAVED,
-            mapOf(PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id),
-          )
         }
       }
     } else {
@@ -611,12 +655,64 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         message =
           org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_message,
         title = org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_title,
-        confirmButtonListener = { finish() },
+        confirmButtonListener = {
+          ScreeningTimer.end(
+            screeningId,
+            outcome = "abandoned",
+            extraProps = screeningCompletionProps(),
+          )
+          finish()
+        },
         confirmButtonText =
           org.smartregister.fhircore.engine.R.string.questionnaire_alert_back_pressed_button_title,
       )
     }
   }
+
+  fun activeScreeningId(): String? = screeningId
+
+  private fun isFreshRegistrationQuestionnaire(): Boolean =
+    !questionnaireConfig.isReadOnly() &&
+      !questionnaireConfig.isEditable() &&
+      questionnaireKind() == "registration"
+
+  private fun questionnaireKind(): String {
+    val configText = "${questionnaireConfig.id} ${questionnaireConfig.title.orEmpty()}".lowercase()
+    return when {
+      configText.contains("follow") -> "followup"
+      configText.contains("registration") || configText.contains("register") -> "registration"
+      !questionnaireConfig.isReadOnly() &&
+        !questionnaireConfig.isEditable() &&
+        questionnaireConfig.resourceIdentifier.isNullOrBlank() -> "registration"
+      else -> "other"
+    }
+  }
+
+  private fun questionnaireAnalyticsProps(
+    vararg extras: Pair<String, Any?>,
+  ): Map<String, Any?> =
+    mutableMapOf<String, Any?>(
+        PostHogAnalytics.Props.QUESTIONNAIRE_ID to
+          (if (::questionnaireConfig.isInitialized) questionnaireConfig.id else "unknown"),
+        PostHogAnalytics.Props.QUESTIONNAIRE_KIND to
+          (if (::questionnaireConfig.isInitialized) questionnaireKind() else "other"),
+        PostHogAnalytics.Props.SCREENING_ID to screeningId,
+      )
+      .apply { extras.forEach { (key, value) -> put(key, value) } }
+
+  private fun screeningCompletionProps(
+    vararg extras: Pair<String, Any?>,
+  ): Map<String, Any?> =
+    mutableMapOf<String, Any?>(
+        PostHogAnalytics.Props.QUESTIONNAIRE_ID to
+          (if (::questionnaireConfig.isInitialized) questionnaireConfig.id else "unknown"),
+        PostHogAnalytics.Props.QUESTIONNAIRE_KIND to
+          (if (::questionnaireConfig.isInitialized) questionnaireKind() else "other"),
+      )
+      .apply {
+        putAll(DeviceMetrics.snapshot(this@QuestionnaireActivity))
+        extras.forEach { (key, value) -> put(key, value) }
+      }
 
   private suspend fun retrieveQuestionnaireResponse(): QuestionnaireResponse? =
     (supportFragmentManager.findFragmentByTag(QUESTIONNAIRE_FRAGMENT_TAG) as QuestionnaireFragment?)
