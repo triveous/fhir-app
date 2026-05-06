@@ -58,7 +58,7 @@ import org.smartregister.fhircore.quest.app.fakes.FakeKeyStore
 import org.smartregister.fhircore.quest.coroutine.CoroutineTestRule
 
 @RunWith(FhircoreTestRunner::class)
-@Config(sdk = [Build.VERSION_CODES.O_MR1], application = HiltTestApplication::class)
+@Config(sdk = [Build.VERSION_CODES.Q], application = HiltTestApplication::class)
 abstract class RobolectricTest {
 
   @get:Rule(order = 11) val workManagerRule = WorkManagerRule()

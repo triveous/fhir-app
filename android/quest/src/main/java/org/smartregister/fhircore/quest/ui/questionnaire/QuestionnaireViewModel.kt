@@ -1078,6 +1078,11 @@ constructor(
     questionnaire: Questionnaire? = null,
   ): AiInferenceSummary {
     var isSuspicious = false
+    var imageCount = 0
+    var suspiciousImageCount = 0
+    var nonSuspiciousImageCount = 0
+    var lowConfidenceImageCount = 0
+    val confidenceValues = mutableListOf<Float>()
     val suspiciousImages = linkedSetOf<String>()
     val questionnaireItemsByLinkId =
       questionnaire?.let { mutableMapOf<String, Questionnaire.QuestionnaireItemComponent>() }
@@ -1137,7 +1142,21 @@ constructor(
           title?.let { suspiciousImages.add(it) }
         }
 
-        if (!result.isNullOrBlank() && !confidence.isNullOrBlank()) {
+        if (!result.isNullOrBlank()) {
+          imageCount += 1
+          if (result.isSuspiciousAiResult()) {
+            suspiciousImageCount += 1
+          } else {
+            nonSuspiciousImageCount += 1
+          }
+
+          confidence.toConfidenceFloat()?.let { confidenceValue ->
+            confidenceValues.add(confidenceValue)
+            if (confidenceValue < LOW_CONFIDENCE_THRESHOLD) {
+              lowConfidenceImageCount += 1
+            }
+          }
+
           siblings
             .firstOrNull { it.linkId == "${item.linkId}$AI_RESULT_SUFFIX" }
             ?.let { hiddenItem ->
@@ -1150,7 +1169,7 @@ constructor(
           if (answer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL) == null) {
             answer.addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL, StringType(result))
           }
-          if (answer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL) == null) {
+          if (!confidence.isNullOrBlank() && answer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL) == null) {
             answer.addExtension(CONFIDENCE_PERCENTAGE_URL, StringType(confidence))
           }
           listOf(
@@ -1177,7 +1196,16 @@ constructor(
     } catch (e: Exception) {
       Timber.e(e, "Failed to summarize AI inference results")
     }
-    return AiInferenceSummary(isSuspicious, suspiciousImages.toList())
+    return AiInferenceSummary(
+      isSuspicious = isSuspicious,
+      suspiciousImages = suspiciousImages.toList(),
+      imageCount = imageCount,
+      suspiciousImageCount = suspiciousImageCount,
+      nonSuspiciousImageCount = nonSuspiciousImageCount,
+      lowConfidenceImageCount = lowConfidenceImageCount,
+      meanConfidence =
+        confidenceValues.takeIf { it.isNotEmpty() }?.average()?.toFloat() ?: 0f,
+    )
   }
 
   private fun collectQuestionnaireItems(
@@ -1212,6 +1240,13 @@ constructor(
   private fun String?.isSuspiciousAiResult(): Boolean =
     this?.substringBefore("|")?.trim()?.equals("suspicious", ignoreCase = true) == true
 
+  private fun String?.toConfidenceFloat(): Float? =
+    this
+      ?.substringBefore("|")
+      ?.replace("%", "")
+      ?.trim()
+      ?.toFloatOrNull()
+
   fun updateReferCase(qrId: String) {
     viewModelScope.launch(dispatcherProvider.io()) {
       try {
@@ -1228,7 +1263,16 @@ constructor(
   companion object {
     const val CONTAINED_LIST_TITLE = "GeneratedResourcesList"
     const val OUTPUT_PARAMETER_KEY = "OUTPUT"
+    private const val LOW_CONFIDENCE_THRESHOLD = 65f
   }
 }
 
-data class AiInferenceSummary(val isSuspicious: Boolean, val suspiciousImages: List<String>)
+data class AiInferenceSummary(
+  val isSuspicious: Boolean,
+  val suspiciousImages: List<String>,
+  val imageCount: Int = 0,
+  val suspiciousImageCount: Int = 0,
+  val nonSuspiciousImageCount: Int = 0,
+  val lowConfidenceImageCount: Int = 0,
+  val meanConfidence: Float = 0f,
+)

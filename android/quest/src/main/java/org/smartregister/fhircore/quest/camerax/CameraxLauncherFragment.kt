@@ -70,9 +70,16 @@ import kotlin.math.exp
 import androidx.core.view.isVisible
 import com.google.android.fhir.FhirEngine
 import dagger.hilt.android.AndroidEntryPoint
+import org.opencv.android.Utils
+import org.opencv.core.Mat
+import org.opencv.imgproc.Imgproc
+import org.smartregister.fhircore.quest.util.DeviceMetrics
 import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import org.smartregister.fhircore.quest.util.ImageQualityAnalyzer
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
+import org.smartregister.fhircore.quest.util.ScreeningTimer
 import javax.inject.Inject
+import kotlin.math.ln
 
 @AndroidEntryPoint
 class CameraxLauncherFragment : DialogFragment() {
@@ -109,6 +116,10 @@ class CameraxLauncherFragment : DialogFragment() {
     // Init runs concurrently with photo capture; onPhotoSelected awaits this before
     // running inference so the IO-thread forward pass can't race with module load.
     private var initModelJob: Job? = null
+    private var screeningId: String? = null
+    private var captureStartedMs: Long? = null
+    private var captureSavedMs: Long? = null
+    private var timeToCaptureMs: Long? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -133,6 +144,7 @@ class CameraxLauncherFragment : DialogFragment() {
         super.onCreate(savedInstanceState)
         //setStyle(STYLE_NO_FRAME, android.R.style.Theme_Holo_Light)
         setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        screeningId = arguments?.getString(ARG_SCREENING_ID)
     }
 
     override fun onCreateView(
@@ -184,6 +196,7 @@ class CameraxLauncherFragment : DialogFragment() {
         }
 
         retakeButton.setOnClickListener {
+            ScreeningTimer.incrementRetake(screeningId)
             val flashOfDrawable = context?.getDrawable(R.drawable.flash_off)
             flashButton.setImageDrawable(flashOfDrawable)
             isCapturing = false
@@ -359,6 +372,8 @@ class CameraxLauncherFragment : DialogFragment() {
         if (isCapturing) return
         isCapturing = true
         captureButton.isEnabled = false
+        captureStartedMs = SystemClock.elapsedRealtime()
+        ScreeningTimer.markStep(screeningId, "photo_capture_started")
         try {
             val file = File.createTempFile("IMG_", ".jpeg", requireContext().filesDir)
             val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
@@ -366,6 +381,9 @@ class CameraxLauncherFragment : DialogFragment() {
             imageCapture.takePicture(
                 outputOptions, cameraExecutor, object : ImageCapture.OnImageSavedCallback {
                     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                        captureSavedMs = SystemClock.elapsedRealtime()
+                        timeToCaptureMs = captureSavedMs?.minus(captureStartedMs ?: captureSavedMs ?: 0L)
+                        ScreeningTimer.markStep(screeningId, "photo_capture_completed")
                         cameraControl.enableTorch(false)
                         //cameraExecutor.shutdown()
                         lifecycleScope.launch {
@@ -481,60 +499,129 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
-    private fun processImage(absolutePath: String): Map<String, Any>? {
-        //val processStartTime = System.currentTimeMillis()
-        try {
-            val processedImage = OpenCVUtils.decodeFileToMat(absolutePath) ?: throw IllegalArgumentException("Failed to decode image")
-            val tensorStartTime = System.currentTimeMillis()
-            //val mean = floatArrayOf(0.485f, 0.456f, 0.406f)
+    private fun processImage(absolutePath: String, runAiInference: Boolean): ImageProcessingResult? {
+        val sourceMat = OpenCVUtils.scaleImageMat(absolutePath)
+        if (sourceMat == null) {
+            PostHogAnalytics.captureError("CameraxLauncherFragment", "Image processing failed: unable to decode image")
+            return null
+        }
+
+        val rgbMat = Mat()
+        return try {
+            val qualityProps = ImageQualityAnalyzer.analyze(sourceMat)
+            if (!runAiInference) return ImageProcessingResult(emptyMap(), qualityProps, 0L)
+
+            Imgproc.cvtColor(sourceMat, rgbMat, Imgproc.COLOR_BGR2RGB)
+            val processedImage = Bitmap.createBitmap(rgbMat.cols(), rgbMat.rows(), Bitmap.Config.ARGB_8888)
+            Utils.matToBitmap(rgbMat, processedImage)
+
             val mean = floatArrayOf(0.0f, 0.0f, 0.0f)
-            //val std = floatArrayOf(0.229f, 0.224f, 0.225f)
             val std = floatArrayOf(1f, 1f, 1f)
 
             val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(processedImage, mean, std)
             val bgrTensor = convertRGBtoBGR(inputTensor) ?: throw IllegalStateException("Failed to convert RGB to BGR")
             val inputIValue = IValue.from(bgrTensor)
 
-            val runInference = { module: Module?, name: String ->
-                val outputTensor = module?.forward(inputIValue)?.toTensor()
-                    ?: throw IllegalStateException("Module $name is null or forward operation failed")
-                var scores = outputTensor.dataAsFloatArray[0]
-                scores = 1 / (1 + exp(-scores))
-                val prediction = if (scores > 0.5f) 1 else 0
-                val className = classes.diseases[prediction]
-                val confidence = if (prediction == 1) (scores * 100).toString() else ((1 - scores) * 100).toString()
-                Triple(prediction == 1, className, confidence)
-            }
+            ScreeningTimer.markStep(screeningId, "ai_inference_started")
+            val result6 = runInference(inputIValue, module6, "v6")
+            val result8 = runInference(inputIValue, module8, "v8")
+            val result82 = runInference(inputIValue, module82, "v82")
+            val modelResults = listOf(result6, result8, result82)
 
-            val result6 = runInference(module6, "model6")
-            val result8 = runInference(module8, "model8")
-            val result82 = runInference(module82, "model82")
+            modelResults.forEach { captureModelInference(it) }
 
-            val allSuspicious = result6.first && result8.first && result82.first
+            val combinedInferenceTimeMs = modelResults.sumOf { it.inferenceTimeMs }
+            val allSuspicious = modelResults.all { it.isSuspicious }
             val finalPrediction = if (allSuspicious) 1 else 0
             val finalClassName = classes.diseases[finalPrediction]
+            val finalConfidenceValue = modelResults.map { it.confidence }.average().toFloat()
+            val finalConfidence = DecimalFormat("#.##").format(finalConfidenceValue)
+            val ensemble =
+                ModelInferenceResult(
+                    modelName = "ensemble",
+                    prediction = if (allSuspicious) "suspicious" else "non_suspicious",
+                    displayPrediction = finalClassName,
+                    confidence = finalConfidenceValue,
+                    probability = modelResults.map { it.probability }.average().toFloat(),
+                    entropy = modelResults.map { it.entropy }.average(),
+                    lowConfidence = finalConfidenceValue < LOW_CONFIDENCE_THRESHOLD,
+                    inferenceTimeMs = combinedInferenceTimeMs,
+                    combinedInferenceTimeMs = combinedInferenceTimeMs,
+                    isSuspicious = allSuspicious,
+                )
+            captureModelInference(ensemble)
+            ScreeningTimer.markStep(screeningId, "ai_inference_completed")
 
-            val avgConfidence = listOf(result6.third, result8.third, result82.third)
-                .mapNotNull { it.toFloatOrNull() }
-                .let { values -> if (values.isNotEmpty()) DecimalFormat("#.##").format(values.average()) else "" }
-            val finalConfidence = avgConfidence
             Timber.d("Final prediction: $finalPrediction, Class: $finalClassName")
-            return mapOf(
-                CAMERA_PREDICTION_KEY to finalClassName,
-                CAMERA_CONFIDENCE_KEY to finalConfidence,
-                "model6_prediction" to result6.second,
-                "model6_confidence" to result6.third,
-                "model8_prediction" to result8.second,
-                "model8_confidence" to result8.third,
-                "model82_prediction" to result82.second,
-                "model82_confidence" to result82.third,
+            ImageProcessingResult(
+                resultMap =
+                    mapOf(
+                        CAMERA_PREDICTION_KEY to finalClassName,
+                        CAMERA_CONFIDENCE_KEY to finalConfidence,
+                        "model6_prediction" to result6.displayPrediction,
+                        "model6_confidence" to result6.confidence.toString(),
+                        "model8_prediction" to result8.displayPrediction,
+                        "model8_confidence" to result8.confidence.toString(),
+                        "model82_prediction" to result82.displayPrediction,
+                        "model82_confidence" to result82.confidence.toString(),
+                    ),
+                qualityProps = qualityProps,
+                combinedInferenceTimeMs = combinedInferenceTimeMs,
             )
-
         } catch (e: Exception) {
             Log.d("Error", "Error processing image ${e.printStackTrace()}")
             PostHogAnalytics.captureError("CameraxLauncherFragment", "Image processing failed: ${e.message}")
-            return null
+            null
+        } finally {
+            sourceMat.release()
+            rgbMat.release()
         }
+    }
+
+    private fun runInference(inputIValue: IValue, module: Module?, modelName: String): ModelInferenceResult {
+        val startedMs = SystemClock.elapsedRealtime()
+        val outputTensor = module?.forward(inputIValue)?.toTensor()
+            ?: throw IllegalStateException("Module $modelName is null or forward operation failed")
+        val inferenceTimeMs = SystemClock.elapsedRealtime() - startedMs
+        val probability = sigmoid(outputTensor.dataAsFloatArray[0])
+        val prediction = if (probability > 0.5f) 1 else 0
+        val confidence = if (prediction == 1) probability * 100 else (1 - probability) * 100
+        return ModelInferenceResult(
+            modelName = modelName,
+            prediction = if (prediction == 1) "suspicious" else "non_suspicious",
+            displayPrediction = classes.diseases[prediction],
+            confidence = confidence,
+            probability = probability,
+            entropy = binaryEntropy(probability),
+            // Low-confidence is evaluated on the predicted side of 50%; 65% is the V1 launch cut.
+            lowConfidence = confidence < LOW_CONFIDENCE_THRESHOLD,
+            inferenceTimeMs = inferenceTimeMs,
+            isSuspicious = prediction == 1,
+        )
+    }
+
+    private fun captureModelInference(result: ModelInferenceResult) {
+        PostHogAnalytics.capture(
+            PostHogAnalytics.Events.MODEL_INFERENCE_COMPLETED,
+            mapOf(
+                PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                PostHogAnalytics.Props.MODEL_NAME to result.modelName,
+                PostHogAnalytics.Props.MODEL_VERSION to MODEL_VERSION,
+                PostHogAnalytics.Props.MODEL_PREDICTION to result.prediction,
+                PostHogAnalytics.Props.MODEL_CONFIDENCE to result.confidence,
+                PostHogAnalytics.Props.MODEL_ENTROPY to result.entropy,
+                PostHogAnalytics.Props.LOW_CONFIDENCE to result.lowConfidence,
+                PostHogAnalytics.Props.INFERENCE_TIME_MS to result.inferenceTimeMs,
+                PostHogAnalytics.Props.COMBINED_INFERENCE_TIME_MS to result.combinedInferenceTimeMs,
+            ),
+        )
+    }
+
+    private fun sigmoid(value: Float): Float = (1 / (1 + exp(-value))).toFloat()
+
+    private fun binaryEntropy(probability: Float): Double {
+        val p = probability.coerceIn(0.000001f, 0.999999f).toDouble()
+        return -p * ln(p) - (1 - p) * ln(1 - p)
     }
 
     fun View.setSafeOnClickListener(interval: Long = 1000, onSafeClick: (View) -> Unit) {
@@ -550,21 +637,38 @@ class CameraxLauncherFragment : DialogFragment() {
         setOnClickListener(safeClickListener)
     }
     private suspend fun onPhotoSelected(absolutePath : String){
-        val resultMap = if (isAiInferenceEnabled()) {
+        val aiEnabled = isAiInferenceEnabled()
+        val processingResult = if (aiEnabled) {
             // Wait for model load to finish before forwarding on Dispatchers.IO.
             // Without this the IO-thread forward pass can race with model load on
             // Main, hit a null Module, throw, and surface as "Error" — which the
             // case-level combine then reads as Non-Suspicious (false negative).
             initModelJob?.join()
             withContext(Dispatchers.IO) {
-                processImage(fileAbsPath)
+                processImage(fileAbsPath, runAiInference = true)
             }
-        } else null
+        } else {
+            withContext(Dispatchers.IO) {
+                processImage(fileAbsPath, runAiInference = false)
+            }
+        }
+        val resultMap = processingResult?.resultMap?.takeIf { it.isNotEmpty() }
 
         val predictionProps = mutableMapOf<String, Any>(
             PostHogAnalytics.Props.AI_PREDICTION to (resultMap?.get(CAMERA_PREDICTION_KEY) ?: ""),
             PostHogAnalytics.Props.AI_CONFIDENCE to (resultMap?.get(CAMERA_CONFIDENCE_KEY) ?: ""),
         )
+        ScreeningTimer.incrementPhoto(screeningId)
+        val captureToResultMs = captureSavedMs?.let { SystemClock.elapsedRealtime() - it }
+        predictionProps[PostHogAnalytics.Props.SCREENING_ID] = screeningId.orEmpty()
+        timeToCaptureMs?.let { predictionProps[PostHogAnalytics.Props.TIME_TO_CAPTURE_MS] = it }
+        captureToResultMs?.let { predictionProps[PostHogAnalytics.Props.CAPTURE_TO_RESULT_MS] = it }
+        processingResult?.qualityProps?.let { predictionProps.putAll(it) }
+        predictionProps.putAll(DeviceMetrics.snapshot(requireContext()))
+        if (processingResult != null) {
+            predictionProps[PostHogAnalytics.Props.INFERENCE_TIME_MS] = processingResult.combinedInferenceTimeMs
+            predictionProps[PostHogAnalytics.Props.COMBINED_INFERENCE_TIME_MS] = processingResult.combinedInferenceTimeMs
+        }
         PostHogAnalytics.capture(PostHogAnalytics.Events.PHOTO_CAPTURED, predictionProps)
 
         setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
@@ -581,13 +685,13 @@ class CameraxLauncherFragment : DialogFragment() {
 
                 putString(CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"] as String)
                 putString(CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"] as String)
-            } else if (isAiInferenceEnabled()) {
+            } else if (aiEnabled) {
                 putString(CAMERA_PREDICTION_KEY, "")
                 putString(CAMERA_CONFIDENCE_KEY, "")
             }
             putBoolean(CAMERA_RESULT_KEY, true)
         })
-        val message = if (isAiInferenceEnabled()) "Image processed successfully" else "Image saved successfully"
+        val message = if (aiEnabled) "Image processed successfully" else "Image saved successfully"
         activity?.showToast(message, Toast.LENGTH_SHORT)
         dismiss()
     }
@@ -599,8 +703,30 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
+    private data class ImageProcessingResult(
+        val resultMap: Map<String, Any>,
+        val qualityProps: Map<String, Any>,
+        val combinedInferenceTimeMs: Long,
+    )
+
+    private data class ModelInferenceResult(
+        val modelName: String,
+        val prediction: String,
+        val displayPrediction: String,
+        val confidence: Float,
+        val probability: Float,
+        val entropy: Double,
+        val lowConfidence: Boolean,
+        val inferenceTimeMs: Long,
+        val combinedInferenceTimeMs: Long? = null,
+        val isSuspicious: Boolean,
+    )
+
     companion object {
         private const val ARG_SAVED_PHOTO_URI = "arg_saved_photo_uri"
+        private const val ARG_SCREENING_ID = "arg_screening_id"
+        private const val MODEL_VERSION = "v38"
+        private const val LOW_CONFIDENCE_THRESHOLD = 65f
         const val CAMERA_RESULT_KEY = "camera_result"
         const val CAMERA_RESULT_URI_KEY = "camera_result_uri"
         const val CAMERA_PREDICTION_KEY = "camera_prediction"
@@ -613,8 +739,12 @@ class CameraxLauncherFragment : DialogFragment() {
         const val CAMERA_MODEL82_PREDICTION_KEY = "camera_model82_prediction"
         const val CAMERA_MODEL82_CONFIDENCE_KEY = "camera_model82_confidence"
 
-        fun newInstance(): CameraxLauncherFragment {
-            return CameraxLauncherFragment()
+        fun newInstance(screeningId: String? = null): CameraxLauncherFragment {
+            return CameraxLauncherFragment().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_SCREENING_ID, screeningId)
+                }
+            }
         }
     }
 }

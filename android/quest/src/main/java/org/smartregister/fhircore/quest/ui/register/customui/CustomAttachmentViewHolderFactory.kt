@@ -63,6 +63,7 @@ import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
+import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import timber.log.Timber
@@ -572,7 +573,7 @@ internal object CustomAttachmentViewHolderFactory :
                     }
                 }
 
-                CameraxLauncherFragment.newInstance()
+                CameraxLauncherFragment.newInstance((context as? QuestionnaireActivity)?.activeScreeningId())
                     .show(
                         context.supportFragmentManager,
                         CustomAttachmentViewHolderFactory::class.java.simpleName
@@ -739,39 +740,18 @@ internal object CustomAttachmentViewHolderFactory :
                     Glide.with(context).load(uri).into(photoThumbnail)
                     this.photoTitle.text = photoTitle
 
-//                    val result = questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
-//
-//                    if (result?.isNotEmpty() == true) {
-//                        photoResult.text = result
-//                        photoResult.visibility = View.VISIBLE
-//                        // Hide separate confidence view as it is merged into the main text
-//                        photoConfidence.visibility = View.GONE
-//                    } else {
-//                        photoResult.visibility = View.GONE
-//                        photoConfidence.visibility = View.GONE
-//                    }
-                }catch (exc: Exception) {
+                    val result = questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
+                    val confidence = questionnaireItem?.getExtensionString(CONFIDENCE_PERCENTAGE_URL)
+                    val m6Pred = questionnaireItem?.getExtensionString(MODEL6_PREDICTION_URL)
+                    val m6Conf = questionnaireItem?.getExtensionString(MODEL6_CONFIDENCE_URL)
+                    val m8Pred = questionnaireItem?.getExtensionString(MODEL8_PREDICTION_URL)
+                    val m8Conf = questionnaireItem?.getExtensionString(MODEL8_CONFIDENCE_URL)
+                    val m82Pred = questionnaireItem?.getExtensionString(MODEL82_PREDICTION_URL)
+                    val m82Conf = questionnaireItem?.getExtensionString(MODEL82_CONFIDENCE_URL)
+                    setAnswerFromAI(result, confidence, m6Pred, m6Conf, m8Pred, m8Conf, m82Pred, m82Conf)
+                } catch (exc: Exception) {
                     Timber.e("Failed to load photo preview: ${exc.message}")
                 }
-
-
-
-                //Suspicious/NonSuspicious
-//                //Confidence percentage
-//                val confidence = questionnaireItem?.getExtensionString(CONFIDENCE_PERCENTAGE_URL)
-//                // Individual model results
-//                val m6Pred = questionnaireItem?.getExtensionString(MODEL6_PREDICTION_URL)
-//                val m6Conf = questionnaireItem?.getExtensionString(MODEL6_CONFIDENCE_URL)
-//                val m8Pred = questionnaireItem?.getExtensionString(MODEL8_PREDICTION_URL)
-//                val m8Conf = questionnaireItem?.getExtensionString(MODEL8_CONFIDENCE_URL)
-//                val m82Pred = questionnaireItem?.getExtensionString(MODEL82_PREDICTION_URL)
-//                val m82Conf = questionnaireItem?.getExtensionString(MODEL82_CONFIDENCE_URL)
-//                setAnswerFromAI(
-//                    result, confidence,
-//                    m6Pred, m6Conf,
-//                    m8Pred, m8Conf,
-//                    m82Pred, m82Conf
-//                )
             }
 
             private fun setAnswerFromAI(
@@ -792,22 +772,22 @@ internal object CustomAttachmentViewHolderFactory :
                     stringBuilder.append("\n")
                 }
 
-//                if (!m6Pred.isNullOrEmpty()) {
-//                    stringBuilder.append("M6: $m6Pred")
-//                    if (!m6Conf.isNullOrEmpty()) stringBuilder.append(" ($m6Conf%)")
-//                    stringBuilder.append("\n")
-//                }
-//
-//                if (!m8Pred.isNullOrEmpty()) {
-//                    stringBuilder.append("M8: $m8Pred")
-//                    if (!m8Conf.isNullOrEmpty()) stringBuilder.append(" ($m8Conf%)")
-//                    stringBuilder.append("\n")
-//                }
-//
-//                if (!m82Pred.isNullOrEmpty()) {
-//                    stringBuilder.append("M82: $m82Pred")
-//                    if (!m82Conf.isNullOrEmpty()) stringBuilder.append(" ($m82Conf%)")
-//                }
+                if (!m6Pred.isNullOrEmpty()) {
+                    stringBuilder.append("M6: $m6Pred")
+                    if (!m6Conf.isNullOrEmpty()) stringBuilder.append(" ($m6Conf%)")
+                    stringBuilder.append("\n")
+                }
+
+                if (!m8Pred.isNullOrEmpty()) {
+                    stringBuilder.append("M8: $m8Pred")
+                    if (!m8Conf.isNullOrEmpty()) stringBuilder.append(" ($m8Conf%)")
+                    stringBuilder.append("\n")
+                }
+
+                if (!m82Pred.isNullOrEmpty()) {
+                    stringBuilder.append("M82: $m82Pred")
+                    if (!m82Conf.isNullOrEmpty()) stringBuilder.append(" ($m82Conf%)")
+                }
                 val finalString = stringBuilder.toString().trim()
                 if (finalString.isNotEmpty()) {
                     photoResult.text = finalString

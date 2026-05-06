@@ -92,14 +92,14 @@ class AppMainActivityTest : ActivityRobolectricTest() {
   @Test
   fun testOnSyncWithSyncStateInProgress() {
     val viewModel = appMainActivity.appMainViewModel
-    val initialSyncTime = viewModel.appMainUiState.value.lastSyncTime
+    val initialSyncTime = viewModel.retrieveLastSyncTimestamp()
 
     appMainActivity.onSync(
       CurrentSyncJobStatus.Running(SyncJobStatus.InProgress(SyncOperation.DOWNLOAD)),
     )
 
     // Timestamp will only updated for Finished.
-    Assert.assertEquals(initialSyncTime, viewModel.appMainUiState.value.lastSyncTime)
+    Assert.assertEquals(initialSyncTime, viewModel.retrieveLastSyncTimestamp())
   }
 
   @Test
@@ -109,19 +109,19 @@ class AppMainActivityTest : ActivityRobolectricTest() {
       SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name,
       "2022-05-19",
     )
-    val initialTimestamp = viewModel.appMainUiState.value.lastSyncTime
+    val initialTimestamp = viewModel.retrieveLastSyncTimestamp()
     val syncJobStatus = CurrentSyncJobStatus.Failed(OffsetDateTime.now())
     appMainActivity.onSync(syncJobStatus)
 
     // Timestamp not update if status is Failed. Initial timestamp remains the same
-    Assert.assertEquals(initialTimestamp, viewModel.appMainUiState.value.lastSyncTime)
+    Assert.assertEquals(initialTimestamp, viewModel.retrieveLastSyncTimestamp())
   }
 
   @Test
   fun testOnSyncWithSyncStateFailedWhenTimestampIsNotNull() {
     val viewModel = appMainActivity.appMainViewModel
     appMainActivity.onSync(CurrentSyncJobStatus.Failed(OffsetDateTime.now()))
-    Assert.assertNotNull(viewModel.appMainUiState.value.lastSyncTime)
+    Assert.assertNull(viewModel.retrieveLastSyncTimestamp())
   }
 
   @Test
