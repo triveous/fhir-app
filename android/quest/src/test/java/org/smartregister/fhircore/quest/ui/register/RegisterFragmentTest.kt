@@ -22,6 +22,7 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.commitNow
 import androidx.navigation.Navigation
 import androidx.navigation.testing.TestNavHostController
+import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
@@ -56,6 +57,7 @@ import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.quest.app.fakes.Faker
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.navigation.NavigationArg
@@ -96,7 +98,9 @@ class RegisterFragmentTest : RobolectricTest() {
           configurationRegistry = configurationRegistry,
           sharedPreferencesHelper = Faker.buildSharedPreferencesHelper(),
           dispatcherProvider = dispatcherProvider,
+          secureSharedPreference = mockk<SecureSharedPreference>(relaxed = true),
           resourceDataRulesExecutor = mockk(),
+          fhirEngine = mockk<FhirEngine>(relaxed = true),
         ),
       )
     registerFragmentMock = mockk()

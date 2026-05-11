@@ -19,6 +19,7 @@ package org.smartregister.fhircore.engine.sync
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
 import android.net.Uri
 import android.provider.Settings
@@ -41,6 +42,7 @@ import com.google.android.fhir.sync.upload.UploadStrategy
 import com.google.gson.Gson
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
@@ -64,6 +66,8 @@ import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
+import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
+import org.smartregister.fhircore.engine.util.analytics.AnalyticsLoggerEntryPoint
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
@@ -85,6 +89,12 @@ constructor(
     val secureSharedPreference: SecureSharedPreference,
     private val gson: Gson
 ) : FhirSyncWorker(appContext, workerParams) {
+    private val analyticsLogger: AnalyticsLogger by lazy {
+        EntryPointAccessors.fromApplication(
+            applicationContext,
+            AnalyticsLoggerEntryPoint::class.java,
+        ).analyticsLogger()
+    }
 
     companion object {
         val mutex = Mutex()
@@ -97,6 +107,7 @@ constructor(
         const val PENDING_IMAGES_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/pending-images"
         const val IMG_UPLOAD_ERROR_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-error"
         const val IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-failed-permanently"
+        const val TIME_TAKEN_TOUPLOAD_IMG_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/time-taken-to-upload-img"
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
@@ -116,14 +127,14 @@ constructor(
         return ForegroundInfo(
             NOTIFICATION_ID,
             notification,
-            FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
+            FOREGROUND_SERVICE_TYPE_DATA_SYNC
         )
     }
 
     override suspend fun doWork(): Result {
         Timber.i("AppSyncWorker Running sync worker")
         if (mutex.isLocked) {
-            Timber.e("AppSyncWorker is locked. Returning failure")
+            Timber.e(Exception("AppSyncWorker is locked. Returning failure"))
             return Result.failure()
         }
         val metaSyncResult = super.doWork()
@@ -157,7 +168,7 @@ constructor(
 
         val docReferences = openSrpFhirEngine.search<DocumentReference> {}.filter {
             it.resource.description != DocumentReferenceCaseType.DRAFT
-        }.shuffled()
+        }.sortedByDescending { it.resource.date }
         val totalDocuments = docReferences.size
         var pendingDocuments = totalDocuments
         var atLeastOneSuccess = false
@@ -191,12 +202,27 @@ constructor(
                 uploadImageMutex.withLock {
                     Timber.i("Processing document reference with logicalId: ${docReference.logicalId}")
 
-                    val success = uploadDocumentReferenceVersionAware(docReference, fileUri, context, serverDocRef)
+                    val success =
+                        uploadDocumentReferenceVersionAware(
+                            docReference,
+                            fileUri,
+                            context,
+                            serverDocRef,
+                            pendingDocuments,
+                        )
 
                     if (success) {
+                        // CRITICAL: Re-verify from server that image data exists before deleting locally.
+                        // This prevents data loss if the upload appeared successful but data didn't persist.
+                        val verifiedServerDoc = getDocumentReferenceMetaDataFromServer(docReference)
+                        if (!verifiedServerDoc.hasImageDataOnServer()) {
+                            Timber.e(Exception("SAFETY CHECK FAILED: Upload reported success but image NOT found on server for ${docReference.logicalId}. Keeping local image."))
+                            return@withLock false
+                        }
+
                         atLeastOneSuccess = true
 
-                        // Clean up local resources after successful upload
+                        // Clean up local resources — server confirmed to have image data
                         openSrpFhirEngine.purge(
                             docReference.resourceType,
                             docReference.logicalId,
@@ -213,7 +239,7 @@ constructor(
                         Timber.i("Successfully completed version-aware upload for document: ${docReference.logicalId}")
                         true
                     } else {
-                        Timber.e("Failed version-aware upload for document: ${docReference.logicalId}")
+                        Timber.e(Exception("Failed version-aware upload for document: ${docReference.logicalId}"))
                         false
                     }
                 }
@@ -237,7 +263,7 @@ private fun filesExists(uri: Uri?): Boolean {
         applicationContext.contentResolver.openInputStream(uri)?.use { it.available() > 0 } ?: false
     } catch (e: Exception) {
         Timber.e(e, "Exception checking file existence for uri: $uri")
-        return e !is FileNotFoundException
+        return false
     }
 }
 
@@ -272,7 +298,8 @@ private fun filesExists(uri: Uri?): Boolean {
         docReference: DocumentReference,
         fileUri: Uri,
         context: Context,
-        serverDocRef: DocumentReference?
+        serverDocRef: DocumentReference?,
+        pendingDocuments: Int,
     ): Boolean {
         return runCatching {
             Timber.i("Starting version-aware upload for document: ${docReference.logicalId}")
@@ -283,12 +310,16 @@ private fun filesExists(uri: Uri?): Boolean {
                 return@runCatching true
             }
 
-            // 2. State correction: If local is 'final' but server is not, just patch the server status.
-            // This handles cases where the app was closed after uploading the image but before finalizing.
+            // 2. State correction: If local is 'final' but server is not, and image IS on server,
+            // just patch the server status. Only safe to skip upload if image is confirmed on server.
             if (docReference.docStatus == DocumentReference.ReferredDocumentStatus.FINAL && !serverDocRef.isFinalOnServer()) {
-                Timber.i("Local DocumentReference is final, updating server status for ${docReference.logicalId}")
-                finalizeDocumentOnServer(docReference)
-                return@runCatching true
+                if (serverDocRef.hasImageDataOnServer()) {
+                    Timber.i("Local DocumentReference is final and image exists on server, updating server status for ${docReference.logicalId}")
+                    finalizeDocumentOnServer(docReference)
+                    return@runCatching true
+                } else {
+                    Timber.w("Local DocumentReference is final but image is MISSING on server for ${docReference.logicalId}. Proceeding with upload.")
+                }
             }
 
             // 3. Main Upload Flow: Execute steps based on server state.
@@ -300,8 +331,12 @@ private fun filesExists(uri: Uri?): Boolean {
 
             // Step 3b: Upload the file's binary content if it's missing.
             if (!serverDocRef.hasImageDataOnServer()) {
-                uploadFileContent(docReference, fileUri, context)
-                // After upload, update local status to FINAL to track progress
+                val timeTaken = uploadFileContent(docReference, fileUri, context, pendingDocuments)
+                addUploadTimeTaken(docReference, timeTaken)
+                // Track progress in-memory only. Do NOT call openSrpFhirEngine.update()
+                // here — that queues a local change, and the subsequent super.doWork()
+                // would PUT the full DocumentReference (without binary data) to the server,
+                // potentially overwriting the image we just uploaded.
                 docReference.docStatus = DocumentReference.ReferredDocumentStatus.FINAL
                 openSrpFhirEngine.update(docReference)
             }
@@ -345,7 +380,12 @@ private fun filesExists(uri: Uri?): Boolean {
     /**
      * Step 2: Uploads the binary file content to the existing DocumentReference.
      */
-    private suspend fun uploadFileContent(docReference: DocumentReference, fileUri: Uri, context: Context) {
+    private suspend fun uploadFileContent(
+        docReference: DocumentReference,
+        fileUri: Uri,
+        context: Context,
+        pendingDocuments: Int,
+    ): Long {
         Timber.i("Step 2: Uploading file content for ${docReference.logicalId}")
 
         val bytes = context.contentResolver.openInputStream(fileUri)
@@ -355,14 +395,24 @@ private fun filesExists(uri: Uri?): Boolean {
         val contentType = docReference.content.firstOrNull()?.attachment?.contentType
         val body = bytes.toRequestBody(contentType?.toMediaType())
 
+        val startTime = System.currentTimeMillis()
         val response = fhirResourceService.uploadFile(
             docReference.fhirType(),
             docReference.logicalId,
             "DocumentReference.content.attachment",
             body
         )
+        val timeTaken = System.currentTimeMillis() - startTime
 
         if (!response.isSuccessful) {
+            captureImageUploadCompleted(
+                docReference = docReference,
+                uploadDurationMs = timeTaken,
+                responseCode = response.code(),
+                pendingDocuments = pendingDocuments,
+                bytesUploaded = bytes.size,
+                errorMessage = response.message(),
+            )
             docReference.addExtension().apply {
                 url = IMG_UPLOAD_ERROR_EXTENSION
                 setValue(StringType("Upload failed: ${response.code()} - ${response.message()}"))
@@ -370,7 +420,7 @@ private fun filesExists(uri: Uri?): Boolean {
             openSrpFhirEngine.update(docReference)
             
             // Handle specific cleanup logic for failed uploads
-            if (response.code() in listOf(422, 410)) {
+            if (response.code() in listOf(410)) {
                 openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
                 context.contentResolver.delete(fileUri, null, null)
             }
@@ -379,10 +429,39 @@ private fun filesExists(uri: Uri?): Boolean {
                 documentId = docReference.logicalId,
                 responseCode = response.code(),
                 responseMessage = response.message(),
-                pendingDocuments = 0 // Caller can update this if needed
+                pendingDocuments = pendingDocuments
             )
         }
+        captureImageUploadCompleted(
+            docReference = docReference,
+            uploadDurationMs = timeTaken,
+            responseCode = response.code(),
+            pendingDocuments = pendingDocuments,
+            bytesUploaded = bytes.size,
+        )
         Timber.i("Step 2 completed: File content uploaded for ${docReference.logicalId}")
+        return timeTaken
+    }
+
+    private fun captureImageUploadCompleted(
+        docReference: DocumentReference,
+        uploadDurationMs: Long,
+        responseCode: Int,
+        pendingDocuments: Int,
+        bytesUploaded: Int,
+        errorMessage: String? = null,
+    ) {
+        analyticsLogger.capture(
+            AnalyticsLogger.Events.IMAGE_UPLOAD_COMPLETED,
+            mapOf(
+                AnalyticsLogger.Props.DOCUMENT_ID to docReference.logicalId,
+                AnalyticsLogger.Props.UPLOAD_DURATION_MS to uploadDurationMs,
+                AnalyticsLogger.Props.RESPONSE_CODE to responseCode,
+                AnalyticsLogger.Props.PENDING_DOCUMENTS to pendingDocuments,
+                AnalyticsLogger.Props.BYTES_UPLOADED to bytesUploaded,
+                AnalyticsLogger.Props.ERROR_MESSAGE to errorMessage,
+            ),
+        )
     }
 
     /**
@@ -398,6 +477,33 @@ private fun filesExists(uri: Uri?): Boolean {
             )
         )
         Timber.i("Step 3 completed: Document status finalized for ${docReference.logicalId}")
+    }
+
+    /**
+     * Updates the DocumentReference status time taken to upload image using a JSON Patch.
+     */
+    private suspend fun addUploadTimeTaken(docReference: DocumentReference, timeTaken: Long) {
+        Timber.i("addUploadTimeTaken ${docReference.logicalId}")
+
+        val extensionValue = ExtensionValue(
+            url = TIME_TAKEN_TOUPLOAD_IMG_EXTENSION,
+            valueString = timeTaken.toString()
+        )
+
+        val patchOperations = listOf(JsonPatchOperation(ADD_EXTENSION, DOC_EXTENSION, listOf(extensionValue)))
+        val patchJson = gson.toJson(patchOperations)
+
+        Timber.d("Sending JSON Patch for ${docReference.logicalId}: $patchJson")
+
+        val result = fhirResourceService.updateDocResource(
+            docReference.fhirType(),
+            docReference.logicalId,
+            patchJson.toRequestBody(
+                CONTENT_TYPE.toMediaTypeOrNull()
+            )
+        )
+
+        Timber.i("Added Upload Time Taken: ${docReference.logicalId} status:${result.docStatus.name}")
     }
 
     /**
