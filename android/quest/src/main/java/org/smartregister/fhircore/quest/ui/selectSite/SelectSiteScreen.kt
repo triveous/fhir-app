@@ -63,6 +63,7 @@ import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.app.ApplicationConfiguration
 import org.smartregister.fhircore.engine.data.remote.selectSite.SelectSite
+import org.smartregister.fhircore.engine.data.remote.selectSite.ServerConfig
 import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
@@ -93,6 +94,7 @@ fun SelectSiteScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val (versionCode, versionName) = remember { appVersionPair ?: context.appVersion() }
+    var step by remember { mutableStateOf(SelectStep.Server) }
 
     Surface(
         modifier =
@@ -141,33 +143,66 @@ fun SelectSiteScreen(
                     }
 
                     Spacer(modifier = modifier.height(32.dp))
+
+                    val serverList by siteViewModel!!.serverList.observeAsState(initial = arrayListOf())
+                    val tenantList by siteViewModel.tenantList.observeAsState(initial = arrayListOf())
+
+                    val heading = if (step == SelectStep.Server)
+                        stringResource(R.string.select_your_server)
+                    else
+                        stringResource(R.string.select_your_tenant)
+
                     Text(
-                        text = stringResource(R.string.select_your_site),
+                        text = heading,
                         style = bodyMedium(20.sp),
                         modifier = modifier.align(Alignment.CenterHorizontally)
                     )
 
                     Spacer(modifier = modifier.height(24.dp))
-                    val selectSiteList by siteViewModel!!.selectSiteList.observeAsState(initial = arrayListOf())
 
                     Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxWidth()) {
-                        SiteSelectionDropdown(
-                            showProgressBar,
-                            modifier,
-                            applicationConfiguration,
-                            items = selectSiteList,
-                            selectedItem = siteViewModel?.selectedSite?.value,
-                            onItemSelected = { siteViewModel?.selectedSite?.value = it },
-                            onContinue = {
-                                scope.launch {
-                                    siteViewModel?.selectedSite?.value?.let {
-                                        siteViewModel.setSelectSite(it)
+                        when (step) {
+                            SelectStep.Server -> SelectionDropdown(
+                                showProgressBar = showProgressBar,
+                                modifier = modifier,
+                                applicationConfiguration = applicationConfiguration,
+                                items = serverList,
+                                selectedItem = siteViewModel.selectedServer.value,
+                                nameOf = { it.name ?: "" },
+                                onItemSelected = { siteViewModel.selectedServer.value = it },
+                                onContinue = {
+                                    val server = siteViewModel.selectedServer.value ?: return@SelectionDropdown
+                                    val singleTenant = siteViewModel.selectServer(server)
+                                    if (singleTenant) {
+                                        scope.launch {
+                                            siteViewModel.selectedSite.value?.let { siteViewModel.setSelectSite(it) }
+                                            delay(300)
+                                            onContinueButtonClicked()
+                                        }
+                                    } else {
+                                        step = SelectStep.Tenant
                                     }
-                                    delay(300)
-                                    onContinueButtonClicked()
-                                }
-                            }
-                        )
+                                },
+                                onBack = null,
+                            )
+                            SelectStep.Tenant -> SelectionDropdown(
+                                showProgressBar = showProgressBar,
+                                modifier = modifier,
+                                applicationConfiguration = applicationConfiguration,
+                                items = tenantList,
+                                selectedItem = siteViewModel.selectedSite.value,
+                                nameOf = { it.name ?: "" },
+                                onItemSelected = { siteViewModel.selectedSite.value = it },
+                                onContinue = {
+                                    scope.launch {
+                                        siteViewModel.selectedSite.value?.let { siteViewModel.setSelectSite(it) }
+                                        delay(300)
+                                        onContinueButtonClicked()
+                                    }
+                                },
+                                onBack = { step = SelectStep.Server },
+                            )
+                        }
 
                         if (showProgressBar) {
                             CircularProgressIndicator(
@@ -246,14 +281,16 @@ fun SelectSiteScreen(
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun SiteSelectionDropdown(
+fun <T> SelectionDropdown(
     showProgressBar: Boolean,
     modifier: Modifier = Modifier,
     applicationConfiguration: ApplicationConfiguration,
-    items: List<SelectSite>?,
-    selectedItem: SelectSite?,
-    onItemSelected: (SelectSite) -> Unit,
-    onContinue: () -> Unit
+    items: List<T>?,
+    selectedItem: T?,
+    nameOf: (T) -> String,
+    onItemSelected: (T) -> Unit,
+    onContinue: () -> Unit,
+    onBack: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
@@ -271,7 +308,7 @@ fun SiteSelectionDropdown(
                 onExpandedChange = { expanded = !expanded }
             ) {
                 OutlinedTextField(
-                    value = selectedItem?.name ?: "",
+                    value = selectedItem?.let(nameOf) ?: "",
                     onValueChange = {},
                     readOnly = true,
                     trailingIcon = {
@@ -280,7 +317,6 @@ fun SiteSelectionDropdown(
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor()
-
                 )
 
                 ExposedDropdownMenu(
@@ -296,7 +332,7 @@ fun SiteSelectionDropdown(
                                 disabledLeadingIconColor = Color.White,
                                 disabledTrailingIconColor = Color.White
                             ),
-                            text = { Text(text = item.name?:"", textAlign = TextAlign.Start) },
+                            text = { Text(text = nameOf(item), textAlign = TextAlign.Start) },
                             onClick = {
                                 onItemSelected(item)
                                 expanded = false
@@ -306,9 +342,25 @@ fun SiteSelectionDropdown(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+            if (onBack != null) {
+                Button(
+                    colors = ButtonDefaults.buttonColors(
+                        backgroundColor = Color.Transparent,
+                        contentColor = MaterialTheme.colors.primaryVariant,
+                    ),
+                    onClick = onBack,
+                    modifier = modifier.fillMaxWidth(),
+                    elevation = null,
+                ) {
+                    Text(
+                        text = stringResource(id = R.string.btn_back),
+                        modifier = modifier.padding(8.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             Button(
-                colors =
-                ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     backgroundColor = MaterialTheme.colors.primaryVariant,
                     disabledContentColor =
                     if (applicationConfiguration.useDarkTheme) {
@@ -319,8 +371,7 @@ fun SiteSelectionDropdown(
                     contentColor = Color.White,
                 ),
                 onClick = onContinue,
-                modifier =
-                modifier
+                modifier = modifier
                     .fillMaxWidth()
                     .bringIntoViewRequester(bringIntoViewRequester)
                     .testTag(LOGIN_BUTTON_TAG),
@@ -334,3 +385,5 @@ fun SiteSelectionDropdown(
         }
     }
 }
+
+private enum class SelectStep { Server, Tenant }
