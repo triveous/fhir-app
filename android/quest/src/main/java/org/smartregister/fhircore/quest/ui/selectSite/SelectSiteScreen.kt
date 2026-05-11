@@ -144,8 +144,9 @@ fun SelectSiteScreen(
 
                     Spacer(modifier = modifier.height(32.dp))
 
-                    val serverList by siteViewModel!!.serverList.observeAsState(initial = arrayListOf())
-                    val tenantList by siteViewModel.tenantList.observeAsState(initial = arrayListOf())
+                    val vm = siteViewModel!!
+                    val serverList by vm.serverList.observeAsState(initial = arrayListOf())
+                    val tenantList by vm.tenantList.observeAsState(initial = arrayListOf())
 
                     val heading = if (step == SelectStep.Server)
                         stringResource(R.string.select_your_server)
@@ -167,15 +168,15 @@ fun SelectSiteScreen(
                                 modifier = modifier,
                                 applicationConfiguration = applicationConfiguration,
                                 items = serverList,
-                                selectedItem = siteViewModel.selectedServer.value,
+                                selectedItem = vm.selectedServer.value,
                                 nameOf = { it.name ?: "" },
-                                onItemSelected = { siteViewModel.selectedServer.value = it },
+                                onItemSelected = { vm.selectedServer.value = it },
                                 onContinue = {
-                                    val server = siteViewModel.selectedServer.value ?: return@SelectionDropdown
-                                    val singleTenant = siteViewModel.selectServer(server)
+                                    val server = vm.selectedServer.value ?: return@SelectionDropdown
+                                    val singleTenant = vm.selectServer(server)
                                     if (singleTenant) {
                                         scope.launch {
-                                            siteViewModel.selectedSite.value?.let { siteViewModel.setSelectSite(it) }
+                                            vm.selectedSite.value?.let { vm.setSelectSite(it) }
                                             delay(300)
                                             onContinueButtonClicked()
                                         }
@@ -190,12 +191,12 @@ fun SelectSiteScreen(
                                 modifier = modifier,
                                 applicationConfiguration = applicationConfiguration,
                                 items = tenantList,
-                                selectedItem = siteViewModel.selectedSite.value,
+                                selectedItem = vm.selectedSite.value,
                                 nameOf = { it.name ?: "" },
-                                onItemSelected = { siteViewModel.selectedSite.value = it },
+                                onItemSelected = { vm.selectedSite.value = it },
                                 onContinue = {
                                     scope.launch {
-                                        siteViewModel.selectedSite.value?.let { siteViewModel.setSelectSite(it) }
+                                        vm.selectedSite.value?.let { vm.setSelectSite(it) }
                                         delay(300)
                                         onContinueButtonClicked()
                                     }
