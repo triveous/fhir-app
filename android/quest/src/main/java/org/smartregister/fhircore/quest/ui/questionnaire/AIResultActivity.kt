@@ -1,10 +1,16 @@
 package org.smartregister.fhircore.quest.ui.questionnaire
 
+import android.content.Context
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -36,28 +42,50 @@ import org.smartregister.fhircore.engine.ui.theme.LighterBlue
 import org.smartregister.fhircore.engine.ui.theme.PrimaryColor
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
+import org.smartregister.fhircore.quest.util.ScreeningTimer
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.WHITE
 import org.smartregister.fhircore.quest.theme.body18Medium
 import org.smartregister.fhircore.quest.ui.register.customui.ZoomableImageView
 
 class AIResultActivity : ComponentActivity() {
+
+    private val previewCacheDir by lazy {
+        File(cacheDir, "ai_result_preview").also { it.mkdirs() }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val isSuspicious = intent.getBooleanExtra("isSuspicious", false)
         val suspiciousImages = intent.getStringArrayListExtra("suspiciousImages") ?: emptyList<String>()
+        val screeningId = intent.getStringExtra(PostHogAnalytics.Props.SCREENING_ID)
 
+        ScreeningTimer.markStep(screeningId, "ai_result_viewed")
         PostHogAnalytics.capture(
             PostHogAnalytics.Events.AI_RESULT_VIEWED,
-            mapOf(PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious),
+            mapOf(
+                PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
+                PostHogAnalytics.Props.SCREENING_ID to screeningId,
+            ),
         )
+
+        // Copy images to a private cache dir off the main thread. Sync worker only deletes after a
+        // successful network upload + server verification, so this copy always wins the race.
+        // Copies are cleaned up in onDestroy.
+        var displayImages by mutableStateOf(if (isSuspicious) suspiciousImages else emptyList<String>())
+        if (isSuspicious && suspiciousImages.isNotEmpty()) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val cached = suspiciousImages.mapNotNull { copyToPreviewCache(it) }
+                withContext(Dispatchers.Main) { displayImages = cached }
+            }
+        }
 
         setContent {
             MaterialTheme {
                 AIResultScreen(
                     isSuspicious = isSuspicious,
-                    suspiciousImages = suspiciousImages,
+                    suspiciousImages = displayImages,
                     onClose = {
                         intent.putExtra("refer_case", false)
                         setResult(RESULT_OK, intent)
@@ -66,7 +94,10 @@ class AIResultActivity : ComponentActivity() {
                     onRefer = {
                         PostHogAnalytics.capture(
                             PostHogAnalytics.Events.AI_REFER_CASE,
-                            mapOf(PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious),
+                            mapOf(
+                                PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
+                                PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                            ),
                         )
                         intent.putExtra("refer_case", true)
                         setResult(RESULT_OK, intent)
@@ -74,6 +105,34 @@ class AIResultActivity : ComponentActivity() {
                     }
                 )
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        previewCacheDir.deleteRecursively()
+    }
+
+    private fun copyToPreviewCache(sourcePath: String): String? {
+        val path = sourcePath.trim()
+        if (path.isEmpty()) return null
+        return try {
+            val destFile = File(previewCacheDir, "${path.hashCode()}.img")
+            if (destFile.exists() && destFile.length() > 0) return destFile.absolutePath
+
+            val uri = Uri.parse(path)
+            val inputStream = when (uri.scheme?.lowercase()) {
+                "content" -> contentResolver.openInputStream(uri)
+                "file" -> File(uri.path ?: return null).takeIf { it.isFile }?.inputStream()
+                else -> File(path).takeIf { it.isFile }?.inputStream()
+                    ?: File(filesDir, path).takeIf { it.isFile }?.inputStream()
+                    ?: File(cacheDir, path).takeIf { it.isFile }?.inputStream()
+            } ?: return null
+
+            inputStream.use { input -> destFile.outputStream().use { input.copyTo(it) } }
+            destFile.absolutePath
+        } catch (e: Exception) {
+            null
         }
     }
 }
@@ -86,9 +145,16 @@ fun AIResultScreen(
     onClose: () -> Unit,
     onRefer: () -> Unit
 ) {
+    val context = LocalContext.current
     val backgroundColor = if (isSuspicious) Colors.CORNSILK else LighterBlue
     val title = if (isSuspicious) stringResource(R.string.add_patient) else "AI Result"
     var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
+    val displayableSuspiciousImages = remember(context, suspiciousImages) {
+        suspiciousImages
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && resolveImageLoadModel(context, it) != null }
+            .distinct()
+    }
 
     Column(
         modifier = Modifier
@@ -193,12 +259,12 @@ fun AIResultScreen(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                if (isSuspicious && suspiciousImages.isNotEmpty()) {
+                if (isSuspicious && displayableSuspiciousImages.isNotEmpty()) {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(suspiciousImages) { imagePath ->
+                        items(displayableSuspiciousImages, key = { it }) { imagePath ->
                             Box(
                                 modifier = Modifier
                                     .size(width = 264.dp, height = 237.dp)
@@ -333,6 +399,7 @@ fun LocalGlideImage(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val imageModel = remember(context, path) { resolveImageLoadModel(context, path) }
     AndroidView(
         factory = { ctx ->
             androidx.appcompat.widget.AppCompatImageView(ctx).apply {
@@ -341,12 +408,16 @@ fun LocalGlideImage(
         },
         modifier = modifier,
         update = { view ->
-            val finalPath = if (File(path).isAbsolute) path else File(context.filesDir, path).absolutePath
-            Glide.with(view.context)
-                .load(finalPath)
-                .placeholder(android.R.drawable.ic_menu_gallery)
-                .error(android.R.drawable.ic_menu_gallery)
-                .into(view)
+            if (imageModel == null) {
+                Glide.with(view.context).clear(view)
+                view.setImageResource(android.R.drawable.ic_menu_gallery)
+            } else {
+                Glide.with(view.context)
+                    .load(imageModel)
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_gallery)
+                    .into(view)
+            }
         }
     )
 }
@@ -357,7 +428,7 @@ fun FullscreenImageOverlay(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    val finalPath = if (File(path).isAbsolute) path else File(context.filesDir, path).absolutePath
+    val imageModel = remember(context, path) { resolveImageLoadModel(context, path) }
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(
@@ -381,7 +452,7 @@ fun FullscreenImageOverlay(
                 modifier = Modifier.fillMaxSize(),
                 update = { view ->
                     Glide.with(view.context)
-                        .load(finalPath)
+                        .load(imageModel)
                         .error(android.R.drawable.ic_menu_delete)
                         .into(view)
                 }
@@ -408,3 +479,31 @@ fun FullscreenImageOverlay(
         }
     }
 }
+
+private fun resolveImageLoadModel(context: Context, rawPath: String): Any? {
+    val path = rawPath.trim()
+    if (path.isEmpty()) return null
+
+    val uri = Uri.parse(path)
+    when (uri.scheme?.lowercase()) {
+        "content" -> return uri.takeIf { context.canOpenUri(it) }
+        "file" -> return uri.path
+            ?.let(::File)
+            ?.takeIf { it.isFile }
+            ?.let { Uri.fromFile(it) }
+        "http", "https" -> return path
+    }
+
+    val directFile = File(path)
+    if (directFile.isAbsolute) return directFile.takeIf { it.isFile }
+
+    return listOf(
+        File(context.filesDir, path),
+        File(context.cacheDir, path),
+    ).firstOrNull { it.isFile }
+}
+
+private fun Context.canOpenUri(uri: Uri): Boolean =
+    runCatching {
+        contentResolver.openInputStream(uri)?.use { true } == true
+    }.getOrDefault(false)

@@ -45,6 +45,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.hl7.fhir.r4.model.Address
+import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.CodeableConcept
@@ -83,8 +84,10 @@ import org.smartregister.fhircore.engine.domain.model.ActionParameterType
 import org.smartregister.fhircore.engine.domain.model.RuleConfig
 import org.smartregister.fhircore.engine.rulesengine.ConfigRulesExecutor
 import org.smartregister.fhircore.engine.rulesengine.ResourceDataRulesExecutor
+import org.smartregister.fhircore.engine.sync.SyncBroadcaster
 import org.smartregister.fhircore.engine.task.FhirCarePlanGenerator
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.appendPractitionerInfo
@@ -99,6 +102,8 @@ import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.quest.app.fakes.Faker
 import org.smartregister.fhircore.quest.robolectric.RobolectricTest
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireViewModel.Companion.CONTAINED_LIST_TITLE
+import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
+import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import org.smartregister.model.practitioner.FhirPractitionerDetails
 import org.smartregister.model.practitioner.PractitionerDetails
 
@@ -129,6 +134,8 @@ class QuestionnaireViewModelTest : RobolectricTest() {
   private val context: Application = ApplicationProvider.getApplicationContext()
   private val fhirOperator: FhirOperator = mockk()
   private val configRulesExecutor: ConfigRulesExecutor = mockk()
+  private val secureSharedPreference: SecureSharedPreference = mockk(relaxed = true)
+  private val syncBroadcaster: SyncBroadcaster = mockk(relaxed = true)
   private val patient =
     Faker.buildPatient().apply {
       address =
@@ -185,9 +192,12 @@ class QuestionnaireViewModelTest : RobolectricTest() {
           resourceDataRulesExecutor = resourceDataRulesExecutor,
           transformSupportServices = mockk(),
           sharedPreferencesHelper = sharedPreferencesHelper,
+          secureSharedPreference = secureSharedPreference,
           fhirOperator = fhirOperator,
           fhirPathDataExtractor = fhirPathDataExtractor,
           configurationRegistry = configurationRegistry,
+          syncBroadcaster = syncBroadcaster,
+          fhirEngine = fhirEngine,
         ),
       )
 
@@ -500,6 +510,102 @@ class QuestionnaireViewModelTest : RobolectricTest() {
     }
 
   @Test
+  fun testSummarizeAiInferenceFlagsSuspiciousFromAnswerExtensionWithoutHiddenItem() {
+    val questionnaireResponse =
+      screeningQuestionnaireResponse(
+        aiResult = "Suspicious",
+        confidence = "94.2",
+        includeHiddenItem = false,
+      )
+
+    Assert.assertTrue(questionnaireViewModel.summarizeAiInference(questionnaireResponse).isSuspicious)
+  }
+
+  @Test
+  fun testSummarizeAiInferenceFlagsSuspiciousFromExistingHiddenResult() {
+    val questionnaireResponse =
+      screeningQuestionnaireResponse(
+        aiResult = null,
+        confidence = null,
+        includeHiddenItem = true,
+        hiddenAiResult = "Suspicious|94.2",
+      )
+
+    Assert.assertTrue(questionnaireViewModel.summarizeAiInference(questionnaireResponse).isSuspicious)
+  }
+
+  @Test
+  fun testSummarizeAiInferenceUpdatesHiddenResultAndCollectsSuspiciousImages() {
+    val questionnaireResponse =
+      screeningQuestionnaireResponse(
+        aiResult = "Suspicious",
+        confidence = "94.2",
+        includeHiddenItem = true,
+      )
+
+    val summary = questionnaireViewModel.summarizeAiInference(questionnaireResponse)
+
+    Assert.assertTrue(summary.isSuspicious)
+    Assert.assertEquals(listOf("screening-image.jpg"), summary.suspiciousImages)
+
+    val imageGroup = questionnaireResponse.item.first().item.first()
+    val hiddenItem = imageGroup.item.first { it.linkId == "patient-screening-image-1-ai-result" }
+    Assert.assertEquals("Suspicious|94.2", hiddenItem.answer.first().value.primitiveValue())
+  }
+
+  private fun screeningQuestionnaireResponse(
+    aiResult: String?,
+    confidence: String?,
+    includeHiddenItem: Boolean,
+    hiddenAiResult: String? = null,
+  ) =
+    QuestionnaireResponse().apply {
+      addItem(
+        QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+          linkId = "screening-group"
+          addItem(
+            QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+              linkId = "patient-screening-image-group"
+              addItem(
+                QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+                  linkId = "patient-screening-image-1"
+                  addAnswer(
+                    QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+                      aiResult?.let {
+                        addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL, StringType(it))
+                      }
+                      confidence?.let { addExtension(CONFIDENCE_PERCENTAGE_URL, StringType(it)) }
+                      value =
+                        Attachment().apply {
+                          contentType = "image/jpeg"
+                          title = "screening-image.jpg"
+                          url = "DocumentReference/test-document/\$binary-access-read"
+                        }
+                    },
+                  )
+                },
+              )
+              if (includeHiddenItem) {
+                addItem(
+                  QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+                    linkId = "patient-screening-image-1-ai-result"
+                    hiddenAiResult?.let {
+                      addAnswer(
+                        QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+                          value = StringType(it)
+                        },
+                      )
+                    }
+                  },
+                )
+              }
+            },
+          )
+        },
+      )
+    }
+
+  @Test
   fun testRetrieveQuestionnaireShouldReturnValidQuestionnaire() = runTest {
     coEvery { fhirEngine.get(ResourceType.Questionnaire, questionnaireConfig.id) } returns
       samplePatientRegisterQuestionnaire
@@ -508,6 +614,7 @@ class QuestionnaireViewModelTest : RobolectricTest() {
       questionnaireViewModel.retrieveQuestionnaire(
         questionnaireConfig = questionnaireConfig,
         actionParameters = emptyList(),
+        languageCode = questionnaireViewModel.languageCode,
       )
 
     Assert.assertNotNull(questionnaire)
@@ -563,6 +670,7 @@ class QuestionnaireViewModelTest : RobolectricTest() {
       questionnaireViewModel.retrieveQuestionnaire(
         questionnaireConfig = newQuestionnaireConfig,
         actionParameters = actionParameter,
+        languageCode = questionnaireViewModel.languageCode,
       )
     Assert.assertNotNull(questionnaire)
 

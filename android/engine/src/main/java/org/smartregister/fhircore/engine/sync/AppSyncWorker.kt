@@ -42,6 +42,7 @@ import com.google.android.fhir.sync.upload.UploadStrategy
 import com.google.gson.Gson
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
@@ -65,6 +66,8 @@ import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
+import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
+import org.smartregister.fhircore.engine.util.analytics.AnalyticsLoggerEntryPoint
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
@@ -86,6 +89,12 @@ constructor(
     val secureSharedPreference: SecureSharedPreference,
     private val gson: Gson
 ) : FhirSyncWorker(appContext, workerParams) {
+    private val analyticsLogger: AnalyticsLogger by lazy {
+        EntryPointAccessors.fromApplication(
+            applicationContext,
+            AnalyticsLoggerEntryPoint::class.java,
+        ).analyticsLogger()
+    }
 
     companion object {
         val mutex = Mutex()
@@ -159,7 +168,7 @@ constructor(
 
         val docReferences = openSrpFhirEngine.search<DocumentReference> {}.filter {
             it.resource.description != DocumentReferenceCaseType.DRAFT
-        }.shuffled()
+        }.sortedByDescending { it.resource.date }
         val totalDocuments = docReferences.size
         var pendingDocuments = totalDocuments
         var atLeastOneSuccess = false
@@ -193,7 +202,14 @@ constructor(
                 uploadImageMutex.withLock {
                     Timber.i("Processing document reference with logicalId: ${docReference.logicalId}")
 
-                    val success = uploadDocumentReferenceVersionAware(docReference, fileUri, context, serverDocRef)
+                    val success =
+                        uploadDocumentReferenceVersionAware(
+                            docReference,
+                            fileUri,
+                            context,
+                            serverDocRef,
+                            pendingDocuments,
+                        )
 
                     if (success) {
                         // CRITICAL: Re-verify from server that image data exists before deleting locally.
@@ -282,7 +298,8 @@ private fun filesExists(uri: Uri?): Boolean {
         docReference: DocumentReference,
         fileUri: Uri,
         context: Context,
-        serverDocRef: DocumentReference?
+        serverDocRef: DocumentReference?,
+        pendingDocuments: Int,
     ): Boolean {
         return runCatching {
             Timber.i("Starting version-aware upload for document: ${docReference.logicalId}")
@@ -314,9 +331,7 @@ private fun filesExists(uri: Uri?): Boolean {
 
             // Step 3b: Upload the file's binary content if it's missing.
             if (!serverDocRef.hasImageDataOnServer()) {
-                val startTime = System.currentTimeMillis()
-                uploadFileContent(docReference, fileUri, context)
-                val timeTaken = System.currentTimeMillis() - startTime
+                val timeTaken = uploadFileContent(docReference, fileUri, context, pendingDocuments)
                 addUploadTimeTaken(docReference, timeTaken)
                 // Track progress in-memory only. Do NOT call openSrpFhirEngine.update()
                 // here — that queues a local change, and the subsequent super.doWork()
@@ -365,7 +380,12 @@ private fun filesExists(uri: Uri?): Boolean {
     /**
      * Step 2: Uploads the binary file content to the existing DocumentReference.
      */
-    private suspend fun uploadFileContent(docReference: DocumentReference, fileUri: Uri, context: Context) {
+    private suspend fun uploadFileContent(
+        docReference: DocumentReference,
+        fileUri: Uri,
+        context: Context,
+        pendingDocuments: Int,
+    ): Long {
         Timber.i("Step 2: Uploading file content for ${docReference.logicalId}")
 
         val bytes = context.contentResolver.openInputStream(fileUri)
@@ -375,14 +395,24 @@ private fun filesExists(uri: Uri?): Boolean {
         val contentType = docReference.content.firstOrNull()?.attachment?.contentType
         val body = bytes.toRequestBody(contentType?.toMediaType())
 
+        val startTime = System.currentTimeMillis()
         val response = fhirResourceService.uploadFile(
             docReference.fhirType(),
             docReference.logicalId,
             "DocumentReference.content.attachment",
             body
         )
+        val timeTaken = System.currentTimeMillis() - startTime
 
         if (!response.isSuccessful) {
+            captureImageUploadCompleted(
+                docReference = docReference,
+                uploadDurationMs = timeTaken,
+                responseCode = response.code(),
+                pendingDocuments = pendingDocuments,
+                bytesUploaded = bytes.size,
+                errorMessage = response.message(),
+            )
             docReference.addExtension().apply {
                 url = IMG_UPLOAD_ERROR_EXTENSION
                 setValue(StringType("Upload failed: ${response.code()} - ${response.message()}"))
@@ -399,10 +429,39 @@ private fun filesExists(uri: Uri?): Boolean {
                 documentId = docReference.logicalId,
                 responseCode = response.code(),
                 responseMessage = response.message(),
-                pendingDocuments = 0 // Caller can update this if needed
+                pendingDocuments = pendingDocuments
             )
         }
+        captureImageUploadCompleted(
+            docReference = docReference,
+            uploadDurationMs = timeTaken,
+            responseCode = response.code(),
+            pendingDocuments = pendingDocuments,
+            bytesUploaded = bytes.size,
+        )
         Timber.i("Step 2 completed: File content uploaded for ${docReference.logicalId}")
+        return timeTaken
+    }
+
+    private fun captureImageUploadCompleted(
+        docReference: DocumentReference,
+        uploadDurationMs: Long,
+        responseCode: Int,
+        pendingDocuments: Int,
+        bytesUploaded: Int,
+        errorMessage: String? = null,
+    ) {
+        analyticsLogger.capture(
+            AnalyticsLogger.Events.IMAGE_UPLOAD_COMPLETED,
+            mapOf(
+                AnalyticsLogger.Props.DOCUMENT_ID to docReference.logicalId,
+                AnalyticsLogger.Props.UPLOAD_DURATION_MS to uploadDurationMs,
+                AnalyticsLogger.Props.RESPONSE_CODE to responseCode,
+                AnalyticsLogger.Props.PENDING_DOCUMENTS to pendingDocuments,
+                AnalyticsLogger.Props.BYTES_UPLOADED to bytesUploaded,
+                AnalyticsLogger.Props.ERROR_MESSAGE to errorMessage,
+            ),
+        )
     }
 
     /**
