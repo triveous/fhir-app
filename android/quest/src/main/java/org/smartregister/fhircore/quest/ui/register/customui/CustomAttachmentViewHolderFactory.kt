@@ -772,22 +772,22 @@ internal object CustomAttachmentViewHolderFactory :
                     stringBuilder.append("\n")
                 }
 
-                if (!m6Pred.isNullOrEmpty()) {
-                    stringBuilder.append("M6: $m6Pred")
-                    if (!m6Conf.isNullOrEmpty()) stringBuilder.append(" ($m6Conf%)")
-                    stringBuilder.append("\n")
-                }
-
-                if (!m8Pred.isNullOrEmpty()) {
-                    stringBuilder.append("M8: $m8Pred")
-                    if (!m8Conf.isNullOrEmpty()) stringBuilder.append(" ($m8Conf%)")
-                    stringBuilder.append("\n")
-                }
-
-                if (!m82Pred.isNullOrEmpty()) {
-                    stringBuilder.append("M82: $m82Pred")
-                    if (!m82Conf.isNullOrEmpty()) stringBuilder.append(" ($m82Conf%)")
-                }
+//                if (!m6Pred.isNullOrEmpty()) {
+//                    stringBuilder.append("M6: $m6Pred")
+//                    if (!m6Conf.isNullOrEmpty()) stringBuilder.append(" ($m6Conf%)")
+//                    stringBuilder.append("\n")
+//                }
+//
+//                if (!m8Pred.isNullOrEmpty()) {
+//                    stringBuilder.append("M8: $m8Pred")
+//                    if (!m8Conf.isNullOrEmpty()) stringBuilder.append(" ($m8Conf%)")
+//                    stringBuilder.append("\n")
+//                }
+//
+//                if (!m82Pred.isNullOrEmpty()) {
+//                    stringBuilder.append("M82: $m82Pred")
+//                    if (!m82Conf.isNullOrEmpty()) stringBuilder.append(" ($m82Conf%)")
+//                }
                 val finalString = stringBuilder.toString().trim()
                 if (finalString.isNotEmpty()) {
                     photoResult.text = finalString
