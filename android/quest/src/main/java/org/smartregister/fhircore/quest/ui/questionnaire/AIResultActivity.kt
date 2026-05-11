@@ -6,7 +6,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -38,28 +42,50 @@ import org.smartregister.fhircore.engine.ui.theme.LighterBlue
 import org.smartregister.fhircore.engine.ui.theme.PrimaryColor
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
+import org.smartregister.fhircore.quest.util.ScreeningTimer
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.WHITE
 import org.smartregister.fhircore.quest.theme.body18Medium
 import org.smartregister.fhircore.quest.ui.register.customui.ZoomableImageView
 
 class AIResultActivity : ComponentActivity() {
+
+    private val previewCacheDir by lazy {
+        File(cacheDir, "ai_result_preview").also { it.mkdirs() }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val isSuspicious = intent.getBooleanExtra("isSuspicious", false)
         val suspiciousImages = intent.getStringArrayListExtra("suspiciousImages") ?: emptyList<String>()
+        val screeningId = intent.getStringExtra(PostHogAnalytics.Props.SCREENING_ID)
 
+        ScreeningTimer.markStep(screeningId, "ai_result_viewed")
         PostHogAnalytics.capture(
             PostHogAnalytics.Events.AI_RESULT_VIEWED,
-            mapOf(PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious),
+            mapOf(
+                PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
+                PostHogAnalytics.Props.SCREENING_ID to screeningId,
+            ),
         )
+
+        // Copy images to a private cache dir off the main thread. Sync worker only deletes after a
+        // successful network upload + server verification, so this copy always wins the race.
+        // Copies are cleaned up in onDestroy.
+        var displayImages by mutableStateOf(if (isSuspicious) suspiciousImages else emptyList<String>())
+        if (isSuspicious && suspiciousImages.isNotEmpty()) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val cached = suspiciousImages.mapNotNull { copyToPreviewCache(it) }
+                withContext(Dispatchers.Main) { displayImages = cached }
+            }
+        }
 
         setContent {
             MaterialTheme {
                 AIResultScreen(
                     isSuspicious = isSuspicious,
-                    suspiciousImages = suspiciousImages,
+                    suspiciousImages = displayImages,
                     onClose = {
                         intent.putExtra("refer_case", false)
                         setResult(RESULT_OK, intent)
@@ -68,7 +94,10 @@ class AIResultActivity : ComponentActivity() {
                     onRefer = {
                         PostHogAnalytics.capture(
                             PostHogAnalytics.Events.AI_REFER_CASE,
-                            mapOf(PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious),
+                            mapOf(
+                                PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
+                                PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                            ),
                         )
                         intent.putExtra("refer_case", true)
                         setResult(RESULT_OK, intent)
@@ -76,6 +105,34 @@ class AIResultActivity : ComponentActivity() {
                     }
                 )
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        previewCacheDir.deleteRecursively()
+    }
+
+    private fun copyToPreviewCache(sourcePath: String): String? {
+        val path = sourcePath.trim()
+        if (path.isEmpty()) return null
+        return try {
+            val destFile = File(previewCacheDir, "${path.hashCode()}.img")
+            if (destFile.exists() && destFile.length() > 0) return destFile.absolutePath
+
+            val uri = Uri.parse(path)
+            val inputStream = when (uri.scheme?.lowercase()) {
+                "content" -> contentResolver.openInputStream(uri)
+                "file" -> File(uri.path ?: return null).takeIf { it.isFile }?.inputStream()
+                else -> File(path).takeIf { it.isFile }?.inputStream()
+                    ?: File(filesDir, path).takeIf { it.isFile }?.inputStream()
+                    ?: File(cacheDir, path).takeIf { it.isFile }?.inputStream()
+            } ?: return null
+
+            inputStream.use { input -> destFile.outputStream().use { input.copyTo(it) } }
+            destFile.absolutePath
+        } catch (e: Exception) {
+            null
         }
     }
 }
