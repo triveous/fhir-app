@@ -91,6 +91,7 @@ import com.google.android.fhir.datacapture.extensions.asStringValue
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
+import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskOutputComponent
 import org.hl7.fhir.r4.model.Task.TaskStatus
@@ -293,6 +294,8 @@ fun PendingTasksScreen(
                             mapOf(
                                 PostHogAnalytics.Props.TASK_ID to task.task.id,
                                 PostHogAnalytics.Props.TASK_STATUS to status.display,
+                                PostHogAnalytics.Props.TASK_CODE to task.task.analyticsTaskCode(),
+                                PostHogAnalytics.Props.LINKED_QUESTIONNAIRE_ID to task.task.linkedQuestionnaireId(),
                             )
                         )
 
@@ -1357,6 +1360,33 @@ fun CardItemView(
     RecommendationItem(name, phone, reason, task.task.status, taskStatusList) {
         onSelectTask(task)
     }
+}
+
+private fun Task.analyticsTaskCode(): String? =
+    if (hasCode()) {
+        code.coding
+            .mapNotNull { coding ->
+                listOfNotNull(coding.system, coding.code, coding.display)
+                    .takeIf { it.isNotEmpty() }
+                    ?.joinToString("|")
+            }
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(",")
+    } else {
+        null
+    }
+
+private fun Task.linkedQuestionnaireId(): String? {
+    val references =
+        buildList {
+            focus?.reference?.let(::add)
+            basedOn.mapNotNullTo(this) { it.reference }
+            input.mapNotNullTo(this) { (it.value as? Reference)?.reference }
+            output.mapNotNullTo(this) { (it.value as? Reference)?.reference }
+        }
+    return references
+        .firstOrNull { it.contains("Questionnaire", ignoreCase = true) }
+        ?.substringAfterLast("/")
 }
 
 @PreviewWithBackgroundExcludeGenerated

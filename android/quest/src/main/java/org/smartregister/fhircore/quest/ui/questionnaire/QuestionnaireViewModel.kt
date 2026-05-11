@@ -39,6 +39,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.context.IWorkerContext
+import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.Base
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.Bundle
@@ -95,6 +96,13 @@ import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
 import org.smartregister.fhircore.quest.R
 
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_CONFIDENCE_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_PREDICTION_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL8_CONFIDENCE_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL8_PREDICTION_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_CONFIDENCE_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_PREDICTION_URL
+import org.smartregister.fhircore.quest.util.AI_RESULT_SUFFIX
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
@@ -212,7 +220,7 @@ constructor(
         // Set barcode to the configured linkId default: "patient-barcode"
         if (!questionnaireConfig.resourceIdentifier.isNullOrEmpty()) {
           (questionnaireConfig.barcodeLinkId
-              ?: questionnaireConfig.linkIds?.firstOrNull { it.type == LinkIdType.BARCODE }?.linkId)
+            ?: questionnaireConfig.linkIds?.firstOrNull { it.type == LinkIdType.BARCODE }?.linkId)
             ?.let { barcodeLinkId ->
               find(barcodeLinkId)?.apply {
                 initial =
@@ -339,14 +347,7 @@ constructor(
       onSuccessfulSubmission(idTypes, currentQuestionnaireResponse)
 
       // Trigger one time sync after question submission
-      if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
-        context.showToast(
-          context.getString(R.string.sync_in_progress),
-          android.widget.Toast.LENGTH_SHORT
-        )
-      } else {
-        syncBroadcaster.runOneTimeSync()
-      }
+      syncBroadcaster.runOneTimeSync()
     }
   }
 
@@ -388,9 +389,9 @@ constructor(
         applyResourceMetadata(questionnaireConfig, questionnaireResponse, context)
         if (
           questionnaireResponse.subject.reference.isNullOrEmpty() &&
-            subjectType != null &&
-            resourceType == subjectType &&
-            logicalId.isNotEmpty()
+          subjectType != null &&
+          resourceType == subjectType &&
+          logicalId.isNotEmpty()
         ) {
           questionnaireResponse.subject = this.logicalId.asReference(subjectType)
         }
@@ -399,9 +400,9 @@ constructor(
             this.id = questionnaireResponse.subject.extractId()
           } else if (
             extractedResourceUniquePropertyExpressionsMap.containsKey(resourceType) &&
-              previouslyExtractedResources.containsKey(
-                resourceType,
-              )
+            previouslyExtractedResources.containsKey(
+              resourceType,
+            )
           ) {
             val fhirPathExpression =
               extractedResourceUniquePropertyExpressionsMap
@@ -423,7 +424,7 @@ constructor(
                     expression = fhirPathExpression,
                   )
                 extractedValue.isNotEmpty() &&
-                  extractedValue.equals(currentResourceIdentifier, true)
+                        extractedValue.equals(currentResourceIdentifier, true)
               }
 
             // Found match use the id on current resource; override identifiers for RelatedPerson
@@ -468,7 +469,7 @@ constructor(
 
     if (
       !questionnaireResponse.subject.reference.isNullOrEmpty() &&
-        questionnaireConfig.saveQuestionnaireResponse
+      questionnaireConfig.saveQuestionnaireResponse
     ) {
       // Set the Group's Related Entity Location meta tag on QuestionnaireResponse then save.
       questionnaireResponse.applyRelatedEntityLocationMetaTag(
@@ -491,8 +492,8 @@ constructor(
           Pair(subjectType, questionnaireConfig.resourceIdentifier!!)
         }
         !questionnaireConfig.groupResource?.groupIdentifier.isNullOrEmpty() &&
-          questionnaireConfig.groupResource?.removeGroup != true &&
-          questionnaireConfig.groupResource?.removeMember != true -> {
+                questionnaireConfig.groupResource?.removeGroup != true &&
+                questionnaireConfig.groupResource?.removeMember != true -> {
           Pair(ResourceType.Group, questionnaireConfig.groupResource!!.groupIdentifier)
         }
         else -> null
@@ -518,14 +519,14 @@ constructor(
     val referencedResources = mutableMapOf<ResourceType, MutableList<Resource>>()
     if (
       questionnaireConfig.isEditable() &&
-        !questionnaireConfig.resourceIdentifier.isNullOrEmpty() &&
-        subjectType != null
+      !questionnaireConfig.resourceIdentifier.isNullOrEmpty() &&
+      subjectType != null
     ) {
       searchLatestQuestionnaireResponse(
-          resourceId = questionnaireConfig.resourceIdentifier!!,
-          resourceType = questionnaireConfig.resourceType ?: subjectType,
-          questionnaireId = questionnaire.logicalId,
-        )
+        resourceId = questionnaireConfig.resourceIdentifier!!,
+        resourceType = questionnaireConfig.resourceType ?: subjectType,
+        questionnaireId = questionnaire.logicalId,
+      )
         ?.contained
         ?.asSequence()
         ?.filterIsInstance<ListResource>()
@@ -775,11 +776,11 @@ constructor(
     }
 
     return QuestionnaireResponseValidator.validateQuestionnaireResponse(
-        questionnaire = Questionnaire().apply { item = validQuestionnaireItems },
-        questionnaireResponse =
-          QuestionnaireResponse().apply { item = validQuestionnaireResponseItems },
-        context = context,
-      )
+      questionnaire = Questionnaire().apply { item = validQuestionnaireItems },
+      questionnaireResponse =
+        QuestionnaireResponse().apply { item = validQuestionnaireResponseItems },
+      context = context,
+    )
       .values
       .flatten()
       .all { it is Valid || it is NotValidated }
@@ -822,10 +823,10 @@ constructor(
 
           result.parameter.mapNotNull { cqlResultParameterComponent ->
             (cqlResultParameterComponent.value ?: cqlResultParameterComponent.resource)?.let {
-              resultParameterResource ->
+                resultParameterResource ->
               if (
                 cqlResultParameterComponent.name.equals(OUTPUT_PARAMETER_KEY) &&
-                  resultParameterResource.isResource
+                resultParameterResource.isResource
               ) {
                 defaultRepository.create(true, resultParameterResource as Resource)
               }
@@ -833,10 +834,10 @@ constructor(
               if (BuildConfig.DEBUG) {
                 Timber.d(
                   "CQL :: Param found: ${cqlResultParameterComponent.name} with value: ${
-                                        getStringRepresentation(
-                                            resultParameterResource,
-                                        )
-                                    }",
+                    getStringRepresentation(
+                      resultParameterResource,
+                    )
+                  }",
                 )
               }
             }
@@ -880,13 +881,13 @@ constructor(
     // Load the group from the database to get the updated Resource always.
     val group =
       groupIdentifier?.extractLogicalIdUuid()?.let { loadResource(ResourceType.Group, it) }
-        as Group?
+              as Group?
 
     if (
       group != null &&
-        resource is RelatedPerson &&
-        !resource.relationshipFirstRep.codingFirstRep.code.isNullOrEmpty() &&
-        resource.relationshipFirstRep.codingFirstRep.code == managingEntityRelationshipCode
+      resource is RelatedPerson &&
+      !resource.relationshipFirstRep.codingFirstRep.code.isNullOrEmpty() &&
+      resource.relationshipFirstRep.codingFirstRep.code == managingEntityRelationshipCode
     ) {
       defaultRepository.addOrUpdate(
         resource = group.apply { managingEntity = resource.asReference() },
@@ -907,7 +908,7 @@ constructor(
     // Load the Group resource from the database to get the updated one
     val group =
       groupIdentifier?.extractLogicalIdUuid()?.let { loadResource(ResourceType.Group, it) }
-        as Group? ?: return
+              as Group? ?: return
 
     val reference = resource.asReference()
     val member = group.member.find { it.entity.reference.equals(reference.reference, true) }
@@ -955,8 +956,8 @@ constructor(
 
     if (
       questionnaireConfig.removeResource == true &&
-        questionnaireConfig.resourceType != null &&
-        !questionnaireConfig.resourceIdentifier.isNullOrEmpty()
+      questionnaireConfig.resourceType != null &&
+      !questionnaireConfig.resourceIdentifier.isNullOrEmpty()
     ) {
       viewModelScope.launch {
         defaultRepository.delete(
@@ -1039,8 +1040,8 @@ constructor(
     return actionParameters
       .filter {
         it.paramType == ActionParameterType.QUESTIONNAIRE_RESPONSE_POPULATION_RESOURCE &&
-          it.resourceType != null &&
-          it.value.isNotEmpty()
+                it.resourceType != null &&
+                it.value.isNotEmpty()
       }
       .mapNotNull {
         try {
@@ -1064,116 +1065,187 @@ constructor(
     _questionnaireProgressStateLiveData.postValue(questionnaireState)
   }
 
-  fun checkIfSuspicious(questionnaireResponse: QuestionnaireResponse): Boolean {
+  /**
+   * Walks the [questionnaireResponse] tree, materializes the per-image AI inference into the
+   * sibling `<linkId>$AI_RESULT_SUFFIX` hidden item, and returns a case-level summary.
+   *
+   * The contract is structural rather than path-based: any answer carrying the AI extensions is
+   * treated as an inference-bearing answer, and any item with the [AI_RESULT_SUFFIX] suffix is its
+   * sibling carrier. This avoids hardcoding `screening-group` / `patient-screening-image-group`.
+   */
+  fun summarizeAiInference(
+    questionnaireResponse: QuestionnaireResponse,
+    questionnaire: Questionnaire? = null,
+  ): AiInferenceSummary {
     var isSuspicious = false
+    var imageCount = 0
+    var suspiciousImageCount = 0
+    var nonSuspiciousImageCount = 0
+    var lowConfidenceImageCount = 0
+    val confidenceValues = mutableListOf<Float>()
+    val suspiciousImages = linkedSetOf<String>()
+    val questionnaireItemsByLinkId =
+      questionnaire?.let { mutableMapOf<String, Questionnaire.QuestionnaireItemComponent>() }
+    questionnaire?.item?.let { collectQuestionnaireItems(it, questionnaireItemsByLinkId!!) }
     try {
-      Timber.d("=== Starting to set AI results in hidden items ===")
-      for (item in questionnaireResponse.item) {
-        if (item.linkId == "screening-group") {
-          Timber.d("Found screening-group for AI result processing")
-          item.item.forEach { group ->
-            if (group.linkId == "patient-screening-image-group") {
-              Timber.d("Found patient-screening-image-group, total items: ${group.item.size}")
-              group.item.forEach { imageOrHiddenItem ->
-                // Skip items that are AI result items (ending with -ai-result)
-                if (imageOrHiddenItem.linkId.endsWith("-ai-result")) {
-                  Timber.d("Skipping AI result item: ${imageOrHiddenItem.linkId}")
-                  return@forEach
-                }
+      Timber.d("=== AI inference summary: walking QR ===")
+      forEachQrItemWithSiblings(questionnaireResponse.item) { item, siblings ->
+        if (item.linkId.endsWith(AI_RESULT_SUFFIX)) {
+          val hiddenValue = item.answer.firstOrNull()?.value.asPrimitiveString()
+          Timber.d("AI hidden item linkId=${item.linkId} value=$hiddenValue")
+          if (hiddenValue.isSuspiciousAiResult()) {
+            isSuspicious = true
+            val originalLinkId = item.linkId.removeSuffix(AI_RESULT_SUFFIX)
+            siblings
+              .firstOrNull { it.linkId == originalLinkId }
+              ?.answer
+              ?.firstOrNull()
+              ?.let { it.value as? Attachment }
+              ?.title
+              ?.let { suspiciousImages.add(it) }
+          }
+          return@forEachQrItemWithSiblings
+        }
 
-                try {
-                  Timber.d("Processing item: ${imageOrHiddenItem.linkId}, has answers: ${imageOrHiddenItem.answer.isNotEmpty()}")
-                  if (imageOrHiddenItem.answer.isNotEmpty()) {
-                    val firstAnswer = imageOrHiddenItem.answer.firstOrNull()
-                    Timber.d("First answer exists: ${firstAnswer != null}, has extensions: ${firstAnswer?.hasExtension()}, extension count: ${firstAnswer?.extension?.size}")
+        val answer = item.answer.firstOrNull() ?: return@forEachQrItemWithSiblings
 
-                    if (firstAnswer != null && firstAnswer.hasExtension() && firstAnswer.extension.size > 1) {
-                      val resultExtension = firstAnswer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL)
-                      val confidenceExtension = firstAnswer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL)
+        // Only attachment-typed answers carry AI extensions; skip Coding/String/etc. items so
+        // HAPI's typed accessors don't throw.
+        if (answer.value !is Attachment) return@forEachQrItemWithSiblings
 
-                      Timber.d("Result extension: ${resultExtension != null}, Confidence extension: ${confidenceExtension != null}")
+        // The combined AI extension is written by CustomAttachmentViewHolderFactory onto both
+        // the QR answer AND the Questionnaire item. SDC strips the QR answer's extensions on
+        // submit, so the Questionnaire item is the surviving source of truth.
+        val qItem = questionnaireItemsByLinkId?.get(item.linkId)
 
-                      if (resultExtension != null && confidenceExtension != null) {
-                        val result = resultExtension.value
-                        val confidence = confidenceExtension.value
+        fun extString(url: String): String? =
+          answer.getExtensionByUrl(url)?.value.asPrimitiveString()
+            ?: qItem?.getExtensionByUrl(url)?.value.asPrimitiveString()
 
-                        Timber.d("Result value: $result, Confidence value: $confidence")
+        val result = extString(SUSPICIOUS_NON_SUSPICIOUS_URL)
+        val confidence = extString(CONFIDENCE_PERCENTAGE_URL)
 
-                        if (result != null && confidence != null) {
-                          val hiddenLinkId = "${imageOrHiddenItem.linkId}-ai-result"
-                          val hiddenItem = group.item.find { it.linkId == hiddenLinkId }
+        val attachment = answer.value as? Attachment
+        val title = attachment?.title
+        Timber.d(
+          "AI walk image item linkId=${item.linkId} title=$title " +
+            "qrAnswerExtCount=${answer.extension.size} " +
+            "qItemExtCount=${qItem?.extension?.size ?: -1} " +
+            "combined=$result|$confidence " +
+            "v6=${extString(MODEL6_PREDICTION_URL)}|${extString(MODEL6_CONFIDENCE_URL)} " +
+            "v8=${extString(MODEL8_PREDICTION_URL)}|${extString(MODEL8_CONFIDENCE_URL)} " +
+            "v82=${extString(MODEL82_PREDICTION_URL)}|${extString(MODEL82_CONFIDENCE_URL)}",
+        )
 
-                          Timber.d("Looking for hidden item: $hiddenLinkId, found: ${hiddenItem != null}")
+        if (result.isSuspiciousAiResult()) {
+          isSuspicious = true
+          title?.let { suspiciousImages.add(it) }
+        }
 
-                          if (hiddenItem != null) {
-                            Timber.d("BEFORE: Hidden item $hiddenLinkId has ${hiddenItem.answer.size} answers")
+        if (!result.isNullOrBlank()) {
+          imageCount += 1
+          if (result.isSuspiciousAiResult()) {
+            suspiciousImageCount += 1
+          } else {
+            nonSuspiciousImageCount += 1
+          }
 
-                            // Set or update the answer
-                            if (hiddenItem.answer.isEmpty()) {
-                              Timber.d("Adding new answer to hidden item")
-                              hiddenItem.addAnswer()
-                              if(isSuspicious.not()){
-                                isSuspicious = result.toString().equals("suspicious", ignoreCase = true)
-                              }
-                            }
+          confidence.toConfidenceFloat()?.let { confidenceValue ->
+            confidenceValues.add(confidenceValue)
+            if (confidenceValue < LOW_CONFIDENCE_THRESHOLD) {
+              lowConfidenceImageCount += 1
+            }
+          }
 
-                            Timber.d("Setting value on hidden item answer")
-                            hiddenItem.answer[0].value = StringType("$result|$confidence")
+          siblings
+            .firstOrNull { it.linkId == "${item.linkId}$AI_RESULT_SUFFIX" }
+            ?.let { hiddenItem ->
+              if (hiddenItem.answer.isEmpty()) hiddenItem.addAnswer()
+              hiddenItem.answer[0].value = StringType("$result|$confidence")
+            }
 
-                            Timber.d("AFTER: Successfully set AI result for $hiddenLinkId: $result|$confidence")
-                          } else {
-                            Timber.w("Hidden item not found for linkId: $hiddenLinkId")
-                          }
-                        }
-                      }
-                    }
-                  }
-                } catch (e: Exception) {
-                  Timber.e(e, "!!! EXCEPTION processing image item: ${imageOrHiddenItem.linkId}")
+          // Mirror onto the QR answer so downstream readers (e.g. StructureMap copy rules) see the
+          // values regardless of whether the SDC-stripped answer extensions are present.
+          if (answer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL) == null) {
+            answer.addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL, StringType(result))
+          }
+          if (!confidence.isNullOrBlank() && answer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL) == null) {
+            answer.addExtension(CONFIDENCE_PERCENTAGE_URL, StringType(confidence))
+          }
+          listOf(
+              MODEL6_PREDICTION_URL,
+              MODEL6_CONFIDENCE_URL,
+              MODEL8_PREDICTION_URL,
+              MODEL8_CONFIDENCE_URL,
+              MODEL82_PREDICTION_URL,
+              MODEL82_CONFIDENCE_URL,
+            )
+            .forEach { url ->
+              if (answer.getExtensionByUrl(url) == null) {
+                qItem?.getExtensionByUrl(url)?.value?.asPrimitiveString()?.let {
+                  answer.addExtension(url, StringType(it))
                 }
               }
             }
-          }
         }
       }
-      Timber.d("=== Finished setting AI results in hidden items ===")
+      Timber.d(
+        "=== AI inference summary done: isSuspicious=$isSuspicious " +
+          "suspiciousImages=$suspiciousImages ===",
+      )
     } catch (e: Exception) {
-      Timber.e(e, "!!! EXCEPTION in outer try-catch for AI result processing")
-      throw e
+      Timber.e(e, "Failed to summarize AI inference results")
     }
-    return isSuspicious
+    return AiInferenceSummary(
+      isSuspicious = isSuspicious,
+      suspiciousImages = suspiciousImages.toList(),
+      imageCount = imageCount,
+      suspiciousImageCount = suspiciousImageCount,
+      nonSuspiciousImageCount = nonSuspiciousImageCount,
+      lowConfidenceImageCount = lowConfidenceImageCount,
+      meanConfidence =
+        confidenceValues.takeIf { it.isNotEmpty() }?.average()?.toFloat() ?: 0f,
+    )
   }
 
-  fun getSuspiciousImages(questionnaireResponse: QuestionnaireResponse): List<String> {
-    val suspiciousImages = mutableListOf<String>()
-    try {
-      for (item in questionnaireResponse.item) {
-        if (item.linkId == "screening-group") {
-          item.item.forEach { group ->
-            if (group.linkId == "patient-screening-image-group") {
-              group.item.forEach { item ->
-                if (item.linkId.endsWith("-ai-result")) {
-                  if (item.answer.isNotEmpty()) {
-                    val answer = item.answer[0].value.toString()
-                    if (answer.startsWith("suspicious", ignoreCase = true)) {
-                      val originalLinkId = item.linkId.removeSuffix("-ai-result")
-                      val originalItem = group.item.find { it.linkId == originalLinkId }
-                      originalItem?.answer?.firstOrNull()?.valueAttachment?.title?.let {
-                        suspiciousImages.add(it)
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch (e: Exception) {
-      Timber.e(e)
+  private fun collectQuestionnaireItems(
+    items: List<Questionnaire.QuestionnaireItemComponent>,
+    out: MutableMap<String, Questionnaire.QuestionnaireItemComponent>,
+  ) {
+    items.forEach { qItem ->
+      qItem.linkId?.let { out[it] = qItem }
+      if (qItem.item.isNotEmpty()) collectQuestionnaireItems(qItem.item, out)
     }
-    return suspiciousImages
   }
+
+  private fun forEachQrItemWithSiblings(
+    items: List<QuestionnaireResponse.QuestionnaireResponseItemComponent>,
+    action: (
+      QuestionnaireResponse.QuestionnaireResponseItemComponent,
+      List<QuestionnaireResponse.QuestionnaireResponseItemComponent>,
+    ) -> Unit,
+  ) {
+    items.forEach { item ->
+      action(item, items)
+      if (item.item.isNotEmpty()) forEachQrItemWithSiblings(item.item, action)
+      item.answer.forEach { answer ->
+        if (answer.item.isNotEmpty()) forEachQrItemWithSiblings(answer.item, action)
+      }
+    }
+  }
+
+  private fun Base?.asPrimitiveString(): String? =
+    this?.primitiveValue()?.takeIf { it.isNotBlank() } ?: this?.toString()?.takeIf { it.isNotBlank() }
+
+  private fun String?.isSuspiciousAiResult(): Boolean =
+    this?.substringBefore("|")?.trim()?.equals("suspicious", ignoreCase = true) == true
+
+  private fun String?.toConfidenceFloat(): Float? =
+    this
+      ?.substringBefore("|")
+      ?.replace("%", "")
+      ?.trim()
+      ?.toFloatOrNull()
 
   fun updateReferCase(qrId: String) {
     viewModelScope.launch(dispatcherProvider.io()) {
@@ -1191,5 +1263,16 @@ constructor(
   companion object {
     const val CONTAINED_LIST_TITLE = "GeneratedResourcesList"
     const val OUTPUT_PARAMETER_KEY = "OUTPUT"
+    private const val LOW_CONFIDENCE_THRESHOLD = 65f
   }
 }
+
+data class AiInferenceSummary(
+  val isSuspicious: Boolean,
+  val suspiciousImages: List<String>,
+  val imageCount: Int = 0,
+  val suspiciousImageCount: Int = 0,
+  val nonSuspiciousImageCount: Int = 0,
+  val lowConfidenceImageCount: Int = 0,
+  val meanConfidence: Float = 0f,
+)

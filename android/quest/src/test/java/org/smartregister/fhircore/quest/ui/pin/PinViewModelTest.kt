@@ -18,6 +18,7 @@ package org.smartregister.fhircore.quest.ui.pin
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
+import com.google.android.fhir.FhirEngine
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import io.mockk.coEvery
@@ -54,6 +55,7 @@ class PinViewModelTest : RobolectricTest() {
 
   private val sharedPreferenceHelper: SharedPreferencesHelper = mockk(relaxUnitFun = true)
   private var secureSharedPreference: SecureSharedPreference = mockk(relaxUnitFun = true)
+  private val openSrpFhirEngine: FhirEngine = mockk(relaxed = true)
   private val configurationRegistry = Faker.buildTestConfigurationRegistry()
   private lateinit var pinViewModel: PinViewModel
 
@@ -66,6 +68,7 @@ class PinViewModelTest : RobolectricTest() {
         sharedPreferences = sharedPreferenceHelper,
         configurationRegistry = configurationRegistry,
         dispatcherProvider = dispatcherProvider,
+        openSrpFhirEngine = openSrpFhirEngine,
       )
   }
 

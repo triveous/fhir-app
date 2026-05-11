@@ -63,6 +63,7 @@ import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
+import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import timber.log.Timber
@@ -368,6 +369,7 @@ internal object CustomAttachmentViewHolderFactory :
                         result.getString(CameraxLauncherFragment.CAMERA_MODEL82_PREDICTION_KEY)
                     val model82Confidence =
                         result.getString(CameraxLauncherFragment.CAMERA_MODEL82_CONFIDENCE_KEY)
+                    val hasAiInferenceResult = isAiInferenceEnabled() && !predictionResult.isNullOrBlank()
 
                     if (!fileAbsolutePath.isNullOrEmpty()) {
                         try {
@@ -405,7 +407,7 @@ internal object CustomAttachmentViewHolderFactory :
                                 attachmentMimeTypeWithSubType
                             ).apply {
                                 // Add AI Model results to DocumentReference
-                                if (isAiInferenceEnabled()) {
+                                if (hasAiInferenceResult) {
                                     if (!model6Prediction.isNullOrEmpty()) {
                                         addExtension(
                                             MODEL6_PREDICTION_URL,
@@ -444,14 +446,14 @@ internal object CustomAttachmentViewHolderFactory :
                             val answer =
                                 QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
                                     .apply {
-                                        if (isAiInferenceEnabled()) {
+                                        if (hasAiInferenceResult) {
                                             addExtension(
                                                 SUSPICIOUS_NON_SUSPICIOUS_URL,
                                                 StringType(predictionResult.orEmpty())
                                             )
                                             addExtension(
                                                 CONFIDENCE_PERCENTAGE_URL,
-                                                StringType(confidence)
+                                                StringType(confidence.orEmpty())
                                             )
 
                                             if (!model6Prediction.isNullOrEmpty()) {
@@ -497,17 +499,17 @@ internal object CustomAttachmentViewHolderFactory :
                                             }
                                     }
 
-                            if (isAiInferenceEnabled()) {
+                            if (hasAiInferenceResult) {
                                 //Suspicious/NonSuspicious
                                 questionnaireItem.addExtension(
                                     SUSPICIOUS_NON_SUSPICIOUS_URL,
-                                    StringType(predictionResult)
+                                    StringType(predictionResult.orEmpty())
                                 )
 
                                 //Confidence percentage
                                 questionnaireItem.addExtension(
                                     CONFIDENCE_PERCENTAGE_URL,
-                                    StringType(confidence)
+                                    StringType(confidence.orEmpty())
                                 )
 
                                 // Add individual model results to questionnaire item
@@ -552,7 +554,7 @@ internal object CustomAttachmentViewHolderFactory :
                                 divider.visibility = View.VISIBLE
                                 displayPreview(
                                     attachmentType = attachmentMimeType,
-                                    attachmentTitle = if (predictionResult.isNullOrEmpty() || !isAiInferenceEnabled()) capturedFile.name else "RESULT : $predictionResult",
+                                    attachmentTitle = if (hasAiInferenceResult) "RESULT : $predictionResult" else capturedFile.name,
                                     attachmentUri = attachmentUri,
                                     questionnaireItem = questionnaireItem
                                 )
@@ -562,7 +564,7 @@ internal object CustomAttachmentViewHolderFactory :
                             }
 
                         } catch (e: Exception) {
-                            Timber.i("TAG", "error --> " + e.printStackTrace())
+                            Timber.e(e, "error --> %s", e.printStackTrace())
                             e.printStackTrace()
                         }
 
@@ -571,7 +573,7 @@ internal object CustomAttachmentViewHolderFactory :
                     }
                 }
 
-                CameraxLauncherFragment.newInstance()
+                CameraxLauncherFragment.newInstance((context as? QuestionnaireActivity)?.activeScreeningId())
                     .show(
                         context.supportFragmentManager,
                         CustomAttachmentViewHolderFactory::class.java.simpleName
@@ -738,39 +740,18 @@ internal object CustomAttachmentViewHolderFactory :
                     Glide.with(context).load(uri).into(photoThumbnail)
                     this.photoTitle.text = photoTitle
 
-//                    val result = questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
-//
-//                    if (result?.isNotEmpty() == true) {
-//                        photoResult.text = result
-//                        photoResult.visibility = View.VISIBLE
-//                        // Hide separate confidence view as it is merged into the main text
-//                        photoConfidence.visibility = View.GONE
-//                    } else {
-//                        photoResult.visibility = View.GONE
-//                        photoConfidence.visibility = View.GONE
-//                    }
-                }catch (exc: Exception) {
+                    val result = questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
+                    val confidence = questionnaireItem?.getExtensionString(CONFIDENCE_PERCENTAGE_URL)
+                    val m6Pred = questionnaireItem?.getExtensionString(MODEL6_PREDICTION_URL)
+                    val m6Conf = questionnaireItem?.getExtensionString(MODEL6_CONFIDENCE_URL)
+                    val m8Pred = questionnaireItem?.getExtensionString(MODEL8_PREDICTION_URL)
+                    val m8Conf = questionnaireItem?.getExtensionString(MODEL8_CONFIDENCE_URL)
+                    val m82Pred = questionnaireItem?.getExtensionString(MODEL82_PREDICTION_URL)
+                    val m82Conf = questionnaireItem?.getExtensionString(MODEL82_CONFIDENCE_URL)
+                    setAnswerFromAI(result, confidence, m6Pred, m6Conf, m8Pred, m8Conf, m82Pred, m82Conf)
+                } catch (exc: Exception) {
                     Timber.e("Failed to load photo preview: ${exc.message}")
                 }
-
-
-
-                //Suspicious/NonSuspicious
-//                //Confidence percentage
-//                val confidence = questionnaireItem?.getExtensionString(CONFIDENCE_PERCENTAGE_URL)
-//                // Individual model results
-//                val m6Pred = questionnaireItem?.getExtensionString(MODEL6_PREDICTION_URL)
-//                val m6Conf = questionnaireItem?.getExtensionString(MODEL6_CONFIDENCE_URL)
-//                val m8Pred = questionnaireItem?.getExtensionString(MODEL8_PREDICTION_URL)
-//                val m8Conf = questionnaireItem?.getExtensionString(MODEL8_CONFIDENCE_URL)
-//                val m82Pred = questionnaireItem?.getExtensionString(MODEL82_PREDICTION_URL)
-//                val m82Conf = questionnaireItem?.getExtensionString(MODEL82_CONFIDENCE_URL)
-//                setAnswerFromAI(
-//                    result, confidence,
-//                    m6Pred, m6Conf,
-//                    m8Pred, m8Conf,
-//                    m82Pred, m82Conf
-//                )
             }
 
             private fun setAnswerFromAI(
@@ -1230,6 +1211,3 @@ internal const val MODEL82_CONFIDENCE_URL =
 
 internal const val CASE_PREDICTION_RESULT_URL =
     "http://smartregister.org/ai-model-result/case-prediction-result"
-
-
-            
