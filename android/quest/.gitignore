@@ -26,6 +26,9 @@ src/benchmark/assets/resources.db
 *.tar.gz
 *.rar
 
+# Large prebuilt native lib (keep local, not in git — over GitHub 100MB limit)
+libs/opencv-411-android.aar
+
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*

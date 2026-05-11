@@ -21,6 +21,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.google.gson.Gson
 import dagger.hilt.android.testing.HiltTestApplication
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
@@ -61,14 +62,16 @@ object Faker {
   fun buildTestConfigurationRegistry(): ConfigurationRegistry {
     val fhirResourceService = mockk<FhirResourceService>()
     val fhirResourceDataSource = spyk(FhirResourceDataSource(fhirResourceService))
+    val sharedPreferencesHelper = mockk<SharedPreferencesHelper>(relaxed = true)
     coEvery { fhirResourceService.getResource(any()) } returns Bundle()
+    every { sharedPreferencesHelper.read(any(), any<String>()) } answers { secondArg() }
 
     val configurationRegistry =
       spyk(
         ConfigurationRegistry(
           fhirEngine = mockk(),
           fhirResourceDataSource = fhirResourceDataSource,
-          sharedPreferencesHelper = mockk(),
+          sharedPreferencesHelper = sharedPreferencesHelper,
           dispatcherProvider = mockk(),
           configService = mockk(),
           json = json,

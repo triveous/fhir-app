@@ -27,14 +27,13 @@ import dagger.hilt.EntryPoints
 import dagger.hilt.InstallIn
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
-import io.sentry.android.core.SentryAndroid
-import io.sentry.android.core.SentryAndroidOptions
-import io.sentry.android.fragment.FragmentLifecycleIntegration
+import com.posthog.PostHog
+import com.posthog.android.PostHogAndroid
+import com.posthog.android.PostHogAndroidConfig
 import org.smartregister.fhircore.engine.OpenSrpApplication
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.ReferenceUrlResolver
 import org.smartregister.fhircore.engine.di.BaseUrlsHolder
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
-import org.smartregister.fhircore.engine.util.extension.getSubDomain
 import org.smartregister.fhircore.quest.data.QuestXFhirQueryResolver
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireItemViewHolderFactoryMatchersProviderFactoryImpl
 import timber.log.Timber
@@ -67,9 +66,7 @@ class QuestApplication : OpenSrpApplication(), DataCaptureConfig.Provider, Confi
       Timber.plant(ReleaseTree())
     }
 
-    if (BuildConfig.DEBUG.not()) {
-      initSentryMonitoring()
-    }
+    initPostHog()
 
     // TODO Fix this workaround for cursor size issue. Currently size set to 10 MB
     try {
@@ -84,34 +81,20 @@ class QuestApplication : OpenSrpApplication(), DataCaptureConfig.Provider, Confi
   }
 
   @VisibleForTesting
-  fun initSentryMonitoring(dsn: String = BuildConfig.SENTRY_DSN) {
-    if (dsn.isNotBlank()) {
-      val sentryConfiguration = { options: SentryAndroidOptions ->
-        options.dsn = dsn.trim { it <= ' ' }
-        // To set a uniform sample rate
-        options.tracesSampleRate = 1.0
-        options.isEnableUserInteractionTracing = true
-        options.isEnableUserInteractionBreadcrumbs = true
-        options.addIntegration(
-          FragmentLifecycleIntegration(
-            this,
-            enableFragmentLifecycleBreadcrumbs = true,
-            enableAutoFragmentLifecycleTracing = true,
-          ),
-        )
-        try {
-          val url = if (::sharedPreferencesHelper.isInitialized){
-            sharedPreferencesHelper.getFhirBaseUrl()
-          } else {
-            BuildConfig.FHIR_BASE_URL
-          }
-          options.environment = URL(url).getSubDomain().replace('-', '.')
-        } catch (e: Exception) {
-          Timber.e(e)
-        }
+  fun initPostHog(
+    apiKey: String = BuildConfig.POSTHOG_API_KEY,
+    host: String = BuildConfig.POSTHOG_HOST,
+  ) {
+    if (apiKey.isNotBlank() && host.isNotBlank()) {
+      val config = PostHogAndroidConfig(apiKey = apiKey, host = host).apply {
+        // Enable automatic crash/exception capture
+        errorTrackingConfig.autoCapture = true
+        errorTrackingConfig.inAppIncludes.add("org.smartregister.fhircore")
       }
+      PostHogAndroid.setup(this, config)
 
-      SentryAndroid.init(this, sentryConfiguration)
+      // Disable GeoIP processing to prevent lat/long inference from IP addresses
+      PostHog.register("\$geoip_disable", true)
     }
   }
 

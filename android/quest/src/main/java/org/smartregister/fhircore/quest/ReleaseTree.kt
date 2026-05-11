@@ -17,24 +17,35 @@
 package org.smartregister.fhircore.quest
 
 import android.util.Log
-import android.util.Log.ERROR
-import io.sentry.Sentry
+import com.posthog.PostHog
 import timber.log.Timber
 
 class ReleaseTree : Timber.Tree() {
 
   override fun isLoggable(tag: String?, priority: Int): Boolean {
-    if (priority == Log.VERBOSE || priority == Log.DEBUG || priority == Log.INFO) {
-      return false
-    }
-    return true
+    return priority >= Log.INFO
   }
 
   override fun log(priority: Int, tag: String?, message: String, throwable: Throwable?) {
-    if (priority == ERROR || priority == Log.WARN || priority == Log.ASSERT) {
-      if (throwable != null) {
-        Sentry.captureException(throwable)
+    val properties =
+      mutableMapOf<String, Any>().apply {
+        tag?.let { put("tag", it) }
+        put("priority", priority)
+        put("message", message)
       }
+
+    try {
+      if (priority >= Log.WARN) {
+        if (throwable != null) {
+          PostHog.captureException(throwable, properties = properties)
+        } else {
+          PostHog.captureException(Exception(message), properties = properties)
+        }
+      } else if (priority == Log.INFO) {
+        PostHog.capture("info_log", properties = properties)
+      }
+    } catch (e: Exception) {
+      Log.e("ReleaseTree", "Error sending log to PostHog: ${e.message}", e)
     }
   }
 }

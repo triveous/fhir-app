@@ -231,8 +231,8 @@
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/captureButton"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
             android:src="@drawable/ic_camera_shutter"
             android:layout_gravity="center"
             android:elevation="@dimen/spacing_16" />

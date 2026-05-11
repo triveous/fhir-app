@@ -35,10 +35,12 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     private var oldMeasuredHeight = 0
 
     private val mScaleDetector: ScaleGestureDetector
+    private val mGestureDetector: android.view.GestureDetector
 
     init {
         super.setClickable(true)
         mScaleDetector = ScaleGestureDetector(context, ScaleListener())
+        mGestureDetector = android.view.GestureDetector(context, GestureListener())
         scaleType = ScaleType.MATRIX
         imageMatrix = imgMatrix
     }
@@ -54,6 +56,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         mScaleDetector.onTouchEvent(event)
+        mGestureDetector.onTouchEvent(event)
         val curr = PointF(event.x, event.y)
 
         when (event.actionMasked) {
@@ -89,6 +92,17 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
         imageMatrix = imgMatrix
         invalidate()
         return true
+    }
+
+    private inner class GestureListener : android.view.GestureDetector.SimpleOnGestureListener() {
+        override fun onDoubleTap(e: MotionEvent): Boolean {
+            val targetScale = if (saveScale > minScale) minScale else maxScale
+            val mScaleFactor = targetScale / saveScale
+            saveScale = targetScale
+            imgMatrix.postScale(mScaleFactor, mScaleFactor, viewWidth / 2f, viewHeight / 2f)
+            fixTrans()
+            return true
+        }
     }
 
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
