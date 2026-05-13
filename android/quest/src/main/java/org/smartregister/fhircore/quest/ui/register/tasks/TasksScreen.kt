@@ -64,6 +64,7 @@ import androidx.compose.material3.RadioButtonColors
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -90,6 +91,7 @@ import com.google.android.fhir.datacapture.extensions.asStringValue
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
+import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.Task
 import org.hl7.fhir.r4.model.Task.TaskOutputComponent
 import org.hl7.fhir.r4.model.Task.TaskStatus
@@ -128,6 +130,7 @@ import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStrin
 import org.smartregister.fhircore.quest.util.SectionTitles
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 import kotlin.collections.find
 
@@ -223,6 +226,11 @@ fun PendingTasksScreen(
     var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
     var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
 
+    LaunchedEffect(Unit) {
+        PostHogAnalytics.captureScreenView("TasksScreen")
+        viewModel.setPostHogUserProperties()
+    }
+
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -281,6 +289,15 @@ fun PendingTasksScreen(
 
                     if (taskPriority != TaskProgressState.NONE) {
                         viewModel.updateTask(task.task, status, taskPriority)
+                        PostHogAnalytics.capture(
+                            PostHogAnalytics.Events.TASK_STATUS_UPDATED,
+                            mapOf(
+                                PostHogAnalytics.Props.TASK_ID to task.task.id,
+                                PostHogAnalytics.Props.TASK_STATUS to status.display,
+                                PostHogAnalytics.Props.TASK_CODE to task.task.analyticsTaskCode(),
+                                PostHogAnalytics.Props.LINKED_QUESTIONNAIRE_ID to task.task.linkedQuestionnaireId(),
+                            )
+                        )
 
                         coroutineScope.launch {
                             viewModel.emitSnackBarState(
@@ -612,6 +629,7 @@ fun PendingTasksScreen(
                             ).show()
                         } else {
                             viewModel.setShowDialog(false)
+                            PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
                             if (!viewModel.permissionGranted.value) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                     launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -1342,6 +1360,33 @@ fun CardItemView(
     RecommendationItem(name, phone, reason, task.task.status, taskStatusList) {
         onSelectTask(task)
     }
+}
+
+private fun Task.analyticsTaskCode(): String? =
+    if (hasCode()) {
+        code.coding
+            .mapNotNull { coding ->
+                listOfNotNull(coding.system, coding.code, coding.display)
+                    .takeIf { it.isNotEmpty() }
+                    ?.joinToString("|")
+            }
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(",")
+    } else {
+        null
+    }
+
+private fun Task.linkedQuestionnaireId(): String? {
+    val references =
+        buildList {
+            focus?.reference?.let(::add)
+            basedOn.mapNotNullTo(this) { it.reference }
+            input.mapNotNullTo(this) { (it.value as? Reference)?.reference }
+            output.mapNotNullTo(this) { (it.value as? Reference)?.reference }
+        }
+    return references
+        .firstOrNull { it.contains("Questionnaire", ignoreCase = true) }
+        ?.substringAfterLast("/")
 }
 
 @PreviewWithBackgroundExcludeGenerated

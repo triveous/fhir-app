@@ -17,6 +17,7 @@
 package org.smartregister.fhircore.quest.ui.main
 
 import android.content.Context
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.lifecycle.ViewModel
@@ -29,8 +30,7 @@ import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.search.search
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.sentry.Sentry
-import io.sentry.protocol.User
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.model.Binary
@@ -49,6 +49,7 @@ import org.smartregister.fhircore.engine.configuration.navigation.ICON_TYPE_REMO
 import org.smartregister.fhircore.engine.configuration.navigation.NavigationConfiguration
 import org.smartregister.fhircore.engine.configuration.report.measure.MeasureReportConfiguration
 import org.smartregister.fhircore.engine.data.local.register.RegisterRepository
+import org.smartregister.fhircore.engine.domain.networkUtils.DocumentReferenceCaseType
 import org.smartregister.fhircore.engine.domain.model.ActionParameter
 import org.smartregister.fhircore.engine.domain.model.ActionParameterType
 import org.smartregister.fhircore.engine.sync.SyncBroadcaster
@@ -74,9 +75,6 @@ import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.report.measure.worker.MeasureReportMonthPeriodWorker
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
-import org.smartregister.fhircore.quest.util.IMAGES_LEFT
-import org.smartregister.fhircore.quest.util.VERSION_CODE
-import org.smartregister.fhircore.quest.util.VERSION_NAME
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
 import org.smartregister.fhircore.quest.util.extensions.schedulePeriodically
 import timber.log.Timber
@@ -104,6 +102,7 @@ constructor(
 ) : ViewModel() {
 
   private val simpleDateFormat = SimpleDateFormat(SYNC_TIMESTAMP_OUTPUT_FORMAT, Locale.getDefault())
+  private var syncStartedAtMs: Long? = null
 
   val applicationConfiguration: ApplicationConfiguration by lazy {
     configurationRegistry.retrieveConfiguration(ConfigType.Application, paramsMap = emptyMap())
@@ -135,25 +134,16 @@ constructor(
       }
   }
 
-  fun setSentryUserProperties() {
-    val userName = secureSharedPreference.getPractitionerUserId()
-    try {
-      viewModelScope.launch {
-        val docReferences = fhirEngine.search<DocumentReference> {}.size
-        // Configure Sentry scope
-        Sentry.configureScope { scope ->
-          scope.setTag(VERSION_CODE, BuildConfig.VERSION_CODE.toString())
-          scope.setTag(VERSION_NAME, BuildConfig.VERSION_NAME)
-          val user = User().apply {
-            username = userName
-            data = data ?: mutableMapOf()
-            data?.put(IMAGES_LEFT,  "$docReferences")
-          }
-          scope.user = user
-        }
+  fun setPostHogUserProperties() {
+    viewModelScope.launch(dispatcherProvider.io()) {
+      try {
+        updatePostHogUserProperties(
+          pendingSyncImages = pendingSyncImages(),
+          pendingSyncCases = pendingSyncCases(),
+        )
+      } catch (e: Exception) {
+        Timber.e(e)
       }
-    } catch (e: Exception) {
-      Timber.e(e)
     }
   }
 
@@ -170,7 +160,9 @@ constructor(
       is AppMainEvent.SyncData -> {
         Timber.e("TAG SyncData onEvent --> isForeground -->$isForeground event--> ${event}")
         if (event.context.isDeviceOnline()) {
-          setSentryUserProperties()
+          syncStartedAtMs = SystemClock.elapsedRealtime()
+          PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
+          setPostHogUserProperties()
           if (!isForeground) {
             viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
           } else {
@@ -188,6 +180,12 @@ constructor(
             SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name,
             formatLastSyncTimestamp(event.state.timestamp),
           )
+        }
+        if (
+          event.state is CurrentSyncJobStatus.Succeeded ||
+            event.state is CurrentSyncJobStatus.Failed
+        ) {
+          captureSyncCompleted(event.state)
         }
       }
       is AppMainEvent.TriggerWorkflow ->
@@ -219,6 +217,52 @@ constructor(
         )
         .run { show(activity.supportFragmentManager, RegisterBottomSheetFragment.TAG) }
     }
+  }
+
+  private fun captureSyncCompleted(state: CurrentSyncJobStatus) {
+    viewModelScope.launch(dispatcherProvider.io()) {
+      val pendingImages = pendingSyncImages()
+      val pendingCases = pendingSyncCases()
+      val syncDuration = syncStartedAtMs?.let { SystemClock.elapsedRealtime() - it }
+      val syncStatus =
+        when (state) {
+          is CurrentSyncJobStatus.Succeeded -> "succeeded"
+          is CurrentSyncJobStatus.Failed -> "failed"
+          else -> return@launch
+        }
+
+      PostHogAnalytics.capture(
+        PostHogAnalytics.Events.SYNC_COMPLETED,
+        mapOf(
+          PostHogAnalytics.Props.SYNC_STATUS to syncStatus,
+          PostHogAnalytics.Props.SYNC_DURATION_MS to syncDuration,
+          PostHogAnalytics.Props.PENDING_IMAGES_AFTER to pendingImages,
+          PostHogAnalytics.Props.PENDING_CASES_AFTER to pendingCases,
+          PostHogAnalytics.Props.ERROR_MESSAGE to
+            (state as? CurrentSyncJobStatus.Failed)?.toString(),
+        ),
+      )
+      updatePostHogUserProperties(
+        pendingSyncImages = pendingImages,
+        pendingSyncCases = pendingCases,
+      )
+      syncStartedAtMs = null
+    }
+  }
+
+  private suspend fun pendingSyncImages(): Int =
+    fhirEngine.search<DocumentReference> {}
+      .count { it.resource.description != DocumentReferenceCaseType.DRAFT }
+
+  private suspend fun pendingSyncCases(): Int = fhirEngine.getUnsyncedLocalChanges().size
+
+  private fun updatePostHogUserProperties(pendingSyncImages: Int, pendingSyncCases: Int) {
+    val flwId = secureSharedPreference.getPractitionerUserId()
+    PostHogAnalytics.identifyUser(
+      flwId = flwId,
+      pendingSyncImages = pendingSyncImages,
+      pendingSyncCases = pendingSyncCases,
+    )
   }
 
   fun launchFamilyRegistrationWithLocationId(
