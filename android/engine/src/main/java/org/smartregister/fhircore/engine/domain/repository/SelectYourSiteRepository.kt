@@ -4,7 +4,7 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ActivityRetainedScoped
 import org.smartregister.fhircore.engine.data.remote.auth.OAuthService
-import org.smartregister.fhircore.engine.data.remote.selectSite.SelectYourSiteResponse
+import org.smartregister.fhircore.engine.data.remote.selectSite.ServerConfig
 import org.smartregister.fhircore.engine.domain.networkUtils.SafeApiRequest
 import javax.inject.Inject
 
@@ -14,7 +14,7 @@ class SelectYourSiteRepository @Inject constructor(
     private val api: OAuthService
 ) : SafeApiRequest(context) {
 
-    suspend fun getSelectYourSites(url:String): SelectYourSiteResponse {
+    suspend fun getSelectYourSites(url: String): Map<String, ServerConfig> {
         return apiRequest { api.fetchSites(url) }
     }
 }
