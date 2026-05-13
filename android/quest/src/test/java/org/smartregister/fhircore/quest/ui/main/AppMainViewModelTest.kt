@@ -23,6 +23,7 @@ import android.widget.Toast
 import androidx.navigation.NavController
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.WorkManager
+import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.gson.Gson
 import dagger.hilt.android.testing.BindValue
@@ -100,6 +101,7 @@ class AppMainViewModelTest : RobolectricTest() {
   private val registerRepository: RegisterRepository = mockk()
   private val application: Context = ApplicationProvider.getApplicationContext()
   private val syncBroadcaster: SyncBroadcaster = mockk(relaxed = true)
+  private val fhirEngine: FhirEngine = mockk(relaxed = true)
   private lateinit var sharedPreferencesHelper: SharedPreferencesHelper
   private lateinit var appMainViewModel: AppMainViewModel
 
@@ -123,6 +125,7 @@ class AppMainViewModelTest : RobolectricTest() {
           dispatcherProvider = dispatcherProvider,
           workManager = workManager,
           fhirCarePlanGenerator = fhirCarePlanGenerator,
+          fhirEngine = fhirEngine,
         ),
       )
     runBlocking { configurationRegistry.loadConfigurations("app/debug", application) }

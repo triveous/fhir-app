@@ -162,7 +162,7 @@
     <string name="no_cases">No matching recommendations found!</string>
     <string name="not_contacted">NOT CONTACTED</string>
     <string name="not_responded">NOT RESPONDED</string>
-    <string name="add_patient">Add new case</string>
+    <string name="add_patient">Add New Case</string>
 
     <string name="pending_agreed_not_done">AGREED, FOLLOWUP NOT DONE</string>
     <string name="pending_not_agreed">NOT AGREED FOR FOLLOWUP</string>
@@ -213,6 +213,8 @@
 
     <!-- Cases-->
     <string name="visited">Visited</string>
+    <string name="unique_id_label">Reference ID</string>
+    <string name="not_available">Not Available</string>
     <string name="cases_sync">Sync: %s</string>
     <string name="dynamic_see_more">SEE %s MORE</string>
     <string name="dynamic_total_drafts">TOTAL DRAFTS: %s</string>
@@ -302,4 +304,13 @@
     <string name="button_pagination_previous">Previous</string>
     <string name="location_permission_reason">App needs location permission to capture the site location.</string>
 
+    <string name="suspicious_result">Refer to a dentist</string>
+    <string name="suspicious_result_desc">AI recommends referral. In case \nof doubt, talk to your supervisor.</string>
+    <string name="nonsuspicious_result">No referral required</string>
+    <string name="nonsuspicious_result_desc">AI does not recommend referral. If lesion is visible, refer the case.</string>
+    <string name="ai_detected_lesions">AI-DETECTED LESIONS</string>
+    <string name="none">None</string>
+    <string name="no_lesions_found">No lesions found.</string>
+    <string name="refer_case">STILL REFER?</string>
+    <string name="done_upper">COMPLETE</string>
 </resources>
