@@ -121,6 +121,9 @@ subprojects {
         }
       }
     }
+    // guava already bundles ListenableFuture; the standalone artifact causes a
+    // capability conflict on Android builds.
+    exclude(group = "com.google.guava", module = "listenablefuture")
   }
 
   tasks.withType<Test> {
