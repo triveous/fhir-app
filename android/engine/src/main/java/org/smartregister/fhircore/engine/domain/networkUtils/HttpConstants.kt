@@ -2,9 +2,7 @@ package org.smartregister.fhircore.engine.domain.networkUtils
 
 object HttpConstants {
     const val SOMETHING_WANT_WRONG  ="Oops, something went wrong. Our best minds are at work to bring it back to normal."
-    // Multi-tenant config (per multi-tenancy migration doc, §5.1). The old endpoint
-    // continues to serve the legacy `environments`/`sites` JSON to older app builds.
-    const val SELECT_YOUR_SITE_URL = "https://storage.googleapis.com/arogyam-app-config/config.json"
+    const val SELECT_YOUR_SITE_URL = "https://storage.googleapis.com/aa-common-app-bkt/aa-api/multi-tenant-sites.json"
     const val UPLOAD_IMAGE_URL = "http://hl7.org/fhir/StructureDefinition/file-location"
     const val HEADER_APPLICATION_JSON = "application/json"
 }
