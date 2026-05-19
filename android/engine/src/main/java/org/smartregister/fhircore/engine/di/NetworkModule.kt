@@ -145,7 +145,7 @@ class NetworkModule {
     baseUrlsHolder: BaseUrlsHolder
   ): Retrofit =
     Retrofit.Builder()
-      .baseUrl(baseUrlsHolder.oauthServerBaseUrl.value?:"")
+      .baseUrl(baseUrlsHolder.oauthServerBaseUrl.value.orPlaceholder())
       .client(okHttpClient)
       .addConverterFactory(GsonConverterFactory.create(gson))
       .build()
@@ -160,7 +160,7 @@ class NetworkModule {
     baseUrlsHolder: BaseUrlsHolder
   ): Retrofit =
     Retrofit.Builder()
-      .baseUrl(baseUrlsHolder.oauthServerBaseUrl.value?:"")
+      .baseUrl(baseUrlsHolder.oauthServerBaseUrl.value.orPlaceholder())
       .client(okHttpClient)
       .addConverterFactory(json.asConverterFactory(JSON_MEDIA_TYPE))
       .build()
@@ -175,11 +175,18 @@ class NetworkModule {
     baseUrlsHolder: BaseUrlsHolder
   ): Retrofit =
     Retrofit.Builder()
-      .baseUrl(baseUrlsHolder.fhirServerBaseUrl.value?:"")
+      .baseUrl(baseUrlsHolder.fhirServerBaseUrl.value.orPlaceholder())
       .client(okHttpClient)
       .addConverterFactory(FhirConverterFactory(parser))
       .addConverterFactory(GsonConverterFactory.create(gson))
       .build()
+
+  // Retrofit requires a non-empty baseUrl at build time, but on a fresh install no
+  // site has been picked yet, so the holder values are blank. Substitute a syntactically
+  // valid placeholder; the only call that runs before site selection is
+  // OAuthService.fetchSites(@Url ...), which provides its own absolute URL.
+  private fun String?.orPlaceholder(): String =
+    if (this.isNullOrBlank()) PLACEHOLDER_BASE_URL else this
 
   @Provides
   fun provideOauthService(
@@ -330,6 +337,7 @@ class NetworkModule {
     const val AUTHORIZATION = "Authorization"
     const val APPLICATION_ID = "App-Id"
     const val COOKIE = "Cookie"
+    const val PLACEHOLDER_BASE_URL = "http://placeholder.invalid/"
     val JSON_MEDIA_TYPE = "application/json".toMediaType()
     val CUSTOM_ENDPOINTS = listOf("PractitionerDetail", "LocationHierarchy")
   }
