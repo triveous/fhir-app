@@ -144,11 +144,7 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
     }
 
     fun getFhirBaseUrl(): String {
-        var fhirBaseUrl = prefs.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null)
-        if (fhirBaseUrl.isNullOrEmpty()) {
-            fhirBaseUrl = STAGING_FHIR_BASE_URL
-        }
-        return fhirBaseUrl
+        return prefs.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null).orEmpty()
     }
 
     fun getFhirBaseUrlWithoutDefaultValue(): String? {
@@ -160,11 +156,7 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
     }
 
     fun getOauthBaseUrl(): String {
-        var oAuthBaseurl = prefs.getString(SharedPreferenceKey.OAUTH_BASE_URL.name, null)
-        if (oAuthBaseurl.isNullOrEmpty()) {
-            oAuthBaseurl = STAGING_OAUTH_BASE_URL
-        }
-        return oAuthBaseurl
+        return prefs.getString(SharedPreferenceKey.OAUTH_BASE_URL.name, null).orEmpty()
     }
 
 }
