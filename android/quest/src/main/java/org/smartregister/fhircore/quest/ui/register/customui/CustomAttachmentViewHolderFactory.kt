@@ -748,7 +748,7 @@ internal object CustomAttachmentViewHolderFactory :
                     val m8Conf = questionnaireItem?.getExtensionString(MODEL8_CONFIDENCE_URL)
                     val m82Pred = questionnaireItem?.getExtensionString(MODEL82_PREDICTION_URL)
                     val m82Conf = questionnaireItem?.getExtensionString(MODEL82_CONFIDENCE_URL)
-                    setAnswerFromAI(result, confidence, m6Pred, m6Conf, m8Pred, m8Conf, m82Pred, m82Conf)
+                    //setAnswerFromAI(result, confidence, m6Pred, m6Conf, m8Pred, m8Conf, m82Pred, m82Conf)
                 } catch (exc: Exception) {
                     Timber.e("Failed to load photo preview: ${exc.message}")
                 }
