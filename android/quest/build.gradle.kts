@@ -120,6 +120,15 @@ android {
     }
   }
 
+  // Keep PyTorch model files (and model weights) uncompressed in the APK.
+  // AAPT2 compresses unknown extensions by default; in release builds this has been
+  // observed to break PyTorch Mobile's `Module.load` (loaded module silently produces
+  // wrong outputs → every image classified as Non-Suspicious). Debug APKs are usually
+  // unaffected because they're often built without the same packaging path.
+  androidResources {
+    noCompress += listOf("pt", "ptl", "bin", "tflite")
+  }
+
   packaging {
     resources {
       pickFirsts += listOf(
@@ -331,6 +340,15 @@ dependencies {
   testImplementation(libs.navigation.testing)
   testImplementation(libs.kotlin.test)
   testImplementation(libs.work.testing)
+  listOf(
+    Dependencies.HapiFhir.fhirCoreDstu2,
+    Dependencies.HapiFhir.fhirCoreDstu2016,
+    Dependencies.HapiFhir.fhirCoreDstu3,
+    Dependencies.HapiFhir.fhirCoreR4b,
+    Dependencies.HapiFhir.fhirCoreR5,
+  ).forEach { dependency ->
+    testImplementation(dependency) { isTransitive = false }
+  }
 
   // To run only on debug builds
   debugImplementation(libs.ui.test.manifest)
