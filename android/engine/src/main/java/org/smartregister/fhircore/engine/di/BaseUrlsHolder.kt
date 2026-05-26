@@ -2,18 +2,17 @@ package org.smartregister.fhircore.engine.di
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import org.smartregister.fhircore.engine.util.STAGING_FHIR_BASE_URL
-import org.smartregister.fhircore.engine.util.STAGING_OAUTH_BASE_URL
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 open class BaseUrlsHolder @Inject constructor(val secureSharedPreference: SecureSharedPreference) {
-    private val _fhirServerBaseUrl = MutableLiveData<String>(STAGING_FHIR_BASE_URL)
+    private val _fhirServerBaseUrl = MutableLiveData<String>("")
     val fhirServerBaseUrl: LiveData<String> get() = _fhirServerBaseUrl
 
-    private val _oauthServerBaseUrl = MutableLiveData<String>(STAGING_OAUTH_BASE_URL)
+    private val _oauthServerBaseUrl = MutableLiveData<String>("")
     val oauthServerBaseUrl: LiveData<String> get() = _oauthServerBaseUrl
 
     init {
@@ -21,7 +20,10 @@ open class BaseUrlsHolder @Inject constructor(val secureSharedPreference: Secure
     }
 
     fun getUpdatedData() {
-        _fhirServerBaseUrl.value = secureSharedPreference.getFhirBaseUrl()
-        _oauthServerBaseUrl.value = secureSharedPreference.getOauthBaseUrl()
+        val fhir = secureSharedPreference.getFhirBaseUrl()
+        val oauth = secureSharedPreference.getOauthBaseUrl()
+        Timber.i("BaseUrlsHolder loaded fhirBaseUrl=%s oauthBaseUrl=%s", fhir, oauth)
+        _fhirServerBaseUrl.value = fhir
+        _oauthServerBaseUrl.value = oauth
     }
 }
