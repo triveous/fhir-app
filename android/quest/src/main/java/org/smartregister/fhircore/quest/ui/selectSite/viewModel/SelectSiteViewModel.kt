@@ -83,10 +83,12 @@ class SelectSiteViewModel @Inject constructor(
 
         val fhirBaseUrl = selectSite.fhirBaseUrl
         val oauthBaseUrl = selectSite.authBaseUrl
+        val multiTenant = selectedServer.value?.multiTenant == true
 
         secureSharedPreference.saveUrls(fhirBaseUrl, oauthBaseUrl)
         sharedPreferencesHelper.saveUrls(fhirBaseUrl, oauthBaseUrl)
         secureSharedPreference.saveSiteName(selectSite.name)
         sharedPreferencesHelper.saveSiteName(selectSite.name)
+        sharedPreferencesHelper.saveTenant(selectSite.code, multiTenant)
     }
 }

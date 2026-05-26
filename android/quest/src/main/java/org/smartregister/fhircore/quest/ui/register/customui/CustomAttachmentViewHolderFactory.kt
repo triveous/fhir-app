@@ -48,6 +48,7 @@ import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemView
 import com.google.android.material.divider.MaterialDivider
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.DecimalType
@@ -58,6 +59,7 @@ import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import org.smartregister.fhircore.quest.util.FeatureFlagUtilEntryPoint
 import kotlinx.coroutines.runBlocking
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
@@ -132,8 +134,11 @@ internal object CustomAttachmentViewHolderFactory :
                 context = itemView.context.tryUnwrapContext()!!
                 fhirEngine = FhirEngineProvider.getInstance(context.applicationContext)
                 sharedPreferencesHelper = SharedPreferencesHelper(itemView.context, Gson())
+                val featureFlagUtil = EntryPointAccessors
+                    .fromApplication(context.applicationContext, FeatureFlagUtilEntryPoint::class.java)
+                    .featureFlagUtil()
                 context.lifecycleScope.launch {
-                    aiInferenceEnabled = FeatureFlagUtil.isAiInferenceEnabled(fhirEngine)
+                    aiInferenceEnabled = featureFlagUtil.isAiInferenceEnabled()
                 }
             }
 

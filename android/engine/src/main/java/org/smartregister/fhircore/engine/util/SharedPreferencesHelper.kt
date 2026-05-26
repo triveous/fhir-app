@@ -159,4 +159,27 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
         return prefs.getString(SharedPreferenceKey.OAUTH_BASE_URL.name, null).orEmpty()
     }
 
+    fun saveTenant(tenantCode: String?, multiTenant: Boolean) {
+        prefs.edit {
+            putString(SharedPreferenceKey.TENANT_CODE.name, tenantCode)
+            putBoolean(SharedPreferenceKey.IS_MULTI_TENANT.name, multiTenant)
+        }
+    }
+
+    fun getTenantCode(): String? =
+        prefs.getString(SharedPreferenceKey.TENANT_CODE.name, null)
+
+    fun isMultiTenant(): Boolean =
+        prefs.getBoolean(SharedPreferenceKey.IS_MULTI_TENANT.name, false)
+
+    /**
+     * Multi-tenant deployments share a FHIR server across tenants, so resource ids must be
+     * tenant-prefixed (`<slug>-feature-flags`). Single-tenant deployments keep the bare id.
+     */
+    fun getFeatureFlagsResourceId(): String {
+        val slug = getTenantCode()
+        return if (isMultiTenant() && !slug.isNullOrEmpty()) "$slug-feature-flags"
+        else "feature-flags"
+    }
+
 }

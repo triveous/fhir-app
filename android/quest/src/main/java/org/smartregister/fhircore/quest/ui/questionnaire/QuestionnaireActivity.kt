@@ -83,6 +83,7 @@ import javax.inject.Inject
 class QuestionnaireActivity : BaseMultiLanguageActivity() {
 
   @Inject lateinit var dispatcherProvider: DispatcherProvider
+  @Inject lateinit var featureFlagUtil: FeatureFlagUtil
   val viewModel by viewModels<QuestionnaireViewModel>()
   private lateinit var questionnaireConfig: QuestionnaireConfig
   private lateinit var actionParameters: ArrayList<ActionParameter>
@@ -497,7 +498,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             }
             Timber.d("=== Finished DocumentReference update processing ===")
 
-            val aiEnabled = FeatureFlagUtil.isAiInferenceEnabled(viewModel.fhirEngine)
+            val aiEnabled = featureFlagUtil.isAiInferenceEnabled()
 
             if (aiEnabled) {
               val aiSummary =
