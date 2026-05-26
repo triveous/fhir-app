@@ -99,7 +99,7 @@ fun ProfileSectionScreen(
     var showChangePinDialog by remember { mutableStateOf(false) }
     var aiInferenceEnabled by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        aiInferenceEnabled = FeatureFlagUtil.isAiInferenceEnabled(viewModel.fhirEngine)
+        aiInferenceEnabled = viewModel.featureFlagUtil.isAiInferenceEnabled()
     }
     val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: ""
 
