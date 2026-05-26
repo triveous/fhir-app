@@ -22,6 +22,7 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.JsonIOException
+import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.SerializationException
 import org.smartregister.fhircore.engine.util.extension.decodeJson
@@ -181,5 +182,26 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
         return if (isMultiTenant() && !slug.isNullOrEmpty()) "$slug-feature-flags"
         else "feature-flags"
     }
+
+    fun saveLastKnownFeatureFlags(resourceId: String, flags: Map<String, Boolean>) {
+        prefs.edit {
+            putString(featureFlagsPrefKey(resourceId), gson.toJson(flags))
+        }
+    }
+
+    fun getLastKnownFeatureFlags(resourceId: String): Map<String, Boolean> {
+        val json = prefs.getString(featureFlagsPrefKey(resourceId), null) ?: return emptyMap()
+        return try {
+            val type = TypeToken.getParameterized(
+                Map::class.java, String::class.java, java.lang.Boolean::class.java
+            ).type
+            gson.fromJson<Map<String, Boolean>>(json, type) ?: emptyMap()
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse persisted feature flags for %s", resourceId)
+            emptyMap()
+        }
+    }
+
+    private fun featureFlagsPrefKey(resourceId: String) = "FEATURE_FLAGS_$resourceId"
 
 }
