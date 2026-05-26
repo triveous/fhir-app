@@ -1,5 +1,8 @@
 package org.smartregister.fhircore.quest.util
 
+import com.google.android.fhir.FhirEngine
+import com.google.android.fhir.db.ResourceNotFoundException
+import com.google.android.fhir.get
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
@@ -13,12 +16,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Holds per-process feature flag state. The flags are fetched from `Basic/<tenant>-feature-flags`
- * on first read (or whenever the active tenant changes) and cached in memory for the rest of the
- * session. A single-flight mutex guarantees that concurrent consumers share one network call.
+ * Holds per-process feature flag state. Read order: local FhirEngine (already synced
+ * Basic/<id>) → network fetch → persisted last-known values. Successful reads write
+ * through to disk so offline cold starts still see the most recent values. A single-flight
+ * mutex guarantees concurrent consumers share one refresh.
  */
 @Singleton
 class FeatureFlagUtil @Inject constructor(
+    private val fhirEngine: FhirEngine,
     private val fhirResourceDataSource: FhirResourceDataSource,
     private val sharedPreferencesHelper: SharedPreferencesHelper,
 ) {
@@ -40,27 +45,57 @@ class FeatureFlagUtil @Inject constructor(
 
     private suspend fun refresh(resourceId: String) {
         mutex.withLock {
-            // Another waiter may have already refreshed for this id while we waited on the lock.
             if (cachedForResourceId == resourceId) return
-            try {
-                val bundle =
-                    fhirResourceDataSource.getResource("Basic?_id=$resourceId&_count=1")
-                val basic = bundle.entry.firstOrNull()?.resource as? Basic
-                cachedFlags = basic?.extension.orEmpty().mapNotNull { ext ->
-                    val value = ext.value?.primitiveValue()?.toBoolean()
-                    if (ext.url != null && value != null) ext.url to value else null
-                }.toMap()
-                cachedForResourceId = resourceId
-                Timber.i("Refreshed feature flags id=%s: %s", resourceId, cachedFlags)
-            } catch (e: Exception) {
-                // Leave the previous cache (if any) in place; treat all flags as off for *this*
-                // tenant until the next invalidate(). Logging once per failure is enough.
-                cachedFlags = emptyMap()
-                cachedForResourceId = resourceId
-                Timber.w(e, "Failed to fetch feature flags Basic/%s", resourceId)
+
+            readFromEngine(resourceId)?.let { flags ->
+                applyAndPersist(resourceId, flags, source = "engine")
+                return
             }
+
+            readFromNetwork(resourceId)?.let { flags ->
+                applyAndPersist(resourceId, flags, source = "network")
+                return
+            }
+
+            val persisted = sharedPreferencesHelper.getLastKnownFeatureFlags(resourceId)
+            cachedFlags = persisted
+            cachedForResourceId = resourceId
+            Timber.w("Feature flags unavailable id=%s; using last-known %s", resourceId, persisted)
         }
     }
+
+    private suspend fun readFromEngine(resourceId: String): Map<String, Boolean>? =
+        try {
+            fhirEngine.get<Basic>(resourceId).toFlagsMap()
+        } catch (e: ResourceNotFoundException) {
+            null
+        } catch (e: Exception) {
+            Timber.w(e, "Engine read failed for Basic/%s", resourceId)
+            null
+        }
+
+    private suspend fun readFromNetwork(resourceId: String): Map<String, Boolean>? =
+        try {
+            val bundle = fhirResourceDataSource.getResource("Basic?_id=$resourceId&_count=1")
+            val basic = bundle.entry.firstOrNull()?.resource as? Basic
+            basic?.toFlagsMap() ?: emptyMap()
+        } catch (e: Exception) {
+            Timber.w(e, "Network read failed for Basic/%s", resourceId)
+            null
+        }
+
+    private fun applyAndPersist(resourceId: String, flags: Map<String, Boolean>, source: String) {
+        cachedFlags = flags
+        cachedForResourceId = resourceId
+        sharedPreferencesHelper.saveLastKnownFeatureFlags(resourceId, flags)
+        Timber.i("Feature flags from %s id=%s: %s", source, resourceId, flags)
+    }
+
+    private fun Basic.toFlagsMap(): Map<String, Boolean> =
+        extension.orEmpty().mapNotNull { ext ->
+            val value = ext.value?.primitiveValue()?.toBoolean()
+            if (ext.url != null && value != null) ext.url to value else null
+        }.toMap()
 
     companion object {
         const val AI_INFERENCE_ENABLED_URL =
