@@ -66,6 +66,7 @@ import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
+import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
 import org.smartregister.fhircore.engine.util.analytics.AnalyticsLoggerEntryPoint
 import org.smartregister.fhircore.engine.util.extension.logicalId
@@ -87,6 +88,7 @@ constructor(
     private val appTimeStampContext: AppTimeStampContext,
     private val fhirResourceService: FhirResourceService,
     val secureSharedPreference: SecureSharedPreference,
+    private val sharedPreferencesHelper: SharedPreferencesHelper,
     private val gson: Gson
 ) : FhirSyncWorker(appContext, workerParams) {
     private val analyticsLogger: AnalyticsLogger by lazy {
@@ -567,7 +569,7 @@ private fun filesExists(uri: Uri?): Boolean {
 
             val deviceId = getDeviceId()
             val flw = secureSharedPreference.getPractitionerUserId()
-            val resourceId = "sync-metadata-$deviceId"
+            val resourceId = sharedPreferencesHelper.getSyncMetadataResourceId(deviceId)
 
             val syncMetadata = Basic().apply {
                 id = resourceId

@@ -183,6 +183,19 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
         else "feature-flags"
     }
 
+    /**
+     * Multi-tenant deployments share a FHIR server across tenants. The per-device
+     * sync-metadata Basic id must be tenant-prefixed; otherwise HAPI's global
+     * (res_type, fhir_id) index collides across partitions and PUTs from one
+     * tenant cause "Resource Basic/<pid> is not known" on the other.
+     * Single-tenant deployments keep the bare id.
+     */
+    fun getSyncMetadataResourceId(deviceId: String): String {
+        val slug = getTenantCode()
+        return if (isMultiTenant() && !slug.isNullOrEmpty()) "sync-metadata-$slug-$deviceId"
+        else "sync-metadata-$deviceId"
+    }
+
     fun saveLastKnownFeatureFlags(resourceId: String, flags: Map<String, Boolean>) {
         prefs.edit {
             putString(featureFlagsPrefKey(resourceId), gson.toJson(flags))
