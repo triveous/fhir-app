@@ -9,7 +9,6 @@ import org.smartregister.fhircore.engine.di.BaseUrlsHolder
 import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
-import org.smartregister.fhircore.quest.QuestApplication
 import org.smartregister.fhircore.quest.di.config.AuthConfigurationHelper
 import org.smartregister.fhircore.quest.ui.selectSite.viewModel.SelectSiteViewModel
 import org.smartregister.fhircore.quest.util.restartApp
@@ -44,7 +43,6 @@ class SelectSiteScreenActivity : BaseMultiLanguageActivity() {
             configType = "application",
             appTitle = "FHIRCore App",
         ),{
-            (application as QuestApplication).updateFhirServerHost()
             baseUrlsHolder.getUpdatedData()
             authConfigurationHelper.getUpdateAuthConfiguration()
             restartApp()

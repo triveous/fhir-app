@@ -17,4 +17,20 @@ class SelectYourSiteRepository @Inject constructor(
     suspend fun getSelectYourSites(url: String): Map<String, ServerConfig> {
         return apiRequest { api.fetchSites(url) }
     }
+
+    /**
+     * Returns true if [storedFhirBaseUrl] matches any tenant in the catalog at [catalogUrl].
+     * Comparison ignores trailing slashes and case. Throws if the catalog can't be fetched —
+     * callers should treat exceptions as "unknown" (e.g. offline) and not migrate.
+     */
+    suspend fun isFhirBaseUrlInCatalog(catalogUrl: String, storedFhirBaseUrl: String): Boolean {
+        val normalizedStored = storedFhirBaseUrl.trimEnd('/').lowercase()
+        if (normalizedStored.isEmpty()) return false
+        val catalog = getSelectYourSites(catalogUrl)
+        return catalog.values.any { server ->
+            server.tenants.orEmpty().any { tenant ->
+                tenant.fhirBaseUrl?.trimEnd('/')?.lowercase() == normalizedStored
+            }
+        }
+    }
 }

@@ -14,9 +14,6 @@ import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.SELEC
 import org.smartregister.fhircore.engine.domain.repository.SelectYourSiteRepository
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
-import org.smartregister.fhircore.quest.BuildConfig
-import org.smartregister.fhircore.quest.ui.selectSite.STAGING_FHIR_BASE_URL
-import org.smartregister.fhircore.quest.ui.selectSite.STAGING_OAUTH_BASE_URL
 import org.smartregister.fhircore.quest.util.mutableLiveData
 import javax.inject.Inject
 
@@ -84,28 +81,14 @@ class SelectSiteViewModel @Inject constructor(
     fun setSelectSite(selectSite: SelectSite) {
         selectedSite.value = selectSite
 
-        val fhirBaseUrl = getFhirBaseUrl(selectSite, isTest)
-        val oauthBaseUrl = getOAuthBaseUrl(selectSite, isTest)
+        val fhirBaseUrl = selectSite.fhirBaseUrl
+        val oauthBaseUrl = selectSite.authBaseUrl
+        val multiTenant = selectedServer.value?.multiTenant == true
 
         secureSharedPreference.saveUrls(fhirBaseUrl, oauthBaseUrl)
         sharedPreferencesHelper.saveUrls(fhirBaseUrl, oauthBaseUrl)
         secureSharedPreference.saveSiteName(selectSite.name)
         sharedPreferencesHelper.saveSiteName(selectSite.name)
-    }
-
-    private fun getFhirBaseUrl(selectSite: SelectSite, isTest: Boolean = false): String? {
-        return if (BuildConfig.BUILD_TYPE.equals("release", true) || isTest) {
-            selectSite.fhirBaseUrl
-        } else {
-            STAGING_FHIR_BASE_URL
-        }
-    }
-
-    private fun getOAuthBaseUrl(selectSite: SelectSite, isTest: Boolean = false): String? {
-        return if (BuildConfig.BUILD_TYPE.equals("release", true) || isTest) {
-            selectSite.authBaseUrl
-        } else {
-            STAGING_OAUTH_BASE_URL
-        }
+        sharedPreferencesHelper.saveTenant(selectSite.code, multiTenant)
     }
 }

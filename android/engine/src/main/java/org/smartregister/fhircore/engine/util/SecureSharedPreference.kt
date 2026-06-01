@@ -136,19 +136,11 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
   }
 
   fun getFhirBaseUrl(): String {
-    var fhirBaseUrl = secureSharedPreferences.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null)
-    if (fhirBaseUrl.isNullOrEmpty()) {
-      fhirBaseUrl = STAGING_FHIR_BASE_URL
-    }
-    return fhirBaseUrl
+    return secureSharedPreferences.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null).orEmpty()
   }
 
   fun getOauthBaseUrl(): String {
-    var oAuthBaseurl = secureSharedPreferences.getString(SharedPreferenceKey.OAUTH_BASE_URL.name, null)
-    if (oAuthBaseurl.isNullOrEmpty()) {
-      oAuthBaseurl = STAGING_OAUTH_BASE_URL
-    }
-    return oAuthBaseurl
+    return secureSharedPreferences.getString(SharedPreferenceKey.OAUTH_BASE_URL.name, null).orEmpty()
   }
 
   @VisibleForTesting fun get256RandomBytes() = 256.getRandomBytesOfSize()

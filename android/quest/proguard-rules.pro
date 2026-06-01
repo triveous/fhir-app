@@ -115,3 +115,23 @@
     @org.jetbrains.annotations.Nullable <fields>;
     @org.jetbrains.annotations.NotNull <fields>;
 }
+
+# ── PyTorch Mobile (org.pytorch:pytorch_android, pytorch_android_torchvision) ──
+# These libraries reach into Java from native via JNI/reflection. Without these
+# keeps, release builds with R8 (even with isMinifyEnabled=false, defense-in-depth)
+# can drop classes that PyTorch loads at runtime → silent wrong outputs from
+# `Module.load` / `Module.forward`.
+-keep class org.pytorch.** { *; }
+-keep interface org.pytorch.** { *; }
+-keepclassmembers class org.pytorch.** { *; }
+-dontwarn org.pytorch.**
+
+# fbjni — the native bridge PyTorch Mobile uses
+-keep class com.facebook.jni.** { *; }
+-keepclassmembers class com.facebook.jni.** { *; }
+-dontwarn com.facebook.jni.**
+
+# OpenCV (org.opencv) — also uses JNI heavily and is loaded reflectively
+-keep class org.opencv.** { *; }
+-keepclassmembers class org.opencv.** { *; }
+-dontwarn org.opencv.**
