@@ -22,6 +22,7 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.JsonIOException
+import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.SerializationException
 import org.smartregister.fhircore.engine.util.extension.decodeJson
@@ -144,11 +145,7 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
     }
 
     fun getFhirBaseUrl(): String {
-        var fhirBaseUrl = prefs.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null)
-        if (fhirBaseUrl.isNullOrEmpty()) {
-            fhirBaseUrl = STAGING_FHIR_BASE_URL
-        }
-        return fhirBaseUrl
+        return prefs.getString(SharedPreferenceKey.FHIR_BASE_URL.name, null).orEmpty()
     }
 
     fun getFhirBaseUrlWithoutDefaultValue(): String? {
@@ -160,11 +157,64 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
     }
 
     fun getOauthBaseUrl(): String {
-        var oAuthBaseurl = prefs.getString(SharedPreferenceKey.OAUTH_BASE_URL.name, null)
-        if (oAuthBaseurl.isNullOrEmpty()) {
-            oAuthBaseurl = STAGING_OAUTH_BASE_URL
-        }
-        return oAuthBaseurl
+        return prefs.getString(SharedPreferenceKey.OAUTH_BASE_URL.name, null).orEmpty()
     }
+
+    fun saveTenant(tenantCode: String?, multiTenant: Boolean) {
+        prefs.edit {
+            putString(SharedPreferenceKey.TENANT_CODE.name, tenantCode)
+            putBoolean(SharedPreferenceKey.IS_MULTI_TENANT.name, multiTenant)
+        }
+    }
+
+    fun getTenantCode(): String? =
+        prefs.getString(SharedPreferenceKey.TENANT_CODE.name, null)
+
+    fun isMultiTenant(): Boolean =
+        prefs.getBoolean(SharedPreferenceKey.IS_MULTI_TENANT.name, false)
+
+    /**
+     * Multi-tenant deployments share a FHIR server across tenants, so resource ids must be
+     * tenant-prefixed (`<slug>-feature-flags`). Single-tenant deployments keep the bare id.
+     */
+    fun getFeatureFlagsResourceId(): String {
+        val slug = getTenantCode()
+        return if (isMultiTenant() && !slug.isNullOrEmpty()) "$slug-feature-flags"
+        else "feature-flags"
+    }
+
+    /**
+     * Multi-tenant deployments share a FHIR server across tenants. The per-device
+     * sync-metadata Basic id must be tenant-prefixed; otherwise HAPI's global
+     * (res_type, fhir_id) index collides across partitions and PUTs from one
+     * tenant cause "Resource Basic/<pid> is not known" on the other.
+     * Single-tenant deployments keep the bare id.
+     */
+    fun getSyncMetadataResourceId(deviceId: String): String {
+        val slug = getTenantCode()
+        return if (isMultiTenant() && !slug.isNullOrEmpty()) "sync-metadata-$slug-$deviceId"
+        else "sync-metadata-$deviceId"
+    }
+
+    fun saveLastKnownFeatureFlags(resourceId: String, flags: Map<String, Boolean>) {
+        prefs.edit {
+            putString(featureFlagsPrefKey(resourceId), gson.toJson(flags))
+        }
+    }
+
+    fun getLastKnownFeatureFlags(resourceId: String): Map<String, Boolean> {
+        val json = prefs.getString(featureFlagsPrefKey(resourceId), null) ?: return emptyMap()
+        return try {
+            val type = TypeToken.getParameterized(
+                Map::class.java, String::class.java, java.lang.Boolean::class.java
+            ).type
+            gson.fromJson<Map<String, Boolean>>(json, type) ?: emptyMap()
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse persisted feature flags for %s", resourceId)
+            emptyMap()
+        }
+    }
+
+    private fun featureFlagsPrefKey(resourceId: String) = "FEATURE_FLAGS_$resourceId"
 
 }

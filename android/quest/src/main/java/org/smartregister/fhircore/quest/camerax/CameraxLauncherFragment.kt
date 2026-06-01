@@ -87,6 +87,9 @@ class CameraxLauncherFragment : DialogFragment() {
     @Inject
     lateinit var fhirEngine: FhirEngine
 
+    @Inject
+    lateinit var featureFlagUtil: FeatureFlagUtil
+
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var captureButton: AppCompatImageView
@@ -232,9 +235,8 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
-    private suspend fun isAiInferenceEnabled(): Boolean {
-        return FeatureFlagUtil.isAiInferenceEnabled(fhirEngine)
-    }
+    private suspend fun isAiInferenceEnabled(): Boolean =
+        featureFlagUtil.isAiInferenceEnabled()
 
     private fun initModel() {
         try {

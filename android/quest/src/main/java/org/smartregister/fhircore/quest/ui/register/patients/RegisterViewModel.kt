@@ -99,6 +99,7 @@ import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
 import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.register.tasks.TaskCodes
+import org.smartregister.fhircore.quest.util.FeatureFlagUtil
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import org.smartregister.fhircore.quest.util.DraftsUtils.removeDraftFromBundle
@@ -125,6 +126,7 @@ constructor(
     val secureSharedPreference: SecureSharedPreference,
     val resourceDataRulesExecutor: ResourceDataRulesExecutor,
     val fhirEngine: FhirEngine,
+    val featureFlagUtil: FeatureFlagUtil,
 ) : ViewModel() {
 
     private val _snackBarStateFlow = MutableSharedFlow<SnackBarMessageConfig>()
