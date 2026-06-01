@@ -37,11 +37,10 @@ enum class SharedPreferenceKey {
   FHIR_BASE_URL,
   SITE_NAME,
   OAUTH_BASE_URL,
+  TENANT_CODE,
+  IS_MULTI_TENANT,
   DRAFTS,
   KEY_LANGUAGE,
   KEY_LANGUAGE_CODE,
   LAST_SYNC_DATE_TIME
 }
-
-const val STAGING_FHIR_BASE_URL = "https://staging.arogyam-midas.iisc.ac.in/fhir/"
-const val STAGING_OAUTH_BASE_URL = "https://staging.arogyam-midas.iisc.ac.in/auth/realms/arogyam/"

@@ -122,4 +122,22 @@ internal class SharedPreferencesHelperTest : RobolectricTest() {
 
     Assert.assertEquals("test.demo", retrievedAppId)
   }
+
+  @Test
+  fun testGetSyncMetadataResourceIdMultiTenantReturnsPrefixedId() {
+    sharedPreferencesHelper.saveTenant("staging-2", multiTenant = true)
+    Assert.assertEquals(
+      "sync-metadata-staging-2-abc123",
+      sharedPreferencesHelper.getSyncMetadataResourceId("abc123"),
+    )
+  }
+
+  @Test
+  fun testGetSyncMetadataResourceIdSingleTenantReturnsBareId() {
+    sharedPreferencesHelper.saveTenant(null, multiTenant = false)
+    Assert.assertEquals(
+      "sync-metadata-abc123",
+      sharedPreferencesHelper.getSyncMetadataResourceId("abc123"),
+    )
+  }
 }

@@ -34,6 +34,7 @@ import org.smartregister.fhircore.engine.configuration.app.ConfigService
 import org.smartregister.fhircore.engine.data.remote.shared.TokenAuthenticator
 import org.smartregister.fhircore.engine.di.NetworkModule.Companion.AUTHORIZATION
 import org.smartregister.fhircore.engine.di.NetworkModule.Companion.COOKIE
+import org.smartregister.fhircore.engine.di.NetworkModule.Companion.PLACEHOLDER_BASE_URL
 import org.smartregister.fhircore.engine.di.NetworkModule.Companion.TIMEOUT_DURATION
 import timber.log.Timber
 import javax.inject.Singleton
@@ -58,7 +59,8 @@ class FhirEngineModule {
         enableEncryptionIfSupported = !BuildConfig.DEBUG,
         databaseErrorStrategy = DatabaseErrorStrategy.UNSPECIFIED,
         ServerConfiguration(
-          baseUrl = baseUrlsHolder.fhirServerBaseUrl.value?:"",
+          baseUrl = baseUrlsHolder.fhirServerBaseUrl.value
+            ?.takeUnless { it.isBlank() } ?: PLACEHOLDER_BASE_URL,
           authenticator = tokenAuthenticator,
           networkConfiguration =
             NetworkConfiguration(
