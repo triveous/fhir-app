@@ -21,13 +21,18 @@ import androidx.work.impl.utils.taskexecutor.TaskExecutor
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.sync.AcceptLocalConflictResolver
 import com.google.android.fhir.sync.ParamMap
+import com.google.gson.Gson
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.test.runTest
 import org.hl7.fhir.r4.model.ResourceType
 import org.junit.Assert
 import org.junit.Test
+import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.robolectric.RobolectricTest
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
+import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 
 class AppSyncWorkerTest : RobolectricTest() {
   @Test
@@ -38,18 +43,70 @@ class AppSyncWorkerTest : RobolectricTest() {
     val fhirEngine = mockk<FhirEngine>()
     val taskExecutor = mockk<TaskExecutor>()
     val timeContext = mockk<AppTimeStampContext>()
+    val fhirResourceService = mockk<FhirResourceService>()
+    val secureSharedPreference = mockk<SecureSharedPreference>()
+    val sharedPreferencesHelper = mockk<SharedPreferencesHelper>()
 
     every { taskExecutor.serialTaskExecutor } returns mockk()
     every { workerParams.taskExecutor } returns taskExecutor
     every { syncListenerManager.loadSyncParams() } returns syncParams
 
     val appSyncWorker =
-      AppSyncWorker(mockk(), workerParams, syncListenerManager, fhirEngine, timeContext)
+      AppSyncWorker(
+        mockk(),
+        workerParams,
+        syncListenerManager,
+        fhirEngine,
+        timeContext,
+        fhirResourceService,
+        secureSharedPreference,
+        sharedPreferencesHelper,
+        Gson(),
+      )
 
     appSyncWorker.getDownloadWorkManager()
     verify { syncListenerManager.loadSyncParams() }
 
     Assert.assertEquals(AcceptLocalConflictResolver, appSyncWorker.getConflictResolver())
     Assert.assertEquals(fhirEngine, appSyncWorker.getFhirEngine())
+  }
+
+  @Test
+  fun `doWork should skip duplicate sync worker when another sync is running`() = runTest {
+    val workerParams = mockk<WorkerParameters>()
+    val syncListenerManager = mockk<SyncListenerManager>()
+    val fhirEngine = mockk<FhirEngine>()
+    val taskExecutor = mockk<TaskExecutor>()
+    val timeContext = mockk<AppTimeStampContext>()
+    val fhirResourceService = mockk<FhirResourceService>()
+    val secureSharedPreference = mockk<SecureSharedPreference>()
+    val sharedPreferencesHelper = mockk<SharedPreferencesHelper>()
+
+    every { taskExecutor.serialTaskExecutor } returns mockk()
+    every { workerParams.taskExecutor } returns taskExecutor
+
+    val appSyncWorker =
+      AppSyncWorker(
+        mockk(),
+        workerParams,
+        syncListenerManager,
+        fhirEngine,
+        timeContext,
+        fhirResourceService,
+        secureSharedPreference,
+        sharedPreferencesHelper,
+        Gson(),
+      )
+
+    Assert.assertTrue(AppSyncWorker.mutex.tryLock())
+    try {
+      val result = appSyncWorker.doWork()
+      Assert.assertEquals(
+        androidx.work.ListenableWorker.Result.success().javaClass,
+        result.javaClass,
+      )
+    } finally {
+      AppSyncWorker.mutex.unlock()
+    }
   }
 }

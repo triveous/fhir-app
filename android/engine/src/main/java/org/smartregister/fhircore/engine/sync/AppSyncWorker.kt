@@ -20,7 +20,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
 import android.net.Uri
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
@@ -43,6 +42,7 @@ import com.google.gson.Gson
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
@@ -135,34 +135,79 @@ constructor(
 
     override suspend fun doWork(): Result {
         Timber.i("AppSyncWorker Running sync worker")
-        if (mutex.isLocked) {
-            Timber.e(Exception("AppSyncWorker is locked. Returning failure"))
-            return Result.failure()
+        if (!mutex.tryLock()) {
+            Timber.i("AppSyncWorker sync already running; skipping duplicate worker")
+            return Result.success()
         }
-        val metaSyncResult = super.doWork()
-        mutex.withLock {
-            Timber.i("AppSyncWorker Running within lock sync worker")
-            try {
-                setForeground(getForegroundInfo())
-                val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
 
-                val retries = inputData.getInt("max_retires", 0)
-                if (metaSyncResult.javaClass === Result.success().javaClass) {
-                    return when (allDocUploaded) {
-                        true -> Result.success()
-                        false -> if (retries > runAttemptCount) Result.retry() else Result.failure(
+        return try {
+            Timber.i("AppSyncWorker Running within lock sync worker")
+            promoteToForegroundIfAllowed()
+            val metaSyncResult = super.doWork()
+            val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
+
+            val retries = inputData.getInt("max_retires", 0)
+            if (metaSyncResult.javaClass === Result.success().javaClass) {
+                when (allDocUploaded) {
+                    true -> Result.success()
+                    false -> if (retries > runAttemptCount) {
+                        Result.retry()
+                    } else {
+                        Result.failure(
                             workDataOf(
                                 "error" to Exception::class.java.name,
-                                "reason" to "Failed to upload all files"
-                            )
+                                "reason" to "Failed to upload all files",
+                            ),
                         )
                     }
                 }
-            } catch (e: Exception) {
-                Timber.e(e, "Appsync worker")
+            } else {
+                metaSyncResult
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.e(e, "Appsync worker")
+            Result.failure(
+                workDataOf(
+                    "error" to e::class.java.name,
+                    "reason" to e.message,
+                ),
+            )
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    private suspend fun promoteToForegroundIfAllowed() {
+        try {
+            setForeground(getForegroundInfo())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (e.isForegroundServiceStartRestriction()) {
+                Timber.w(
+                    e,
+                    "Foreground sync notification could not be started; continuing sync as background work",
+                )
+            } else {
+                throw e
             }
         }
-        return metaSyncResult
+    }
+
+    private fun Throwable.isForegroundServiceStartRestriction(): Boolean {
+        var throwable: Throwable? = this
+        while (throwable != null) {
+            if (throwable::class.java.name == "android.app.ForegroundServiceStartNotAllowedException" ||
+                throwable.message?.contains("startForegroundService() not allowed", ignoreCase = true) == true ||
+                throwable.message?.contains("Foreground service start not allowed", ignoreCase = true) == true
+            ) {
+                return true
+            }
+            throwable = throwable.cause
+        }
+        return false
     }
 
     private suspend fun performDocumentReferenceUpload(context: Context, workerId: String): Boolean {

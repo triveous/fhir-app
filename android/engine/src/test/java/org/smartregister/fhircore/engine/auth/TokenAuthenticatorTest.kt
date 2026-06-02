@@ -54,6 +54,7 @@ import org.smartregister.fhircore.engine.data.remote.auth.OAuthService
 import org.smartregister.fhircore.engine.data.remote.model.response.OAuthResponse
 import org.smartregister.fhircore.engine.data.remote.shared.TokenAuthenticator
 import org.smartregister.fhircore.engine.data.remote.shared.TokenAuthenticator.Companion.AUTH_TOKEN_TYPE
+import org.smartregister.fhircore.engine.di.BaseUrlsHolder
 import org.smartregister.fhircore.engine.robolectric.RobolectricTest
 import org.smartregister.fhircore.engine.rule.CoroutineTestRule
 import org.smartregister.fhircore.engine.util.DispatcherProvider
@@ -74,6 +75,9 @@ class TokenAuthenticatorTest : RobolectricTest() {
   @Inject lateinit var dispatcherProvider: DispatcherProvider
 
   @Inject lateinit var configService: ConfigService
+
+  @Inject lateinit var baseUrlsHolder: BaseUrlsHolder
+
   private val oAuthService: OAuthService = mockk()
   private lateinit var tokenAuthenticator: TokenAuthenticator
   private val accountManager = mockk<AccountManager>()
@@ -91,6 +95,7 @@ class TokenAuthenticatorTest : RobolectricTest() {
           configService = configService,
           oAuthService = oAuthService,
           dispatcherProvider = dispatcherProvider,
+          baseUrlsHolders = baseUrlsHolder,
           accountManager = accountManager,
           context = context,
         ),
@@ -194,6 +199,7 @@ class TokenAuthenticatorTest : RobolectricTest() {
           configService = configService,
           oAuthService = oAuthService,
           dispatcherProvider = dispatcherProvider,
+          baseUrlsHolders = baseUrlsHolder,
           accountManager = accountManager,
           context = context,
         ),
@@ -376,6 +382,7 @@ class TokenAuthenticatorTest : RobolectricTest() {
           configService = configService,
           oAuthService = oAuthService,
           dispatcherProvider = dispatcherProvider,
+          baseUrlsHolders = baseUrlsHolder,
           accountManager = accountManager,
           context = context,
         ),
