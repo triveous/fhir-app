@@ -147,8 +147,7 @@ constructor(
     }
   }
 
-  fun onEvent(event: AppMainEvent,isForeground:Boolean=false) {
-//    Timber.e("TAG onEvent --> isForeground -->$isForeground ")
+  fun onEvent(event: AppMainEvent, isForeground: Boolean = false) {
     when (event) {
       is AppMainEvent.SwitchLanguage -> {
         sharedPreferencesHelper.write(SharedPreferenceKey.LANG.name, event.language.tag)
@@ -158,7 +157,7 @@ constructor(
         }
       }
       is AppMainEvent.SyncData -> {
-        Timber.e("TAG SyncData onEvent --> isForeground -->$isForeground event--> ${event}")
+        Timber.d("SyncData event received. isForeground=$isForeground")
         if (event.context.isDeviceOnline()) {
           syncStartedAtMs = SystemClock.elapsedRealtime()
           PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
@@ -166,8 +165,10 @@ constructor(
           if (!isForeground) {
             viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
           } else {
-            Timber.e("TAG syncBroadcaster.runOneTimeSync--> start")
-            viewModelScope.launch { syncBroadcaster.runOneTimeSync(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) }
+            Timber.d("Starting user-initiated one-time sync")
+            viewModelScope.launch {
+              syncBroadcaster.runOneTimeSync(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            }
           }
         } else {
           event.context.showToast(event.context.getString(R.string.sync_failed), Toast.LENGTH_LONG)

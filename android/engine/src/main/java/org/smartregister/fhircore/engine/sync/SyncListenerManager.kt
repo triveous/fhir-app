@@ -65,8 +65,14 @@ constructor(
    * [Lifecycle.State.DESTROYED]
    */
   fun registerSyncListener(onSyncListener: OnSyncListener, lifecycle: Lifecycle) {
+    _onSyncListeners.removeIf { it.get() == null }
+    if (_onSyncListeners.any { it.get() == onSyncListener }) {
+      Timber.d("${onSyncListener::class.simpleName} is already registered for sync state events")
+      return
+    }
+
     _onSyncListeners.add(WeakReference(onSyncListener))
-    Timber.w("${onSyncListener::class.simpleName} registered to receive sync state events")
+    Timber.d("${onSyncListener::class.simpleName} registered to receive sync state events")
     lifecycle.addObserver(
       object : DefaultLifecycleObserver {
         override fun onStop(owner: LifecycleOwner) {
@@ -84,7 +90,7 @@ constructor(
   fun deregisterSyncListener(onSyncListener: OnSyncListener) {
     val removed = _onSyncListeners.removeIf { it.get() == onSyncListener }
     if (removed) {
-      Timber.w("De-registered ${onSyncListener::class.simpleName} from receiving sync state...")
+      Timber.d("De-registered ${onSyncListener::class.simpleName} from receiving sync state...")
     }
   }
 
