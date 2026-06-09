@@ -25,6 +25,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.work.WorkManager
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.sync.CurrentSyncJobStatus
+import com.google.android.fhir.sync.SyncJobStatus
+import com.google.android.fhir.sync.SyncOperation
 import com.google.gson.Gson
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -187,6 +189,167 @@ class AppMainViewModelTest : RobolectricTest() {
       sharedPreferencesHelper.read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null),
     )
 //    coVerify { appMainViewModel.retrieveAppMainUiState() }
+  }
+
+  @Test
+  fun testUpdateSyncProgressStartedShowsBarAtZeroAndFlagsFirstTimeSync() {
+    // No LAST_SYNC_TIMESTAMP written yet -> first time sync.
+    sharedPreferencesHelper.remove(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name)
+
+    val started =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns mockk<SyncJobStatus.Started>()
+      }
+    appMainViewModel.updateSyncProgress(started)
+
+    val state = appMainViewModel.syncProgressStateFlow.value
+    Assert.assertTrue(state.isSyncing)
+    Assert.assertEquals(0, state.progressPercentage)
+    Assert.assertTrue(state.isFirstTimeSync)
+    Assert.assertFalse(state.isUploadSync)
+  }
+
+  /**
+   * Regression test for the original bug: during first-time sync the per-resource progress hits
+   * 100% several times before the sync truly finishes. The floating bar must stay visible through
+   * those transient 100% values, must not show later lower percentages, and must disappear only on
+   * a terminal Succeeded status.
+   */
+  @Test
+  fun testUpdateSyncProgressDoesNotRegressAfterTransient100AndHidesOnlyOnSucceeded() {
+    val inProgressAt100 =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns
+          mockk<SyncJobStatus.InProgress> {
+            every { syncOperation } returns SyncOperation.DOWNLOAD
+            every { total } returns 100
+            every { completed } returns 100
+          }
+      }
+    appMainViewModel.updateSyncProgress(inProgressAt100)
+
+    val midState = appMainViewModel.syncProgressStateFlow.value
+    Assert.assertTrue("Bar must remain visible at transient 100%", midState.isSyncing)
+    Assert.assertTrue(
+      "Displayed progress must be capped below 100 while still syncing",
+      midState.progressPercentage < 100,
+    )
+
+    // A later batch reports a fresh, lower progress — bar still visible (no flicker away).
+    val laterBatch =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns
+          mockk<SyncJobStatus.InProgress> {
+            every { syncOperation } returns SyncOperation.DOWNLOAD
+            every { total } returns 400
+            every { completed } returns 40
+          }
+      }
+    appMainViewModel.updateSyncProgress(laterBatch)
+    val laterState = appMainViewModel.syncProgressStateFlow.value
+    Assert.assertTrue(laterState.isSyncing)
+    Assert.assertEquals(midState.progressPercentage, laterState.progressPercentage)
+
+    // Only the terminal Succeeded status dismisses the bar.
+    appMainViewModel.updateSyncProgress(mockk<CurrentSyncJobStatus.Succeeded>())
+    Assert.assertFalse(appMainViewModel.syncProgressStateFlow.value.isSyncing)
+  }
+
+  @Test
+  fun testUpdateSyncProgressStartedDoesNotResetAnActiveSyncToZero() {
+    val inProgressAt50 =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns
+          mockk<SyncJobStatus.InProgress> {
+            every { syncOperation } returns SyncOperation.DOWNLOAD
+            every { total } returns 10
+            every { completed } returns 5
+          }
+      }
+    appMainViewModel.updateSyncProgress(inProgressAt50)
+
+    val started =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns mockk<SyncJobStatus.Started>()
+      }
+    appMainViewModel.updateSyncProgress(started)
+
+    val state = appMainViewModel.syncProgressStateFlow.value
+    Assert.assertTrue(state.isSyncing)
+    Assert.assertEquals(50, state.progressPercentage)
+  }
+
+  @Test
+  fun testUpdateSyncProgressComputesPercentageDirectlyFromCompletedOverTotal() {
+    val started =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns mockk<SyncJobStatus.Started>()
+      }
+    appMainViewModel.updateSyncProgress(started)
+
+    val inProgress =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns
+          mockk<SyncJobStatus.InProgress> {
+            every { syncOperation } returns SyncOperation.DOWNLOAD
+            every { total } returns 10
+            every { completed } returns 1
+          }
+      }
+    appMainViewModel.updateSyncProgress(inProgress)
+
+    Assert.assertEquals(10, appMainViewModel.syncProgressStateFlow.value.progressPercentage)
+  }
+
+  /**
+   * Regression test for the reported bug where the bar instantly jumped to 99%. The FHIR SDK emits
+   * `total == 0` when the server does not report resource counts; that must keep the bar
+   * indeterminate (progress stays 0) instead of rendering a misleading 99%.
+   */
+  @Test
+  fun testUpdateSyncProgressKeepsBarIndeterminateWhenTotalIsUnknown() {
+    val started =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns mockk<SyncJobStatus.Started>()
+      }
+    appMainViewModel.updateSyncProgress(started)
+
+    val inProgressUnknownTotal =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns
+          mockk<SyncJobStatus.InProgress> {
+            every { syncOperation } returns SyncOperation.DOWNLOAD
+            every { total } returns 0
+            every { completed } returns 0
+          }
+      }
+    appMainViewModel.updateSyncProgress(inProgressUnknownTotal)
+
+    val state = appMainViewModel.syncProgressStateFlow.value
+    Assert.assertTrue(state.isSyncing)
+    Assert.assertEquals(0, state.progressPercentage)
+  }
+
+  @Test
+  fun testUpdateSyncProgressUploadOperationFlagsUploadAndHidesOnFailed() {
+    val uploadInProgress =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns
+          mockk<SyncJobStatus.InProgress> {
+            every { syncOperation } returns SyncOperation.UPLOAD
+            every { total } returns 10
+            every { completed } returns 5
+          }
+      }
+    appMainViewModel.updateSyncProgress(uploadInProgress)
+
+    val state = appMainViewModel.syncProgressStateFlow.value
+    Assert.assertTrue(state.isSyncing)
+    Assert.assertTrue(state.isUploadSync)
+
+    // A terminal Failed status must also dismiss the bar.
+    appMainViewModel.updateSyncProgress(mockk<CurrentSyncJobStatus.Failed>())
+    Assert.assertFalse(appMainViewModel.syncProgressStateFlow.value.isSyncing)
   }
 
   @Test

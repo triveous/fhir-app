@@ -73,7 +73,6 @@ import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.sync.AppSyncWorker
-import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
@@ -146,18 +145,6 @@ fun RegisterScreen(
         },
     ) { innerPadding ->
         Box(modifier = modifier.padding(innerPadding)) {
-            if (registerUiState.isFirstTimeSync) {
-                val isSyncUpload = registerUiState.isSyncUpload.collectAsState(initial = false).value
-                LoaderDialog(
-                    modifier = modifier.testTag(FIRST_TIME_SYNC_DIALOG),
-                    percentageProgressFlow = registerUiState.progressPercentage,
-                    dialogMessage = stringResource(
-                        id = if (isSyncUpload) R.string.syncing_up else R.string.syncing_down,
-                    ),
-                    showPercentageProgress = true,
-                )
-            }
-
             registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
                 RegisterContent(
                     modifier = modifier,
