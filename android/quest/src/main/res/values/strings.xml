@@ -237,6 +237,10 @@
     <string name="sync_now">Sync now</string>
     <string name="syncing">Syncing…</string>
     <string name="sync_in_progress">Please wait, sync is in progress</string>
+    <string name="sync_bar_first_time">Setting up your data…</string>
+    <string name="sync_bar_downloading">Syncing data…</string>
+    <string name="sync_bar_uploading">Uploading images…</string>
+    <string name="sync_bar_in_background">You can keep using the app while this finishes</string>
     <string name="notification_sync_failed">Sync failed</string>
     <string name="notification_sync">Syncing…</string>
     <string name="image_left">Images Left: %s</string>
