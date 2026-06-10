@@ -32,6 +32,7 @@ import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.hl7.fhir.r4.model.Location
 import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
@@ -61,6 +62,12 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.inject.Inject
 import org.hl7.fhir.r4.model.Bundle as FhirR4ModelBundle
+
+// TODO: Temporary dummy FLW location values used to test pre-population of the questionnaire's
+// district/state fields from FLW user data. The backend does not yet send district/state, so these
+// dummy values are stored at login as a fallback. Remove once real values are returned by the API.
+private const val DUMMY_FLW_DISTRICT = "Dummy District"
+private const val DUMMY_FLW_STATE = "Dummy State"
 
 @HiltViewModel
 class LoginViewModel
@@ -367,6 +374,7 @@ constructor(
             organization = organization,
             location = location,
             fhirPractitionerDetails = practitionerDetails,
+            userInfo = userInfo,
             careTeams = careTeamIds,
             organizations = organizationIds,
             locations = locationIds,
@@ -387,6 +395,7 @@ constructor(
                 organization = organization,
                 location = location,
                 fhirPractitionerDetails = practitionerDetails,
+                userInfo = userInfo,
                 careTeams = careTeamIds,
                 organizations = organizationIds,
                 locations = locationIds,
@@ -414,6 +423,7 @@ constructor(
     organization: List<String>,
     location: List<String>,
     fhirPractitionerDetails: PractitionerDetails,
+    userInfo: UserInfo?,
     careTeams: List<String>,
     organizations: List<String>,
     locations: List<String>,
@@ -446,7 +456,37 @@ constructor(
       key = SharedPreferenceKey.ORGANIZATION.name,
       value = organization.joinToString(separator = ""),
     )
+    writeFlwLocationToSharedPref(
+      district =
+        userInfo?.district
+          ?: userInfo?.dictrict
+          ?: fhirPractitionerDetails.fhirPractitionerDetails?.locations?.firstNonBlankDistrict()
+          ?: DUMMY_FLW_DISTRICT,
+      state =
+        userInfo?.state
+          ?: fhirPractitionerDetails.fhirPractitionerDetails?.locations?.firstNonBlankState()
+          ?: DUMMY_FLW_STATE,
+    )
   }
+
+  private fun writeFlwLocationToSharedPref(district: String?, state: String?) {
+    sharedPreferences.write(
+      key = SharedPreferenceKey.FLW_DISTRICT.name,
+      value = district?.trim()?.takeIf { it.isNotEmpty() },
+    )
+    sharedPreferences.write(
+      key = SharedPreferenceKey.FLW_STATE.name,
+      value = state?.trim()?.takeIf { it.isNotEmpty() },
+    )
+  }
+
+  private fun List<Location>.firstNonBlankDistrict(): String? =
+    firstNotNullOfOrNull {
+      it.address?.district?.trim()?.takeIf { district -> district.isNotEmpty() }
+    }
+
+  private fun List<Location>.firstNonBlankState(): String? =
+    firstNotNullOfOrNull { it.address?.state?.trim()?.takeIf { state -> state.isNotEmpty() } }
 
   fun downloadNowWorkflowConfigs(isInitialLogin: Boolean = true) {
     val data = workDataOf(ConfigDownloadWorker.IS_INITIAL_LOGIN to isInitialLogin)

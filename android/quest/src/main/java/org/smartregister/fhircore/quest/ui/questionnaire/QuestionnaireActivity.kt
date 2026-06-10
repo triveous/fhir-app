@@ -56,6 +56,7 @@ import org.smartregister.fhircore.engine.domain.model.isReadOnly
 import org.smartregister.fhircore.engine.ui.base.AlertDialogue
 import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.extension.clearText
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.engine.util.extension.logicalId
@@ -78,6 +79,15 @@ import timber.log.Timber
 import java.io.Serializable
 import java.util.LinkedList
 import javax.inject.Inject
+
+private const val FLW_DISTRICT_LINK_ID = "patient-address-district"
+private const val FLW_STATE_LINK_ID = "patient-address-state"
+
+// TODO: Temporary dummy fallbacks for testing FLW location pre-population end-to-end. Used only when
+// the FLW district/state were not stored at login (e.g. backend not yet sending them). Remove these
+// fallbacks once the API returns real district/state for the logged-in FLW.
+private const val DUMMY_FLW_DISTRICT = "Dummy District"
+private const val DUMMY_FLW_STATE = "Dummy State"
 
 @AndroidEntryPoint
 class QuestionnaireActivity : BaseMultiLanguageActivity() {
@@ -356,8 +366,13 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       )
       finish()
     }
+    // Pre-fill the District/State fields from the logged-in FLW's stored location. This overwrites
+    // the questionnaire's hardcoded `initial` defaults so a fresh form opens with the FLW values.
+    // Edit/draft flows supply a saved QuestionnaireResponse which still correctly overrides these.
+    applyFlwLocationInitialValues(questionnaire)
+
     val questionnaireFragmentBuilder =
-       QuestionnaireFragment.builder()
+      QuestionnaireFragment.builder()
         .setQuestionnaire(questionnaire.json())
         .showReviewPageBeforeSubmit(true)
         .setCustomQuestionnaireItemViewHolderFactoryMatchersProvider(
@@ -366,15 +381,9 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         .showAsterisk(questionnaireConfig.showRequiredTextAsterisk)
         .showRequiredText(questionnaireConfig.showRequiredText)
 
-    questionnaireResponse?.let {
-      questionnaireFragmentBuilder.setQuestionnaireResponse(questionnaireResponse ?: "")
+    questionnaireResponse?.takeIf { it.isNotBlank() }?.let {
+      questionnaireFragmentBuilder.setQuestionnaireResponse(it)
     }
-
-    /*if (!questionnaireResponse.isNullOrBlank()){
-      questionnaireResponse?.let {
-        questionnaireFragmentBuilder.setQuestionnaireResponse(questionnaireResponse ?: "1\t31\tQuestionnaireResponse\te5e6661c-f70b-4228-b1ef-7feaf75e0f54\tA0C520CFA006413994DEC9EE9629FAEA\t1716792701797\t1\t{\"resourceType\":\"QuestionnaireResponse\",\"id\":\"e5e6661c-f70b-4228-b1ef-7feaf75e0f54\",\"meta\":{\"lastUpdated\":\"2024-05-27T12:21:41.796+05:30\",\"tag\":[{\"system\":\"https://smartregister.org/care-team-tag-id\",\"code\":\"Not defined\",\"display\":\"Practitioner CareTeam\"},{\"system\":\"https://smartregister.org/location-tag-id\",\"code\":\"2d4fd0b8-44fe-4eb8-ae62-e2c6feba8e8a\",\"display\":\"Practitioner Location\"},{\"system\":\"https://smartregister.org/organisation-tag-id\",\"code\":\"eb456411-0f25-57b4-92d1-bc50ea54364b\",\"display\":\"Practitioner Organization\"},{\"system\":\"https://smartregister.org/practitioner-tag-id\",\"code\":\"b24966ce-f60b-4bd4-b2be-726869228373\",\"display\":\"Practitioner\"},{\"system\":\"https://smartregister.org/app-version\",\"code\":\"1.1.0\",\"display\":\"Application Version\"}]},\"status\":\"in-progress\",\"item\":[{\"linkId\":\"basic-info-group\",\"text\":\"Basic Info\",\"item\":[{\"linkId\":\"patient-name-given\",\"text\":\"First Name\",\"answer\":[{\"valueString\":\"draftoko\"}]},{\"linkId\":\"patient-name-family\",\"text\":\"Last Name\"},{\"linkId\":\"patient-identifier-abha\",\"text\":\"ABHA ID(Optional)\"},{\"linkId\":\"patient-age\",\"text\":\"Age\",\"answer\":[{\"valueCoding\":{\"code\":\"dob\",\"display\":\"By Date of Birth\"}}]},{\"linkId\":\"patient-age-by-dob\",\"text\":\"By Date of Birth\"},{\"linkId\":\"patient-gender\",\"text\":\"Gender\"},{\"linkId\":\"patient-contact-primary\",\"text\":\"Primary Contact\"},{\"linkId\":\"patient-contact-secondary\",\"text\":\"Secondary Contact Number\"},{\"linkId\":\"patient-address-house\",\"text\":\"House Number\"},{\"linkId\":\"patient-address-village\",\"text\":\"Village\"},{\"linkId\":\"patient-address-pincode\",\"text\":\"Pincode\"},{\"linkId\":\"patient-address-district\",\"text\":\"District\"},{\"linkId\":\"patient-address-state\",\"text\":\"State\"}]},{\"linkId\":\"habit-history-group\",\"text\":\"Habit History\",\"item\":[{\"linkId\":\"patient-habit-cigarette\",\"text\":\"Cigarette/Bidi\"},{\"linkId\":\"patient-habit-tobacco\",\"text\":\"Tobacco\"},{\"linkId\":\"patient-habit-areca\",\"text\":\"Areca Nut\"},{\"linkId\":\"patient-habit-alcohol\",\"text\":\"Alcohol\"}]},{\"linkId\":\"screening-group\",\"text\":\"Screening\",\"item\":[{\"linkId\":\"patient-screening-question-group\",\"text\":\"Current Condition\",\"item\":[{\"linkId\":\"patient-screening-mouth-open\",\"text\":\"Open Mouth\"},{\"linkId\":\"patient-screening-lesion\",\"text\":\"Lesion/Patch\"}]},{\"linkId\":\"patient-screening-image-group\",\"text\":\"Image Screening\",\"item\":[{\"linkId\":\"patient-screening-image-1\",\"text\":\"Image 1\"},{\"linkId\":\"patient-screening-image-2\",\"text\":\"Image 2\"},{\"linkId\":\"patient-screening-image-3\",\"text\":\"Image 3\"},{\"linkId\":\"patient-screening-image-4\",\"text\":\"Image 4\"},{\"linkId\":\"patient-screening-image-5\",\"text\":\"Image 5\"},{\"linkId\":\"patient-screening-image-6\",\"text\":\"Image 6\"},{\"linkId\":\"patient-screening-image-7\",\"text\":\"Image 7\"},{\"linkId\":\"patient-screening-image-8\",\"text\":\"Image 8\"},{\"linkId\":\"patient-screening-image-9\",\"text\":\"Image 9\"},{\"linkId\":\"patient-screening-image-10\",\"text\":\"Image 10\"},{\"linkId\":\"patient-screening-image-11\",\"text\":\"Image 11\"},{\"linkId\":\"patient-screening-image-12\",\"text\":\"Image 12\"},{\"linkId\":\"patient-screening-image-13\",\"text\":\"Image 13\"}]}]}]}\t")
-      }
-    }*/
 
     val questionnaireSubjectType = questionnaire.subjectType.firstOrNull()?.code
     val resourceType =
@@ -433,6 +442,48 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   }
 
   private fun Resource.json(): String = this.encodeResourceToString()
+
+  /**
+   * Overwrites the `initial` value of the District/State questionnaire items with the FLW's stored
+   * location (read from shared preferences at login). This makes a fresh form open pre-filled with
+   * the FLW values instead of the hardcoded defaults baked into the questionnaire JSON.
+   */
+  private fun applyFlwLocationInitialValues(questionnaire: Questionnaire) {
+    val flwDistrict =
+      sharedPreferencesHelper
+        .read(SharedPreferenceKey.FLW_DISTRICT.name, null)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: DUMMY_FLW_DISTRICT
+    val flwState =
+      sharedPreferencesHelper
+        .read(SharedPreferenceKey.FLW_STATE.name, null)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: DUMMY_FLW_STATE
+
+    questionnaire.item.setFlwLocationInitialValues(district = flwDistrict, state = flwState)
+  }
+
+  private fun List<Questionnaire.QuestionnaireItemComponent>.setFlwLocationInitialValues(
+    district: String?,
+    state: String?,
+  ) {
+    forEach { item ->
+      when (item.linkId) {
+        FLW_DISTRICT_LINK_ID -> district?.let { item.setInitialString(it) }
+        FLW_STATE_LINK_ID -> state?.let { item.setInitialString(it) }
+      }
+      if (item.hasItem()) item.item.setFlwLocationInitialValues(district = district, state = state)
+    }
+  }
+
+  private fun Questionnaire.QuestionnaireItemComponent.setInitialString(value: String) {
+    initial =
+      listOf(
+        Questionnaire.QuestionnaireItemInitialComponent().setValue(StringType(value)),
+      )
+  }
 
   private fun registerFragmentResultListener() {
     supportFragmentManager.setFragmentResultListener(

@@ -32,6 +32,8 @@ import io.mockk.spyk
 import io.mockk.verify
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -530,6 +532,47 @@ internal class LoginViewModelTest : RobolectricTest() {
     ) {}
     Assert.assertNotNull(
       sharedPreferencesHelper.read(SharedPreferenceKey.PRACTITIONER_DETAILS.name),
+    )
+  }
+
+  @Test
+  fun testSavePractitionerDetailsShouldSaveFlwDistrictAndStateFromUserInfo() {
+    val postProcessLatch = CountDownLatch(1)
+
+    loginViewModel.savePractitionerDetails(
+      Bundle()
+        .addEntry(
+          Bundle.BundleEntryComponent().apply {
+            resource =
+              practitionerDetails().apply {
+                fhirPractitionerDetails =
+                  FhirPractitionerDetails().apply {
+                    practitioners =
+                      listOf(
+                        Practitioner().apply {
+                          id = "my-test-practitioner-id"
+                        },
+                      )
+                  }
+              }
+          },
+        ),
+      UserInfo(
+        district = "Tumakuru",
+        state = "Karnataka",
+      ),
+    ) {
+      postProcessLatch.countDown()
+    }
+
+    Assert.assertTrue(postProcessLatch.await(3, TimeUnit.SECONDS))
+    Assert.assertEquals(
+      "Tumakuru",
+      sharedPreferencesHelper.read(SharedPreferenceKey.FLW_DISTRICT.name, null),
+    )
+    Assert.assertEquals(
+      "Karnataka",
+      sharedPreferencesHelper.read(SharedPreferenceKey.FLW_STATE.name, null),
     )
   }
 
