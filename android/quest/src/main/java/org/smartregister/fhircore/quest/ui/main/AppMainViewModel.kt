@@ -130,6 +130,16 @@ constructor(
     configurationRegistry.retrieveConfiguration(ConfigType.Application, paramsMap = emptyMap())
   }
 
+  /**
+   * Whether the in-memory application configuration is available. It is populated by the
+   * AppSettingActivity bootstrap and lives only in memory ([ConfigurationRegistry.configsJsonMap]).
+   * After process death the OS can recreate [AppMainActivity] directly, bypassing that bootstrap, so
+   * every `retrieveConfiguration(...)` call would throw [NoSuchElementException] and leave a blank
+   * screen. Callers use this to detect that state and restart the bootstrap.
+   */
+  fun isApplicationConfigurationLoaded(): Boolean =
+    configurationRegistry.configsJsonMap.containsKey(ConfigType.Application.name)
+
   val navigationConfiguration: NavigationConfiguration by lazy {
     configurationRegistry.retrieveConfiguration(ConfigType.Navigation)
   }
