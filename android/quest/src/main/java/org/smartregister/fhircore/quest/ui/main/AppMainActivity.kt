@@ -53,6 +53,7 @@ import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.util.DefaultDispatcherProvider
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
+import org.smartregister.fhircore.engine.util.extension.launchActivityWithNoBackStackHistory
 import org.smartregister.fhircore.engine.util.extension.parcelable
 import org.smartregister.fhircore.engine.util.extension.serializable
 import org.smartregister.fhircore.engine.util.extension.showToast
@@ -62,6 +63,7 @@ import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.navigation.NavigationArg
+import org.smartregister.fhircore.quest.ui.appsetting.AppSettingActivity
 import org.smartregister.fhircore.quest.ui.main.components.SyncProgressBar
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
@@ -115,6 +117,20 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    // After process death (e.g. the process is killed while the app is idle/screen-locked and is
+    // later recreated by the OS or by a background WorkManager job), the OS can restore this
+    // activity directly without going through the AppSettingActivity bootstrap that loads the
+    // application configuration into memory. In that state every retrieveConfiguration(...) call
+    // below throws NoSuchElementException, which previously left the user staring at a blank white
+    // screen. Detect the missing configuration and restart from the app's entry point, which
+    // reloads the configuration (from the local database) before navigating back here.
+    if (!appMainViewModel.isApplicationConfigurationLoaded()) {
+      Timber.w("Application configuration not loaded (process recreated); restarting bootstrap")
+      launchActivityWithNoBackStackHistory<AppSettingActivity>()
+      return
+    }
+
     setContentView(R.layout.activity_main)
     _isOnline.value = isDeviceOnline()
 
