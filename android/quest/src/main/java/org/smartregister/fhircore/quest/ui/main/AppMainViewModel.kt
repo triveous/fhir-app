@@ -111,6 +111,15 @@ constructor(
   private var syncStartedAtMs: Long? = null
 
   /**
+   * Identifies the current determinate progress phase as an (operation, total) pair. A single sync
+   * runs several sequential phases (metadata download, metadata upload, image upload), each with its
+   * own total. We track the active phase so the bar can restart its baseline when a genuinely new
+   * phase begins — otherwise the monotonic guard in [showSyncProgress] would pin the bar at the
+   * previous phase's percentage (e.g. holding ~99% from the metadata sync while images upload).
+   */
+  private var currentSyncPhaseKey: Pair<SyncOperation, Int>? = null
+
+  /**
    * Drives the non-blocking floating sync progress bar. Lives in the (activity-scoped) view model so
    * it survives fragment recreation and is shared across all screens/tabs while a sync is running.
    */
@@ -284,6 +293,7 @@ constructor(
       }
       is CurrentSyncJobStatus.Succeeded,
       is CurrentSyncJobStatus.Failed, -> {
+        currentSyncPhaseKey = null
         _syncProgressStateFlow.value = SyncProgressUiState(isSyncing = false)
       }
       else -> {
@@ -297,6 +307,7 @@ constructor(
     val currentState = _syncProgressStateFlow.value
 
     if (!currentState.isSyncing) {
+      currentSyncPhaseKey = null
       _syncProgressStateFlow.value =
         SyncProgressUiState(
           isSyncing = true,
@@ -316,13 +327,23 @@ constructor(
     val firstTimeSync = isFirstTimeSync()
     val percentage = calculateActualPercentageProgress(inProgress)
 
+    // A determinate emission (total > 0) that either belongs to a new (operation, total) phase or is
+    // the first tick of a phase (completed == 0) restarts the bar from 0. This lets the image-upload
+    // phase show real 0..100 progress instead of inheriting the ~99% left by the metadata sync.
+    // Indeterminate emissions (percentage == null, i.e. total <= 0) never reset the baseline so a
+    // no-op upload phase cannot blank out an in-progress download.
+    val phaseKey = inProgress.syncOperation to inProgress.total
+    val isNewPhase =
+      percentage != null && (phaseKey != currentSyncPhaseKey || inProgress.completed == 0)
+    if (percentage != null) currentSyncPhaseKey = phaseKey
+
     _syncProgressStateFlow.update {
-      val previousPercentage = if (it.isSyncing) it.progressPercentage else 0
+      // Never move backwards within a phase. When the total is unknown (percentage == null) we
+      // cannot compute a value, so we hold the previous one and let the bar stay indeterminate.
+      val baseline = if (it.isSyncing && !isNewPhase) it.progressPercentage else 0
       it.copy(
         isSyncing = true,
-        // Never move backwards within a single sync. When the total is unknown (percentage == null)
-        // we cannot compute a value, so we hold the previous one and let the bar stay indeterminate.
-        progressPercentage = maxOf(previousPercentage, percentage ?: previousPercentage),
+        progressPercentage = maxOf(baseline, percentage ?: baseline),
         isUploadSync = isUpload,
         isFirstTimeSync = it.isFirstTimeSync || firstTimeSync,
       )

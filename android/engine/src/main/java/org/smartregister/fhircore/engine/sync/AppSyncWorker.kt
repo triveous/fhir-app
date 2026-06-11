@@ -25,6 +25,7 @@ import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.hilt.work.HiltWorker
+import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -37,6 +38,8 @@ import com.google.android.fhir.sync.AcceptLocalConflictResolver
 import com.google.android.fhir.sync.ConflictResolver
 import com.google.android.fhir.sync.DownloadWorkManager
 import com.google.android.fhir.sync.FhirSyncWorker
+import com.google.android.fhir.sync.SyncJobStatus
+import com.google.android.fhir.sync.SyncOperation
 import com.google.android.fhir.sync.upload.UploadStrategy
 import com.google.gson.Gson
 import dagger.assisted.Assisted
@@ -223,6 +226,17 @@ constructor(
 
         Timber.i("Found $totalDocuments document(s) to upload")
 
+        // Surface the image-upload phase on the in-app sync progress bar. The FHIR SDK only relays
+        // worker progress that is serialized as a SyncJobStatus (keys "StateType"/"State"); the
+        // earlier custom "progress" key was silently dropped by the SDK, which is why the bar froze
+        // at the ~99% left by the preceding metadata sync. Emitting a real InProgress(UPLOAD)
+        // restarts the bar at 0 and lets it track uploaded/total images.
+        if (totalDocuments > 0) {
+            setProgress(
+                buildImageUploadProgressData(uploaded = 0, total = totalDocuments),
+            )
+        }
+
         val notificationManager = createNotificationChannel(context)
         val notificationBuilder = createNotificationBuilder(context, totalDocuments, pendingDocuments)
 
@@ -278,10 +292,14 @@ constructor(
                         applicationContext.contentResolver.delete(fileUri, null, null)
 
                         pendingDocuments--
-                        val progress = ((totalDocuments - pendingDocuments) * 100 / totalDocuments).toInt()
                         updateProgress(context, notificationBuilder, totalDocuments, pendingDocuments)
                         notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
-                        setProgressAsync(workDataOf("progress" to progress))
+                        setProgress(
+                            buildImageUploadProgressData(
+                                uploaded = totalDocuments - pendingDocuments,
+                                total = totalDocuments,
+                            ),
+                        )
 
                         Timber.i("Successfully completed version-aware upload for document: ${docReference.logicalId}")
                         true
@@ -656,6 +674,21 @@ private fun filesExists(uri: Uri?): Boolean {
         } catch (e: Exception) {
             Timber.e(e, "Failed to update sync metadata")
         }
+    }
+
+    /**
+     * Serializes an image-upload [SyncJobStatus.InProgress] into the WorkManager progress [Data]
+     * format that the FHIR SDK ([com.google.android.fhir.sync.Sync.getWorkerInfo]) understands, so
+     * the emission is relayed to the registered [OnSyncListener]s as
+     * [com.google.android.fhir.sync.CurrentSyncJobStatus.Running] and drives the in-app sync
+     * progress bar. The keys/serialization mirror `FhirSyncWorker.buildWorkData`.
+     */
+    private fun buildImageUploadProgressData(uploaded: Int, total: Int): Data {
+        val status = SyncJobStatus.InProgress(SyncOperation.UPLOAD, total = total, completed = uploaded)
+        return workDataOf(
+            "StateType" to status::class.java.name,
+            "State" to gson.toJson(status),
+        )
     }
 
     private fun updateProgress(context: Context,notificationBuilder: NotificationCompat.Builder, totalDocuments: Int, pendingDocuments: Int) {
