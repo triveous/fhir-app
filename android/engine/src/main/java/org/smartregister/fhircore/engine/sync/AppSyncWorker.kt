@@ -226,11 +226,13 @@ constructor(
 
         Timber.i("Found $totalDocuments document(s) to upload")
 
-        // Surface the image-upload phase on the in-app sync progress bar. The FHIR SDK only relays
-        // worker progress that is serialized as a SyncJobStatus (keys "StateType"/"State"); the
-        // earlier custom "progress" key was silently dropped by the SDK, which is why the bar froze
-        // at the ~99% left by the preceding metadata sync. Emitting a real InProgress(UPLOAD)
-        // restarts the bar at 0 and lets it track uploaded/total images.
+        // Surface the image-upload phase as real sync progress. The FHIR SDK only relays worker
+        // progress that is serialized as a SyncJobStatus (keys "StateType"/"State"); the earlier
+        // custom "progress" key was silently dropped by the SDK, which is why downstream progress
+        // UIs froze at the ~99% left by the preceding metadata sync. The in-app bar is shown only
+        // for the first-time sync, but a first-time sync can still include images (cases registered
+        // before the initial sync ever succeeded), so emitting a real InProgress(UPLOAD) keeps that
+        // bar tracking uploaded/total instead of freezing.
         if (totalDocuments > 0) {
             setProgress(
                 buildImageUploadProgressData(uploaded = 0, total = totalDocuments),

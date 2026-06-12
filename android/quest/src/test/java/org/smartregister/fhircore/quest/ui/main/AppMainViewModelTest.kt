@@ -305,6 +305,40 @@ class AppMainViewModelTest : RobolectricTest() {
     Assert.assertEquals(50, appMainViewModel.syncProgressStateFlow.value.progressPercentage)
   }
 
+  /**
+   * The floating bar is reserved for the first-time sync. Once a sync has completed
+   * ([SharedPreferenceKey.LAST_SYNC_TIMESTAMP] written), subsequent syncs upload registered cases
+   * and images, and their image-upload progress is surfaced through the foreground notification —
+   * the in-app bar must stay hidden for the whole run (previously it froze at ~99% during the
+   * image-upload phase).
+   */
+  @Test
+  fun testUpdateSyncProgressDoesNotShowBarForSubsequentSyncs() {
+    sharedPreferencesHelper.write(
+      SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name,
+      appMainViewModel.formatLastSyncTimestamp(OffsetDateTime.now()),
+    )
+
+    val started =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns mockk<SyncJobStatus.Started>()
+      }
+    appMainViewModel.updateSyncProgress(started)
+    Assert.assertFalse(appMainViewModel.syncProgressStateFlow.value.isSyncing)
+
+    val uploadInProgress =
+      mockk<CurrentSyncJobStatus.Running> {
+        every { inProgressSyncJob } returns
+          mockk<SyncJobStatus.InProgress> {
+            every { syncOperation } returns SyncOperation.UPLOAD
+            every { total } returns 4
+            every { completed } returns 2
+          }
+      }
+    appMainViewModel.updateSyncProgress(uploadInProgress)
+    Assert.assertFalse(appMainViewModel.syncProgressStateFlow.value.isSyncing)
+  }
+
   @Test
   fun testUpdateSyncProgressStartedDoesNotResetAnActiveSyncToZero() {
     val inProgressAt50 =

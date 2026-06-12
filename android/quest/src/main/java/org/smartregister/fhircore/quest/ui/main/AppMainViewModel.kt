@@ -288,10 +288,18 @@ constructor(
    * floating progress bar stays visible for the whole [CurrentSyncJobStatus.Running] phase and is
    * only dismissed on a terminal Succeeded/Failed status — this prevents the bar from flickering
    * away when the per-resource progress momentarily hits 100% mid-sync.
+   *
+   * The bar is shown only for the first-time sync (initial download of questionnaires and other
+   * resources, i.e. while [SharedPreferenceKey.LAST_SYNC_TIMESTAMP] is still unset). Subsequent
+   * syncs upload registered cases and then their images; the SDK reports no progress for the
+   * image-upload phase, so the bar used to freeze at ~99% until every image finished. Those syncs
+   * already surface image-upload progress through the foreground notification, so the in-app bar
+   * is suppressed for them.
    */
   fun updateSyncProgress(syncJobStatus: CurrentSyncJobStatus) {
     when (syncJobStatus) {
       is CurrentSyncJobStatus.Running -> {
+        if (!_syncProgressStateFlow.value.isSyncing && !isFirstTimeSync()) return
         when (val inProgress = syncJobStatus.inProgressSyncJob) {
           is SyncJobStatus.Started -> showSyncProgressStarted()
           is SyncJobStatus.InProgress -> showSyncProgress(inProgress)
