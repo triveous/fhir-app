@@ -4534,357 +4534,17 @@
         {
           "extension": [
             {
-              "url": "http://hl7.org/fhir/StructureDefinition/regex",
-              "valueString": "^[a-zA-Z-æøåÆØÅÁÀÄÉÈÊÎÏÑÓÒÔÖÙÜáàäçéèêîïñóòôöùüÇČĐŊŠŦŽčđŋšŧž'’*0-9 ]*$"
-            },
-            {
-              "url": "http://hl7.org/fhir/StructureDefinition/requiredtext",
-              "valueString": "Please enter district",
-              "_valueString": {
-                "extension": [
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
                   {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "en"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "Please enter district"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "hi"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "कृपया जिला दर्ज करें"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "bn"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "অনুগ্রহ করে জেলা প্রবেশ করুন"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "mr"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "कृपया जिल्हा प्रविष्ट करा"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "te"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "దయచేసి జిల్లా నమోదు చేయండి"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "ta"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "தயவுசெய்து மாவட்டத்தை உள்ளிடவும்"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "ur"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "براہ کرم ضلع درج کریں"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "as"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "কৃপা কৰি জিলা লিখক।"
-                      }
-                    ]
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
                   }
-                ]
+                ],
+                "text": "Drop down"
               }
-            },
-            {
-              "url": "http://hl7.org/fhir/StructureDefinition/validationtext",
-              "valueString": "Please enter a valid district",
-              "_valueString": {
-                "extension": [
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "en"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "Please enter a valid district"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "hi"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "कृपया एक मान्य जिला दर्ज करें"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "bn"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "অনুগ্রহ করে একটি বৈধ জেলা প্রবেশ করুন"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "mr"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "कृपया एक वैध जिल्हा प्रविष्ट करा"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "te"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "దయచేసి సరైన జిల్లా నమోదు చేయండి"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "ta"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "தயவுசெய்து சரியான மாவட்டத்தை உள்ளிடவும்"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "ur"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "براہ کرم ایک درست ضلع درج کریں"
-                      }
-                    ]
-                  },
-                  {
-                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                    "extension": [
-                      {
-                        "url": "lang",
-                        "valueCode": "as"
-                      },
-                      {
-                        "url": "content",
-                        "valueString": "কৃপা কৰি এটা বৈধ জিলা লিখক।"
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ],
-          "linkId": "patient-address-district",
-          "text": "District",
-          "_text": {
-            "extension": [
-              {
-                "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                "extension": [
-                  {
-                    "url": "lang",
-                    "valueCode": "en"
-                  },
-                  {
-                    "url": "content",
-                    "valueString": "District"
-                  }
-                ]
-              },
-              {
-                "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                "extension": [
-                  {
-                    "url": "lang",
-                    "valueCode": "hi"
-                  },
-                  {
-                    "url": "content",
-                    "valueString": "जिला"
-                  }
-                ]
-              },
-              {
-                "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                "extension": [
-                  {
-                    "url": "lang",
-                    "valueCode": "bn"
-                  },
-                  {
-                    "url": "content",
-                    "valueString": "জেলা"
-                  }
-                ]
-              },
-              {
-                "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                "extension": [
-                  {
-                    "url": "lang",
-                    "valueCode": "mr"
-                  },
-                  {
-                    "url": "content",
-                    "valueString": "जिल्हा"
-                  }
-                ]
-              },
-              {
-                "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                "extension": [
-                  {
-                    "url": "lang",
-                    "valueCode": "te"
-                  },
-                  {
-                    "url": "content",
-                    "valueString": "జిల్లా"
-                  }
-                ]
-              },
-              {
-                "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                "extension": [
-                  {
-                    "url": "lang",
-                    "valueCode": "ta"
-                  },
-                  {
-                    "url": "content",
-                    "valueString": "மாவட்டம்"
-                  }
-                ]
-              },
-              {
-                "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                "extension": [
-                  {
-                    "url": "lang",
-                    "valueCode": "ur"
-                  },
-                  {
-                    "url": "content",
-                    "valueString": "ضلعہ"
-                  }
-                ]
-              },
-              {
-                "url": "http://hl7.org/fhir/StructureDefinition/translation",
-                "extension": [
-                  {
-                    "url": "lang",
-                    "valueCode": "as"
-                  },
-                  {
-                    "url": "content",
-                    "valueString": "জিলা"
-                  }
-                ]
-              }
-            ]
-          },
-          "type": "string",
-          "required": true,
-          "initial": [
-            {
-              "valueString": "Krishnagiri"
-            }
-          ]
-        },
-        {
-          "extension": [
-            {
-              "url": "http://hl7.org/fhir/StructureDefinition/regex",
-              "valueString": "^[a-zA-Z-æøåÆØÅÁÀÄÉÈÊÎÏÑÓÒÔÖÙÜáàäçéèêîïñóòôöùüÇČĐŊŠŦŽčđŋšŧž'’*0-9 ]*$"
             },
             {
               "url": "http://hl7.org/fhir/StructureDefinition/requiredtext",
@@ -5221,11 +4881,5927 @@
               }
             ]
           },
-          "type": "string",
+          "type": "choice",
           "required": true,
-          "initial": [
+          "answerOption": [
+            {
+              "valueString": "Andhra Pradesh"
+            },
+            {
+              "valueString": "Arunachal Pradesh"
+            },
+            {
+              "valueString": "Assam"
+            },
+            {
+              "valueString": "Bihar"
+            },
+            {
+              "valueString": "Chandigarh (UT)"
+            },
+            {
+              "valueString": "Chhattisgarh"
+            },
+            {
+              "valueString": "Dadra and Nagar Haveli (UT)"
+            },
+            {
+              "valueString": "Daman and Diu (UT)"
+            },
+            {
+              "valueString": "Delhi (NCT)"
+            },
+            {
+              "valueString": "Goa"
+            },
+            {
+              "valueString": "Gujarat"
+            },
+            {
+              "valueString": "Haryana"
+            },
+            {
+              "valueString": "Himachal Pradesh"
+            },
+            {
+              "valueString": "Jammu and Kashmir"
+            },
+            {
+              "valueString": "Jharkhand"
+            },
+            {
+              "valueString": "Karnataka"
+            },
+            {
+              "valueString": "Kerala"
+            },
+            {
+              "valueString": "Lakshadweep (UT)"
+            },
+            {
+              "valueString": "Madhya Pradesh"
+            },
+            {
+              "valueString": "Maharashtra"
+            },
+            {
+              "valueString": "Manipur"
+            },
+            {
+              "valueString": "Meghalaya"
+            },
+            {
+              "valueString": "Mizoram"
+            },
+            {
+              "valueString": "Nagaland"
+            },
+            {
+              "valueString": "Odisha"
+            },
+            {
+              "valueString": "Puducherry (UT)"
+            },
+            {
+              "valueString": "Punjab"
+            },
+            {
+              "valueString": "Rajasthan"
+            },
+            {
+              "valueString": "Sikkim"
+            },
             {
               "valueString": "Tamil Nadu"
+            },
+            {
+              "valueString": "Telangana"
+            },
+            {
+              "valueString": "Tripura"
+            },
+            {
+              "valueString": "Uttarakhand"
+            },
+            {
+              "valueString": "Uttar Pradesh"
+            },
+            {
+              "valueString": "West Bengal"
+            }
+          ]
+        },
+        {
+          "extension": [
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/questionnaire-itemControl",
+              "valueCodeableConcept": {
+                "coding": [
+                  {
+                    "system": "http://hl7.org/fhir/questionnaire-item-control",
+                    "code": "drop-down",
+                    "display": "Drop down"
+                  }
+                ],
+                "text": "Drop down"
+              }
+            },
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/requiredtext",
+              "valueString": "Please enter district",
+              "_valueString": {
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "en"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "Please enter district"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "hi"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "कृपया जिला दर्ज करें"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "bn"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "অনুগ্রহ করে জেলা প্রবেশ করুন"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "mr"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "कृपया जिल्हा प्रविष्ट करा"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "te"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "దయచేసి జిల్లా నమోదు చేయండి"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "ta"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "தயவுசெய்து மாவட்டத்தை உள்ளிடவும்"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "ur"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "براہ کرم ضلع درج کریں"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "as"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "কৃপা কৰি জিলা লিখক।"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "url": "http://hl7.org/fhir/StructureDefinition/validationtext",
+              "valueString": "Please enter a valid district",
+              "_valueString": {
+                "extension": [
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "en"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "Please enter a valid district"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "hi"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "कृपया एक मान्य जिला दर्ज करें"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "bn"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "অনুগ্রহ করে একটি বৈধ জেলা প্রবেশ করুন"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "mr"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "कृपया एक वैध जिल्हा प्रविष्ट करा"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "te"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "దయచేసి సరైన జిల్లా నమోదు చేయండి"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "ta"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "தயவுசெய்து சரியான மாவட்டத்தை உள்ளிடவும்"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "ur"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "براہ کرم ایک درست ضلع درج کریں"
+                      }
+                    ]
+                  },
+                  {
+                    "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                    "extension": [
+                      {
+                        "url": "lang",
+                        "valueCode": "as"
+                      },
+                      {
+                        "url": "content",
+                        "valueString": "কৃপা কৰি এটা বৈধ জিলা লিখক।"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Anantapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chittoor"
+                },
+                {
+                  "url": "option",
+                  "valueString": "East Godavari"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Guntur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Krishna"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kurnool"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nellore"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Prakasam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Srikakulam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Visakhapatnam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Vizianagaram"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Godavari"
+                },
+                {
+                  "url": "option",
+                  "valueString": "YSR Kadapa"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Andhra Pradesh'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Tawang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Kameng"
+                },
+                {
+                  "url": "option",
+                  "valueString": "East Kameng"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Papum Pare"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kurung Kumey"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kra Daadi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lower Subansiri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Upper Subansiri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Siang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "East Siang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Siang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Upper Siang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lower Siang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lower Dibang Valley"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dibang Valley"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Anjaw"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lohit"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Namsai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Changlang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tirap"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Longding"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Arunachal Pradesh'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Baksa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Barpeta"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Biswanath"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bongaigaon"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Cachar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Charaideo"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chirang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Darrang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dhemaji"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dhubri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dibrugarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Goalpara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Golaghat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hailakandi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hojai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jorhat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kamrup Metropolitan"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kamrup"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Karbi Anglong"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Karimganj"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kokrajhar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lakhimpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Majuli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Morigaon"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nagaon"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nalbari"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dima Hasao"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sivasagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sonitpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South Salmara-Mankachar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tinsukia"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Udalguri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Karbi Anglong"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Assam'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Araria"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Arwal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Aurangabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Banka"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Begusarai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhagalpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhojpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Buxar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Darbhanga"
+                },
+                {
+                  "url": "option",
+                  "valueString": "East Champaran (Motihari)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gaya"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gopalganj"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jamui"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jehanabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kaimur (Bhabua)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Katihar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Khagaria"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kishanganj"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lakhisarai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Madhepura"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Madhubani"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Munger (Monghyr)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Muzaffarpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nalanda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nawada"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Patna"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Purnia (Purnea)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rohtas"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Saharsa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Samastipur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Saran"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sheikhpura"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sheohar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sitamarhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Siwan"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Supaul"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Vaishali"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Champaran"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Bihar'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Chandigarh"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Chandigarh (UT)'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Balod"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Baloda Bazar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Balrampur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bastar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bemetara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bijapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bilaspur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dantewada (South Bastar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dhamtari"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Durg"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gariyaband"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Janjgir-Champa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jashpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kabirdham (Kawardha)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kanker (North Bastar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kondagaon"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Korba"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Korea (Koriya)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mahasamund"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mungeli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Narayanpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Raigarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Raipur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rajnandgaon"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sukma"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Surajpur  "
+                },
+                {
+                  "url": "option",
+                  "valueString": "Surguja"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Chhattisgarh'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Dadra & Nagar Haveli"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Dadra and Nagar Haveli (UT)'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Daman"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Diu"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Daman and Diu (UT)'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Central Delhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "East Delhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "New Delhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "North Delhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "North East  Delhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "North West  Delhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shahdara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South Delhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South East Delhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South West  Delhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Delhi"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Delhi (NCT)'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "North Goa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South Goa"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Goa'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Ahmedabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Amreli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Anand"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Aravalli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Banaskantha (Palanpur)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bharuch"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhavnagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Botad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chhota Udepur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dahod"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dangs (Ahwa)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Devbhoomi Dwarka"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gandhinagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gir Somnath"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jamnagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Junagadh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kachchh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kheda (Nadiad)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mahisagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mehsana"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Morbi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Narmada (Rajpipla)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Navsari"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Panchmahal (Godhra)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Patan"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Porbandar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rajkot"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sabarkantha (Himmatnagar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Surat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Surendranagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tapi (Vyara)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Vadodara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Valsad"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Gujarat'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Ambala"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhiwani"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Charkhi Dadri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Faridabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Fatehabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gurgaon"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hisar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jhajjar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jind"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kaithal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Karnal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kurukshetra"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mahendragarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mewat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Palwal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Panchkula"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Panipat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rewari"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rohtak"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sirsa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sonipat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Yamunanagar"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Haryana'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Bilaspur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chamba"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hamirpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kangra"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kinnaur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kullu"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lahaul &amp; Spiti"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mandi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shimla"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sirmaur (Sirmour)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Solan"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Una"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Himachal Pradesh'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Anantnag"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bandipore"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Baramulla"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Budgam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Doda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ganderbal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jammu"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kargil"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kathua"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kishtwar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kulgam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kupwara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Leh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Poonch"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pulwama"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rajouri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ramban"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Reasi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Samba"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shopian"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Srinagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Udhampur"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Jammu and Kashmir'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Bokaro"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chatra"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Deoghar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dhanbad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dumka"
+                },
+                {
+                  "url": "option",
+                  "valueString": "East Singhbhum"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Garhwa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Giridih"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Godda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gumla"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hazaribag"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jamtara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Khunti"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Koderma"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Latehar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lohardaga"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pakur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Palamu"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ramgarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ranchi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sahibganj"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Seraikela-Kharsawan"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Simdega"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Singhbhum"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Jharkhand'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Bagalkot"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ballari (Bellary)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Belagavi (Belgaum)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bengaluru (Bangalore) Rural"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bengaluru (Bangalore) Urban"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bidar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chamarajanagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chikballapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chikkamagaluru (Chikmagalur)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chitradurga"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dakshina Kannada"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Davangere"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dharwad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gadag"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hassan"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Haveri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kalaburagi (Gulbarga)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kodagu"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kolar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Koppal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mandya"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mysuru (Mysore)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Raichur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ramanagara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shivamogga (Shimoga)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tumakuru (Tumkur)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Udupi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Uttara Kannada (Karwar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Vijayapura (Bijapur)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Yadgir"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Karnataka'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Alappuzha"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ernakulam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Idukki"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kannur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kasaragod"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kollam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kottayam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kozhikode"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Malappuram"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Palakkad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pathanamthitta"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Thiruvananthapuram"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Thrissur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Wayanad"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Kerala'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Agatti"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Amini"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Androth"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bithra"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chethlath"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kavaratti"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kadmath"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kalpeni"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kilthan"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Minicoy"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Lakshadweep (UT)'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Agar Malwa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Alirajpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Anuppur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ashoknagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Balaghat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Barwani"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Betul"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhind"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhopal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Burhanpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chhatarpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chhindwara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Damoh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Datia"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dewas"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dhar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dindori"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Guna"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gwalior"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Harda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hoshangabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Indore"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jabalpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jhabua"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Katni"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Khandwa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Khargone"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mandla"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mandsaur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Morena"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Narsinghpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Neemuch"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Panna"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Raisen"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rajgarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ratlam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rewa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Satna"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sehore"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Seoni"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shahdol"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shajapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sheopur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shivpuri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sidhi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Singrauli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tikamgarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ujjain"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Umaria"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Vidisha"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Madhya Pradesh'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Ahmednagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Akola"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Amravati"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Aurangabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Beed"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhandara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Buldhana"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chandrapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dhule"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gadchiroli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gondia"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hingoli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jalgaon"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jalna"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kolhapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Latur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mumbai City"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mumbai Suburban"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nagpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nanded"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nandurbar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nashik"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Osmanabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Palghar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Parbhani"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pune"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Raigad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ratnagiri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sangli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Satara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sindhudurg"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Solapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Thane"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Wardha"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Washim"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Yavatmal"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Maharashtra'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Bishnupur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chandel"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Churachandpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Imphal East"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Imphal West"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jiribam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kakching"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kamjong"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kangpokpi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Noney"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pherzawl"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Senapati"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tamenglong"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tengnoupal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Thoubal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ukhrul"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Manipur'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "East Garo Hills"
+                },
+                {
+                  "url": "option",
+                  "valueString": "East Jaintia Hills"
+                },
+                {
+                  "url": "option",
+                  "valueString": "East Khasi Hills"
+                },
+                {
+                  "url": "option",
+                  "valueString": "North Garo Hills"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ri Bhoi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South Garo Hills"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South West Garo Hills "
+                },
+                {
+                  "url": "option",
+                  "valueString": "South West Khasi Hills"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Garo Hills"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Jaintia Hills"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Khasi Hills"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Meghalaya'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Aizawl"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Champhai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kolasib"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lawngtlai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lunglei"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mamit"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Saiha"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Serchhip"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Mizoram'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Dimapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kiphire"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kohima"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Longleng"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mokokchung"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mon"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Peren"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Phek"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tuensang"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Wokha"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Zunheboto"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Nagaland'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Angul"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Balangir"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Balasore"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bargarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhadrak"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Boudh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Cuttack"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Deogarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dhenkanal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gajapati"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ganjam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jagatsinghapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jajpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jharsuguda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kalahandi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kandhamal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kendrapara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kendujhar (Keonjhar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Khordha"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Koraput"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Malkangiri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mayurbhanj"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nabarangpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nayagarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nuapada"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Puri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rayagada"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sambalpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sonepur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sundargarh"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Odisha'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Karaikal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mahe"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pondicherry"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Yanam"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Puducherry (UT)'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Amritsar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Barnala"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bathinda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Faridkot"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Fatehgarh Sahib"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Fazilka"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ferozepur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gurdaspur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hoshiarpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jalandhar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kapurthala"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ludhiana"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mansa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Moga"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Muktsar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nawanshahr (Shahid Bhagat Singh Nagar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pathankot"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Patiala"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rupnagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sahibzada Ajit Singh Nagar (Mohali)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sangrur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tarn Taran"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Punjab'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Ajmer"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Alwar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Banswara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Baran"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Barmer"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bharatpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhilwara"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bikaner"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bundi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chittorgarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Churu"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dausa"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dholpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dungarpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hanumangarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jaipur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jaisalmer"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jalore"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jhalawar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jhunjhunu"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jodhpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Karauli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kota"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nagaur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pali"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pratapgarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rajsamand"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sawai Madhopur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sikar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sirohi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sri Ganganagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tonk"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Udaipur"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Rajasthan'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "East Sikkim"
+                },
+                {
+                  "url": "option",
+                  "valueString": "North Sikkim"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South Sikkim"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Sikkim"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Sikkim'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Ariyalur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chennai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Coimbatore"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Cuddalore"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dharmapuri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dindigul"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Erode"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kanchipuram"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kanyakumari"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Karur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Krishnagiri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Madurai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nagapattinam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Namakkal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nilgiris"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Perambalur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pudukkottai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ramanathapuram"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Salem"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sivaganga"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Thanjavur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Theni"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Thoothukudi (Tuticorin)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tiruchirappalli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tirunelveli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tiruppur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tiruvallur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tiruvannamalai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tiruvarur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Vellore"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Viluppuram"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Virudhunagar"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Tamil Nadu'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Adilabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhadradri Kothagudem"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hyderabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jagtial"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jangaon"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jayashankar Bhoopalpally"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jogulamba Gadwal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kamareddy"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Karimnagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Khammam"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Komaram Bheem Asifabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mahabubabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mahabubnagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mancherial"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Medak"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Medchal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nagarkurnool"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nalgonda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nirmal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nizamabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Peddapalli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rajanna Sircilla"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rangareddy"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sangareddy"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Siddipet"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Suryapet"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Vikarabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Wanaparthy"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Warangal (Rural)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Warangal (Urban)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Yadadri Bhuvanagiri"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Telangana'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Dhalai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gomati"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Khowai"
+                },
+                {
+                  "url": "option",
+                  "valueString": "North Tripura"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sepahijala"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South Tripura"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Unakoti"
+                },
+                {
+                  "url": "option",
+                  "valueString": "West Tripura"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Tripura'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Almora"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bageshwar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chamoli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Champawat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dehradun"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Haridwar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nainital"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pauri Garhwal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pithoragarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rudraprayag"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Tehri Garhwal"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Udham Singh Nagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Uttarkashi"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Uttarakhand'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Agra"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Aligarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Allahabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ambedkar Nagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Amethi (Chatrapati Sahuji Mahraj Nagar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Amroha (J.P. Nagar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Auraiya"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Azamgarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Baghpat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bahraich"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ballia"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Balrampur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Banda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Barabanki"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bareilly"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Basti"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bhadohi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bijnor"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Budaun"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bulandshahr"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chandauli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Chitrakoot"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Deoria"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Etah"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Etawah"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Faizabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Farrukhabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Fatehpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Firozabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gautam Buddha Nagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ghaziabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Ghazipur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gonda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Gorakhpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hamirpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hapur (Panchsheel Nagar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hardoi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hathras"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jalaun"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jaunpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jhansi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kannauj"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kanpur Dehat"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kanpur Nagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kanshiram Nagar (Kasganj)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kaushambi"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kushinagar (Padrauna)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lakhimpur - Kheri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lalitpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Lucknow"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Maharajganj"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mahoba"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mainpuri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mathura"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mau"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Meerut"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Mirzapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Moradabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Muzaffarnagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pilibhit"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Pratapgarh"
+                },
+                {
+                  "url": "option",
+                  "valueString": "RaeBareli"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Rampur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Saharanpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sambhal (Bhim Nagar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sant Kabir Nagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shahjahanpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shamali (Prabuddh Nagar)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Shravasti"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Siddharth Nagar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sitapur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sonbhadra"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Sultanpur"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Unnao"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Varanasi"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'Uttar Pradesh'"
+                  }
+                }
+              ]
+            },
+            {
+              "url": "http://hl7.org/fhir/uv/sdc/StructureDefinition/sdc-questionnaire-answerOptionsToggleExpression",
+              "extension": [
+                {
+                  "url": "option",
+                  "valueString": "Alipurduar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Bankura"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Birbhum"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Burdwan (Bardhaman)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Cooch Behar"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Dakshin Dinajpur (South Dinajpur)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Darjeeling"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Hooghly"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Howrah"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Jalpaiguri"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kalimpong"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Kolkata"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Malda"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Murshidabad"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Nadia"
+                },
+                {
+                  "url": "option",
+                  "valueString": "North 24 Parganas"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Paschim Medinipur (West Medinipur)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Purba Medinipur (East Medinipur)"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Purulia"
+                },
+                {
+                  "url": "option",
+                  "valueString": "South 24 Parganas"
+                },
+                {
+                  "url": "option",
+                  "valueString": "Uttar Dinajpur (North Dinajpur)"
+                },
+                {
+                  "url": "expression",
+                  "valueExpression": {
+                    "language": "text/fhirpath",
+                    "expression": "%resource.repeat(item).where(linkId='patient-address-state').answer.value = 'West Bengal'"
+                  }
+                }
+              ]
+            }
+          ],
+          "linkId": "patient-address-district",
+          "text": "District",
+          "_text": {
+            "extension": [
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [
+                  {
+                    "url": "lang",
+                    "valueCode": "en"
+                  },
+                  {
+                    "url": "content",
+                    "valueString": "District"
+                  }
+                ]
+              },
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [
+                  {
+                    "url": "lang",
+                    "valueCode": "hi"
+                  },
+                  {
+                    "url": "content",
+                    "valueString": "जिला"
+                  }
+                ]
+              },
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [
+                  {
+                    "url": "lang",
+                    "valueCode": "bn"
+                  },
+                  {
+                    "url": "content",
+                    "valueString": "জেলা"
+                  }
+                ]
+              },
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [
+                  {
+                    "url": "lang",
+                    "valueCode": "mr"
+                  },
+                  {
+                    "url": "content",
+                    "valueString": "जिल्हा"
+                  }
+                ]
+              },
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [
+                  {
+                    "url": "lang",
+                    "valueCode": "te"
+                  },
+                  {
+                    "url": "content",
+                    "valueString": "జిల్లా"
+                  }
+                ]
+              },
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [
+                  {
+                    "url": "lang",
+                    "valueCode": "ta"
+                  },
+                  {
+                    "url": "content",
+                    "valueString": "மாவட்டம்"
+                  }
+                ]
+              },
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [
+                  {
+                    "url": "lang",
+                    "valueCode": "ur"
+                  },
+                  {
+                    "url": "content",
+                    "valueString": "ضلعہ"
+                  }
+                ]
+              },
+              {
+                "url": "http://hl7.org/fhir/StructureDefinition/translation",
+                "extension": [
+                  {
+                    "url": "lang",
+                    "valueCode": "as"
+                  },
+                  {
+                    "url": "content",
+                    "valueString": "জিলা"
+                  }
+                ]
+              }
+            ]
+          },
+          "type": "choice",
+          "required": true,
+          "answerOption": [
+            {
+              "valueString": "Anantapur"
+            },
+            {
+              "valueString": "Chittoor"
+            },
+            {
+              "valueString": "East Godavari"
+            },
+            {
+              "valueString": "Guntur"
+            },
+            {
+              "valueString": "Krishna"
+            },
+            {
+              "valueString": "Kurnool"
+            },
+            {
+              "valueString": "Nellore"
+            },
+            {
+              "valueString": "Prakasam"
+            },
+            {
+              "valueString": "Srikakulam"
+            },
+            {
+              "valueString": "Visakhapatnam"
+            },
+            {
+              "valueString": "Vizianagaram"
+            },
+            {
+              "valueString": "West Godavari"
+            },
+            {
+              "valueString": "YSR Kadapa"
+            },
+            {
+              "valueString": "Tawang"
+            },
+            {
+              "valueString": "West Kameng"
+            },
+            {
+              "valueString": "East Kameng"
+            },
+            {
+              "valueString": "Papum Pare"
+            },
+            {
+              "valueString": "Kurung Kumey"
+            },
+            {
+              "valueString": "Kra Daadi"
+            },
+            {
+              "valueString": "Lower Subansiri"
+            },
+            {
+              "valueString": "Upper Subansiri"
+            },
+            {
+              "valueString": "West Siang"
+            },
+            {
+              "valueString": "East Siang"
+            },
+            {
+              "valueString": "Siang"
+            },
+            {
+              "valueString": "Upper Siang"
+            },
+            {
+              "valueString": "Lower Siang"
+            },
+            {
+              "valueString": "Lower Dibang Valley"
+            },
+            {
+              "valueString": "Dibang Valley"
+            },
+            {
+              "valueString": "Anjaw"
+            },
+            {
+              "valueString": "Lohit"
+            },
+            {
+              "valueString": "Namsai"
+            },
+            {
+              "valueString": "Changlang"
+            },
+            {
+              "valueString": "Tirap"
+            },
+            {
+              "valueString": "Longding"
+            },
+            {
+              "valueString": "Baksa"
+            },
+            {
+              "valueString": "Barpeta"
+            },
+            {
+              "valueString": "Biswanath"
+            },
+            {
+              "valueString": "Bongaigaon"
+            },
+            {
+              "valueString": "Cachar"
+            },
+            {
+              "valueString": "Charaideo"
+            },
+            {
+              "valueString": "Chirang"
+            },
+            {
+              "valueString": "Darrang"
+            },
+            {
+              "valueString": "Dhemaji"
+            },
+            {
+              "valueString": "Dhubri"
+            },
+            {
+              "valueString": "Dibrugarh"
+            },
+            {
+              "valueString": "Goalpara"
+            },
+            {
+              "valueString": "Golaghat"
+            },
+            {
+              "valueString": "Hailakandi"
+            },
+            {
+              "valueString": "Hojai"
+            },
+            {
+              "valueString": "Jorhat"
+            },
+            {
+              "valueString": "Kamrup Metropolitan"
+            },
+            {
+              "valueString": "Kamrup"
+            },
+            {
+              "valueString": "Karbi Anglong"
+            },
+            {
+              "valueString": "Karimganj"
+            },
+            {
+              "valueString": "Kokrajhar"
+            },
+            {
+              "valueString": "Lakhimpur"
+            },
+            {
+              "valueString": "Majuli"
+            },
+            {
+              "valueString": "Morigaon"
+            },
+            {
+              "valueString": "Nagaon"
+            },
+            {
+              "valueString": "Nalbari"
+            },
+            {
+              "valueString": "Dima Hasao"
+            },
+            {
+              "valueString": "Sivasagar"
+            },
+            {
+              "valueString": "Sonitpur"
+            },
+            {
+              "valueString": "South Salmara-Mankachar"
+            },
+            {
+              "valueString": "Tinsukia"
+            },
+            {
+              "valueString": "Udalguri"
+            },
+            {
+              "valueString": "West Karbi Anglong"
+            },
+            {
+              "valueString": "Araria"
+            },
+            {
+              "valueString": "Arwal"
+            },
+            {
+              "valueString": "Aurangabad"
+            },
+            {
+              "valueString": "Banka"
+            },
+            {
+              "valueString": "Begusarai"
+            },
+            {
+              "valueString": "Bhagalpur"
+            },
+            {
+              "valueString": "Bhojpur"
+            },
+            {
+              "valueString": "Buxar"
+            },
+            {
+              "valueString": "Darbhanga"
+            },
+            {
+              "valueString": "East Champaran (Motihari)"
+            },
+            {
+              "valueString": "Gaya"
+            },
+            {
+              "valueString": "Gopalganj"
+            },
+            {
+              "valueString": "Jamui"
+            },
+            {
+              "valueString": "Jehanabad"
+            },
+            {
+              "valueString": "Kaimur (Bhabua)"
+            },
+            {
+              "valueString": "Katihar"
+            },
+            {
+              "valueString": "Khagaria"
+            },
+            {
+              "valueString": "Kishanganj"
+            },
+            {
+              "valueString": "Lakhisarai"
+            },
+            {
+              "valueString": "Madhepura"
+            },
+            {
+              "valueString": "Madhubani"
+            },
+            {
+              "valueString": "Munger (Monghyr)"
+            },
+            {
+              "valueString": "Muzaffarpur"
+            },
+            {
+              "valueString": "Nalanda"
+            },
+            {
+              "valueString": "Nawada"
+            },
+            {
+              "valueString": "Patna"
+            },
+            {
+              "valueString": "Purnia (Purnea)"
+            },
+            {
+              "valueString": "Rohtas"
+            },
+            {
+              "valueString": "Saharsa"
+            },
+            {
+              "valueString": "Samastipur"
+            },
+            {
+              "valueString": "Saran"
+            },
+            {
+              "valueString": "Sheikhpura"
+            },
+            {
+              "valueString": "Sheohar"
+            },
+            {
+              "valueString": "Sitamarhi"
+            },
+            {
+              "valueString": "Siwan"
+            },
+            {
+              "valueString": "Supaul"
+            },
+            {
+              "valueString": "Vaishali"
+            },
+            {
+              "valueString": "West Champaran"
+            },
+            {
+              "valueString": "Chandigarh"
+            },
+            {
+              "valueString": "Balod"
+            },
+            {
+              "valueString": "Baloda Bazar"
+            },
+            {
+              "valueString": "Balrampur"
+            },
+            {
+              "valueString": "Bastar"
+            },
+            {
+              "valueString": "Bemetara"
+            },
+            {
+              "valueString": "Bijapur"
+            },
+            {
+              "valueString": "Bilaspur"
+            },
+            {
+              "valueString": "Dantewada (South Bastar)"
+            },
+            {
+              "valueString": "Dhamtari"
+            },
+            {
+              "valueString": "Durg"
+            },
+            {
+              "valueString": "Gariyaband"
+            },
+            {
+              "valueString": "Janjgir-Champa"
+            },
+            {
+              "valueString": "Jashpur"
+            },
+            {
+              "valueString": "Kabirdham (Kawardha)"
+            },
+            {
+              "valueString": "Kanker (North Bastar)"
+            },
+            {
+              "valueString": "Kondagaon"
+            },
+            {
+              "valueString": "Korba"
+            },
+            {
+              "valueString": "Korea (Koriya)"
+            },
+            {
+              "valueString": "Mahasamund"
+            },
+            {
+              "valueString": "Mungeli"
+            },
+            {
+              "valueString": "Narayanpur"
+            },
+            {
+              "valueString": "Raigarh"
+            },
+            {
+              "valueString": "Raipur"
+            },
+            {
+              "valueString": "Rajnandgaon"
+            },
+            {
+              "valueString": "Sukma"
+            },
+            {
+              "valueString": "Surajpur  "
+            },
+            {
+              "valueString": "Surguja"
+            },
+            {
+              "valueString": "Dadra & Nagar Haveli"
+            },
+            {
+              "valueString": "Daman"
+            },
+            {
+              "valueString": "Diu"
+            },
+            {
+              "valueString": "Central Delhi"
+            },
+            {
+              "valueString": "East Delhi"
+            },
+            {
+              "valueString": "New Delhi"
+            },
+            {
+              "valueString": "North Delhi"
+            },
+            {
+              "valueString": "North East  Delhi"
+            },
+            {
+              "valueString": "North West  Delhi"
+            },
+            {
+              "valueString": "Shahdara"
+            },
+            {
+              "valueString": "South Delhi"
+            },
+            {
+              "valueString": "South East Delhi"
+            },
+            {
+              "valueString": "South West  Delhi"
+            },
+            {
+              "valueString": "West Delhi"
+            },
+            {
+              "valueString": "North Goa"
+            },
+            {
+              "valueString": "South Goa"
+            },
+            {
+              "valueString": "Ahmedabad"
+            },
+            {
+              "valueString": "Amreli"
+            },
+            {
+              "valueString": "Anand"
+            },
+            {
+              "valueString": "Aravalli"
+            },
+            {
+              "valueString": "Banaskantha (Palanpur)"
+            },
+            {
+              "valueString": "Bharuch"
+            },
+            {
+              "valueString": "Bhavnagar"
+            },
+            {
+              "valueString": "Botad"
+            },
+            {
+              "valueString": "Chhota Udepur"
+            },
+            {
+              "valueString": "Dahod"
+            },
+            {
+              "valueString": "Dangs (Ahwa)"
+            },
+            {
+              "valueString": "Devbhoomi Dwarka"
+            },
+            {
+              "valueString": "Gandhinagar"
+            },
+            {
+              "valueString": "Gir Somnath"
+            },
+            {
+              "valueString": "Jamnagar"
+            },
+            {
+              "valueString": "Junagadh"
+            },
+            {
+              "valueString": "Kachchh"
+            },
+            {
+              "valueString": "Kheda (Nadiad)"
+            },
+            {
+              "valueString": "Mahisagar"
+            },
+            {
+              "valueString": "Mehsana"
+            },
+            {
+              "valueString": "Morbi"
+            },
+            {
+              "valueString": "Narmada (Rajpipla)"
+            },
+            {
+              "valueString": "Navsari"
+            },
+            {
+              "valueString": "Panchmahal (Godhra)"
+            },
+            {
+              "valueString": "Patan"
+            },
+            {
+              "valueString": "Porbandar"
+            },
+            {
+              "valueString": "Rajkot"
+            },
+            {
+              "valueString": "Sabarkantha (Himmatnagar)"
+            },
+            {
+              "valueString": "Surat"
+            },
+            {
+              "valueString": "Surendranagar"
+            },
+            {
+              "valueString": "Tapi (Vyara)"
+            },
+            {
+              "valueString": "Vadodara"
+            },
+            {
+              "valueString": "Valsad"
+            },
+            {
+              "valueString": "Ambala"
+            },
+            {
+              "valueString": "Bhiwani"
+            },
+            {
+              "valueString": "Charkhi Dadri"
+            },
+            {
+              "valueString": "Faridabad"
+            },
+            {
+              "valueString": "Fatehabad"
+            },
+            {
+              "valueString": "Gurgaon"
+            },
+            {
+              "valueString": "Hisar"
+            },
+            {
+              "valueString": "Jhajjar"
+            },
+            {
+              "valueString": "Jind"
+            },
+            {
+              "valueString": "Kaithal"
+            },
+            {
+              "valueString": "Karnal"
+            },
+            {
+              "valueString": "Kurukshetra"
+            },
+            {
+              "valueString": "Mahendragarh"
+            },
+            {
+              "valueString": "Mewat"
+            },
+            {
+              "valueString": "Palwal"
+            },
+            {
+              "valueString": "Panchkula"
+            },
+            {
+              "valueString": "Panipat"
+            },
+            {
+              "valueString": "Rewari"
+            },
+            {
+              "valueString": "Rohtak"
+            },
+            {
+              "valueString": "Sirsa"
+            },
+            {
+              "valueString": "Sonipat"
+            },
+            {
+              "valueString": "Yamunanagar"
+            },
+            {
+              "valueString": "Chamba"
+            },
+            {
+              "valueString": "Hamirpur"
+            },
+            {
+              "valueString": "Kangra"
+            },
+            {
+              "valueString": "Kinnaur"
+            },
+            {
+              "valueString": "Kullu"
+            },
+            {
+              "valueString": "Lahaul &amp; Spiti"
+            },
+            {
+              "valueString": "Mandi"
+            },
+            {
+              "valueString": "Shimla"
+            },
+            {
+              "valueString": "Sirmaur (Sirmour)"
+            },
+            {
+              "valueString": "Solan"
+            },
+            {
+              "valueString": "Una"
+            },
+            {
+              "valueString": "Anantnag"
+            },
+            {
+              "valueString": "Bandipore"
+            },
+            {
+              "valueString": "Baramulla"
+            },
+            {
+              "valueString": "Budgam"
+            },
+            {
+              "valueString": "Doda"
+            },
+            {
+              "valueString": "Ganderbal"
+            },
+            {
+              "valueString": "Jammu"
+            },
+            {
+              "valueString": "Kargil"
+            },
+            {
+              "valueString": "Kathua"
+            },
+            {
+              "valueString": "Kishtwar"
+            },
+            {
+              "valueString": "Kulgam"
+            },
+            {
+              "valueString": "Kupwara"
+            },
+            {
+              "valueString": "Leh"
+            },
+            {
+              "valueString": "Poonch"
+            },
+            {
+              "valueString": "Pulwama"
+            },
+            {
+              "valueString": "Rajouri"
+            },
+            {
+              "valueString": "Ramban"
+            },
+            {
+              "valueString": "Reasi"
+            },
+            {
+              "valueString": "Samba"
+            },
+            {
+              "valueString": "Shopian"
+            },
+            {
+              "valueString": "Srinagar"
+            },
+            {
+              "valueString": "Udhampur"
+            },
+            {
+              "valueString": "Bokaro"
+            },
+            {
+              "valueString": "Chatra"
+            },
+            {
+              "valueString": "Deoghar"
+            },
+            {
+              "valueString": "Dhanbad"
+            },
+            {
+              "valueString": "Dumka"
+            },
+            {
+              "valueString": "East Singhbhum"
+            },
+            {
+              "valueString": "Garhwa"
+            },
+            {
+              "valueString": "Giridih"
+            },
+            {
+              "valueString": "Godda"
+            },
+            {
+              "valueString": "Gumla"
+            },
+            {
+              "valueString": "Hazaribag"
+            },
+            {
+              "valueString": "Jamtara"
+            },
+            {
+              "valueString": "Khunti"
+            },
+            {
+              "valueString": "Koderma"
+            },
+            {
+              "valueString": "Latehar"
+            },
+            {
+              "valueString": "Lohardaga"
+            },
+            {
+              "valueString": "Pakur"
+            },
+            {
+              "valueString": "Palamu"
+            },
+            {
+              "valueString": "Ramgarh"
+            },
+            {
+              "valueString": "Ranchi"
+            },
+            {
+              "valueString": "Sahibganj"
+            },
+            {
+              "valueString": "Seraikela-Kharsawan"
+            },
+            {
+              "valueString": "Simdega"
+            },
+            {
+              "valueString": "West Singhbhum"
+            },
+            {
+              "valueString": "Bagalkot"
+            },
+            {
+              "valueString": "Ballari (Bellary)"
+            },
+            {
+              "valueString": "Belagavi (Belgaum)"
+            },
+            {
+              "valueString": "Bengaluru (Bangalore) Rural"
+            },
+            {
+              "valueString": "Bengaluru (Bangalore) Urban"
+            },
+            {
+              "valueString": "Bidar"
+            },
+            {
+              "valueString": "Chamarajanagar"
+            },
+            {
+              "valueString": "Chikballapur"
+            },
+            {
+              "valueString": "Chikkamagaluru (Chikmagalur)"
+            },
+            {
+              "valueString": "Chitradurga"
+            },
+            {
+              "valueString": "Dakshina Kannada"
+            },
+            {
+              "valueString": "Davangere"
+            },
+            {
+              "valueString": "Dharwad"
+            },
+            {
+              "valueString": "Gadag"
+            },
+            {
+              "valueString": "Hassan"
+            },
+            {
+              "valueString": "Haveri"
+            },
+            {
+              "valueString": "Kalaburagi (Gulbarga)"
+            },
+            {
+              "valueString": "Kodagu"
+            },
+            {
+              "valueString": "Kolar"
+            },
+            {
+              "valueString": "Koppal"
+            },
+            {
+              "valueString": "Mandya"
+            },
+            {
+              "valueString": "Mysuru (Mysore)"
+            },
+            {
+              "valueString": "Raichur"
+            },
+            {
+              "valueString": "Ramanagara"
+            },
+            {
+              "valueString": "Shivamogga (Shimoga)"
+            },
+            {
+              "valueString": "Tumakuru (Tumkur)"
+            },
+            {
+              "valueString": "Udupi"
+            },
+            {
+              "valueString": "Uttara Kannada (Karwar)"
+            },
+            {
+              "valueString": "Vijayapura (Bijapur)"
+            },
+            {
+              "valueString": "Yadgir"
+            },
+            {
+              "valueString": "Alappuzha"
+            },
+            {
+              "valueString": "Ernakulam"
+            },
+            {
+              "valueString": "Idukki"
+            },
+            {
+              "valueString": "Kannur"
+            },
+            {
+              "valueString": "Kasaragod"
+            },
+            {
+              "valueString": "Kollam"
+            },
+            {
+              "valueString": "Kottayam"
+            },
+            {
+              "valueString": "Kozhikode"
+            },
+            {
+              "valueString": "Malappuram"
+            },
+            {
+              "valueString": "Palakkad"
+            },
+            {
+              "valueString": "Pathanamthitta"
+            },
+            {
+              "valueString": "Thiruvananthapuram"
+            },
+            {
+              "valueString": "Thrissur"
+            },
+            {
+              "valueString": "Wayanad"
+            },
+            {
+              "valueString": "Agatti"
+            },
+            {
+              "valueString": "Amini"
+            },
+            {
+              "valueString": "Androth"
+            },
+            {
+              "valueString": "Bithra"
+            },
+            {
+              "valueString": "Chethlath"
+            },
+            {
+              "valueString": "Kavaratti"
+            },
+            {
+              "valueString": "Kadmath"
+            },
+            {
+              "valueString": "Kalpeni"
+            },
+            {
+              "valueString": "Kilthan"
+            },
+            {
+              "valueString": "Minicoy"
+            },
+            {
+              "valueString": "Agar Malwa"
+            },
+            {
+              "valueString": "Alirajpur"
+            },
+            {
+              "valueString": "Anuppur"
+            },
+            {
+              "valueString": "Ashoknagar"
+            },
+            {
+              "valueString": "Balaghat"
+            },
+            {
+              "valueString": "Barwani"
+            },
+            {
+              "valueString": "Betul"
+            },
+            {
+              "valueString": "Bhind"
+            },
+            {
+              "valueString": "Bhopal"
+            },
+            {
+              "valueString": "Burhanpur"
+            },
+            {
+              "valueString": "Chhatarpur"
+            },
+            {
+              "valueString": "Chhindwara"
+            },
+            {
+              "valueString": "Damoh"
+            },
+            {
+              "valueString": "Datia"
+            },
+            {
+              "valueString": "Dewas"
+            },
+            {
+              "valueString": "Dhar"
+            },
+            {
+              "valueString": "Dindori"
+            },
+            {
+              "valueString": "Guna"
+            },
+            {
+              "valueString": "Gwalior"
+            },
+            {
+              "valueString": "Harda"
+            },
+            {
+              "valueString": "Hoshangabad"
+            },
+            {
+              "valueString": "Indore"
+            },
+            {
+              "valueString": "Jabalpur"
+            },
+            {
+              "valueString": "Jhabua"
+            },
+            {
+              "valueString": "Katni"
+            },
+            {
+              "valueString": "Khandwa"
+            },
+            {
+              "valueString": "Khargone"
+            },
+            {
+              "valueString": "Mandla"
+            },
+            {
+              "valueString": "Mandsaur"
+            },
+            {
+              "valueString": "Morena"
+            },
+            {
+              "valueString": "Narsinghpur"
+            },
+            {
+              "valueString": "Neemuch"
+            },
+            {
+              "valueString": "Panna"
+            },
+            {
+              "valueString": "Raisen"
+            },
+            {
+              "valueString": "Rajgarh"
+            },
+            {
+              "valueString": "Ratlam"
+            },
+            {
+              "valueString": "Rewa"
+            },
+            {
+              "valueString": "Sagar"
+            },
+            {
+              "valueString": "Satna"
+            },
+            {
+              "valueString": "Sehore"
+            },
+            {
+              "valueString": "Seoni"
+            },
+            {
+              "valueString": "Shahdol"
+            },
+            {
+              "valueString": "Shajapur"
+            },
+            {
+              "valueString": "Sheopur"
+            },
+            {
+              "valueString": "Shivpuri"
+            },
+            {
+              "valueString": "Sidhi"
+            },
+            {
+              "valueString": "Singrauli"
+            },
+            {
+              "valueString": "Tikamgarh"
+            },
+            {
+              "valueString": "Ujjain"
+            },
+            {
+              "valueString": "Umaria"
+            },
+            {
+              "valueString": "Vidisha"
+            },
+            {
+              "valueString": "Ahmednagar"
+            },
+            {
+              "valueString": "Akola"
+            },
+            {
+              "valueString": "Amravati"
+            },
+            {
+              "valueString": "Beed"
+            },
+            {
+              "valueString": "Bhandara"
+            },
+            {
+              "valueString": "Buldhana"
+            },
+            {
+              "valueString": "Chandrapur"
+            },
+            {
+              "valueString": "Dhule"
+            },
+            {
+              "valueString": "Gadchiroli"
+            },
+            {
+              "valueString": "Gondia"
+            },
+            {
+              "valueString": "Hingoli"
+            },
+            {
+              "valueString": "Jalgaon"
+            },
+            {
+              "valueString": "Jalna"
+            },
+            {
+              "valueString": "Kolhapur"
+            },
+            {
+              "valueString": "Latur"
+            },
+            {
+              "valueString": "Mumbai City"
+            },
+            {
+              "valueString": "Mumbai Suburban"
+            },
+            {
+              "valueString": "Nagpur"
+            },
+            {
+              "valueString": "Nanded"
+            },
+            {
+              "valueString": "Nandurbar"
+            },
+            {
+              "valueString": "Nashik"
+            },
+            {
+              "valueString": "Osmanabad"
+            },
+            {
+              "valueString": "Palghar"
+            },
+            {
+              "valueString": "Parbhani"
+            },
+            {
+              "valueString": "Pune"
+            },
+            {
+              "valueString": "Raigad"
+            },
+            {
+              "valueString": "Ratnagiri"
+            },
+            {
+              "valueString": "Sangli"
+            },
+            {
+              "valueString": "Satara"
+            },
+            {
+              "valueString": "Sindhudurg"
+            },
+            {
+              "valueString": "Solapur"
+            },
+            {
+              "valueString": "Thane"
+            },
+            {
+              "valueString": "Wardha"
+            },
+            {
+              "valueString": "Washim"
+            },
+            {
+              "valueString": "Yavatmal"
+            },
+            {
+              "valueString": "Bishnupur"
+            },
+            {
+              "valueString": "Chandel"
+            },
+            {
+              "valueString": "Churachandpur"
+            },
+            {
+              "valueString": "Imphal East"
+            },
+            {
+              "valueString": "Imphal West"
+            },
+            {
+              "valueString": "Jiribam"
+            },
+            {
+              "valueString": "Kakching"
+            },
+            {
+              "valueString": "Kamjong"
+            },
+            {
+              "valueString": "Kangpokpi"
+            },
+            {
+              "valueString": "Noney"
+            },
+            {
+              "valueString": "Pherzawl"
+            },
+            {
+              "valueString": "Senapati"
+            },
+            {
+              "valueString": "Tamenglong"
+            },
+            {
+              "valueString": "Tengnoupal"
+            },
+            {
+              "valueString": "Thoubal"
+            },
+            {
+              "valueString": "Ukhrul"
+            },
+            {
+              "valueString": "East Garo Hills"
+            },
+            {
+              "valueString": "East Jaintia Hills"
+            },
+            {
+              "valueString": "East Khasi Hills"
+            },
+            {
+              "valueString": "North Garo Hills"
+            },
+            {
+              "valueString": "Ri Bhoi"
+            },
+            {
+              "valueString": "South Garo Hills"
+            },
+            {
+              "valueString": "South West Garo Hills "
+            },
+            {
+              "valueString": "South West Khasi Hills"
+            },
+            {
+              "valueString": "West Garo Hills"
+            },
+            {
+              "valueString": "West Jaintia Hills"
+            },
+            {
+              "valueString": "West Khasi Hills"
+            },
+            {
+              "valueString": "Aizawl"
+            },
+            {
+              "valueString": "Champhai"
+            },
+            {
+              "valueString": "Kolasib"
+            },
+            {
+              "valueString": "Lawngtlai"
+            },
+            {
+              "valueString": "Lunglei"
+            },
+            {
+              "valueString": "Mamit"
+            },
+            {
+              "valueString": "Saiha"
+            },
+            {
+              "valueString": "Serchhip"
+            },
+            {
+              "valueString": "Dimapur"
+            },
+            {
+              "valueString": "Kiphire"
+            },
+            {
+              "valueString": "Kohima"
+            },
+            {
+              "valueString": "Longleng"
+            },
+            {
+              "valueString": "Mokokchung"
+            },
+            {
+              "valueString": "Mon"
+            },
+            {
+              "valueString": "Peren"
+            },
+            {
+              "valueString": "Phek"
+            },
+            {
+              "valueString": "Tuensang"
+            },
+            {
+              "valueString": "Wokha"
+            },
+            {
+              "valueString": "Zunheboto"
+            },
+            {
+              "valueString": "Angul"
+            },
+            {
+              "valueString": "Balangir"
+            },
+            {
+              "valueString": "Balasore"
+            },
+            {
+              "valueString": "Bargarh"
+            },
+            {
+              "valueString": "Bhadrak"
+            },
+            {
+              "valueString": "Boudh"
+            },
+            {
+              "valueString": "Cuttack"
+            },
+            {
+              "valueString": "Deogarh"
+            },
+            {
+              "valueString": "Dhenkanal"
+            },
+            {
+              "valueString": "Gajapati"
+            },
+            {
+              "valueString": "Ganjam"
+            },
+            {
+              "valueString": "Jagatsinghapur"
+            },
+            {
+              "valueString": "Jajpur"
+            },
+            {
+              "valueString": "Jharsuguda"
+            },
+            {
+              "valueString": "Kalahandi"
+            },
+            {
+              "valueString": "Kandhamal"
+            },
+            {
+              "valueString": "Kendrapara"
+            },
+            {
+              "valueString": "Kendujhar (Keonjhar)"
+            },
+            {
+              "valueString": "Khordha"
+            },
+            {
+              "valueString": "Koraput"
+            },
+            {
+              "valueString": "Malkangiri"
+            },
+            {
+              "valueString": "Mayurbhanj"
+            },
+            {
+              "valueString": "Nabarangpur"
+            },
+            {
+              "valueString": "Nayagarh"
+            },
+            {
+              "valueString": "Nuapada"
+            },
+            {
+              "valueString": "Puri"
+            },
+            {
+              "valueString": "Rayagada"
+            },
+            {
+              "valueString": "Sambalpur"
+            },
+            {
+              "valueString": "Sonepur"
+            },
+            {
+              "valueString": "Sundargarh"
+            },
+            {
+              "valueString": "Karaikal"
+            },
+            {
+              "valueString": "Mahe"
+            },
+            {
+              "valueString": "Pondicherry"
+            },
+            {
+              "valueString": "Yanam"
+            },
+            {
+              "valueString": "Amritsar"
+            },
+            {
+              "valueString": "Barnala"
+            },
+            {
+              "valueString": "Bathinda"
+            },
+            {
+              "valueString": "Faridkot"
+            },
+            {
+              "valueString": "Fatehgarh Sahib"
+            },
+            {
+              "valueString": "Fazilka"
+            },
+            {
+              "valueString": "Ferozepur"
+            },
+            {
+              "valueString": "Gurdaspur"
+            },
+            {
+              "valueString": "Hoshiarpur"
+            },
+            {
+              "valueString": "Jalandhar"
+            },
+            {
+              "valueString": "Kapurthala"
+            },
+            {
+              "valueString": "Ludhiana"
+            },
+            {
+              "valueString": "Mansa"
+            },
+            {
+              "valueString": "Moga"
+            },
+            {
+              "valueString": "Muktsar"
+            },
+            {
+              "valueString": "Nawanshahr (Shahid Bhagat Singh Nagar)"
+            },
+            {
+              "valueString": "Pathankot"
+            },
+            {
+              "valueString": "Patiala"
+            },
+            {
+              "valueString": "Rupnagar"
+            },
+            {
+              "valueString": "Sahibzada Ajit Singh Nagar (Mohali)"
+            },
+            {
+              "valueString": "Sangrur"
+            },
+            {
+              "valueString": "Tarn Taran"
+            },
+            {
+              "valueString": "Ajmer"
+            },
+            {
+              "valueString": "Alwar"
+            },
+            {
+              "valueString": "Banswara"
+            },
+            {
+              "valueString": "Baran"
+            },
+            {
+              "valueString": "Barmer"
+            },
+            {
+              "valueString": "Bharatpur"
+            },
+            {
+              "valueString": "Bhilwara"
+            },
+            {
+              "valueString": "Bikaner"
+            },
+            {
+              "valueString": "Bundi"
+            },
+            {
+              "valueString": "Chittorgarh"
+            },
+            {
+              "valueString": "Churu"
+            },
+            {
+              "valueString": "Dausa"
+            },
+            {
+              "valueString": "Dholpur"
+            },
+            {
+              "valueString": "Dungarpur"
+            },
+            {
+              "valueString": "Hanumangarh"
+            },
+            {
+              "valueString": "Jaipur"
+            },
+            {
+              "valueString": "Jaisalmer"
+            },
+            {
+              "valueString": "Jalore"
+            },
+            {
+              "valueString": "Jhalawar"
+            },
+            {
+              "valueString": "Jhunjhunu"
+            },
+            {
+              "valueString": "Jodhpur"
+            },
+            {
+              "valueString": "Karauli"
+            },
+            {
+              "valueString": "Kota"
+            },
+            {
+              "valueString": "Nagaur"
+            },
+            {
+              "valueString": "Pali"
+            },
+            {
+              "valueString": "Pratapgarh"
+            },
+            {
+              "valueString": "Rajsamand"
+            },
+            {
+              "valueString": "Sawai Madhopur"
+            },
+            {
+              "valueString": "Sikar"
+            },
+            {
+              "valueString": "Sirohi"
+            },
+            {
+              "valueString": "Sri Ganganagar"
+            },
+            {
+              "valueString": "Tonk"
+            },
+            {
+              "valueString": "Udaipur"
+            },
+            {
+              "valueString": "East Sikkim"
+            },
+            {
+              "valueString": "North Sikkim"
+            },
+            {
+              "valueString": "South Sikkim"
+            },
+            {
+              "valueString": "West Sikkim"
+            },
+            {
+              "valueString": "Ariyalur"
+            },
+            {
+              "valueString": "Chennai"
+            },
+            {
+              "valueString": "Coimbatore"
+            },
+            {
+              "valueString": "Cuddalore"
+            },
+            {
+              "valueString": "Dharmapuri"
+            },
+            {
+              "valueString": "Dindigul"
+            },
+            {
+              "valueString": "Erode"
+            },
+            {
+              "valueString": "Kanchipuram"
+            },
+            {
+              "valueString": "Kanyakumari"
+            },
+            {
+              "valueString": "Karur"
+            },
+            {
+              "valueString": "Krishnagiri"
+            },
+            {
+              "valueString": "Madurai"
+            },
+            {
+              "valueString": "Nagapattinam"
+            },
+            {
+              "valueString": "Namakkal"
+            },
+            {
+              "valueString": "Nilgiris"
+            },
+            {
+              "valueString": "Perambalur"
+            },
+            {
+              "valueString": "Pudukkottai"
+            },
+            {
+              "valueString": "Ramanathapuram"
+            },
+            {
+              "valueString": "Salem"
+            },
+            {
+              "valueString": "Sivaganga"
+            },
+            {
+              "valueString": "Thanjavur"
+            },
+            {
+              "valueString": "Theni"
+            },
+            {
+              "valueString": "Thoothukudi (Tuticorin)"
+            },
+            {
+              "valueString": "Tiruchirappalli"
+            },
+            {
+              "valueString": "Tirunelveli"
+            },
+            {
+              "valueString": "Tiruppur"
+            },
+            {
+              "valueString": "Tiruvallur"
+            },
+            {
+              "valueString": "Tiruvannamalai"
+            },
+            {
+              "valueString": "Tiruvarur"
+            },
+            {
+              "valueString": "Vellore"
+            },
+            {
+              "valueString": "Viluppuram"
+            },
+            {
+              "valueString": "Virudhunagar"
+            },
+            {
+              "valueString": "Adilabad"
+            },
+            {
+              "valueString": "Bhadradri Kothagudem"
+            },
+            {
+              "valueString": "Hyderabad"
+            },
+            {
+              "valueString": "Jagtial"
+            },
+            {
+              "valueString": "Jangaon"
+            },
+            {
+              "valueString": "Jayashankar Bhoopalpally"
+            },
+            {
+              "valueString": "Jogulamba Gadwal"
+            },
+            {
+              "valueString": "Kamareddy"
+            },
+            {
+              "valueString": "Karimnagar"
+            },
+            {
+              "valueString": "Khammam"
+            },
+            {
+              "valueString": "Komaram Bheem Asifabad"
+            },
+            {
+              "valueString": "Mahabubabad"
+            },
+            {
+              "valueString": "Mahabubnagar"
+            },
+            {
+              "valueString": "Mancherial"
+            },
+            {
+              "valueString": "Medak"
+            },
+            {
+              "valueString": "Medchal"
+            },
+            {
+              "valueString": "Nagarkurnool"
+            },
+            {
+              "valueString": "Nalgonda"
+            },
+            {
+              "valueString": "Nirmal"
+            },
+            {
+              "valueString": "Nizamabad"
+            },
+            {
+              "valueString": "Peddapalli"
+            },
+            {
+              "valueString": "Rajanna Sircilla"
+            },
+            {
+              "valueString": "Rangareddy"
+            },
+            {
+              "valueString": "Sangareddy"
+            },
+            {
+              "valueString": "Siddipet"
+            },
+            {
+              "valueString": "Suryapet"
+            },
+            {
+              "valueString": "Vikarabad"
+            },
+            {
+              "valueString": "Wanaparthy"
+            },
+            {
+              "valueString": "Warangal (Rural)"
+            },
+            {
+              "valueString": "Warangal (Urban)"
+            },
+            {
+              "valueString": "Yadadri Bhuvanagiri"
+            },
+            {
+              "valueString": "Dhalai"
+            },
+            {
+              "valueString": "Gomati"
+            },
+            {
+              "valueString": "Khowai"
+            },
+            {
+              "valueString": "North Tripura"
+            },
+            {
+              "valueString": "Sepahijala"
+            },
+            {
+              "valueString": "South Tripura"
+            },
+            {
+              "valueString": "Unakoti"
+            },
+            {
+              "valueString": "West Tripura"
+            },
+            {
+              "valueString": "Almora"
+            },
+            {
+              "valueString": "Bageshwar"
+            },
+            {
+              "valueString": "Chamoli"
+            },
+            {
+              "valueString": "Champawat"
+            },
+            {
+              "valueString": "Dehradun"
+            },
+            {
+              "valueString": "Haridwar"
+            },
+            {
+              "valueString": "Nainital"
+            },
+            {
+              "valueString": "Pauri Garhwal"
+            },
+            {
+              "valueString": "Pithoragarh"
+            },
+            {
+              "valueString": "Rudraprayag"
+            },
+            {
+              "valueString": "Tehri Garhwal"
+            },
+            {
+              "valueString": "Udham Singh Nagar"
+            },
+            {
+              "valueString": "Uttarkashi"
+            },
+            {
+              "valueString": "Agra"
+            },
+            {
+              "valueString": "Aligarh"
+            },
+            {
+              "valueString": "Allahabad"
+            },
+            {
+              "valueString": "Ambedkar Nagar"
+            },
+            {
+              "valueString": "Amethi (Chatrapati Sahuji Mahraj Nagar)"
+            },
+            {
+              "valueString": "Amroha (J.P. Nagar)"
+            },
+            {
+              "valueString": "Auraiya"
+            },
+            {
+              "valueString": "Azamgarh"
+            },
+            {
+              "valueString": "Baghpat"
+            },
+            {
+              "valueString": "Bahraich"
+            },
+            {
+              "valueString": "Ballia"
+            },
+            {
+              "valueString": "Banda"
+            },
+            {
+              "valueString": "Barabanki"
+            },
+            {
+              "valueString": "Bareilly"
+            },
+            {
+              "valueString": "Basti"
+            },
+            {
+              "valueString": "Bhadohi"
+            },
+            {
+              "valueString": "Bijnor"
+            },
+            {
+              "valueString": "Budaun"
+            },
+            {
+              "valueString": "Bulandshahr"
+            },
+            {
+              "valueString": "Chandauli"
+            },
+            {
+              "valueString": "Chitrakoot"
+            },
+            {
+              "valueString": "Deoria"
+            },
+            {
+              "valueString": "Etah"
+            },
+            {
+              "valueString": "Etawah"
+            },
+            {
+              "valueString": "Faizabad"
+            },
+            {
+              "valueString": "Farrukhabad"
+            },
+            {
+              "valueString": "Fatehpur"
+            },
+            {
+              "valueString": "Firozabad"
+            },
+            {
+              "valueString": "Gautam Buddha Nagar"
+            },
+            {
+              "valueString": "Ghaziabad"
+            },
+            {
+              "valueString": "Ghazipur"
+            },
+            {
+              "valueString": "Gonda"
+            },
+            {
+              "valueString": "Gorakhpur"
+            },
+            {
+              "valueString": "Hapur (Panchsheel Nagar)"
+            },
+            {
+              "valueString": "Hardoi"
+            },
+            {
+              "valueString": "Hathras"
+            },
+            {
+              "valueString": "Jalaun"
+            },
+            {
+              "valueString": "Jaunpur"
+            },
+            {
+              "valueString": "Jhansi"
+            },
+            {
+              "valueString": "Kannauj"
+            },
+            {
+              "valueString": "Kanpur Dehat"
+            },
+            {
+              "valueString": "Kanpur Nagar"
+            },
+            {
+              "valueString": "Kanshiram Nagar (Kasganj)"
+            },
+            {
+              "valueString": "Kaushambi"
+            },
+            {
+              "valueString": "Kushinagar (Padrauna)"
+            },
+            {
+              "valueString": "Lakhimpur - Kheri"
+            },
+            {
+              "valueString": "Lalitpur"
+            },
+            {
+              "valueString": "Lucknow"
+            },
+            {
+              "valueString": "Maharajganj"
+            },
+            {
+              "valueString": "Mahoba"
+            },
+            {
+              "valueString": "Mainpuri"
+            },
+            {
+              "valueString": "Mathura"
+            },
+            {
+              "valueString": "Mau"
+            },
+            {
+              "valueString": "Meerut"
+            },
+            {
+              "valueString": "Mirzapur"
+            },
+            {
+              "valueString": "Moradabad"
+            },
+            {
+              "valueString": "Muzaffarnagar"
+            },
+            {
+              "valueString": "Pilibhit"
+            },
+            {
+              "valueString": "RaeBareli"
+            },
+            {
+              "valueString": "Rampur"
+            },
+            {
+              "valueString": "Saharanpur"
+            },
+            {
+              "valueString": "Sambhal (Bhim Nagar)"
+            },
+            {
+              "valueString": "Sant Kabir Nagar"
+            },
+            {
+              "valueString": "Shahjahanpur"
+            },
+            {
+              "valueString": "Shamali (Prabuddh Nagar)"
+            },
+            {
+              "valueString": "Shravasti"
+            },
+            {
+              "valueString": "Siddharth Nagar"
+            },
+            {
+              "valueString": "Sitapur"
+            },
+            {
+              "valueString": "Sonbhadra"
+            },
+            {
+              "valueString": "Sultanpur"
+            },
+            {
+              "valueString": "Unnao"
+            },
+            {
+              "valueString": "Varanasi"
+            },
+            {
+              "valueString": "Alipurduar"
+            },
+            {
+              "valueString": "Bankura"
+            },
+            {
+              "valueString": "Birbhum"
+            },
+            {
+              "valueString": "Burdwan (Bardhaman)"
+            },
+            {
+              "valueString": "Cooch Behar"
+            },
+            {
+              "valueString": "Dakshin Dinajpur (South Dinajpur)"
+            },
+            {
+              "valueString": "Darjeeling"
+            },
+            {
+              "valueString": "Hooghly"
+            },
+            {
+              "valueString": "Howrah"
+            },
+            {
+              "valueString": "Jalpaiguri"
+            },
+            {
+              "valueString": "Kalimpong"
+            },
+            {
+              "valueString": "Kolkata"
+            },
+            {
+              "valueString": "Malda"
+            },
+            {
+              "valueString": "Murshidabad"
+            },
+            {
+              "valueString": "Nadia"
+            },
+            {
+              "valueString": "North 24 Parganas"
+            },
+            {
+              "valueString": "Paschim Medinipur (West Medinipur)"
+            },
+            {
+              "valueString": "Purba Medinipur (East Medinipur)"
+            },
+            {
+              "valueString": "Purulia"
+            },
+            {
+              "valueString": "South 24 Parganas"
+            },
+            {
+              "valueString": "Uttar Dinajpur (North Dinajpur)"
             }
           ]
         }
