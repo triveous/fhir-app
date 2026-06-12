@@ -83,12 +83,6 @@ import javax.inject.Inject
 private const val FLW_DISTRICT_LINK_ID = "patient-address-district"
 private const val FLW_STATE_LINK_ID = "patient-address-state"
 
-// TODO: Temporary dummy fallbacks for testing FLW location pre-population end-to-end. Used only when
-// the FLW district/state were not stored at login (e.g. backend not yet sending them). Remove these
-// fallbacks once the API returns real district/state for the logged-in FLW.
-private const val DUMMY_FLW_DISTRICT = "Dummy District"
-private const val DUMMY_FLW_STATE = "Dummy State"
-
 @AndroidEntryPoint
 class QuestionnaireActivity : BaseMultiLanguageActivity() {
 
@@ -456,25 +450,30 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private fun Resource.json(): String = this.encodeResourceToString()
 
   /**
-   * Overwrites the `initial` value of the District/State questionnaire items with the FLW's stored
-   * location (read from shared preferences at login). This makes a fresh form open pre-filled with
-   * the FLW values instead of the hardcoded defaults baked into the questionnaire JSON.
+   * Pre-fills the District/State questionnaire items with the FLW's location stored at login (from
+   * the Practitioner resource address). When no value was stored — e.g. the server sent no
+   * district/state — the items are left untouched so the drop-downs open empty. Any unexpected
+   * failure is logged and swallowed so the questionnaire still renders.
    */
   private fun applyFlwLocationInitialValues(questionnaire: Questionnaire) {
-    val flwDistrict =
-      sharedPreferencesHelper
-        .read(SharedPreferenceKey.FLW_DISTRICT.name, null)
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
-        ?: DUMMY_FLW_DISTRICT
-    val flwState =
-      sharedPreferencesHelper
-        .read(SharedPreferenceKey.FLW_STATE.name, null)
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
-        ?: DUMMY_FLW_STATE
+    try {
+      val flwDistrict =
+        sharedPreferencesHelper
+          .read(SharedPreferenceKey.FLW_DISTRICT.name, null)
+          ?.trim()
+          ?.takeIf { it.isNotEmpty() }
+      val flwState =
+        sharedPreferencesHelper
+          .read(SharedPreferenceKey.FLW_STATE.name, null)
+          ?.trim()
+          ?.takeIf { it.isNotEmpty() }
 
-    questionnaire.item.setFlwLocationInitialValues(district = flwDistrict, state = flwState)
+      if (flwDistrict == null && flwState == null) return
+
+      questionnaire.item.setFlwLocationInitialValues(district = flwDistrict, state = flwState)
+    } catch (e: Exception) {
+      Timber.e(e, "Failed to pre-fill FLW district/state; leaving the fields empty")
+    }
   }
 
   private fun List<Questionnaire.QuestionnaireItemComponent>.setFlwLocationInitialValues(
@@ -483,19 +482,44 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   ) {
     forEach { item ->
       when (item.linkId) {
-        FLW_DISTRICT_LINK_ID -> district?.let { item.setInitialString(it) }
-        FLW_STATE_LINK_ID -> state?.let { item.setInitialString(it) }
+        FLW_DISTRICT_LINK_ID -> district?.let { item.setInitialValue(it) }
+        FLW_STATE_LINK_ID -> state?.let { item.setInitialValue(it) }
       }
       if (item.hasItem()) item.item.setFlwLocationInitialValues(district = district, state = state)
     }
   }
 
-  private fun Questionnaire.QuestionnaireItemComponent.setInitialString(value: String) {
-    initial =
-      listOf(
-        Questionnaire.QuestionnaireItemInitialComponent().setValue(StringType(value)),
-      )
+  /**
+   * Items with answerOption (drop-downs) cannot carry `initial` (FHIR rule que-11), so the option
+   * matching [value] is flagged `initialSelected` instead; when no option matches the item is left
+   * without a default. Items without answerOption keep using `initial`.
+   *
+   * An exact (trimmed, case-insensitive) match is preferred; otherwise parenthetical aliases and
+   * extra whitespace are ignored so that e.g. a Practitioner address of "Delhi" or "Belagavi"
+   * still selects the "Delhi (NCT)" / "Belagavi (Belgaum)" option.
+   */
+  private fun Questionnaire.QuestionnaireItemComponent.setInitialValue(value: String) {
+    if (hasAnswerOption()) {
+      initial = emptyList()
+      val matchedOption =
+        answerOption.firstOrNull { option ->
+          option.value?.primitiveValue()?.trim().equals(value.trim(), ignoreCase = true)
+        }
+          ?: answerOption.firstOrNull { option ->
+            option.value?.primitiveValue()?.normalizedLocation() == value.normalizedLocation()
+          }
+      answerOption.forEach { option -> option.initialSelected = option === matchedOption }
+    } else {
+      initial =
+        listOf(
+          Questionnaire.QuestionnaireItemInitialComponent().setValue(StringType(value)),
+        )
+    }
   }
+
+  /** Lowercases and drops parenthetical aliases and redundant whitespace for option matching. */
+  private fun String.normalizedLocation(): String =
+    replace(Regex("\\(.*?\\)"), " ").replace(Regex("\\s+"), " ").trim().lowercase()
 
   private fun registerFragmentResultListener() {
     supportFragmentManager.setFragmentResultListener(
