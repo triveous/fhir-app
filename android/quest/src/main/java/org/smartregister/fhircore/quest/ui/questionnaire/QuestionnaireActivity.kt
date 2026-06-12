@@ -336,8 +336,20 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
 
         questionnaire = viewModel.retrieveQuestionnaire(questionnaireConfig, actionParameters,sharedPreferencesHelper.getLanguageCode())
 
+        val loadedQuestionnaire = questionnaire
+        if (loadedQuestionnaire == null) {
+          // The questionnaire is not in the local database yet — most commonly because the sync
+          // (especially the first-time sync) has not finished downloading it. Show a friendly,
+          // actionable message instead of a technical error and close the screen.
+          Timber.w("Questionnaire ${questionnaireConfig.id} not available locally yet; sync may still be in progress")
+          showToast(getString(R.string.questionnaire_not_found), Toast.LENGTH_LONG)
+          viewModel.setProgressState(QuestionnaireProgressState.QuestionnaireLaunch(false))
+          finish()
+          return@launch
+        }
+
         try {
-          val questionnaireFragmentBuilder = buildQuestionnaireFragment(questionnaire!!)
+          val questionnaireFragmentBuilder = buildQuestionnaireFragment(loadedQuestionnaire)
           supportFragmentManager.commit {
             setReorderingAllowed(true)
             add(R.id.container, questionnaireFragmentBuilder.build(), QUESTIONNAIRE_FRAGMENT_TAG)
@@ -346,8 +358,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           registerFragmentResultListener()
           ScreeningTimer.markStep(screeningId, "questionnaire_loaded")
         } catch (nullPointerException: NullPointerException) {
-          Timber.e(nullPointerException, "questionnaire_not_found")
-          showToast(getString(R.string.questionnaire_not_found))
+          Timber.e(nullPointerException, "Failed to render questionnaire ${questionnaireConfig.id}")
+          showToast(getString(R.string.questionnaire_not_found), Toast.LENGTH_LONG)
           finish()
         } finally {
           viewModel.setProgressState(QuestionnaireProgressState.QuestionnaireLaunch(false))
