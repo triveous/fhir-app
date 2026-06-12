@@ -125,7 +125,7 @@
     <string name="structure_success">%1$s కోసం వనరులను విజయవంతంగా తీసుకోబడింది</string>
     <string name="reassigned_managing_entity">వ్యవహార వర్గాన్ని విజయవంతంగా పునర్విభజించబడింది</string>
     <string name="error_fetching_user_details">వాడుకరి వివరాలను తెచ్చుకోవడంలో విఫలమైంది</string>
-    <string name="questionnaire_not_found">Questionnaire కనుగొనబడలేదు. పరిష్కరించడానికి అన్ని questionnaires ని సింక్ చేయండి</string>
+    <string name="questionnaire_not_found">ఈ ఫారం ఇంకా డౌన్‌లోడ్ అవుతోంది. దయచేసి సింక్ పూర్తయ్యే వరకు వేచి ఉండి, మళ్లీ ప్రయత్నించండి.</string>
     <string name="no_visits">పర్యటనలు లేవు</string>
     <string name="questionnaire_response_invalid">Questionnaire response సరైనది కాదు</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>

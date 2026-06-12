@@ -122,7 +122,7 @@
     <string name="structure_success">%1$s साठी संसाधने यशस्वीपणे काढली</string>
     <string name="reassigned_managing_entity">व्यवस्थापकीय संस्था यशस्वीपणे पुनःनियुक्त</string>
     <string name="error_fetching_user_details">वापरकर्ता तपशील मिळवण्यात अयशस्वी</string>
-    <string name="questionnaire_not_found">प्रश्नावली सापडली नाही. दुरुस्तीसाठी सर्व प्रश्नावल्या समन्वयित करा</string>
+    <string name="questionnaire_not_found">हा फॉर्म अद्याप डाउनलोड होत आहे. कृपया सिंक पूर्ण होईपर्यंत प्रतीक्षा करा आणि पुन्हा प्रयत्न करा.</string>
     <string name="no_visits">कोणतीही भेटी नाहीत</string>
     <string name="questionnaire_response_invalid">प्रश्नावली प्रतिक्रिया अमान्य</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>

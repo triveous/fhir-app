@@ -178,6 +178,20 @@ constructor(
             }
           }
       }
-    return mapOf(*pairs.toTypedArray())
+
+    // Download the resources required to open and extract a registration form first, so that —
+    // especially during the first-time sync — users can start registering cases as soon as the
+    // form is available instead of waiting for the entire (potentially large) data set to download.
+    // The FHIR SDK downloads resources in the iteration order of this map (see
+    // ResourceParamsBasedDownloadWorkManager), so ordering these types first is enough.
+    // sortedBy is stable, so the relative order of all other resource types is preserved.
+    val priorityResourceTypes = listOf(ResourceType.Questionnaire, ResourceType.StructureMap)
+    val orderedPairs =
+      pairs.sortedBy { (resourceType, _) ->
+        priorityResourceTypes.indexOf(resourceType).let { index ->
+          if (index == -1) priorityResourceTypes.size else index
+        }
+      }
+    return mapOf(*orderedPairs.toTypedArray())
   }
 }
