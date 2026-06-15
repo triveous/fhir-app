@@ -278,6 +278,9 @@ fun <T> SelectionDropdown(
                     value = selectedItem?.let(nameOf) ?: "",
                     onValueChange = {},
                     readOnly = true,
+                    placeholder = {
+                        Text(text = stringResource(id = R.string.select_site_placeholder))
+                    },
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                     },
