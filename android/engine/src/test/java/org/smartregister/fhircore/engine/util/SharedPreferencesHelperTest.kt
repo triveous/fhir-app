@@ -140,4 +140,10 @@ internal class SharedPreferencesHelperTest : RobolectricTest() {
       sharedPreferencesHelper.getSyncMetadataResourceId("abc123"),
     )
   }
+
+  @Test
+  fun testGetFeatureFlagsResourceIdMultiTenantReturnsBareId() {
+    sharedPreferencesHelper.saveTenant("staging-2", multiTenant = true)
+    Assert.assertEquals("feature-flags", sharedPreferencesHelper.getFeatureFlagsResourceId())
+  }
 }

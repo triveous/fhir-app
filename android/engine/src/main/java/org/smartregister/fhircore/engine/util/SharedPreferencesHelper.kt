@@ -127,6 +127,7 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
     companion object {
         const val PREFS_NAME = "params"
         const val PREFS_SYNC_PROGRESS_TOTAL = "sync_progress_total"
+        const val FEATURE_FLAGS_RESOURCE_ID = "feature-flags"
     }
 
     fun saveUrls(fhirBaseUrl: String?, oauthBaseUrl: String?) {
@@ -174,14 +175,10 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
         prefs.getBoolean(SharedPreferenceKey.IS_MULTI_TENANT.name, false)
 
     /**
-     * Multi-tenant deployments share a FHIR server across tenants, so resource ids must be
-     * tenant-prefixed (`<slug>-feature-flags`). Single-tenant deployments keep the bare id.
+     * Feature flags are a shared app configuration resource and keep the bare id even when
+     * user data is partitioned by tenant.
      */
-    fun getFeatureFlagsResourceId(): String {
-        val slug = getTenantCode()
-        return if (isMultiTenant() && !slug.isNullOrEmpty()) "$slug-feature-flags"
-        else "feature-flags"
-    }
+    fun getFeatureFlagsResourceId(): String = FEATURE_FLAGS_RESOURCE_ID
 
     /**
      * Multi-tenant deployments share a FHIR server across tenants. The per-device
