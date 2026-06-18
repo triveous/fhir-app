@@ -32,10 +32,13 @@ import io.mockk.spyk
 import io.mockk.verify
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import okhttp3.internal.http.RealResponseBody
+import org.hl7.fhir.r4.model.Address
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.CareTeam
 import org.hl7.fhir.r4.model.Group
@@ -45,6 +48,7 @@ import org.hl7.fhir.r4.model.Organization
 import org.hl7.fhir.r4.model.OrganizationAffiliation
 import org.hl7.fhir.r4.model.Practitioner
 import org.hl7.fhir.r4.model.PractitionerRole
+import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.junit.After
 import org.junit.Assert
@@ -130,6 +134,8 @@ internal class LoginViewModelTest : RobolectricTest() {
   @After
   override fun tearDown() {
     secureSharedPreference.deleteCredentials()
+    sharedPreferencesHelper.remove(SharedPreferenceKey.FLW_DISTRICT.name)
+    sharedPreferencesHelper.remove(SharedPreferenceKey.FLW_STATE.name)
     super.tearDown()
   }
 
@@ -530,6 +536,187 @@ internal class LoginViewModelTest : RobolectricTest() {
     ) {}
     Assert.assertNotNull(
       sharedPreferencesHelper.read(SharedPreferenceKey.PRACTITIONER_DETAILS.name),
+    )
+  }
+
+  @Test
+  fun testSavePractitionerDetailsShouldSaveFlwDistrictAndStateFromUserInfo() {
+    val postProcessLatch = CountDownLatch(1)
+
+    loginViewModel.savePractitionerDetails(
+      Bundle()
+        .addEntry(
+          Bundle.BundleEntryComponent().apply {
+            resource =
+              practitionerDetails().apply {
+                fhirPractitionerDetails =
+                  FhirPractitionerDetails().apply {
+                    practitioners =
+                      listOf(
+                        Practitioner().apply {
+                          id = "my-test-practitioner-id"
+                        },
+                      )
+                  }
+              }
+          },
+        ),
+      UserInfo(
+        district = "Tumakuru",
+        state = "Karnataka",
+      ),
+    ) {
+      postProcessLatch.countDown()
+    }
+
+    Assert.assertTrue(postProcessLatch.await(3, TimeUnit.SECONDS))
+    Assert.assertEquals(
+      "Tumakuru",
+      sharedPreferencesHelper.read(SharedPreferenceKey.FLW_DISTRICT.name, null),
+    )
+    Assert.assertEquals(
+      "Karnataka",
+      sharedPreferencesHelper.read(SharedPreferenceKey.FLW_STATE.name, null),
+    )
+  }
+
+  @Test
+  fun testSavePractitionerDetailsShouldSaveFlwDistrictAndStateFromFetchedPractitionerAddress() {
+    val postProcessLatch = CountDownLatch(1)
+    // The PractitionerDetail response does not carry the address; the Practitioner resource
+    // fetched from the FHIR server does
+    coEvery {
+      fhirResourceService.searchResource(ResourceType.Practitioner.name, any())
+    } returns
+      Bundle()
+        .addEntry(
+          Bundle.BundleEntryComponent().apply {
+            resource =
+              Practitioner().apply {
+                id = "my-test-practitioner-id"
+                address =
+                  listOf(
+                    Address().apply {
+                      district = "North Goa"
+                      state = "Goa"
+                    },
+                  )
+              }
+          },
+        )
+
+    loginViewModel.savePractitionerDetails(
+      Bundle()
+        .addEntry(
+          Bundle.BundleEntryComponent().apply {
+            resource =
+              practitionerDetails().apply {
+                fhirPractitionerDetails =
+                  FhirPractitionerDetails().apply {
+                    practitioners =
+                      listOf(
+                        Practitioner().apply { id = "my-test-practitioner-id" },
+                      )
+                  }
+              }
+          },
+        ),
+      UserInfo(
+        district = "Tumakuru",
+        state = "Karnataka",
+      ),
+    ) {
+      postProcessLatch.countDown()
+    }
+
+    Assert.assertTrue(postProcessLatch.await(3, TimeUnit.SECONDS))
+    // The fetched Practitioner resource address takes precedence over the userInfo values
+    Assert.assertEquals(
+      "North Goa",
+      sharedPreferencesHelper.read(SharedPreferenceKey.FLW_DISTRICT.name, null),
+    )
+    Assert.assertEquals(
+      "Goa",
+      sharedPreferencesHelper.read(SharedPreferenceKey.FLW_STATE.name, null),
+    )
+  }
+
+  @Test
+  fun testSavePractitionerDetailsShouldStoreNoFlwDistrictAndStateWhenServerSendsNone() {
+    val postProcessLatch = CountDownLatch(1)
+    sharedPreferencesHelper.write(SharedPreferenceKey.FLW_DISTRICT.name, "Stale District")
+    sharedPreferencesHelper.write(SharedPreferenceKey.FLW_STATE.name, "Stale State")
+    coEvery {
+      fhirResourceService.searchResource(ResourceType.Practitioner.name, any())
+    } returns Bundle()
+
+    loginViewModel.savePractitionerDetails(
+      Bundle()
+        .addEntry(
+          Bundle.BundleEntryComponent().apply {
+            resource =
+              practitionerDetails().apply {
+                fhirPractitionerDetails =
+                  FhirPractitionerDetails().apply {
+                    practitioners =
+                      listOf(
+                        Practitioner().apply { id = "my-test-practitioner-id" },
+                      )
+                  }
+              }
+          },
+        ),
+      UserInfo(),
+    ) {
+      postProcessLatch.countDown()
+    }
+
+    Assert.assertTrue(postProcessLatch.await(3, TimeUnit.SECONDS))
+    // No district/state anywhere in the response: stale values are cleared, nothing is stored
+    Assert.assertNull(sharedPreferencesHelper.read(SharedPreferenceKey.FLW_DISTRICT.name, null))
+    Assert.assertNull(sharedPreferencesHelper.read(SharedPreferenceKey.FLW_STATE.name, null))
+  }
+
+  @Test
+  fun testSavePractitionerDetailsShouldNotCrashWhenPractitionerFetchFails() {
+    val postProcessLatch = CountDownLatch(1)
+    coEvery {
+      fhirResourceService.searchResource(ResourceType.Practitioner.name, any())
+    } throws SocketTimeoutException()
+
+    loginViewModel.savePractitionerDetails(
+      Bundle()
+        .addEntry(
+          Bundle.BundleEntryComponent().apply {
+            resource =
+              practitionerDetails().apply {
+                fhirPractitionerDetails =
+                  FhirPractitionerDetails().apply {
+                    practitioners =
+                      listOf(
+                        Practitioner().apply { id = "my-test-practitioner-id" },
+                      )
+                  }
+              }
+          },
+        ),
+      UserInfo(
+        district = "Tumakuru",
+        state = "Karnataka",
+      ),
+    ) {
+      postProcessLatch.countDown()
+    }
+
+    // Login completes and falls back to the userInfo values
+    Assert.assertTrue(postProcessLatch.await(3, TimeUnit.SECONDS))
+    Assert.assertEquals(
+      "Tumakuru",
+      sharedPreferencesHelper.read(SharedPreferenceKey.FLW_DISTRICT.name, null),
+    )
+    Assert.assertEquals(
+      "Karnataka",
+      sharedPreferencesHelper.read(SharedPreferenceKey.FLW_STATE.name, null),
     )
   }
 

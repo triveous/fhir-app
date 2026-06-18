@@ -20,6 +20,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.location.LocationManager
+import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.test.core.app.ApplicationProvider
@@ -48,9 +49,12 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.hl7.fhir.r4.model.CodeType
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.Questionnaire
+import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.ResourceType
+import org.hl7.fhir.r4.model.StringType
 import org.junit.After
 import org.junit.Assert
 import org.junit.Before
@@ -69,7 +73,10 @@ import org.smartregister.fhircore.engine.domain.model.ActionParameter
 import org.smartregister.fhircore.engine.domain.model.ActionParameterType
 import org.smartregister.fhircore.engine.domain.model.RuleConfig
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.SharedPreferenceKey
+import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.decodeResourceFromString
+import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.app.fakes.Faker
 import org.smartregister.fhircore.quest.robolectric.RobolectricTest
@@ -82,6 +89,7 @@ class QuestionnaireActivityTest : RobolectricTest() {
   @get:Rule(order = 0) var hiltRule = HiltAndroidRule(this)
 
   @Inject lateinit var fhirEngine: FhirEngine
+  @Inject lateinit var sharedPreferencesHelper: SharedPreferencesHelper
   private val context: Application = ApplicationProvider.getApplicationContext()
   private lateinit var questionnaireConfig: QuestionnaireConfig
   private lateinit var questionnaireJson: String
@@ -146,6 +154,8 @@ class QuestionnaireActivityTest : RobolectricTest() {
   @After
   override fun tearDown() {
     super.tearDown()
+    sharedPreferencesHelper.remove(SharedPreferenceKey.FLW_DISTRICT.name)
+    sharedPreferencesHelper.remove(SharedPreferenceKey.FLW_STATE.name)
     if (this::questionnaireActivityController.isInitialized) {
       questionnaireActivityController.destroy()
     }
@@ -204,6 +214,175 @@ class QuestionnaireActivityTest : RobolectricTest() {
         fragmentQuestionnaire?.item?.map { it.linkId }?.sorted()?.joinToString(",")
 
       Assert.assertEquals(sortedQuestionnaireItemLinkIds, sortedFragmentQuestionnaireItemLinkIds)
+    }
+
+  @Test
+  fun `renderQuestionnaire should prepopulate FLW district and state from shared preferences`() =
+    runTest(timeout = 90.seconds) {
+      questionnaireConfig = questionnaireConfig.copy(id = "flw-location-registration")
+      questionnaire = flwLocationQuestionnaire(questionnaireConfig.id)
+      fhirEngine.create(questionnaire)
+      sharedPreferencesHelper.write(SharedPreferenceKey.FLW_DISTRICT.name, "Tumakuru")
+      sharedPreferencesHelper.write(SharedPreferenceKey.FLW_STATE.name, "Karnataka")
+
+      setupActivity()
+
+      val fragmentQuestionnaireResponse = fragmentQuestionnaireResponse()
+
+      Assert.assertEquals(
+        "Tumakuru",
+        fragmentQuestionnaireResponse
+          ?.findResponseItem("patient-address-district")
+          ?.answer
+          ?.singleOrNull()
+          ?.valueStringType
+          ?.value,
+      )
+      Assert.assertEquals(
+        "Karnataka",
+        fragmentQuestionnaireResponse
+          ?.findResponseItem("patient-address-state")
+          ?.answer
+          ?.singleOrNull()
+          ?.valueStringType
+          ?.value,
+      )
+    }
+
+  @Test
+  fun `renderQuestionnaire should flag matching answerOption as initialSelected for FLW location drop-downs`() =
+    runTest(timeout = 90.seconds) {
+      questionnaireConfig = questionnaireConfig.copy(id = "flw-location-dropdown-registration")
+      questionnaire = flwLocationDropDownQuestionnaire(questionnaireConfig.id)
+      fhirEngine.create(questionnaire)
+      sharedPreferencesHelper.write(SharedPreferenceKey.FLW_DISTRICT.name, "Tumakuru (Tumkur)")
+      sharedPreferencesHelper.write(SharedPreferenceKey.FLW_STATE.name, "Karnataka")
+
+      setupActivity()
+
+      val fragmentQuestionnaire =
+        questionnaireActivity.supportFragmentManager.fragments
+          .firstOrNull()
+          ?.arguments
+          ?.getString("questionnaire")
+          ?.decodeResourceFromString<Questionnaire>()
+
+      val districtItem = fragmentQuestionnaire?.findItem("patient-address-district")
+      Assert.assertNotNull(districtItem)
+      // que-11: a drop-down item must not carry `initial` alongside answerOption
+      Assert.assertFalse(districtItem!!.hasInitial())
+      Assert.assertEquals(
+        listOf("Tumakuru (Tumkur)"),
+        districtItem.answerOption.filter { it.initialSelected }.map { it.value.primitiveValue() },
+      )
+
+      val stateItem = fragmentQuestionnaire.findItem("patient-address-state")
+      Assert.assertNotNull(stateItem)
+      Assert.assertFalse(stateItem!!.hasInitial())
+      Assert.assertEquals(
+        listOf("Karnataka"),
+        stateItem.answerOption.filter { it.initialSelected }.map { it.value.primitiveValue() },
+      )
+    }
+
+  @Test
+  fun `renderQuestionnaire should match FLW location drop-down options ignoring parenthetical aliases`() =
+    runTest(timeout = 90.seconds) {
+      questionnaireConfig = questionnaireConfig.copy(id = "flw-location-alias-registration")
+      questionnaire = flwLocationDropDownQuestionnaire(questionnaireConfig.id)
+      fhirEngine.create(questionnaire)
+      // The Practitioner address carries the plain name without the parenthetical alias
+      sharedPreferencesHelper.write(SharedPreferenceKey.FLW_DISTRICT.name, "Belagavi")
+      sharedPreferencesHelper.write(SharedPreferenceKey.FLW_STATE.name, "Karnataka")
+
+      setupActivity()
+
+      val fragmentQuestionnaire =
+        questionnaireActivity.supportFragmentManager.fragments
+          .firstOrNull()
+          ?.arguments
+          ?.getString("questionnaire")
+          ?.decodeResourceFromString<Questionnaire>()
+
+      val districtItem = fragmentQuestionnaire?.findItem("patient-address-district")
+      Assert.assertNotNull(districtItem)
+      Assert.assertEquals(
+        listOf("Belagavi (Belgaum)"),
+        districtItem!!.answerOption.filter { it.initialSelected }.map { it.value.primitiveValue() },
+      )
+    }
+
+  @Test
+  fun `renderQuestionnaire should leave FLW location drop-downs empty when no location stored at login`() =
+    runTest(timeout = 90.seconds) {
+      questionnaireConfig = questionnaireConfig.copy(id = "flw-location-empty-registration")
+      questionnaire = flwLocationDropDownQuestionnaire(questionnaireConfig.id)
+      fhirEngine.create(questionnaire)
+      sharedPreferencesHelper.remove(SharedPreferenceKey.FLW_DISTRICT.name)
+      sharedPreferencesHelper.remove(SharedPreferenceKey.FLW_STATE.name)
+
+      setupActivity()
+
+      val fragmentQuestionnaire =
+        questionnaireActivity.supportFragmentManager.fragments
+          .firstOrNull()
+          ?.arguments
+          ?.getString("questionnaire")
+          ?.decodeResourceFromString<Questionnaire>()
+
+      val districtItem = fragmentQuestionnaire?.findItem("patient-address-district")
+      Assert.assertNotNull(districtItem)
+      Assert.assertFalse(districtItem!!.hasInitial())
+      Assert.assertTrue(districtItem.answerOption.none { it.initialSelected })
+
+      val stateItem = fragmentQuestionnaire.findItem("patient-address-state")
+      Assert.assertNotNull(stateItem)
+      Assert.assertFalse(stateItem!!.hasInitial())
+      Assert.assertTrue(stateItem.answerOption.none { it.initialSelected })
+    }
+
+  @Test
+  fun `renderQuestionnaire should not override explicit questionnaire response prefill with FLW location`() =
+    runTest(timeout = 90.seconds) {
+      questionnaireConfig = questionnaireConfig.copy(id = "explicit-prefill-registration")
+      questionnaire = flwLocationQuestionnaire(questionnaireConfig.id)
+      fhirEngine.create(questionnaire)
+      sharedPreferencesHelper.write(SharedPreferenceKey.FLW_DISTRICT.name, "Prefs District")
+      sharedPreferencesHelper.write(SharedPreferenceKey.FLW_STATE.name, "Prefs State")
+
+      setupActivity(
+        Bundle().apply {
+          putString(
+            QuestionnaireActivity.QUESTIONNAIRE_RESPONSE_PREFILL,
+            flwLocationQuestionnaireResponse(
+                district = "Intent District",
+                state = "Intent State",
+              )
+              .encodeResourceToString(),
+          )
+        },
+      )
+
+      val fragmentQuestionnaireResponse = fragmentQuestionnaireResponse()
+
+      Assert.assertEquals(
+        "Intent District",
+        fragmentQuestionnaireResponse
+          ?.findResponseItem("patient-address-district")
+          ?.answer
+          ?.singleOrNull()
+          ?.valueStringType
+          ?.value,
+      )
+      Assert.assertEquals(
+        "Intent State",
+        fragmentQuestionnaireResponse
+          ?.findResponseItem("patient-address-state")
+          ?.answer
+          ?.singleOrNull()
+          ?.valueStringType
+          ?.value,
+      )
     }
 
   @Test
@@ -284,13 +463,160 @@ class QuestionnaireActivityTest : RobolectricTest() {
     assertNotNull(dialog)
   }
 
-  private fun setupActivity() {
+  private fun setupActivity(extraIntentBundle: Bundle = Bundle()) {
     val bundle = QuestionnaireActivity.intentBundle(questionnaireConfig, emptyList())
     questionnaireActivityController =
       Robolectric.buildActivity(
         QuestionnaireActivity::class.java,
-        Intent().apply { putExtras(bundle) },
+        Intent().apply {
+          putExtras(bundle)
+          putExtras(extraIntentBundle)
+        },
       )
     questionnaireActivity = questionnaireActivityController.create().resume().get()
+  }
+
+  private fun flwLocationQuestionnaire(id: String) =
+    Questionnaire().apply {
+      this.id = id
+      status = Enumerations.PublicationStatus.ACTIVE
+      subjectType = mutableListOf(CodeType("Patient"))
+      item =
+        mutableListOf(
+          Questionnaire.QuestionnaireItemComponent().apply {
+            linkId = "basic-info-group"
+            text = "Basic Info"
+            type = Questionnaire.QuestionnaireItemType.GROUP
+            item =
+              mutableListOf(
+                Questionnaire.QuestionnaireItemComponent().apply {
+                  linkId = "patient-address-district"
+                  text = "District"
+                  type = Questionnaire.QuestionnaireItemType.STRING
+                },
+                Questionnaire.QuestionnaireItemComponent().apply {
+                  linkId = "patient-address-state"
+                  text = "State"
+                  type = Questionnaire.QuestionnaireItemType.STRING
+                },
+              )
+          },
+        )
+    }
+
+  private fun flwLocationDropDownQuestionnaire(id: String) =
+    Questionnaire().apply {
+      this.id = id
+      status = Enumerations.PublicationStatus.ACTIVE
+      subjectType = mutableListOf(CodeType("Patient"))
+      item =
+        mutableListOf(
+          Questionnaire.QuestionnaireItemComponent().apply {
+            linkId = "basic-info-group"
+            text = "Basic Info"
+            type = Questionnaire.QuestionnaireItemType.GROUP
+            item =
+              mutableListOf(
+                Questionnaire.QuestionnaireItemComponent().apply {
+                  linkId = "patient-address-district"
+                  text = "District"
+                  type = Questionnaire.QuestionnaireItemType.CHOICE
+                  answerOption =
+                    mutableListOf(
+                      Questionnaire.QuestionnaireItemAnswerOptionComponent(
+                        StringType("Belagavi (Belgaum)"),
+                      ),
+                      Questionnaire.QuestionnaireItemAnswerOptionComponent(
+                        StringType("Tumakuru (Tumkur)"),
+                      ),
+                    )
+                },
+                Questionnaire.QuestionnaireItemComponent().apply {
+                  linkId = "patient-address-state"
+                  text = "State"
+                  type = Questionnaire.QuestionnaireItemType.CHOICE
+                  answerOption =
+                    mutableListOf(
+                      Questionnaire.QuestionnaireItemAnswerOptionComponent(
+                        StringType("Karnataka"),
+                      ),
+                      Questionnaire.QuestionnaireItemAnswerOptionComponent(
+                        StringType("Kerala"),
+                      ),
+                    )
+                },
+              )
+          },
+        )
+    }
+
+  private fun Questionnaire.findItem(
+    linkId: String,
+  ): Questionnaire.QuestionnaireItemComponent? {
+    fun findInItems(
+      items: List<Questionnaire.QuestionnaireItemComponent>,
+    ): Questionnaire.QuestionnaireItemComponent? {
+      items.forEach { item ->
+        if (item.linkId == linkId) return item
+        findInItems(item.item)?.let { return it }
+      }
+      return null
+    }
+    return findInItems(item)
+  }
+
+  private fun fragmentQuestionnaireResponse(): QuestionnaireResponse? =
+    questionnaireActivity.supportFragmentManager.fragments
+      .firstOrNull()
+      ?.arguments
+      ?.getString("questionnaire-response")
+      ?.decodeResourceFromString()
+
+  private fun flwLocationQuestionnaireResponse(
+    district: String,
+    state: String,
+  ) =
+    QuestionnaireResponse().apply {
+      status = QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS
+      item =
+        mutableListOf(
+          QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+            linkId = "basic-info-group"
+            item =
+              mutableListOf(
+                QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+                  linkId = "patient-address-district"
+                  addAnswer(
+                    QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+                      value = StringType(district)
+                    },
+                  )
+                },
+                QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+                  linkId = "patient-address-state"
+                  addAnswer(
+                    QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+                      value = StringType(state)
+                    },
+                  )
+                },
+              )
+          },
+        )
+    }
+
+  private fun QuestionnaireResponse.findResponseItem(
+    linkId: String,
+  ): QuestionnaireResponse.QuestionnaireResponseItemComponent? {
+    fun findInItems(
+      items: List<QuestionnaireResponse.QuestionnaireResponseItemComponent>,
+    ): QuestionnaireResponse.QuestionnaireResponseItemComponent? {
+      items.forEach { item ->
+        if (item.linkId == linkId) return item
+        findInItems(item.item)?.let { return it }
+      }
+      return null
+    }
+    return findInItems(item)
   }
 }

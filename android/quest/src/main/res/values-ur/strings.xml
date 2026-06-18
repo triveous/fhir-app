@@ -124,7 +124,7 @@
     <string name="structure_success">%1$s کے لئے وسائل کامیابی سے نکال لئے گئے</string>
     <string name="reassigned_managing_entity">منظم کرنے والی ادارہ کو کامیابی سے دوبارہ تفویض کر دیا گیا</string>
     <string name="error_fetching_user_details">صارف کی تفصیلات حاصل کرنے میں ناکامی</string>
-    <string name="questionnaire_not_found">سوالنامہ نہیں ملا۔ درست کرنے کے لئے تمام سوالنامے ہم آہنگ کریں</string>
+    <string name="questionnaire_not_found">یہ فارم ابھی ڈاؤن لوڈ ہو رہا ہے۔ براہ کرم سنک مکمل ہونے تک انتظار کریں اور دوبارہ کوشش کریں۔</string>
     <string name="no_visits">کوئی دورے نہیں</string>
     <string name="questionnaire_response_invalid">سوالنامے کا جواب درست نہیں ہے</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>

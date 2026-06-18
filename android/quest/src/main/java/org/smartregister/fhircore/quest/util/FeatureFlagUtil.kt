@@ -16,10 +16,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Holds per-process feature flag state. Read order: local FhirEngine (already synced
- * Basic/<id>) → network fetch → persisted last-known values. Successful reads write
- * through to disk so offline cold starts still see the most recent values. A single-flight
- * mutex guarantees concurrent consumers share one refresh.
+ * Reads feature flag state from local FhirEngine first so values updated by sync are visible
+ * without an app restart. Read order: local FhirEngine (already synced Basic/<id>), network
+ * fetch, then persisted last-known values. Successful reads write through to disk so offline
+ * cold starts still see the most recent values. A single-flight mutex guarantees concurrent
+ * consumers share one refresh.
  */
 @Singleton
 class FeatureFlagUtil @Inject constructor(
@@ -30,23 +31,18 @@ class FeatureFlagUtil @Inject constructor(
 
     private val mutex = Mutex()
     @Volatile private var cachedFlags: Map<String, Boolean> = emptyMap()
-    @Volatile private var cachedForResourceId: String? = null
 
     suspend fun isAiInferenceEnabled(): Boolean =
         readFlag(AI_INFERENCE_ENABLED_URL)
 
     private suspend fun readFlag(extensionUrl: String): Boolean {
         val resourceId = sharedPreferencesHelper.getFeatureFlagsResourceId()
-        if (cachedForResourceId != resourceId) {
-            refresh(resourceId)
-        }
+        refresh(resourceId)
         return cachedFlags[extensionUrl] == true
     }
 
     private suspend fun refresh(resourceId: String) {
         mutex.withLock {
-            if (cachedForResourceId == resourceId) return
-
             readFromEngine(resourceId)?.let { flags ->
                 applyAndPersist(resourceId, flags, source = "engine")
                 return
@@ -59,7 +55,6 @@ class FeatureFlagUtil @Inject constructor(
 
             val persisted = sharedPreferencesHelper.getLastKnownFeatureFlags(resourceId)
             cachedFlags = persisted
-            cachedForResourceId = resourceId
             Timber.w("Feature flags unavailable id=%s; using last-known %s", resourceId, persisted)
         }
     }
@@ -78,7 +73,7 @@ class FeatureFlagUtil @Inject constructor(
         try {
             val bundle = fhirResourceDataSource.getResource("Basic?_id=$resourceId&_count=1")
             val basic = bundle.entry.firstOrNull()?.resource as? Basic
-            basic?.toFlagsMap() ?: emptyMap()
+            basic?.toFlagsMap()
         } catch (e: Exception) {
             Timber.w(e, "Network read failed for Basic/%s", resourceId)
             null
@@ -86,7 +81,6 @@ class FeatureFlagUtil @Inject constructor(
 
     private fun applyAndPersist(resourceId: String, flags: Map<String, Boolean>, source: String) {
         cachedFlags = flags
-        cachedForResourceId = resourceId
         sharedPreferencesHelper.saveLastKnownFeatureFlags(resourceId, flags)
         Timber.i("Feature flags from %s id=%s: %s", source, resourceId, flags)
     }

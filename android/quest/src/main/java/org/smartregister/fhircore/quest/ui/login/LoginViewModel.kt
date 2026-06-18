@@ -32,6 +32,8 @@ import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.hl7.fhir.r4.model.Location
+import org.hl7.fhir.r4.model.Practitioner
 import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
@@ -367,6 +369,7 @@ constructor(
             organization = organization,
             location = location,
             fhirPractitionerDetails = practitionerDetails,
+            userInfo = userInfo,
             careTeams = careTeamIds,
             organizations = organizationIds,
             locations = locationIds,
@@ -387,6 +390,7 @@ constructor(
                 organization = organization,
                 location = location,
                 fhirPractitionerDetails = practitionerDetails,
+                userInfo = userInfo,
                 careTeams = careTeamIds,
                 organizations = organizationIds,
                 locations = locationIds,
@@ -409,11 +413,12 @@ constructor(
     )
   }
 
-  private fun writePractitionerDetailsToShredPref(
+  private suspend fun writePractitionerDetailsToShredPref(
     careTeam: List<String>,
     organization: List<String>,
     location: List<String>,
     fhirPractitionerDetails: PractitionerDetails,
+    userInfo: UserInfo?,
     careTeams: List<String>,
     organizations: List<String>,
     locations: List<String>,
@@ -446,7 +451,89 @@ constructor(
       key = SharedPreferenceKey.ORGANIZATION.name,
       value = organization.joinToString(separator = ""),
     )
+    // The FLW's state/district live on the Practitioner resource address, which the
+    // PractitionerDetail search response does not include, so the Practitioner is fetched from the
+    // FHIR server. The embedded practitioners, userInfo and assigned Locations are fallbacks. When
+    // none carry a value, null is stored (the key is removed) so the questionnaire State/District
+    // drop-downs open empty. Extraction is guarded per field so a malformed resource or a failed
+    // fetch never aborts the login flow.
+    val fhirDetails = fhirPractitionerDetails.fhirPractitionerDetails
+    val remotePractitioner =
+      fhirDetails?.practitioners?.firstOrNull()?.logicalId?.takeIf { it.isNotBlank() }?.let {
+        fetchRemotePractitioner(it)
+      }
+    val district =
+      runCatching {
+          remotePractitioner?.firstNonBlankDistrict()
+            ?: fhirDetails?.practitioners?.firstNonBlankDistrict()
+            ?: userInfo?.district
+            ?: userInfo?.dictrict
+            ?: fhirDetails?.locations?.firstNonBlankDistrict()
+        }
+        .onFailure { Timber.e(it, "Failed to extract FLW district from practitioner details") }
+        .getOrNull()
+    val state =
+      runCatching {
+          remotePractitioner?.firstNonBlankState()
+            ?: fhirDetails?.practitioners?.firstNonBlankState()
+            ?: userInfo?.state
+            ?: fhirDetails?.locations?.firstNonBlankState()
+        }
+        .onFailure { Timber.e(it, "Failed to extract FLW state from practitioner details") }
+        .getOrNull()
+    writeFlwLocationToSharedPref(district = district, state = state)
   }
+
+  /**
+   * Fetches the FLW's Practitioner resource from the FHIR server to read its address (the
+   * district/state are not part of the PractitionerDetail search response). Returns null on any
+   * failure (offline, timeout, server error, malformed payload) so login always proceeds.
+   */
+  private suspend fun fetchRemotePractitioner(practitionerId: String): Practitioner? =
+    try {
+      fhirResourceService
+        .searchResource(ResourceType.Practitioner.name, mapOf("_id" to practitionerId))
+        .entry
+        ?.firstNotNullOfOrNull { it.resource as? Practitioner }
+    } catch (exception: Exception) {
+      Timber.e(exception, "Failed to fetch Practitioner/$practitionerId for FLW state/district")
+      null
+    }
+
+  private fun writeFlwLocationToSharedPref(district: String?, state: String?) {
+    sharedPreferences.write(
+      key = SharedPreferenceKey.FLW_DISTRICT.name,
+      value = district?.trim()?.takeIf { it.isNotEmpty() },
+    )
+    sharedPreferences.write(
+      key = SharedPreferenceKey.FLW_STATE.name,
+      value = state?.trim()?.takeIf { it.isNotEmpty() },
+    )
+  }
+
+  private fun List<Location>.firstNonBlankDistrict(): String? =
+    firstNotNullOfOrNull {
+      it.address?.district?.trim()?.takeIf { district -> district.isNotEmpty() }
+    }
+
+  private fun List<Location>.firstNonBlankState(): String? =
+    firstNotNullOfOrNull { it.address?.state?.trim()?.takeIf { state -> state.isNotEmpty() } }
+
+  @JvmName("firstNonBlankPractitionerDistrict")
+  private fun List<Practitioner>.firstNonBlankDistrict(): String? =
+    firstNotNullOfOrNull { it.firstNonBlankDistrict() }
+
+  @JvmName("firstNonBlankPractitionerState")
+  private fun List<Practitioner>.firstNonBlankState(): String? =
+    firstNotNullOfOrNull { it.firstNonBlankState() }
+
+  private fun Practitioner.firstNonBlankDistrict(): String? =
+    address?.firstNotNullOfOrNull {
+      it.district?.trim()?.takeIf { district -> district.isNotEmpty() }
+    }
+
+  private fun Practitioner.firstNonBlankState(): String? =
+    address?.firstNotNullOfOrNull { it.state?.trim()?.takeIf { state -> state.isNotEmpty() } }
 
   fun downloadNowWorkflowConfigs(isInitialLogin: Boolean = true) {
     val data = workDataOf(ConfigDownloadWorker.IS_INITIAL_LOGIN to isInitialLogin)
