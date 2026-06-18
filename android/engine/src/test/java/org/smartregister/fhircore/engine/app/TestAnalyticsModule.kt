@@ -14,35 +14,22 @@
  * limitations under the License.
  */
 
-package org.smartregister.fhircore.engine.util
+package org.smartregister.fhircore.engine.app
 
-enum class SharedPreferenceKey {
-  APP_ID,
-  LAST_SYNC_TIMESTAMP,
-  LANG,
-  PRACTITIONER_ID,
-  PRACTITIONER_USER_ID,
-  PRACTITIONER_USER_ID_ISSUE_FIXED,
-  PRACTITIONER_DETAILS,
-  PRACTITIONER_LOCATION_HIERARCHIES,
-  PRACTITIONER_LOCATION,
-  REMOTE_SYNC_RESOURCES,
-  LOGIN_CREDENTIAL_KEY,
-  LOGIN_PIN_KEY,
-  LOGIN_PIN_SALT,
-  LAST_OFFSET,
-  USER_INFO,
-  CARE_TEAM,
-  ORGANIZATION,
-  FHIR_BASE_URL,
-  SITE_NAME,
-  OAUTH_BASE_URL,
-  TENANT_CODE,
-  IS_MULTI_TENANT,
-  FLW_DISTRICT,
-  FLW_STATE,
-  DRAFTS,
-  KEY_LANGUAGE,
-  KEY_LANGUAGE_CODE,
-  LAST_SYNC_DATE_TIME
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
+
+@Module
+@InstallIn(SingletonComponent::class)
+object TestAnalyticsModule {
+  @Provides
+  fun provideAnalyticsLogger(): AnalyticsLogger =
+    object : AnalyticsLogger {
+      override fun capture(event: String, properties: Map<String, Any?>?) {
+        // No-op for engine unit tests.
+      }
+    }
 }

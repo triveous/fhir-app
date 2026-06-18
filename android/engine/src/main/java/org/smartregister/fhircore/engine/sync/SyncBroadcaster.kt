@@ -68,7 +68,7 @@ constructor(
   suspend fun runOneTimeSync() = coroutineScope {
     Timber.i("Running one time sync...")
     if (AppSyncWorker.mutex.isLocked) {
-      Timber.e("mutex is locked")
+      Timber.i("Sync already running; skipping one time sync request")
       return@coroutineScope
     }
     Sync.oneTimeSync<AppSyncWorker>(context).handleOneTimeSyncJobStatus(this)
@@ -81,7 +81,7 @@ constructor(
   suspend fun runOneTimeSync(expedited: OutOfQuotaPolicy? = null) = coroutineScope {
     Timber.i("Running one time sync with expedited...")
     if (AppSyncWorker.mutex.isLocked) {
-      Timber.e("mutex is locked")
+      Timber.i("Sync already running; skipping expedited one time sync request")
       return@coroutineScope
     }
     Sync.oneTimeSync<AppSyncWorker>(context, expedited = expedited).handleOneTimeSyncJobStatus(this)

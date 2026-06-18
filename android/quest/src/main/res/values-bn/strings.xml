@@ -123,7 +123,7 @@
     <string name="structure_success">%1$s এর জন্য রিসোর্স সফলভাবে বের করা হয়েছে</string>
     <string name="reassigned_managing_entity">ম্যানেজিং এন্টিটি সফলভাবে পুনরায় নিয়োগ করা হয়েছে</string>
     <string name="error_fetching_user_details">ব্যবহারকারীর বিবরণ আনতে ব্যর্থ</string>
-    <string name="questionnaire_not_found">Questionnaire পাওয়া যায়নি। ঠিক করার জন্য সমস্ত questionnaires সিঙ্ক করুন</string>
+    <string name="questionnaire_not_found">এই ফর্মটি এখনও ডাউনলোড হচ্ছে। অনুগ্রহ করে সিঙ্ক শেষ হওয়া পর্যন্ত অপেক্ষা করুন এবং আবার চেষ্টা করুন।</string>
     <string name="no_visits">কোনো ভিজিট নেই</string>
     <string name="questionnaire_response_invalid">Questionnaire response অকার্যকর</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>

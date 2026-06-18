@@ -65,8 +65,14 @@ constructor(
    * [Lifecycle.State.DESTROYED]
    */
   fun registerSyncListener(onSyncListener: OnSyncListener, lifecycle: Lifecycle) {
+    _onSyncListeners.removeIf { it.get() == null }
+    if (_onSyncListeners.any { it.get() == onSyncListener }) {
+      Timber.d("${onSyncListener::class.simpleName} is already registered for sync state events")
+      return
+    }
+
     _onSyncListeners.add(WeakReference(onSyncListener))
-    Timber.w("${onSyncListener::class.simpleName} registered to receive sync state events")
+    Timber.d("${onSyncListener::class.simpleName} registered to receive sync state events")
     lifecycle.addObserver(
       object : DefaultLifecycleObserver {
         override fun onStop(owner: LifecycleOwner) {
@@ -84,7 +90,7 @@ constructor(
   fun deregisterSyncListener(onSyncListener: OnSyncListener) {
     val removed = _onSyncListeners.removeIf { it.get() == onSyncListener }
     if (removed) {
-      Timber.w("De-registered ${onSyncListener::class.simpleName} from receiving sync state...")
+      Timber.d("De-registered ${onSyncListener::class.simpleName} from receiving sync state...")
     }
   }
 
@@ -172,6 +178,20 @@ constructor(
             }
           }
       }
-    return mapOf(*pairs.toTypedArray())
+
+    // Download the resources required to open and extract a registration form first, so that —
+    // especially during the first-time sync — users can start registering cases as soon as the
+    // form is available instead of waiting for the entire (potentially large) data set to download.
+    // The FHIR SDK downloads resources in the iteration order of this map (see
+    // ResourceParamsBasedDownloadWorkManager), so ordering these types first is enough.
+    // sortedBy is stable, so the relative order of all other resource types is preserved.
+    val priorityResourceTypes = listOf(ResourceType.Questionnaire, ResourceType.StructureMap)
+    val orderedPairs =
+      pairs.sortedBy { (resourceType, _) ->
+        priorityResourceTypes.indexOf(resourceType).let { index ->
+          if (index == -1) priorityResourceTypes.size else index
+        }
+      }
+    return mapOf(*orderedPairs.toTypedArray())
   }
 }

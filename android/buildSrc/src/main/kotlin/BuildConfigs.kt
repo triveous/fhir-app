@@ -2,8 +2,8 @@ object BuildConfigs {
     const val minSdk = 29
     const val compileSdk = 35
     const val targetSdk = 35
-    const val versionCode = 42
-    const val versionName = "AA_v1.4.4-42"
+    const val versionCode = 46
+    const val versionName = "AA_v1.6.3-46"
     const val applicationId = "in.ac.iisc.arogyam"
     const val jvmToolchain = 17
     const val kotlinCompilerExtensionVersion = "1.5.8"

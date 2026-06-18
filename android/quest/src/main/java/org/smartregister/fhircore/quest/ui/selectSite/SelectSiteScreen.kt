@@ -62,8 +62,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.app.ApplicationConfiguration
-import org.smartregister.fhircore.engine.data.remote.selectSite.SelectSite
-import org.smartregister.fhircore.engine.data.remote.selectSite.ServerConfig
 import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
@@ -94,7 +92,6 @@ fun SelectSiteScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val (versionCode, versionName) = remember { appVersionPair ?: context.appVersion() }
-    var step by remember { mutableStateOf(SelectStep.Server) }
 
     Surface(
         modifier =
@@ -145,16 +142,10 @@ fun SelectSiteScreen(
                     Spacer(modifier = modifier.height(32.dp))
 
                     val vm = siteViewModel!!
-                    val serverList by vm.serverList.observeAsState(initial = arrayListOf())
-                    val tenantList by vm.tenantList.observeAsState(initial = arrayListOf())
-
-                    val heading = if (step == SelectStep.Server)
-                        stringResource(R.string.select_your_server)
-                    else
-                        stringResource(R.string.select_your_tenant)
+                    val tenantOptions by vm.tenantOptions.observeAsState(initial = arrayListOf())
 
                     Text(
-                        text = heading,
+                        text = stringResource(R.string.select_your_site),
                         style = bodyMedium(20.sp),
                         modifier = modifier.align(Alignment.CenterHorizontally)
                     )
@@ -162,48 +153,23 @@ fun SelectSiteScreen(
                     Spacer(modifier = modifier.height(24.dp))
 
                     Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxWidth()) {
-                        when (step) {
-                            SelectStep.Server -> SelectionDropdown(
-                                showProgressBar = showProgressBar,
-                                modifier = modifier,
-                                applicationConfiguration = applicationConfiguration,
-                                items = serverList,
-                                selectedItem = vm.selectedServer.value,
-                                nameOf = { it.name ?: "" },
-                                onItemSelected = { vm.selectedServer.value = it },
-                                onContinue = {
-                                    val server = vm.selectedServer.value ?: return@SelectionDropdown
-                                    val singleTenant = vm.selectServer(server)
-                                    if (singleTenant) {
-                                        scope.launch {
-                                            vm.selectedSite.value?.let { vm.setSelectSite(it) }
-                                            delay(300)
-                                            onContinueButtonClicked()
-                                        }
-                                    } else {
-                                        step = SelectStep.Tenant
-                                    }
-                                },
-                                onBack = null,
-                            )
-                            SelectStep.Tenant -> SelectionDropdown(
-                                showProgressBar = showProgressBar,
-                                modifier = modifier,
-                                applicationConfiguration = applicationConfiguration,
-                                items = tenantList,
-                                selectedItem = vm.selectedSite.value,
-                                nameOf = { it.name ?: "" },
-                                onItemSelected = { vm.selectedSite.value = it },
-                                onContinue = {
-                                    scope.launch {
-                                        vm.selectedSite.value?.let { vm.setSelectSite(it) }
-                                        delay(300)
-                                        onContinueButtonClicked()
-                                    }
-                                },
-                                onBack = { step = SelectStep.Server },
-                            )
-                        }
+                        SelectionDropdown(
+                            showProgressBar = showProgressBar,
+                            modifier = modifier,
+                            applicationConfiguration = applicationConfiguration,
+                            items = tenantOptions,
+                            selectedItem = vm.selectedOption.value,
+                            nameOf = { it.site.name ?: "" },
+                            onItemSelected = { vm.selectOption(it) },
+                            onContinue = {
+                                scope.launch {
+                                    vm.selectedSite.value?.let { vm.setSelectSite(it) }
+                                    delay(300)
+                                    onContinueButtonClicked()
+                                }
+                            },
+                            onBack = null,
+                        )
 
                         if (showProgressBar) {
                             CircularProgressIndicator(
@@ -312,6 +278,9 @@ fun <T> SelectionDropdown(
                     value = selectedItem?.let(nameOf) ?: "",
                     onValueChange = {},
                     readOnly = true,
+                    placeholder = {
+                        Text(text = stringResource(id = R.string.select_site_placeholder))
+                    },
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                     },
@@ -386,5 +355,3 @@ fun <T> SelectionDropdown(
         }
     }
 }
-
-private enum class SelectStep { Server, Tenant }

@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.data.remote.selectSite.SelectSite
 import org.smartregister.fhircore.engine.data.remote.selectSite.ServerConfig
+import org.smartregister.fhircore.engine.data.remote.selectSite.TenantOption
 import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.SELECT_YOUR_SITE_URL
 import org.smartregister.fhircore.engine.domain.repository.SelectYourSiteRepository
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
@@ -31,14 +32,11 @@ class SelectSiteViewModel @Inject constructor(
     var mError = mutableLiveData("")
     var isLoading = mutableLiveData(false)
 
-    private val _serverList = mutableLiveData(ArrayList<ServerConfig>())
-    val serverList: LiveData<ArrayList<ServerConfig>>
-        get() = _serverList
+    private val _tenantOptions = mutableLiveData(ArrayList<TenantOption>())
+    val tenantOptions: LiveData<ArrayList<TenantOption>>
+        get() = _tenantOptions
 
-    private val _tenantList = mutableLiveData(ArrayList<SelectSite>())
-    val tenantList: LiveData<ArrayList<SelectSite>>
-        get() = _tenantList
-
+    var selectedOption: MutableState<TenantOption?> = mutableStateOf(null)
     var selectedServer: MutableState<ServerConfig?> = mutableStateOf(null)
     var selectedSite: MutableState<SelectSite?> = mutableStateOf(null)
     var isTest: Boolean = false
@@ -52,12 +50,15 @@ class SelectSiteViewModel @Inject constructor(
             isLoading.postValue(true)
             try {
                 val response = selectYourSiteRepository.getSelectYourSites(SELECT_YOUR_SITE_URL)
-                val servers = ArrayList<ServerConfig>().apply {
+                val options = ArrayList<TenantOption>().apply {
                     response.forEach { (code, config) ->
-                        add(config.apply { this.code = code })
+                        config.code = code
+                        config.tenants.orEmpty().forEach { site ->
+                            add(TenantOption(config, site))
+                        }
                     }
                 }
-                _serverList.postValue(servers)
+                _tenantOptions.postValue(options)
                 isLoading.postValue(false)
             } catch (e: Exception) {
                 isLoading.postValue(false)
@@ -66,16 +67,11 @@ class SelectSiteViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Sets the active server and updates the tenant list. Returns true when the server has exactly
-     * one tenant — caller can use this to auto-advance past the tenant picker.
-     */
-    fun selectServer(server: ServerConfig): Boolean {
-        selectedServer.value = server
-        val tenants = ArrayList(server.tenants.orEmpty())
-        _tenantList.postValue(tenants)
-        selectedSite.value = tenants.firstOrNull()
-        return tenants.size == 1
+    /** Records the tenant the user picked from the flattened dropdown, along with its parent server. */
+    fun selectOption(option: TenantOption) {
+        selectedOption.value = option
+        selectedServer.value = option.server
+        selectedSite.value = option.site
     }
 
     fun setSelectSite(selectSite: SelectSite) {
