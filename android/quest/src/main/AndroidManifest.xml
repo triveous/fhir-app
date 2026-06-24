@@ -23,6 +23,7 @@
         tools:ignore="UnusedAttribute,LockedOrientationActivity"
         tools:replace="android:theme">
         <activity
+            android:screenOrientation="portrait"
             android:name=".ui.questionnaire.AIResultActivity"
             android:exported="false" />
         <activity
@@ -31,6 +32,7 @@
             android:launchMode="singleTop"
             android:screenOrientation="portrait" />
         <activity
+            android:screenOrientation="portrait"
             android:name=".ui.register.tasks.SeeMoreTasksActivity"
             android:exported="false" />
 
