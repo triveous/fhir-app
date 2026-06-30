@@ -17,8 +17,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import android.media.MediaActionSound
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -98,6 +100,8 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var captureButton: AppCompatImageView
+    private lateinit var captureProgress: ProgressBar
+    private lateinit var captureFlashOverlay: View
     private lateinit var zoomIv: AppCompatImageView
     private lateinit var flashButton: AppCompatImageButton
     private lateinit var closeCameraIB: AppCompatImageView
@@ -130,6 +134,9 @@ class CameraxLauncherFragment : DialogFragment() {
     // Retained for the frozen AI pipeline below (ScreeningTimer.markStep + model analytics props).
     // The camera UI state machine keeps its own copy in CameraxLauncherViewModel.
     private var screeningId: String? = null
+
+    // Standard system camera shutter sound, played on capture for audible feedback.
+    private var shutterSound: MediaActionSound? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -184,6 +191,11 @@ class CameraxLauncherFragment : DialogFragment() {
         cameraControlsll = view.findViewById(R.id.cameraControlsll)
         previewImage = view.findViewById(R.id.previewImage)
         zoomSeekBar = view.findViewById(R.id.zoomSeekBar)
+        captureProgress = view.findViewById(R.id.captureProgress)
+        captureFlashOverlay = view.findViewById(R.id.captureFlashOverlay)
+
+        // Pre-load the system shutter sound so it plays without latency on the first capture.
+        shutterSound = MediaActionSound().apply { load(MediaActionSound.SHUTTER_CLICK) }
 
         selectButton.setSafeOnClickListener(interval = 6000) {
             val path = cameraxViewModel.uiState.value.capturedFilePath
@@ -258,12 +270,18 @@ class CameraxLauncherFragment : DialogFragment() {
 
     /** Applies the single source-of-truth [CameraUiState] to the views and camera hardware. */
     private fun render(state: CameraUiState) {
+        // Disabling the shutter also swaps it to the dimmed "busy" drawable (state-list selector),
+        // which together with the spinner makes it obvious a capture is already in progress.
         captureButton.isEnabled = state.shutterEnabled
 
         val inCaptureMode = state.mode == CameraMode.CAPTURE
         cameraPreviewViewLay.visibility = if (inCaptureMode) View.VISIBLE else View.GONE
         cameraControlsll.visibility = if (inCaptureMode) View.VISIBLE else View.GONE
         previewViewImageLay.visibility = if (inCaptureMode) View.GONE else View.VISIBLE
+
+        // Spinner over the shutter while the capture is in flight (before the preview appears).
+        captureProgress.visibility =
+            if (state.isCapturing && inCaptureMode) View.VISIBLE else View.GONE
 
         zoomIndicatorll.visibility = if (state.zoomIndicatorVisible) View.VISIBLE else View.GONE
 
@@ -273,6 +291,43 @@ class CameraxLauncherFragment : DialogFragment() {
         if (::cameraControl.isInitialized) {
             cameraControl.enableTorch(state.flashOn)
         }
+    }
+
+    /** Plays the standard-camera capture feedback: shutter sound, button bounce and screen flash. */
+    private fun playCaptureFeedback() {
+        runCatching { shutterSound?.play(MediaActionSound.SHUTTER_CLICK) }
+        animateShutterPress()
+        animateCaptureFlash()
+    }
+
+    /** Quick scale-down/up on the shutter button so the tap feels tactile. */
+    private fun animateShutterPress() {
+        captureButton.animate()
+            .scaleX(0.85f)
+            .scaleY(0.85f)
+            .setDuration(80)
+            .withEndAction {
+                captureButton.animate().scaleX(1f).scaleY(1f).setDuration(80).start()
+            }
+            .start()
+    }
+
+    /** Brief white flash over the whole screen, mimicking a standard camera app's capture cue. */
+    private fun animateCaptureFlash() {
+        captureFlashOverlay.clearAnimation()
+        captureFlashOverlay.alpha = 0f
+        captureFlashOverlay.visibility = View.VISIBLE
+        captureFlashOverlay.animate()
+            .alpha(1f)
+            .setDuration(70)
+            .withEndAction {
+                captureFlashOverlay.animate()
+                    .alpha(0f)
+                    .setDuration(130)
+                    .withEndAction { captureFlashOverlay.visibility = View.GONE }
+                    .start()
+            }
+            .start()
     }
 
     private suspend fun isAiInferenceEnabled(): Boolean =
@@ -404,6 +459,10 @@ class CameraxLauncherFragment : DialogFragment() {
         // beginCapture() applies the re-entrancy guard, disables the shutter (via state), records
         // the start time and marks the screening step. It returns false if a capture is in flight.
         if (!cameraxViewModel.beginCapture()) return
+        // Immediate, standard-camera feedback so the user knows the photo was taken and doesn't
+        // tap again: shutter sound, a button "press" bounce and a quick white screen flash. The
+        // progress spinner over the shutter (driven by render) covers the rest of the capture.
+        playCaptureFeedback()
         try {
             val file = File.createTempFile("IMG_", ".jpeg", requireContext().filesDir)
             val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
@@ -723,6 +782,8 @@ class CameraxLauncherFragment : DialogFragment() {
         if(this::cameraExecutor.isInitialized){
             cameraExecutor.shutdown()
         }
+        shutterSound?.release()
+        shutterSound = null
     }
 
     private data class ImageProcessingResult(
