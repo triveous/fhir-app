@@ -193,7 +193,10 @@ class RegisterFragment : Fragment(), OnSyncListener {
     hasShownSyncing = false
 
     registerViewModel.getAllPatients()
-    registerViewModel.getAllSyncedPatients()
+    // getAllSyncedPatients() is intentionally not called here: the home register does not display
+    // allSyncedPatientsStateFlow (only ViewAllPatientsScreen does, via its own fragment-scoped
+    // ViewModel instance). It is a heavy loader (getUnsyncedLocalChanges() + full patient parse),
+    // so skipping it cuts DB/IO contention and lets getAllPatients() finish sooner.
     registerViewModel.getAllDraftResponses()
     registerViewModel.getAllUnSyncedPatients()
     registerViewModel.getAllUnSyncedPatientsImages()
@@ -261,7 +264,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
             )
             delay(200)
             registerViewModel.getAllPatients()
-            registerViewModel.getAllSyncedPatients()
+            // getAllSyncedPatients() skipped: not displayed on the home register (see onResume).
             registerViewModel.getAllDraftResponses()
             registerViewModel.getAllUnSyncedPatients()
             registerViewModel.getAllUnSyncedPatientsImages()
@@ -280,7 +283,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
             )
             delay(200)
             registerViewModel.getAllPatients()
-            registerViewModel.getAllSyncedPatients()
+            // getAllSyncedPatients() skipped: not displayed on the home register (see onResume).
             registerViewModel.getAllDraftResponses()
             registerViewModel.getAllUnSyncedPatients()
             registerViewModel.getAllUnSyncedPatientsImages()

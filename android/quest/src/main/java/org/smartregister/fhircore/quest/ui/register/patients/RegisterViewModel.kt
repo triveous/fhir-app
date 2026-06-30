@@ -36,9 +36,14 @@ import androidx.paging.cachedIn
 import androidx.paging.filter
 import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.parser.IParser
+import ca.uhn.fhir.rest.gclient.ReferenceClientParam
+import ca.uhn.fhir.rest.gclient.StringClientParam
+import ca.uhn.fhir.rest.gclient.TokenClientParam
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.extensions.asStringValue
+import com.google.android.fhir.search.Order
 import com.google.android.fhir.search.search
+import com.google.android.fhir.sync.SyncDataParams
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -115,6 +120,9 @@ import java.util.Date
 import java.util.UUID
 import javax.inject.Inject
 
+/** Number of patients fetched for the register's quick first-paint preview (matches the home UI). */
+private const val PATIENT_PREVIEW_COUNT = 3
+
 @HiltViewModel
 class RegisterViewModel
 @Inject
@@ -178,6 +186,12 @@ constructor(
 
     private val _isFetching = MutableStateFlow<Boolean>(false)
     val isFetching: StateFlow<Boolean> = _isFetching
+
+    // Loading flag scoped to the register/home patients list only. Unlike [isFetching] (which is
+    // shared by several concurrent loaders), this reflects exactly the data the home screen shows,
+    // so its spinner clears as soon as the cases are ready instead of waiting on unrelated loads.
+    private val _isFetchingPatients = MutableStateFlow<Boolean>(false)
+    val isFetchingPatients: StateFlow<Boolean> = _isFetchingPatients
 
 
     private val _isFetchingTasks = MutableStateFlow<Boolean>(false)
@@ -476,9 +490,14 @@ constructor(
             val practitionerDetails = getPractitionerDetails()
             val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
 
+            val userName = getUserName()
             // Fetch tasks and patients in parallel
             val tasksDeferred = async { fhirEngine.search<Task> { } }
-            val patientsDeferred = async { fhirEngine.search<Patient> { } }
+            val patientsDeferred = async {
+                fhirEngine.search<Patient> {
+                    filter(ReferenceClientParam("general-practitioner"), { value = "Practitioner/$userName" })
+                }
+            }
 
             val allTasks = tasksDeferred.await().fastMap { it.resource }
             val patients = patientsDeferred.await().fastMap { it.resource.toResourceData() }
@@ -561,9 +580,14 @@ constructor(
             val practitionerDetails = getPractitionerDetails()
             val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
 
+            val userName = getUserName()
             // Fetch tasks and patients in parallel
             val tasksDeferred = async { fhirEngine.search<Task> { } }
-            val patientsDeferred = async { fhirEngine.search<Patient> { } }
+            val patientsDeferred = async {
+                fhirEngine.search<Patient> {
+                    filter(ReferenceClientParam("general-practitioner"), { value = "Practitioner/$userName" })
+                }
+            }
 
             val allTasks = tasksDeferred.await().fastMap { it.resource }
             val patients = patientsDeferred.await().fastMap { it.resource.toResourceData() }
@@ -929,13 +953,11 @@ constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             _isFetching.value = true
+            val userName = getUserName()
             val patients = fhirEngine.search<Patient> {
-                // ... your search criteria
+                filter(ReferenceClientParam("general-practitioner"), { value = "Practitioner/$userName" })
             }.fastMap {
                 it.resource
-            }.fastFilter { patient ->
-                (patient?.generalPractitioner?.firstOrNull()?.reference?.toString()
-                    ?.substringAfter("/").orEmpty()).equals(getUserName(), true)
             }
 
             val todayCases = patients.fastFilter {
@@ -992,35 +1014,72 @@ constructor(
 
     fun getAllPatients() {
         _isFetching.value = true
+        _isFetchingPatients.value = true
         viewModelScope.launch(Dispatchers.IO) {
-            val userName = getUserName()
+            try {
+                val userName = getUserName()
 
-            // Fetching patients
-            val patients = fhirEngine.search<Patient> {
-            }.fastMap {
-                it.resource.toResourceData()
-            }
-                .fastFilter {
-                    (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()
-                        ?.substringAfter("/") ?: "").equals(userName, true)
-
-                }.sortedByDescending {
-                    val extension = it?.patient?.extension?.find {
-                        it.url?.substringAfterLast("/").equals("patient-registraion-date")
+                // Quick first paint: surface the most-recently-updated patients right away (cheap
+                // DB sort + limit, so we only deserialize a handful) so the user sees cases almost
+                // immediately instead of waiting for the full list to load and sort. Only done on a
+                // cold load (nothing shown yet) to avoid reordering data the user is already viewing.
+                if (_allPatientsStateFlow.value.isEmpty()) {
+                    runCatching {
+                        fhirEngine.search<Patient> {
+                            filter(
+                                ReferenceClientParam("general-practitioner"),
+                                { value = "Practitioner/$userName" },
+                            )
+                            sort(StringClientParam(SyncDataParams.LAST_UPDATED_KEY), Order.DESCENDING)
+                            count = PATIENT_PREVIEW_COUNT
+                        }.fastMap { it.resource.toResourceData() }
                     }
-                    if (extension != null && extension.value?.asStringValue()
-                            ?.isNotEmpty() == true
-                    ) {
-                        val date = convertToDateStringToDate(extension.value?.asStringValue())
-                        date ?: it.meta.lastUpdated
-                    } else {
-                        it.meta.lastUpdated
-                    }
+                        .onSuccess { preview ->
+                            if (preview.isNotEmpty() && _allPatientsStateFlow.value.isEmpty()) {
+                                _allPatientsStateFlow.value = preview
+                                // Cases are on screen now; drop the spinner without waiting for the
+                                // full list. The total count ("See N more") fills in once it lands.
+                                _isFetchingPatients.value = false
+                            }
+                        }
+                        .onFailure { Timber.e(it, "Quick patient preview failed") }
                 }
 
-            // Updating the state flow
-            _allPatientsStateFlow.value = patients
-            _isFetching.value = false
+                // Authoritative load: full list ordered by registration date (desc). The sort key is
+                // precomputed once per patient (decorate-sort-undecorate) so the date string is
+                // parsed O(N) times instead of O(N log N) during comparisons.
+                val patients = fhirEngine.search<Patient> {
+                    filter(ReferenceClientParam("general-practitioner"), { value = "Practitioner/$userName" })
+                }.fastMap {
+                    it.resource.toResourceData()
+                }
+                    .map { it to it.registrationDateSortKey() }
+                    .sortedByDescending { it.second }
+                    .fastMap { it.first }
+
+                // Updating the state flow
+                _allPatientsStateFlow.value = patients
+            } finally {
+                _isFetching.value = false
+                _isFetchingPatients.value = false
+            }
+        }
+    }
+
+    /**
+     * Sort key used to order patients on the register: the "patient-registraion-date" extension when
+     * present, otherwise the resource's last-updated timestamp. Falls back to epoch when neither is
+     * available so the comparison never hits a null (which would crash the sort).
+     */
+    private fun AllPatientsResourceData.registrationDateSortKey(): Date {
+        val extension = patient?.extension?.find {
+            it.url?.substringAfterLast("/").equals("patient-registraion-date")
+        }
+        val extensionValue = extension?.value?.asStringValue()
+        return if (!extensionValue.isNullOrEmpty()) {
+            convertToDateStringToDate(extensionValue) ?: meta.lastUpdated ?: Date(0)
+        } else {
+            meta.lastUpdated ?: Date(0)
         }
     }
 
@@ -1075,11 +1134,9 @@ constructor(
 
 
             val patients = fhirEngine.search<Patient> {
+                filter(ReferenceClientParam("general-practitioner"), { value = "Practitioner/$userName" })
             }.fastMap {
                 it.resource.toResourceData()
-            }.fastFilter {
-                (it.patient?.generalPractitioner?.firstOrNull()?.reference?.toString()
-                    ?.substringAfter("/") ?: "").equals(userName, true)
             }
 
             //Removing the unsynced Patient present in the patientsList
@@ -1125,11 +1182,10 @@ constructor(
 
             val userName = getUserName()
             val responses = fhirEngine.search<QuestionnaireResponse> {
+                filter(TokenClientParam("status"), { value = of(QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS.toCode()) })
+                filter(ReferenceClientParam("author"), { value = "Practitioner/$userName" })
             }.fastMap {
                 it.resource
-            }.fastFilter {
-                (it.status == QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS) &&
-                        (it.author?.reference?.toString() ?: "").contains(userName, true)
             }
                 .sortedByDescending { it.meta.lastUpdated }
 

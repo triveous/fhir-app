@@ -275,7 +275,7 @@ private fun RegisterContent(
 ) {
     val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
     val savedRes by viewModel.allSavedDraftResponse.collectAsState()
-    val isFetching by viewModel.isFetching.collectAsState()
+    val isFetching by viewModel.isFetchingPatients.collectAsState()
     var deleteDraftId by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -585,7 +585,7 @@ private fun ShowAllPatients(
     viewModel: RegisterViewModel,
     allPatientsSize: Int,
 ) {
-    val isFetchingPatients by viewModel.isFetching.collectAsState()
+    val isFetchingPatients by viewModel.isFetchingPatients.collectAsState()
 
     Box(
         modifier = modifier
