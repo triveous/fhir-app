@@ -79,6 +79,7 @@ import java.util.PropertyResourceBundle
 import java.util.ResourceBundle
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.system.exitProcess
 
 @Singleton
 class ConfigurationRegistry
@@ -106,8 +107,20 @@ constructor(
   private val jsonParser = fhirContext.newJsonParser()
 
   init {
+    // Preserve any previously installed handler (e.g. PostHog's crash capture or the platform
+    // default) so uncaught exceptions are reported and flushed instead of being silently
+    // swallowed. Previously this handler called Process.killProcess() directly, which terminated
+    // the app on ANY uncaught exception (for example while "Initializing settings") with no log
+    // or telemetry. Users saw the app close on launch and the crashes never reached PostHog.
+    val previousUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
     Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-      Process.killProcess(Process.myPid())
+      runCatching { Timber.e(throwable, "Uncaught exception on thread %s", thread.name) }
+      if (previousUncaughtExceptionHandler != null) {
+        previousUncaughtExceptionHandler.uncaughtException(thread, throwable)
+      } else {
+        Process.killProcess(Process.myPid())
+        exitProcess(10)
+      }
     }
   }
 
@@ -303,10 +316,37 @@ constructor(
         withContext(dispatcherProvider.main()) { configsLoadedCallback(false) }
       }
     } else {
-      fhirEngine.searchCompositionByIdentifier(parsedAppId)?.run {
-        populateConfigurationsMap(context, this, false, parsedAppId, configsLoadedCallback)
+      val composition = fhirEngine.searchCompositionByIdentifier(parsedAppId)
+      if (composition != null) {
+        populateConfigurationsMap(context, composition, false, parsedAppId, configsLoadedCallback)
+      } else {
+        // No locally-stored composition for this appId (e.g. after switching sites/tenants
+        // before the new tenant's configs have synced). Report failure so the UI leaves the
+        // "Initializing settings" loader instead of hanging on it indefinitely.
+        Timber.e("No composition found locally for appId: $parsedAppId")
+        withContext(dispatcherProvider.main()) { configsLoadedCallback(false) }
       }
     }
+  }
+
+  /**
+   * Ensure the in-memory [configsJsonMap] is populated before configurations are read. After
+   * process death a fresh process — a background worker, or an Activity recreated by the OS — can
+   * read configs without the `AppSettingActivity` bootstrap having run, leaving the map empty and
+   * causing `NoSuchElementException` ("Key application is missing in the map"). This reloads configs
+   * from the local FHIR DB (or assets for a `/debug` appId) using the persisted appId. Returns true
+   * when the application configuration is available afterwards.
+   */
+  suspend fun loadConfigurationsIfNotLoaded(context: Context): Boolean {
+    if (configsJsonMap.containsKey(ConfigType.Application.name)) return true
+    val appId = sharedPreferencesHelper.read(SharedPreferenceKey.APP_ID.name, null)?.trimEnd()
+    if (appId.isNullOrEmpty()) {
+      Timber.w("Cannot reload configurations: no appId persisted")
+      return false
+    }
+    Timber.i("Configurations not in memory (process recreated); reloading for appId $appId")
+    loadConfigurations(appId, context)
+    return configsJsonMap.containsKey(ConfigType.Application.name)
   }
 
   private suspend fun populateConfigurationsMap(

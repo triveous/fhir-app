@@ -24,6 +24,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.net.UnknownHostException
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -181,6 +182,16 @@ constructor(
           _error.postValue(context.getString(R.string.error_loading_config_http_error))
         }
         showProgressBar.postValue(false)
+      } catch (cancellationException: CancellationException) {
+        throw cancellationException
+      } catch (throwable: Throwable) {
+        // Catch-all so an unexpected failure (e.g. malformed config, parsing error, empty base
+        // URL) surfaces a recoverable error instead of escaping the coroutine to the global
+        // uncaught-exception handler and terminating the app on the "Initializing settings"
+        // screen.
+        Timber.e(throwable, "Error fetching configurations for appId $appId")
+        _error.postValue(context.getString(R.string.error_loading_config_general))
+        showProgressBar.postValue(false)
       }
     }
   }
@@ -201,14 +212,25 @@ constructor(
   fun loadConfigurations(context: Context) {
     appId.value?.trim()?.let { thisAppId ->
       viewModelScope.launch(dispatcherProvider.io()) {
-        configurationRegistry.loadConfigurations(thisAppId, context) { loadConfigSuccessful ->
-          showProgressBar.postValue(false)
-          if (loadConfigSuccessful) {
-            sharedPreferencesHelper.write(SharedPreferenceKey.APP_ID.name, thisAppId)
-            context.getActivity()?.launchActivityWithNoBackStackHistory<LoginActivity>()
-          } else {
-            _error.postValue(context.getString(R.string.application_not_supported, thisAppId))
+        try {
+          configurationRegistry.loadConfigurations(thisAppId, context) { loadConfigSuccessful ->
+            showProgressBar.postValue(false)
+            if (loadConfigSuccessful) {
+              sharedPreferencesHelper.write(SharedPreferenceKey.APP_ID.name, thisAppId)
+              context.getActivity()?.launchActivityWithNoBackStackHistory<LoginActivity>()
+            } else {
+              _error.postValue(context.getString(R.string.application_not_supported, thisAppId))
+            }
           }
+        } catch (cancellationException: CancellationException) {
+          throw cancellationException
+        } catch (throwable: Throwable) {
+          // Surface the failure as a recoverable error instead of letting it propagate to the
+          // global uncaught-exception handler, which would terminate the app while the
+          // "Initializing settings" loader is showing.
+          Timber.e(throwable, "Failed to load configurations for appId $thisAppId")
+          showProgressBar.postValue(false)
+          _error.postValue(context.getString(R.string.application_not_supported, thisAppId))
         }
       }
     }
