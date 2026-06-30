@@ -41,7 +41,10 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.bumptech.glide.Glide.with
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.common.util.concurrent.ListenableFuture
@@ -90,6 +93,8 @@ class CameraxLauncherFragment : DialogFragment() {
     @Inject
     lateinit var featureFlagUtil: FeatureFlagUtil
 
+    private val cameraxViewModel: CameraxLauncherViewModel by viewModels()
+
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var captureButton: AppCompatImageView
@@ -116,18 +121,15 @@ class CameraxLauncherFragment : DialogFragment() {
     // takePicture() on an unbound use case (which throws "Not bound to a valid Camera").
     @Volatile private var boundImageCapture: ImageCapture? = null
 
-    private var fileAbsPath: String = ""
-    private var isCapturing = false
     @Volatile var module6 : Module? = null
     @Volatile var module8 : Module? = null
     @Volatile var module82 : Module? = null
     // Init runs concurrently with photo capture; onPhotoSelected awaits this before
     // running inference so the IO-thread forward pass can't race with module load.
     private var initModelJob: Job? = null
+    // Retained for the frozen AI pipeline below (ScreeningTimer.markStep + model analytics props).
+    // The camera UI state machine keeps its own copy in CameraxLauncherViewModel.
     private var screeningId: String? = null
-    private var captureStartedMs: Long? = null
-    private var captureSavedMs: Long? = null
-    private var timeToCaptureMs: Long? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -153,6 +155,7 @@ class CameraxLauncherFragment : DialogFragment() {
         //setStyle(STYLE_NO_FRAME, android.R.style.Theme_Holo_Light)
         setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         screeningId = arguments?.getString(ARG_SCREENING_ID)
+        cameraxViewModel.setScreeningId(screeningId)
     }
 
     override fun onCreateView(
@@ -183,12 +186,10 @@ class CameraxLauncherFragment : DialogFragment() {
         zoomSeekBar = view.findViewById(R.id.zoomSeekBar)
 
         selectButton.setSafeOnClickListener(interval = 6000) {
-            /*requireActivity().runOnUiThread {
-                progressBar.visibility = View.VISIBLE
-                requireActivity().showToast("Processing image", Toast.LENGTH_SHORT)
-            }*/
+            val path = cameraxViewModel.uiState.value.capturedFilePath
+            if (path.isNullOrEmpty()) return@setSafeOnClickListener
             lifecycleScope.launch {
-                onPhotoSelected(fileAbsPath)
+                onPhotoSelected(path)
             }
         }
 
@@ -200,21 +201,27 @@ class CameraxLauncherFragment : DialogFragment() {
         }
 
         zoomIv.setOnClickListener {
-            zoomIndicatorll.visibility = if (zoomIndicatorll.isVisible) View.GONE else View.VISIBLE
+            cameraxViewModel.toggleZoomIndicator()
+        }
+
+        flashButton.setOnClickListener {
+            cameraxViewModel.toggleFlash()
+        }
+
+        captureButton.setOnClickListener {
+            // Read the currently-bound use case. If the camera is mid-(re)bind this is null, so we
+            // drop the tap instead of throwing "Not bound to a valid Camera".
+            val capture = boundImageCapture ?: return@setOnClickListener
+            lifecycleScope.launch {
+                takePhoto(capture)
+            }
         }
 
         retakeButton.setOnClickListener {
-            ScreeningTimer.incrementRetake(screeningId)
-            val flashOfDrawable = context?.getDrawable(R.drawable.flash_off)
-            flashButton.setImageDrawable(flashOfDrawable)
-            isCapturing = false
-            // Do NOT enable the shutter here: startCamera() re-enables it only once the camera is
-            // actually bound. Enabling it now reopens the retake race against the async (re)bind.
+            // onRetake() flips back to capture mode (shutter stays disabled until the camera
+            // rebinds, which avoids reopening the retake race) and bumps the retake counter.
+            cameraxViewModel.onRetake()
             checkPermissionAndStartCamera()
-            previewViewImageLay.visibility = View.GONE
-            cameraPreviewViewLay.visibility = View.VISIBLE
-            cameraControlsll.visibility = View.VISIBLE
-            fileAbsPath = ""
         }
 
         scaleGestureDetector = ScaleGestureDetector(requireContext(), object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -232,12 +239,39 @@ class CameraxLauncherFragment : DialogFragment() {
             return@setOnTouchListener true
         }
 
+        // The ViewModel is the single source of truth for what the dialog shows; render() applies
+        // each emitted CameraUiState to the views and camera hardware.
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                cameraxViewModel.uiState.collect { render(it) }
+            }
+        }
+
         checkPermissionAndStartCamera()
 
         initModelJob = lifecycleScope.launch {
             if (isAiInferenceEnabled()) {
                 initModel()
             }
+        }
+    }
+
+    /** Applies the single source-of-truth [CameraUiState] to the views and camera hardware. */
+    private fun render(state: CameraUiState) {
+        captureButton.isEnabled = state.shutterEnabled
+
+        val inCaptureMode = state.mode == CameraMode.CAPTURE
+        cameraPreviewViewLay.visibility = if (inCaptureMode) View.VISIBLE else View.GONE
+        cameraControlsll.visibility = if (inCaptureMode) View.VISIBLE else View.GONE
+        previewViewImageLay.visibility = if (inCaptureMode) View.GONE else View.VISIBLE
+
+        zoomIndicatorll.visibility = if (state.zoomIndicatorVisible) View.VISIBLE else View.GONE
+
+        val flashDrawable =
+            context?.getDrawable(if (state.flashOn) R.drawable.flash_on else R.drawable.flash_off)
+        flashButton.setImageDrawable(flashDrawable)
+        if (::cameraControl.isInitialized) {
+            cameraControl.enableTorch(state.flashOn)
         }
     }
 
@@ -314,11 +348,11 @@ class CameraxLauncherFragment : DialogFragment() {
     @OptIn(ExperimentalZeroShutterLag::class)
     private fun startCamera() {
         // The capture use case is bound asynchronously below. Until that completes the camera has
-        // no valid ImageCapture, so disable the shutter and clear the previously bound reference.
-        // This closes the retake race where the stale click listener could fire takePicture() on
-        // an already-unbound use case and surface "Not bound to a valid Camera".
+        // no valid ImageCapture, so clear the previously bound reference and disable the shutter
+        // (via state). This closes the retake race where the stale click listener could fire
+        // takePicture() on an already-unbound use case and surface "Not bound to a valid Camera".
         boundImageCapture = null
-        captureButton.isEnabled = false
+        cameraxViewModel.onCameraBinding()
         // Shut down the executor from a previous bind so repeated (re)binds don't leak threads.
         if (::cameraExecutor.isInitialized) {
             cameraExecutor.shutdown()
@@ -351,40 +385,14 @@ class CameraxLauncherFragment : DialogFragment() {
 
                 cameraControl = camera.cameraControl
                 cameraInfo = camera.cameraInfo
-                // Camera is now bound: publish the live ImageCapture and re-enable the shutter.
+                // Publish the live ImageCapture, then flip to the bound state. onCameraBound()
+                // re-enables the shutter and turns the torch on; render() applies both. The shutter
+                // and flash click listeners are registered once in onViewCreated().
                 boundImageCapture = imageCapture
-                captureButton.isEnabled = true
-                cameraControl.enableTorch(true)
-                val flashOnDrawable = context?.getDrawable(R.drawable.flash_on)
-                flashButton.setImageDrawable(flashOnDrawable)
                 setZoomLevel(0.0f) //0.0f represents 1x zoom level
                 setupZoomControl()
                 setupTapToFocus()
-
-                flashButton.setOnClickListener {
-
-                    val flashOnDrawable = context?.getDrawable(R.drawable.flash_on)
-                    val flashOffDrawable = context?.getDrawable(R.drawable.flash_off)
-
-                    val flashMode = cameraInfo.torchState.value == TorchState.OFF
-                    if (flashMode){
-                        flashButton.setImageDrawable(flashOnDrawable)
-                        TorchState.ON
-                    } else {
-                        flashButton.setImageDrawable(flashOffDrawable)
-                        TorchState.OFF
-                    }
-                    cameraControl.enableTorch(cameraInfo.torchState.value == TorchState.OFF)
-                }
-
-                captureButton.setOnClickListener {
-                    // Read the currently-bound use case. If the camera is mid-(re)bind this is
-                    // null, so we drop the tap instead of throwing "Not bound to a valid Camera".
-                    val capture = boundImageCapture ?: return@setOnClickListener
-                    lifecycleScope.launch {
-                        takePhoto(capture)
-                    }
-                }
+                cameraxViewModel.onCameraBound()
 
             } catch (e: Exception) {
                 Timber.e("Use case binding failed: ${e.message}")
@@ -393,11 +401,9 @@ class CameraxLauncherFragment : DialogFragment() {
     }
 
     private fun takePhoto(imageCapture: ImageCapture) {
-        if (isCapturing) return
-        isCapturing = true
-        captureButton.isEnabled = false
-        captureStartedMs = SystemClock.elapsedRealtime()
-        ScreeningTimer.markStep(screeningId, "photo_capture_started")
+        // beginCapture() applies the re-entrancy guard, disables the shutter (via state), records
+        // the start time and marks the screening step. It returns false if a capture is in flight.
+        if (!cameraxViewModel.beginCapture()) return
         try {
             val file = File.createTempFile("IMG_", ".jpeg", requireContext().filesDir)
             val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
@@ -405,11 +411,7 @@ class CameraxLauncherFragment : DialogFragment() {
             imageCapture.takePicture(
                 outputOptions, cameraExecutor, object : ImageCapture.OnImageSavedCallback {
                     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                        captureSavedMs = SystemClock.elapsedRealtime()
-                        timeToCaptureMs = captureSavedMs?.minus(captureStartedMs ?: captureSavedMs ?: 0L)
-                        ScreeningTimer.markStep(screeningId, "photo_capture_completed")
                         cameraControl.enableTorch(false)
-                        //cameraExecutor.shutdown()
                         lifecycleScope.launch {
                             try {
                                 if (::cameraProviderFuture.isInitialized) {
@@ -418,13 +420,11 @@ class CameraxLauncherFragment : DialogFragment() {
                             } catch (e: Exception) {
                                 Timber.e(e, "Error unbinding camera")
                             }
-                            // Camera is unbound while the captured photo is previewed; ensure a
-                            // stray shutter tap can't fire on the now-invalid use case.
+                            // Camera is unbound while the captured photo is previewed; clear the
+                            // bound reference so a stray shutter tap can't fire on the now-invalid
+                            // use case. The switch to preview mode (shutter off, torch off, layout
+                            // swap, capture timing) is driven by onCaptureSaved() -> render().
                             boundImageCapture = null
-                            captureButton.isEnabled = false
-                            cameraPreviewViewLay.visibility = View.GONE
-                            cameraControlsll.visibility = View.GONE
-                            previewViewImageLay.visibility = View.VISIBLE
                             context?.let {
                                 with(it)
                                     .load(file)
@@ -432,9 +432,7 @@ class CameraxLauncherFragment : DialogFragment() {
                                     .skipMemoryCache(true)
                                     .into(previewImage)
                             }
-                            fileAbsPath = file.absolutePath
-                            val flashOffDrawable = context?.getDrawable(R.drawable.flash_off)
-                            flashButton.setImageDrawable(flashOffDrawable)
+                            cameraxViewModel.onCaptureSaved(file.absolutePath)
                             if (::cameraExecutor.isInitialized) {
                                 cameraExecutor.shutdown()
                             }
@@ -452,7 +450,7 @@ class CameraxLauncherFragment : DialogFragment() {
                         Timber.e(exception, "Image capture failed: ${exception.message}")
                         lifecycleScope.launch {
                             if (!isAdded) return@launch
-                            isCapturing = false
+                            cameraxViewModel.onCaptureError()
                             try {
                                 // Rebind the camera so the user can retry the shot in place rather
                                 // than being kicked out of the screen and losing their session.
@@ -469,8 +467,9 @@ class CameraxLauncherFragment : DialogFragment() {
                 }
             )
         }catch (e: Exception){
-            isCapturing = false
-            captureButton.isEnabled = true
+            // takePicture() threw before dispatch; re-enable the shutter (via state) so the user
+            // can retry, and clear the in-flight flag.
+            cameraxViewModel.onCaptureFailedSynchronously()
             e.printStackTrace()
         }
     }
@@ -682,7 +681,9 @@ class CameraxLauncherFragment : DialogFragment() {
         setOnClickListener(safeClickListener)
     }
     private suspend fun onPhotoSelected(absolutePath : String){
-        val aiEnabled = isAiInferenceEnabled()
+        val aiEnabled = cameraxViewModel.isAiInferenceEnabled()
+        // The AI pipeline (processImage and everything it calls) is frozen and stays here; the
+        // ViewModel only consumes its already-computed output to build the result + analytics.
         val processingResult = if (aiEnabled) {
             // Wait for model load to finish before forwarding on Dispatchers.IO.
             // Without this the IO-thread forward pass can race with model load on
@@ -690,54 +691,30 @@ class CameraxLauncherFragment : DialogFragment() {
             // case-level combine then reads as Non-Suspicious (false negative).
             initModelJob?.join()
             withContext(Dispatchers.IO) {
-                processImage(fileAbsPath, runAiInference = true)
+                processImage(absolutePath, runAiInference = true)
             }
         } else {
             withContext(Dispatchers.IO) {
-                processImage(fileAbsPath, runAiInference = false)
+                processImage(absolutePath, runAiInference = false)
             }
         }
         val resultMap = processingResult?.resultMap?.takeIf { it.isNotEmpty() }
 
-        val predictionProps = mutableMapOf<String, Any>(
-            PostHogAnalytics.Props.AI_PREDICTION to (resultMap?.get(CAMERA_PREDICTION_KEY) ?: ""),
-            PostHogAnalytics.Props.AI_CONFIDENCE to (resultMap?.get(CAMERA_CONFIDENCE_KEY) ?: ""),
+        val captureResult = cameraxViewModel.preparePhotoCapture(
+            absolutePath = absolutePath,
+            aiEnabled = aiEnabled,
+            resultMap = resultMap,
+            qualityProps = processingResult?.qualityProps,
+            combinedInferenceTimeMs = processingResult?.combinedInferenceTimeMs,
+            deviceMetrics = DeviceMetrics.snapshot(requireContext()),
         )
-        ScreeningTimer.incrementPhoto(screeningId)
-        val captureToResultMs = captureSavedMs?.let { SystemClock.elapsedRealtime() - it }
-        predictionProps[PostHogAnalytics.Props.SCREENING_ID] = screeningId.orEmpty()
-        timeToCaptureMs?.let { predictionProps[PostHogAnalytics.Props.TIME_TO_CAPTURE_MS] = it }
-        captureToResultMs?.let { predictionProps[PostHogAnalytics.Props.CAPTURE_TO_RESULT_MS] = it }
-        processingResult?.qualityProps?.let { predictionProps.putAll(it) }
-        predictionProps.putAll(DeviceMetrics.snapshot(requireContext()))
-        if (processingResult != null) {
-            predictionProps[PostHogAnalytics.Props.INFERENCE_TIME_MS] = processingResult.combinedInferenceTimeMs
-            predictionProps[PostHogAnalytics.Props.COMBINED_INFERENCE_TIME_MS] = processingResult.combinedInferenceTimeMs
-        }
-        PostHogAnalytics.capture(PostHogAnalytics.Events.PHOTO_CAPTURED, predictionProps)
 
         setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
-            putString(CAMERA_RESULT_URI_KEY, absolutePath)
-            if (resultMap != null) {
-                putString(CAMERA_PREDICTION_KEY, resultMap[CAMERA_PREDICTION_KEY] as String)
-                putString(CAMERA_CONFIDENCE_KEY, resultMap[CAMERA_CONFIDENCE_KEY] as String)
-
-                putString(CAMERA_MODEL6_PREDICTION_KEY, resultMap["model6_prediction"] as String)
-                putString(CAMERA_MODEL6_CONFIDENCE_KEY, resultMap["model6_confidence"] as String)
-
-                putString(CAMERA_MODEL8_PREDICTION_KEY, resultMap["model8_prediction"] as String)
-                putString(CAMERA_MODEL8_CONFIDENCE_KEY, resultMap["model8_confidence"] as String)
-
-                putString(CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"] as String)
-                putString(CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"] as String)
-            } else if (aiEnabled) {
-                putString(CAMERA_PREDICTION_KEY, "")
-                putString(CAMERA_CONFIDENCE_KEY, "")
-            }
+            putString(CAMERA_RESULT_URI_KEY, captureResult.uri)
+            captureResult.stringExtras.forEach { (key, value) -> putString(key, value) }
             putBoolean(CAMERA_RESULT_KEY, true)
         })
-        val message = if (aiEnabled) "Image processed successfully" else "Image saved successfully"
-        activity?.showToast(message, Toast.LENGTH_SHORT)
+        activity?.showToast(captureResult.toastMessage, Toast.LENGTH_SHORT)
         dismiss()
     }
 
