@@ -3,14 +3,14 @@
     android:height="68dp"
     android:viewportWidth="68"
     android:viewportHeight="68">
-    <!-- Outer ring -->
+    <!-- Dimmed outer ring shown while a capture is in flight -->
     <path
         android:pathData="M34,3 a31,31 0 1,0 0,62 a31,31 0 1,0 0,-62 Z"
         android:strokeWidth="4"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#80FFFFFF"
         android:fillColor="#00000000" />
-    <!-- Inner circle (the part you press) -->
+    <!-- Dimmed inner circle so the shutter clearly reads as "busy / can't tap again" -->
     <path
         android:pathData="M34,9 a25,25 0 1,0 0,50 a25,25 0 1,0 0,-50 Z"
-        android:fillColor="#FFFFFF" />
+        android:fillColor="#80BDBDBD" />
 </vector>

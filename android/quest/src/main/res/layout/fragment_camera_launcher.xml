@@ -229,12 +229,44 @@
 
         </LinearLayout>
 
-        <androidx.appcompat.widget.AppCompatImageView
-            android:id="@+id/captureButton"
+        <FrameLayout
             android:layout_width="72dp"
             android:layout_height="72dp"
-            android:src="@drawable/ic_camera_shutter"
             android:layout_gravity="center"
-            android:elevation="@dimen/spacing_16" />
+            android:elevation="@dimen/spacing_16">
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/captureButton"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:background="@null"
+                android:contentDescription="@string/take_photo"
+                android:src="@drawable/camera_shutter_button" />
+
+            <!-- Spinner sits directly over the shutter while a capture is in flight, so the user
+                 sees the photo is being taken and doesn't tap again. -->
+            <ProgressBar
+                android:id="@+id/captureProgress"
+                style="?android:attr/progressBarStyle"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_gravity="center"
+                android:indeterminateTint="@color/colorPrimary"
+                android:visibility="gone" />
+
+        </FrameLayout>
     </LinearLayout>
+
+    <!-- Quick white "screen flash" overlay played on capture, mimicking a standard camera app. -->
+    <View
+        android:id="@+id/captureFlashOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:background="@color/white"
+        android:clickable="false"
+        android:elevation="@dimen/spacing_36"
+        android:focusable="false"
+        android:visibility="gone" />
 </FrameLayout>
