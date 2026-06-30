@@ -145,6 +145,10 @@ constructor(
 
         return try {
             Timber.i("AppSyncWorker Running within lock sync worker")
+            // A worker can run in a fresh process where the AppSettingActivity bootstrap never ran,
+            // leaving the config map empty. Reload configs first so loadSyncParams() (via
+            // getDownloadWorkManager) does not fail with "Key application is missing in the map".
+            syncListenerManager.configurationRegistry.loadConfigurationsIfNotLoaded(applicationContext)
             promoteToForegroundIfAllowed()
             val metaSyncResult = super.doWork()
             val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
