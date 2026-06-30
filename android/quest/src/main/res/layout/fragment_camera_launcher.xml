@@ -279,4 +279,34 @@
         android:elevation="@dimen/spacing_36"
         android:focusable="false"
         android:visibility="gone" />
+
+    <!-- Blocking overlay shown while a submitted photo is processed/saved. clickable=true so it
+         swallows taps, preventing a second submit while the AI inference runs. -->
+    <LinearLayout
+        android:id="@+id/processingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/translucent_background"
+        android:clickable="true"
+        android:elevation="@dimen/spacing_36"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            style="?android:attr/progressBarStyle"
+            android:indeterminateTint="@color/white" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_16"
+            android:text="@string/processing_image"
+            android:textColor="@color/white"
+            android:textSize="16sp" />
+
+    </LinearLayout>
 </FrameLayout>

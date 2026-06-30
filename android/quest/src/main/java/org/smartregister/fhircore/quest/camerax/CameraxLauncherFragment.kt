@@ -104,6 +104,7 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var captureButton: AppCompatImageView
     private lateinit var captureProgress: ProgressBar
     private lateinit var captureFlashOverlay: View
+    private lateinit var processingOverlay: View
     private lateinit var zoomIv: AppCompatImageView
     private lateinit var flashButton: AppCompatImageButton
     private lateinit var closeCameraIB: AppCompatImageView
@@ -206,12 +207,20 @@ class CameraxLauncherFragment : DialogFragment() {
         zoomSeekBar = view.findViewById(R.id.zoomSeekBar)
         captureProgress = view.findViewById(R.id.captureProgress)
         captureFlashOverlay = view.findViewById(R.id.captureFlashOverlay)
+        processingOverlay = view.findViewById(R.id.processingOverlay)
         focusRing = view.findViewById(R.id.focusRing)
+
+        // A fresh view means no submit is in flight (any prior coroutine was cancelled with the old
+        // view), so clear any stale processing flag to avoid a stuck overlay after recreation.
+        cameraxViewModel.onProcessingFinished()
 
         // Pre-load the system shutter sound so it plays without latency on the first capture.
         shutterSound = MediaActionSound().apply { load(MediaActionSound.SHUTTER_CLICK) }
 
         selectButton.setSafeOnClickListener(interval = 6000) {
+            // Ignore the tap if a submit is already being processed (the overlay also blocks it),
+            // so the AI inference can't be kicked off twice.
+            if (cameraxViewModel.uiState.value.isProcessing) return@setSafeOnClickListener
             val path = cameraxViewModel.uiState.value.capturedFilePath
             if (path.isNullOrEmpty()) return@setSafeOnClickListener
             lifecycleScope.launch {
@@ -323,6 +332,10 @@ class CameraxLauncherFragment : DialogFragment() {
         // Spinner over the shutter while the capture is in flight (before the preview appears).
         captureProgress.visibility =
             if (state.isCapturing && inCaptureMode) View.VISIBLE else View.GONE
+
+        // Blocking "processing" overlay shown while a submitted photo is processed/saved, so the
+        // user gets clear feedback and cannot submit again (the overlay swallows taps).
+        processingOverlay.visibility = if (state.isProcessing) View.VISIBLE else View.GONE
 
         zoomIndicatorll.visibility = if (state.zoomIndicatorVisible) View.VISIBLE else View.GONE
 
@@ -890,41 +903,55 @@ class CameraxLauncherFragment : DialogFragment() {
         setOnClickListener(safeClickListener)
     }
     private suspend fun onPhotoSelected(absolutePath : String){
-        val aiEnabled = cameraxViewModel.isAiInferenceEnabled()
-        // The AI pipeline (processImage and everything it calls) is frozen and stays here; the
-        // ViewModel only consumes its already-computed output to build the result + analytics.
-        val processingResult = if (aiEnabled) {
-            // Wait for model load to finish before forwarding on Dispatchers.IO.
-            // Without this the IO-thread forward pass can race with model load on
-            // Main, hit a null Module, throw, and surface as "Error" — which the
-            // case-level combine then reads as Non-Suspicious (false negative).
-            initModelJob?.join()
-            withContext(Dispatchers.IO) {
-                processImage(absolutePath, runAiInference = true)
+        // Show the blocking "processing" overlay for the whole submit so the user sees work is
+        // happening and can't submit again while the (potentially slow) AI inference runs.
+        cameraxViewModel.onProcessingStarted()
+        try {
+            val aiEnabled = cameraxViewModel.isAiInferenceEnabled()
+            // The AI pipeline (processImage and everything it calls) is frozen and stays here; the
+            // ViewModel only consumes its already-computed output to build the result + analytics.
+            val processingResult = if (aiEnabled) {
+                // Wait for model load to finish before forwarding on Dispatchers.IO.
+                // Without this the IO-thread forward pass can race with model load on
+                // Main, hit a null Module, throw, and surface as "Error" — which the
+                // case-level combine then reads as Non-Suspicious (false negative).
+                initModelJob?.join()
+                withContext(Dispatchers.IO) {
+                    processImage(absolutePath, runAiInference = true)
+                }
+            } else {
+                withContext(Dispatchers.IO) {
+                    processImage(absolutePath, runAiInference = false)
+                }
             }
-        } else {
-            withContext(Dispatchers.IO) {
-                processImage(absolutePath, runAiInference = false)
+            val resultMap = processingResult?.resultMap?.takeIf { it.isNotEmpty() }
+
+            val captureResult = cameraxViewModel.preparePhotoCapture(
+                absolutePath = absolutePath,
+                aiEnabled = aiEnabled,
+                resultMap = resultMap,
+                qualityProps = processingResult?.qualityProps,
+                combinedInferenceTimeMs = processingResult?.combinedInferenceTimeMs,
+                deviceMetrics = DeviceMetrics.snapshot(requireContext()),
+            )
+
+            setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
+                putString(CAMERA_RESULT_URI_KEY, captureResult.uri)
+                captureResult.stringExtras.forEach { (key, value) -> putString(key, value) }
+                putBoolean(CAMERA_RESULT_KEY, true)
+            })
+            activity?.showToast(captureResult.toastMessage, Toast.LENGTH_SHORT)
+            // Success: the dialog dismisses, taking the overlay with it.
+            dismiss()
+        } catch (e: Exception) {
+            // Never leave the user stuck behind the overlay: hide it, surface a message and let
+            // them retry submitting from the preview.
+            Timber.e(e, "Failed to process/save the captured photo")
+            cameraxViewModel.onProcessingFinished()
+            if (isAdded) {
+                activity?.showToast(getString(R.string.image_capture_failed), Toast.LENGTH_SHORT)
             }
         }
-        val resultMap = processingResult?.resultMap?.takeIf { it.isNotEmpty() }
-
-        val captureResult = cameraxViewModel.preparePhotoCapture(
-            absolutePath = absolutePath,
-            aiEnabled = aiEnabled,
-            resultMap = resultMap,
-            qualityProps = processingResult?.qualityProps,
-            combinedInferenceTimeMs = processingResult?.combinedInferenceTimeMs,
-            deviceMetrics = DeviceMetrics.snapshot(requireContext()),
-        )
-
-        setFragmentResult(CAMERA_RESULT_KEY, Bundle().apply {
-            putString(CAMERA_RESULT_URI_KEY, captureResult.uri)
-            captureResult.stringExtras.forEach { (key, value) -> putString(key, value) }
-            putBoolean(CAMERA_RESULT_KEY, true)
-        })
-        activity?.showToast(captureResult.toastMessage, Toast.LENGTH_SHORT)
-        dismiss()
     }
 
     override fun onDestroy() {

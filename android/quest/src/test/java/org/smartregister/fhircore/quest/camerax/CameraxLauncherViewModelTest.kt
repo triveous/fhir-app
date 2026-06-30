@@ -176,6 +176,15 @@ class CameraxLauncherViewModelTest {
         assertFalse(viewModel.uiState.value.zoomIndicatorVisible)
     }
 
+    @Test
+    fun processingStateTogglesForSubmitOverlay() {
+        assertFalse(viewModel.uiState.value.isProcessing)
+        viewModel.onProcessingStarted()
+        assertTrue(viewModel.uiState.value.isProcessing)
+        viewModel.onProcessingFinished()
+        assertFalse(viewModel.uiState.value.isProcessing)
+    }
+
     // ───────────────────────────── feature flag ─────────────────────────────
 
     @Test
