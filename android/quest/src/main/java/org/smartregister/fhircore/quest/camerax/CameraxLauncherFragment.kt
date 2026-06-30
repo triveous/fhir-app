@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import android.util.Size
+import android.view.GestureDetector
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -49,6 +50,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.bumptech.glide.Glide.with
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.request.target.Target
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -116,6 +118,9 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var cameraControlsll: LinearLayout
     private lateinit var previewImage: ZoomableImageView
     private lateinit var scaleGestureDetector: ScaleGestureDetector
+    private lateinit var tapGestureDetector: GestureDetector
+    private lateinit var focusRing: AppCompatImageView
+    private val hideFocusRingRunnable = Runnable { hideFocusIndicator() }
     private lateinit var cameraControl: CameraControl
     private lateinit var cameraInfo: CameraInfo
     private lateinit var zoomSeekBar: CustomSeekBar
@@ -137,6 +142,10 @@ class CameraxLauncherFragment : DialogFragment() {
 
     // Standard system camera shutter sound, played on capture for audible feedback.
     private var shutterSound: MediaActionSound? = null
+
+    // Path currently shown in the captured-photo preview, so render() only (re)loads the image
+    // when it actually changes — not on every state emission.
+    private var lastPreviewedPath: String? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -163,6 +172,10 @@ class CameraxLauncherFragment : DialogFragment() {
         setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
         screeningId = arguments?.getString(ARG_SCREENING_ID)
         cameraxViewModel.setScreeningId(screeningId)
+        // Warm up the camera provider now (its first initialization is the cold-start cost) so the
+        // preview can bind with minimal delay once the view is ready. getInstance is a cached
+        // singleton, so the call in startCamera() reuses this same initialization.
+        runCatching { ProcessCameraProvider.getInstance(requireContext()) }
     }
 
     override fun onCreateView(
@@ -193,6 +206,7 @@ class CameraxLauncherFragment : DialogFragment() {
         zoomSeekBar = view.findViewById(R.id.zoomSeekBar)
         captureProgress = view.findViewById(R.id.captureProgress)
         captureFlashOverlay = view.findViewById(R.id.captureFlashOverlay)
+        focusRing = view.findViewById(R.id.focusRing)
 
         // Pre-load the system shutter sound so it plays without latency on the first capture.
         shutterSound = MediaActionSound().apply { load(MediaActionSound.SHUTTER_CLICK) }
@@ -238,6 +252,8 @@ class CameraxLauncherFragment : DialogFragment() {
 
         scaleGestureDetector = ScaleGestureDetector(requireContext(), object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
+                // Guard: a pinch can arrive before the camera is bound.
+                if (!::cameraControl.isInitialized || !::cameraInfo.isInitialized) return false
                 val zoomRatio = cameraInfo.zoomState.value?.zoomRatio ?: 1f
                 val scaleFactor = detector.scaleFactor
                 cameraControl.setZoomRatio(zoomRatio * scaleFactor)
@@ -245,10 +261,23 @@ class CameraxLauncherFragment : DialogFragment() {
             }
         })
 
+        // Single-tap (one finger, no real movement) = tap-to-focus. Kept separate from the pinch
+        // detector so zoom and focus no longer fight over previewView's touch listener.
+        tapGestureDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                focusOnTap(e.x, e.y)
+                return true
+            }
+        })
 
-        previewView.setOnTouchListener { _, event ->
+        previewView.setOnTouchListener { v, event ->
             scaleGestureDetector.onTouchEvent(event)
-            return@setOnTouchListener true
+            // Don't treat the end of a pinch as a focus tap.
+            if (!scaleGestureDetector.isInProgress) {
+                tapGestureDetector.onTouchEvent(event)
+            }
+            if (event.action == MotionEvent.ACTION_UP) v.performClick()
+            true
         }
 
         // The ViewModel is the single source of truth for what the dialog shows; render() applies
@@ -279,6 +308,18 @@ class CameraxLauncherFragment : DialogFragment() {
         cameraControlsll.visibility = if (inCaptureMode) View.VISIBLE else View.GONE
         previewViewImageLay.visibility = if (inCaptureMode) View.GONE else View.VISIBLE
 
+        // Load (or restore) the captured photo into the preview whenever we are in PREVIEW mode.
+        // Guarded by lastPreviewedPath so it only decodes when the photo actually changes.
+        if (inCaptureMode) {
+            lastPreviewedPath = null
+        } else {
+            val path = state.capturedFilePath
+            if (!path.isNullOrEmpty() && path != lastPreviewedPath) {
+                lastPreviewedPath = path
+                showCapturedPreview(File(path))
+            }
+        }
+
         // Spinner over the shutter while the capture is in flight (before the preview appears).
         captureProgress.visibility =
             if (state.isCapturing && inCaptureMode) View.VISIBLE else View.GONE
@@ -291,6 +332,31 @@ class CameraxLauncherFragment : DialogFragment() {
         if (::cameraControl.isInitialized) {
             cameraControl.enableTorch(state.flashOn)
         }
+    }
+
+    /**
+     * Loads the captured photo into the zoomable preview at its original resolution. By default
+     * Glide downsamples to the view size, which looks soft when the user pinch-zooms (the server
+     * copy is the full file, so it looks sharper there). `Target.SIZE_ORIGINAL` + `dontTransform()`
+     * load the full, uncropped image; the [ZoomableImageView]'s fitCenter handles on-screen
+     * scaling. If the full decode runs out of memory, `error()` falls back to a downsampled load so
+     * the user always sees the photo and the app never crashes.
+     */
+    private fun showCapturedPreview(file: File) {
+        val ctx = context ?: return
+        with(ctx)
+            .load(file)
+            .diskCacheStrategy(DiskCacheStrategy.NONE)
+            .skipMemoryCache(true)
+            .dontTransform()
+            .override(Target.SIZE_ORIGINAL)
+            .error(
+                with(ctx)
+                    .load(file)
+                    .diskCacheStrategy(DiskCacheStrategy.NONE)
+                    .skipMemoryCache(true)
+            )
+            .into(previewImage)
     }
 
     /** Plays the standard-camera capture feedback: shutter sound, button bounce and screen flash. */
@@ -386,18 +452,95 @@ class CameraxLauncherFragment : DialogFragment() {
         requestPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    private fun setupTapToFocus() {
-        previewView.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_UP) {
-                val factory = previewView.meteringPointFactory
-                val point = factory.createPoint(event.x, event.y)
-                val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF)
-                    .setAutoCancelDuration(5, java.util.concurrent.TimeUnit.SECONDS)
+    /**
+     * Runs a real auto-focus + auto-exposure metering pass at the tapped point and shows the
+     * focus-ring indicator. The tap coordinates are mapped to sensor coordinates via
+     * [PreviewView.getMeteringPointFactory], so the camera focuses exactly where the user tapped.
+     */
+    private fun focusOnTap(tapX: Float, tapY: Float) {
+        // Camera may not be bound yet (mid-(re)bind); show nothing rather than crash.
+        if (!::cameraControl.isInitialized) return
+
+        showFocusIndicator(tapX, tapY)
+
+        try {
+            val point = previewView.meteringPointFactory.createPoint(tapX, tapY)
+            // AF + AE so the tapped subject is both sharp and correctly exposed, like a standard
+            // camera app. Auto-cancel returns the camera to continuous AF after a few seconds.
+            val action =
+                FocusMeteringAction.Builder(
+                    point,
+                    FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE,
+                )
+                    .setAutoCancelDuration(4, java.util.concurrent.TimeUnit.SECONDS)
                     .build()
-                cameraControl.startFocusAndMetering(action)
-            }
-            true
+
+            val future = cameraControl.startFocusAndMetering(action)
+            future.addListener(
+                {
+                    val focused =
+                        try {
+                            future.get().isFocusSuccessful
+                        } catch (e: Exception) {
+                            false
+                        }
+                    onFocusResult(focused)
+                },
+                ContextCompat.getMainExecutor(requireContext()),
+            )
+        } catch (e: Exception) {
+            Timber.e(e, "Tap-to-focus metering failed")
+            // Still let the indicator fade out so it doesn't linger on screen.
+            onFocusResult(false)
         }
+    }
+
+    /** Places the focus ring at the tapped point and plays the appear animation. */
+    private fun showFocusIndicator(tapX: Float, tapY: Float) {
+        val ringSize = resources.getDimensionPixelSize(R.dimen.focus_ring_size)
+        focusRing.removeCallbacks(hideFocusRingRunnable)
+        focusRing.animate().cancel()
+        // previewView and focusRing share the same parent (camera_preview_fl), so offset the
+        // (previewView-relative) tap by previewView's position to centre the ring on the tap.
+        focusRing.x = previewView.x + tapX - ringSize / 2f
+        focusRing.y = previewView.y + tapY - ringSize / 2f
+        focusRing.visibility = View.VISIBLE
+        focusRing.alpha = 0f
+        focusRing.scaleX = 1.4f
+        focusRing.scaleY = 1.4f
+        focusRing.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(220)
+            .start()
+        // Safety net: hide the ring even if the focus future never reports back.
+        focusRing.postDelayed(hideFocusRingRunnable, 1500)
+    }
+
+    /** Brief "lock" confirmation bump when focus settles, then fade the ring out. */
+    private fun onFocusResult(focused: Boolean) {
+        if (focusRing.visibility != View.VISIBLE) return
+        if (focused) {
+            focusRing.animate()
+                .scaleX(0.9f)
+                .scaleY(0.9f)
+                .setDuration(120)
+                .withEndAction {
+                    focusRing.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+                }
+                .start()
+        }
+        focusRing.removeCallbacks(hideFocusRingRunnable)
+        focusRing.postDelayed(hideFocusRingRunnable, 700)
+    }
+
+    private fun hideFocusIndicator() {
+        focusRing.animate()
+            .alpha(0f)
+            .setDuration(180)
+            .withEndAction { focusRing.visibility = View.GONE }
+            .start()
     }
 
     @OptIn(ExperimentalZeroShutterLag::class)
@@ -416,23 +559,32 @@ class CameraxLauncherFragment : DialogFragment() {
         cameraExecutor = Executors.newSingleThreadExecutor()
 
         cameraProviderFuture.addListener({
-            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            val resolution = Size(4096, 4096)
-
-            val preview = Preview.Builder()
-                .setTargetResolution(resolution)
-                .build()
-                .also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
-
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-            val imageCapture = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-                .setTargetResolution(resolution)
-                .build()
-
+            // The provider future resolves asynchronously. By the time it fires the user may have
+            // closed the dialog or backgrounded the app, so binding to a destroyed lifecycle or
+            // touching detached views would throw. Bail out cleanly, and wrap the rest so a
+            // provider/bind failure can never crash the process on the main executor.
+            if (!isAdded || view == null) return@addListener
             try {
+                val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+
+                // Preview only needs to fill the screen. Forcing a 4096x4096 preview target makes
+                // the camera configure a huge, slow-to-start stream — that is the "black screen
+                // then it loads" hang. Letting CameraX pick a display-sized preview resolution (and
+                // keeping it consistent with the capture use case) makes the first frames arrive
+                // almost immediately. The CAPTURED image quality is unaffected: ImageCapture below
+                // keeps the full 4096x4096 target, so the saved photo resolution is unchanged.
+                val preview = Preview.Builder()
+                    .build()
+                    .also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
+
+                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                val imageCapture = ImageCapture.Builder()
+                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+                    .setTargetResolution(Size(4096, 4096))
+                    .build()
+
                 cameraProvider.unbindAll()
                 val camera = cameraProvider.bindToLifecycle(
                     this, cameraSelector, preview, imageCapture
@@ -446,11 +598,12 @@ class CameraxLauncherFragment : DialogFragment() {
                 boundImageCapture = imageCapture
                 setZoomLevel(0.0f) //0.0f represents 1x zoom level
                 setupZoomControl()
-                setupTapToFocus()
+                // Tap-to-focus is wired once in onViewCreated via the gesture detector, so it no
+                // longer overwrites the pinch-to-zoom touch listener on every (re)bind.
                 cameraxViewModel.onCameraBound()
 
             } catch (e: Exception) {
-                Timber.e("Use case binding failed: ${e.message}")
+                Timber.e(e, "Camera start/bind failed")
             }
         }, ContextCompat.getMainExecutor(requireContext()))
     }
@@ -484,13 +637,10 @@ class CameraxLauncherFragment : DialogFragment() {
                             // use case. The switch to preview mode (shutter off, torch off, layout
                             // swap, capture timing) is driven by onCaptureSaved() -> render().
                             boundImageCapture = null
-                            context?.let {
-                                with(it)
-                                    .load(file)
-                                    .diskCacheStrategy(DiskCacheStrategy.NONE)
-                                    .skipMemoryCache(true)
-                                    .into(previewImage)
-                            }
+                            // The captured photo is loaded into the preview by render() once the
+                            // state flips to PREVIEW (see showCapturedPreview). Driving it from
+                            // state means the preview is restored correctly after the fragment is
+                            // recreated or the app is resumed, not just on this one callback.
                             cameraxViewModel.onCaptureSaved(file.absolutePath)
                             if (::cameraExecutor.isInitialized) {
                                 cameraExecutor.shutdown()

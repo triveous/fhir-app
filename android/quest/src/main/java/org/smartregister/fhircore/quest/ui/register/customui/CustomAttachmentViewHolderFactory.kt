@@ -29,6 +29,7 @@ import androidx.core.content.FileProvider
 import androidx.core.os.bundleOf
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.Target
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.FhirEngineProvider
 import com.google.android.fhir.datacapture.extensions.MimeType
@@ -854,8 +855,14 @@ internal object CustomAttachmentViewHolderFactory :
 
                 dialog.setContentView(rootLayout)
 
+                // Full-screen viewer is zoomable, so load the original full-resolution image
+                // (no downsample, no crop) to keep it sharp when zoomed. Falls back to a
+                // downsampled load if the full decode runs out of memory, so it never crashes.
                 Glide.with(context)
                     .load(imageUri)
+                    .dontTransform()
+                    .override(Target.SIZE_ORIGINAL)
+                    .error(Glide.with(context).load(imageUri))
                     .into(imageView)
 
                 closeButton.setOnClickListener {
