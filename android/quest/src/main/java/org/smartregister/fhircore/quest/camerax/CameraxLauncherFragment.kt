@@ -111,6 +111,11 @@ class CameraxLauncherFragment : DialogFragment() {
     private lateinit var cameraInfo: CameraInfo
     private lateinit var zoomSeekBar: CustomSeekBar
 
+    // Holds the ImageCapture use case only while it is actually bound to the camera. It is null
+    // whenever the camera is mid-(re)bind or unbound, so a stray shutter tap can't call
+    // takePicture() on an unbound use case (which throws "Not bound to a valid Camera").
+    @Volatile private var boundImageCapture: ImageCapture? = null
+
     private var fileAbsPath: String = ""
     private var isCapturing = false
     @Volatile var module6 : Module? = null
@@ -203,7 +208,8 @@ class CameraxLauncherFragment : DialogFragment() {
             val flashOfDrawable = context?.getDrawable(R.drawable.flash_off)
             flashButton.setImageDrawable(flashOfDrawable)
             isCapturing = false
-            captureButton.isEnabled = true
+            // Do NOT enable the shutter here: startCamera() re-enables it only once the camera is
+            // actually bound. Enabling it now reopens the retake race against the async (re)bind.
             checkPermissionAndStartCamera()
             previewViewImageLay.visibility = View.GONE
             cameraPreviewViewLay.visibility = View.VISIBLE
@@ -307,6 +313,16 @@ class CameraxLauncherFragment : DialogFragment() {
 
     @OptIn(ExperimentalZeroShutterLag::class)
     private fun startCamera() {
+        // The capture use case is bound asynchronously below. Until that completes the camera has
+        // no valid ImageCapture, so disable the shutter and clear the previously bound reference.
+        // This closes the retake race where the stale click listener could fire takePicture() on
+        // an already-unbound use case and surface "Not bound to a valid Camera".
+        boundImageCapture = null
+        captureButton.isEnabled = false
+        // Shut down the executor from a previous bind so repeated (re)binds don't leak threads.
+        if (::cameraExecutor.isInitialized) {
+            cameraExecutor.shutdown()
+        }
         cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraExecutor = Executors.newSingleThreadExecutor()
 
@@ -335,6 +351,9 @@ class CameraxLauncherFragment : DialogFragment() {
 
                 cameraControl = camera.cameraControl
                 cameraInfo = camera.cameraInfo
+                // Camera is now bound: publish the live ImageCapture and re-enable the shutter.
+                boundImageCapture = imageCapture
+                captureButton.isEnabled = true
                 cameraControl.enableTorch(true)
                 val flashOnDrawable = context?.getDrawable(R.drawable.flash_on)
                 flashButton.setImageDrawable(flashOnDrawable)
@@ -359,8 +378,11 @@ class CameraxLauncherFragment : DialogFragment() {
                 }
 
                 captureButton.setOnClickListener {
+                    // Read the currently-bound use case. If the camera is mid-(re)bind this is
+                    // null, so we drop the tap instead of throwing "Not bound to a valid Camera".
+                    val capture = boundImageCapture ?: return@setOnClickListener
                     lifecycleScope.launch {
-                        takePhoto(imageCapture)
+                        takePhoto(capture)
                     }
                 }
 
@@ -396,6 +418,10 @@ class CameraxLauncherFragment : DialogFragment() {
                             } catch (e: Exception) {
                                 Timber.e(e, "Error unbinding camera")
                             }
+                            // Camera is unbound while the captured photo is previewed; ensure a
+                            // stray shutter tap can't fire on the now-invalid use case.
+                            boundImageCapture = null
+                            captureButton.isEnabled = false
                             cameraPreviewViewLay.visibility = View.GONE
                             cameraControlsll.visibility = View.GONE
                             previewViewImageLay.visibility = View.VISIBLE
@@ -416,12 +442,29 @@ class CameraxLauncherFragment : DialogFragment() {
                     }
 
                     override fun onError(exception: ImageCaptureException) {
-                        isCapturing = false
+                        // This callback runs on the cameraExecutor background thread. Touching the
+                        // FragmentManager (dismiss()) or views directly from here previously let an
+                        // IllegalStateException escape on a background thread, which the global
+                        // uncaught-exception handler turned into a full process kill — wiping the
+                        // in-memory questionnaire and losing every photo already captured. Marshal
+                        // all UI work to the main thread (lifecycleScope cancels if the fragment is
+                        // gone) and recover in place instead of tearing the screen down.
+                        Timber.e(exception, "Image capture failed: ${exception.message}")
                         lifecycleScope.launch {
-                            captureButton.isEnabled = true
+                            if (!isAdded) return@launch
+                            isCapturing = false
+                            try {
+                                // Rebind the camera so the user can retry the shot in place rather
+                                // than being kicked out of the screen and losing their session.
+                                checkPermissionAndStartCamera()
+                                activity?.showToast(
+                                    getString(R.string.image_capture_failed),
+                                    Toast.LENGTH_SHORT,
+                                )
+                            } catch (e: Exception) {
+                                Timber.e(e, "Failed to recover camera after capture error")
+                            }
                         }
-                        Timber.e(exception,"Photo exception = {ImageCaptureException@35501} \"androidx.camera.core.ImageCaptureException: Failed to write temp file\"capture failed: ${exception.message}")
-                        dismiss()
                     }
                 }
             )
