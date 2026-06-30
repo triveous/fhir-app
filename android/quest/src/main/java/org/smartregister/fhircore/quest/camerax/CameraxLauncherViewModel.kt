@@ -35,6 +35,9 @@ data class CameraUiState(
     val flashOn: Boolean = false,
     val zoomIndicatorVisible: Boolean = false,
     val capturedFilePath: String? = null,
+    // True while the selected photo is being processed/saved on submit. The Fragment shows a
+    // blocking "processing" overlay so the user knows work is happening and can't submit twice.
+    val isProcessing: Boolean = false,
 )
 
 /** Result of preparing a captured photo for hand-off back to the questionnaire. */
@@ -163,6 +166,16 @@ constructor(
 
     fun toggleZoomIndicator() {
         _uiState.update { it.copy(zoomIndicatorVisible = !it.zoomIndicatorVisible) }
+    }
+
+    /** Submit tapped: the photo is being processed/saved. Blocks re-submits and shows progress. */
+    fun onProcessingStarted() {
+        _uiState.update { it.copy(isProcessing = true) }
+    }
+
+    /** Processing finished (e.g. it failed and we stay on the preview); hide the overlay. */
+    fun onProcessingFinished() {
+        _uiState.update { it.copy(isProcessing = false) }
     }
 
     // ───────────────────────────── result / analytics assembly ─────────────────────────────
