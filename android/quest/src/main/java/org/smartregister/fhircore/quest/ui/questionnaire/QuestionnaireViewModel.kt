@@ -114,6 +114,7 @@ import timber.log.Timber
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 @HiltViewModel
@@ -161,6 +162,22 @@ constructor(
 
   val isDraftSaved: LiveData<Boolean>
     get() = _isDraftSaved
+
+  /**
+   * Latched when a submission starts for this questionnaire session. Guards against duplicate
+   * case registration from double-tapping submit (each tap re-runs extraction and saves a brand
+   * new Patient) or re-submitting an already-saved form, e.g. after navigating back from the AI
+   * result screen. Only reset when the submission fails before any resource is saved so the user
+   * can retry.
+   */
+  private val submissionInFlight = AtomicBoolean(false)
+
+  /** Returns true if the caller acquired the (single) submission slot for this session. */
+  fun tryStartSubmission(): Boolean = submissionInFlight.compareAndSet(false, true)
+
+  private fun allowSubmissionRetry() {
+    submissionInFlight.set(false)
+  }
 
 
   fun getUserName(): String {
@@ -254,6 +271,7 @@ constructor(
     onSuccessfulSubmission: (List<IdType>, QuestionnaireResponse) -> Unit,
   ) {
     viewModelScope.launch(SupervisorJob()) {
+     try {
 
       val patientId = (10_000_000..99_999_999).random().toString()
 
@@ -278,6 +296,8 @@ constructor(
         Timber.e("Invalid questionnaire response")
         context.showToast(context.getString(R.string.questionnaire_response_invalid))
         setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+        // Nothing was saved; let the user fix the response and submit again.
+        allowSubmissionRetry()
         return@launch
       }
 
@@ -348,6 +368,17 @@ constructor(
 
       // Trigger one time sync after question submission
       syncBroadcaster.runOneTimeSync()
+     } catch (exception: Exception) {
+       // Resources may have been partially saved at this point, so the submission latch stays
+       // set: retrying could register the case twice. Surface the failure instead of leaving
+       // the progress dialog stuck forever.
+       Timber.e(exception, "Questionnaire submission failed for ${questionnaireConfig.id}")
+       setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+       context.showToast(
+         context.getString(R.string.questionnaire_submission_failed),
+         Toast.LENGTH_LONG,
+       )
+     }
     }
   }
 

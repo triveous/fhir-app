@@ -144,6 +144,37 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           },
         )
         finish()
+      } else if (submissionQRResult != null) {
+        // The case was already saved before AIResultActivity was launched, so dismissing that
+        // screen (e.g. system back) cannot undo the submission. Close this activity with the
+        // saved result; returning to the stale form would let the user submit the same case
+        // again and register a duplicate.
+        PostHogAnalytics.capture(
+          PostHogAnalytics.Events.QUESTIONNAIRE_SUBMITTED,
+          questionnaireAnalyticsProps(
+            PostHogAnalytics.Props.REFER_CASE to false,
+            PostHogAnalytics.Props.AI_VERDICT to
+              (if (isSuspiciousResult) "suspicious" else "non_suspicious"),
+            PostHogAnalytics.Props.AI_OVERRIDDEN to false,
+          ),
+        )
+        ScreeningTimer.end(
+          screeningId,
+          outcome = "submitted",
+          extraProps =
+            screeningCompletionProps(
+              PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspiciousResult,
+            ),
+        )
+        setResult(
+          Activity.RESULT_OK,
+          Intent().apply {
+            putExtra(QUESTIONNAIRE_RESPONSE, submissionQRResult as Serializable)
+            putExtra(QUESTIONNAIRE_SUBMISSION_EXTRACTED_RESOURCE_IDS, submissionIdTypes as Serializable)
+            putExtra(QUESTIONNAIRE_CONFIG, questionnaireConfig as Parcelable)
+          },
+        )
+        finish()
       }
     }
 
@@ -534,6 +565,16 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           finish()
         }
         if (questionnaireResponse != null && questionnaire != null) {
+          // Single submission per questionnaire session: a double-tap on submit delivers this
+          // fragment result twice and each pass would extract + save a brand new Patient,
+          // producing the duplicate case registrations seen in production.
+          if (!viewModel.tryStartSubmission()) {
+            Timber.w(
+              "Ignoring duplicate submission of questionnaire ${questionnaireConfig.id}; " +
+                "a submission is already in progress or completed",
+            )
+            return@launch
+          }
           viewModel.run {
             if (currentLocation != null) {
               questionnaireResponse.contained.add(
