@@ -35,14 +35,12 @@ class ReleaseTree : Timber.Tree() {
       }
 
     try {
-      if (priority >= Log.WARN) {
-        if (throwable != null) {
+      when {
+        priority >= Log.ERROR && throwable != null ->
           PostHog.captureException(throwable, properties = properties)
-        } else {
-          PostHog.captureException(Exception(message), properties = properties)
-        }
-      } else if (priority == Log.INFO) {
-        PostHog.capture("info_log", properties = properties)
+        priority >= Log.ERROR -> PostHog.capture("error_log", properties = properties)
+        priority == Log.WARN -> PostHog.capture("warning_log", properties = properties)
+        priority == Log.INFO -> PostHog.capture("info_log", properties = properties)
       }
     } catch (e: Exception) {
       Log.e("ReleaseTree", "Error sending log to PostHog: ${e.message}", e)

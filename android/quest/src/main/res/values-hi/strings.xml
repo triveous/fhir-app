@@ -123,7 +123,7 @@
     <string name="structure_success">%1$s के लिए संसाधन सफलतापूर्वक निकाले गए</string>
     <string name="reassigned_managing_entity">प्रबंधन संस्था सफलतापूर्वक पुनः नियुक्त की गई</string>
     <string name="error_fetching_user_details">उपयोगकर्ता विवरण प्राप्त करने में विफल</string>
-    <string name="questionnaire_not_found">प्रश्नावली नहीं मिली. सभी प्रश्नावली सिंक करें ठीक करने के लिए</string>
+    <string name="questionnaire_not_found">यह फ़ॉर्म अभी डाउनलोड हो रहा है। कृपया सिंक पूरा होने तक प्रतीक्षा करें और फिर से प्रयास करें।</string>
     <string name="no_visits">कोई यात्रा नहीं</string>
     <string name="questionnaire_response_invalid">प्रश्नावली प्रतिक्रिया अमान्य</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>  // This string is marked as non-translatable, so it remains the same.

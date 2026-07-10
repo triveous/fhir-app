@@ -32,6 +32,7 @@ import org.smartregister.fhircore.engine.app.fakes.Faker
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.app.ConfigService
 import org.smartregister.fhircore.engine.robolectric.RobolectricTest
+import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.test.HiltActivityForTest
 
@@ -45,6 +46,8 @@ class SyncListenerManagerTest : RobolectricTest() {
   private val configurationRegistry: ConfigurationRegistry = Faker.buildTestConfigurationRegistry()
 
   @Inject lateinit var sharedPreferencesHelper: SharedPreferencesHelper
+
+  @Inject lateinit var secureSharedPreference: SecureSharedPreference
 
   @Inject lateinit var configService: ConfigService
 
@@ -62,6 +65,7 @@ class SyncListenerManagerTest : RobolectricTest() {
         configService = configService,
         sharedPreferencesHelper = sharedPreferencesHelper,
         configurationRegistry = configurationRegistry,
+        secureSharedPreference = secureSharedPreference,
       )
   }
 
@@ -79,6 +83,14 @@ class SyncListenerManagerTest : RobolectricTest() {
     Assert.assertTrue(syncListenerManager.onSyncListeners.isNotEmpty())
     Assert.assertEquals(1, syncListenerManager.onSyncListeners.size)
     Assert.assertTrue(syncListenerManager.onSyncListeners.first() is HiltActivityForTest)
+  }
+
+  @Test
+  fun testRegisterSyncListenerShouldIgnoreDuplicateOnSyncListener() {
+    activityController.create().resume()
+    syncListenerManager.registerSyncListener(hiltActivityForTest, hiltActivityForTest.lifecycle)
+    syncListenerManager.registerSyncListener(hiltActivityForTest, hiltActivityForTest.lifecycle)
+    Assert.assertEquals(1, syncListenerManager.onSyncListeners.size)
   }
 
   @Test

@@ -66,6 +66,7 @@ import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterFragment
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
+import org.smartregister.fhircore.quest.util.FeatureFlagUtil
 import org.smartregister.fhircore.quest.util.extensions.interpolateActionParamsValue
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -101,6 +102,7 @@ class RegisterFragmentTest : RobolectricTest() {
           secureSharedPreference = mockk<SecureSharedPreference>(relaxed = true),
           resourceDataRulesExecutor = mockk(),
           fhirEngine = mockk<FhirEngine>(relaxed = true),
+          featureFlagUtil = mockk<FeatureFlagUtil>(relaxed = true),
         ),
       )
     registerFragmentMock = mockk()

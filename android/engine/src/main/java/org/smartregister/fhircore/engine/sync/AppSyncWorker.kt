@@ -20,12 +20,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
 import android.net.Uri
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.hilt.work.HiltWorker
+import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -38,11 +38,14 @@ import com.google.android.fhir.sync.AcceptLocalConflictResolver
 import com.google.android.fhir.sync.ConflictResolver
 import com.google.android.fhir.sync.DownloadWorkManager
 import com.google.android.fhir.sync.FhirSyncWorker
+import com.google.android.fhir.sync.SyncJobStatus
+import com.google.android.fhir.sync.SyncOperation
 import com.google.android.fhir.sync.upload.UploadStrategy
 import com.google.gson.Gson
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
@@ -135,34 +138,79 @@ constructor(
 
     override suspend fun doWork(): Result {
         Timber.i("AppSyncWorker Running sync worker")
-        if (mutex.isLocked) {
-            Timber.e(Exception("AppSyncWorker is locked. Returning failure"))
-            return Result.failure()
+        if (!mutex.tryLock()) {
+            Timber.i("AppSyncWorker sync already running; skipping duplicate worker")
+            return Result.success()
         }
-        val metaSyncResult = super.doWork()
-        mutex.withLock {
-            Timber.i("AppSyncWorker Running within lock sync worker")
-            try {
-                setForeground(getForegroundInfo())
-                val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
 
-                val retries = inputData.getInt("max_retires", 0)
-                if (metaSyncResult.javaClass === Result.success().javaClass) {
-                    return when (allDocUploaded) {
-                        true -> Result.success()
-                        false -> if (retries > runAttemptCount) Result.retry() else Result.failure(
+        return try {
+            Timber.i("AppSyncWorker Running within lock sync worker")
+            promoteToForegroundIfAllowed()
+            val metaSyncResult = super.doWork()
+            val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
+
+            val retries = inputData.getInt("max_retires", 0)
+            if (metaSyncResult.javaClass === Result.success().javaClass) {
+                when (allDocUploaded) {
+                    true -> Result.success()
+                    false -> if (retries > runAttemptCount) {
+                        Result.retry()
+                    } else {
+                        Result.failure(
                             workDataOf(
                                 "error" to Exception::class.java.name,
-                                "reason" to "Failed to upload all files"
-                            )
+                                "reason" to "Failed to upload all files",
+                            ),
                         )
                     }
                 }
-            } catch (e: Exception) {
-                Timber.e(e, "Appsync worker")
+            } else {
+                metaSyncResult
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.e(e, "Appsync worker")
+            Result.failure(
+                workDataOf(
+                    "error" to e::class.java.name,
+                    "reason" to e.message,
+                ),
+            )
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    private suspend fun promoteToForegroundIfAllowed() {
+        try {
+            setForeground(getForegroundInfo())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (e.isForegroundServiceStartRestriction()) {
+                Timber.w(
+                    e,
+                    "Foreground sync notification could not be started; continuing sync as background work",
+                )
+            } else {
+                throw e
             }
         }
-        return metaSyncResult
+    }
+
+    private fun Throwable.isForegroundServiceStartRestriction(): Boolean {
+        var throwable: Throwable? = this
+        while (throwable != null) {
+            if (throwable::class.java.name == "android.app.ForegroundServiceStartNotAllowedException" ||
+                throwable.message?.contains("startForegroundService() not allowed", ignoreCase = true) == true ||
+                throwable.message?.contains("Foreground service start not allowed", ignoreCase = true) == true
+            ) {
+                return true
+            }
+            throwable = throwable.cause
+        }
+        return false
     }
 
     private suspend fun performDocumentReferenceUpload(context: Context, workerId: String): Boolean {
@@ -177,6 +225,19 @@ constructor(
 
 
         Timber.i("Found $totalDocuments document(s) to upload")
+
+        // Surface the image-upload phase as real sync progress. The FHIR SDK only relays worker
+        // progress that is serialized as a SyncJobStatus (keys "StateType"/"State"); the earlier
+        // custom "progress" key was silently dropped by the SDK, which is why downstream progress
+        // UIs froze at the ~99% left by the preceding metadata sync. The in-app bar is shown only
+        // for the first-time sync, but a first-time sync can still include images (cases registered
+        // before the initial sync ever succeeded), so emitting a real InProgress(UPLOAD) keeps that
+        // bar tracking uploaded/total instead of freezing.
+        if (totalDocuments > 0) {
+            setProgress(
+                buildImageUploadProgressData(uploaded = 0, total = totalDocuments),
+            )
+        }
 
         val notificationManager = createNotificationChannel(context)
         val notificationBuilder = createNotificationBuilder(context, totalDocuments, pendingDocuments)
@@ -233,10 +294,14 @@ constructor(
                         applicationContext.contentResolver.delete(fileUri, null, null)
 
                         pendingDocuments--
-                        val progress = ((totalDocuments - pendingDocuments) * 100 / totalDocuments).toInt()
                         updateProgress(context, notificationBuilder, totalDocuments, pendingDocuments)
                         notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
-                        setProgressAsync(workDataOf("progress" to progress))
+                        setProgress(
+                            buildImageUploadProgressData(
+                                uploaded = totalDocuments - pendingDocuments,
+                                total = totalDocuments,
+                            ),
+                        )
 
                         Timber.i("Successfully completed version-aware upload for document: ${docReference.logicalId}")
                         true
@@ -611,6 +676,21 @@ private fun filesExists(uri: Uri?): Boolean {
         } catch (e: Exception) {
             Timber.e(e, "Failed to update sync metadata")
         }
+    }
+
+    /**
+     * Serializes an image-upload [SyncJobStatus.InProgress] into the WorkManager progress [Data]
+     * format that the FHIR SDK ([com.google.android.fhir.sync.Sync.getWorkerInfo]) understands, so
+     * the emission is relayed to the registered [OnSyncListener]s as
+     * [com.google.android.fhir.sync.CurrentSyncJobStatus.Running] and drives the in-app sync
+     * progress bar. The keys/serialization mirror `FhirSyncWorker.buildWorkData`.
+     */
+    private fun buildImageUploadProgressData(uploaded: Int, total: Int): Data {
+        val status = SyncJobStatus.InProgress(SyncOperation.UPLOAD, total = total, completed = uploaded)
+        return workDataOf(
+            "StateType" to status::class.java.name,
+            "State" to gson.toJson(status),
+        )
     }
 
     private fun updateProgress(context: Context,notificationBuilder: NotificationCompat.Builder, totalDocuments: Int, pendingDocuments: Int) {

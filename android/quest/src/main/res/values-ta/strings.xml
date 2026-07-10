@@ -123,7 +123,7 @@
     <string name="structure_success">%1$s க்கான வளங்களை வெற்றிகரமாக எடுக்கப்பட்டது</string>
     <string name="reassigned_managing_entity">நிர்வாக ஆட்சி வெற்றிகரமாக மறுவியஜிக்கப்பட்டது</string>
     <string name="error_fetching_user_details">பயனர் விவரங்களை பெற முடியவில்லை</string>
-    <string name="questionnaire_not_found">Questionnaire காணப்படவில்லை. சரி செய்ய அனைத்து questionnaires ஐ Sync செய்யவும்</string>
+    <string name="questionnaire_not_found">இந்தப் படிவம் இன்னும் பதிவிறக்கம் ஆகிக்கொண்டிருக்கிறது. ஒத்திசைவு முடியும் வரை காத்திருந்து மீண்டும் முயற்சிக்கவும்.</string>
     <string name="no_visits">சந்திப்புகள் இல்லை</string>
     <string name="questionnaire_response_invalid">Questionnaire பதில் தவறானது</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>

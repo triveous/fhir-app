@@ -23,11 +23,12 @@ import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.app.AuthConfiguration
 import org.smartregister.fhircore.engine.configuration.app.ConfigService
+import org.smartregister.fhircore.engine.di.BaseUrlsHolder
 import org.smartregister.fhircore.engine.sync.ResourceTag
 
 class AppConfigService @Inject constructor(@ApplicationContext val context: Context) :
   ConfigService {
-  override fun provideAuthConfiguration() =
+  override fun provideAuthConfiguration(baseUrlsHolder: BaseUrlsHolder) =
     AuthConfiguration(
       fhirServerBaseUrl = "http://fake.base.url.com",
       oauthServerBaseUrl = "http://fake.keycloak.url.com",

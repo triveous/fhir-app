@@ -29,8 +29,14 @@ import androidx.work.workDataOf
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.search.search
 import com.google.android.fhir.sync.CurrentSyncJobStatus
+import com.google.android.fhir.sync.SyncJobStatus
+import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.hl7.fhir.r4.model.Binary
@@ -104,9 +110,35 @@ constructor(
   private val simpleDateFormat = SimpleDateFormat(SYNC_TIMESTAMP_OUTPUT_FORMAT, Locale.getDefault())
   private var syncStartedAtMs: Long? = null
 
+  /**
+   * Identifies the current determinate progress phase as an (operation, total) pair. A single sync
+   * runs several sequential phases (metadata download, metadata upload, image upload), each with its
+   * own total. We track the active phase so the bar can restart its baseline when a genuinely new
+   * phase begins — otherwise the monotonic guard in [showSyncProgress] would pin the bar at the
+   * previous phase's percentage (e.g. holding ~99% from the metadata sync while images upload).
+   */
+  private var currentSyncPhaseKey: Pair<SyncOperation, Int>? = null
+
+  /**
+   * Drives the non-blocking floating sync progress bar. Lives in the (activity-scoped) view model so
+   * it survives fragment recreation and is shared across all screens/tabs while a sync is running.
+   */
+  private val _syncProgressStateFlow = MutableStateFlow(SyncProgressUiState())
+  val syncProgressStateFlow: StateFlow<SyncProgressUiState> = _syncProgressStateFlow.asStateFlow()
+
   val applicationConfiguration: ApplicationConfiguration by lazy {
     configurationRegistry.retrieveConfiguration(ConfigType.Application, paramsMap = emptyMap())
   }
+
+  /**
+   * Whether the in-memory application configuration is available. It is populated by the
+   * AppSettingActivity bootstrap and lives only in memory ([ConfigurationRegistry.configsJsonMap]).
+   * After process death the OS can recreate [AppMainActivity] directly, bypassing that bootstrap, so
+   * every `retrieveConfiguration(...)` call would throw [NoSuchElementException] and leave a blank
+   * screen. Callers use this to detect that state and restart the bootstrap.
+   */
+  fun isApplicationConfigurationLoaded(): Boolean =
+    configurationRegistry.configsJsonMap.containsKey(ConfigType.Application.name)
 
   val navigationConfiguration: NavigationConfiguration by lazy {
     configurationRegistry.retrieveConfiguration(ConfigType.Navigation)
@@ -147,8 +179,7 @@ constructor(
     }
   }
 
-  fun onEvent(event: AppMainEvent,isForeground:Boolean=false) {
-//    Timber.e("TAG onEvent --> isForeground -->$isForeground ")
+  fun onEvent(event: AppMainEvent, isForeground: Boolean = false) {
     when (event) {
       is AppMainEvent.SwitchLanguage -> {
         sharedPreferencesHelper.write(SharedPreferenceKey.LANG.name, event.language.tag)
@@ -158,7 +189,7 @@ constructor(
         }
       }
       is AppMainEvent.SyncData -> {
-        Timber.e("TAG SyncData onEvent --> isForeground -->$isForeground event--> ${event}")
+        Timber.d("SyncData event received. isForeground=$isForeground")
         if (event.context.isDeviceOnline()) {
           syncStartedAtMs = SystemClock.elapsedRealtime()
           PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
@@ -166,8 +197,10 @@ constructor(
           if (!isForeground) {
             viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
           } else {
-            Timber.e("TAG syncBroadcaster.runOneTimeSync--> start")
-            viewModelScope.launch { syncBroadcaster.runOneTimeSync(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST) }
+            Timber.d("Starting user-initiated one-time sync")
+            viewModelScope.launch {
+              syncBroadcaster.runOneTimeSync(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            }
           }
         } else {
           event.context.showToast(event.context.getString(R.string.sync_failed), Toast.LENGTH_LONG)
@@ -248,6 +281,113 @@ constructor(
       )
       syncStartedAtMs = null
     }
+  }
+
+  /**
+   * Updates [syncProgressStateFlow] from the raw sync status emitted by the FHIR sync worker. The
+   * floating progress bar stays visible for the whole [CurrentSyncJobStatus.Running] phase and is
+   * only dismissed on a terminal Succeeded/Failed status — this prevents the bar from flickering
+   * away when the per-resource progress momentarily hits 100% mid-sync.
+   *
+   * The bar is shown only for the first-time sync (initial download of questionnaires and other
+   * resources, i.e. while [SharedPreferenceKey.LAST_SYNC_TIMESTAMP] is still unset). Subsequent
+   * syncs upload registered cases and then their images; the SDK reports no progress for the
+   * image-upload phase, so the bar used to freeze at ~99% until every image finished. Those syncs
+   * already surface image-upload progress through the foreground notification, so the in-app bar
+   * is suppressed for them.
+   */
+  fun updateSyncProgress(syncJobStatus: CurrentSyncJobStatus) {
+    when (syncJobStatus) {
+      is CurrentSyncJobStatus.Running -> {
+        if (!_syncProgressStateFlow.value.isSyncing && !isFirstTimeSync()) return
+        when (val inProgress = syncJobStatus.inProgressSyncJob) {
+          is SyncJobStatus.Started -> showSyncProgressStarted()
+          is SyncJobStatus.InProgress -> showSyncProgress(inProgress)
+          else -> {
+            // Enqueued or other intermediate states: ensure the bar is visible.
+            _syncProgressStateFlow.update { it.copy(isSyncing = true) }
+          }
+        }
+      }
+      is CurrentSyncJobStatus.Succeeded,
+      is CurrentSyncJobStatus.Failed, -> {
+        currentSyncPhaseKey = null
+        _syncProgressStateFlow.value = SyncProgressUiState(isSyncing = false)
+      }
+      else -> {
+        // Enqueued / Cancelled: leave the current state untouched.
+      }
+    }
+  }
+
+  private fun showSyncProgressStarted() {
+    val firstTimeSync = isFirstTimeSync()
+    val currentState = _syncProgressStateFlow.value
+
+    if (!currentState.isSyncing) {
+      currentSyncPhaseKey = null
+      _syncProgressStateFlow.value =
+        SyncProgressUiState(
+          isSyncing = true,
+          progressPercentage = 0,
+          isUploadSync = false,
+          isFirstTimeSync = firstTimeSync,
+        )
+    } else {
+      _syncProgressStateFlow.update {
+        it.copy(isSyncing = true, isFirstTimeSync = it.isFirstTimeSync || firstTimeSync)
+      }
+    }
+  }
+
+  private fun showSyncProgress(inProgress: SyncJobStatus.InProgress) {
+    val isUpload = inProgress.syncOperation == SyncOperation.UPLOAD
+    val firstTimeSync = isFirstTimeSync()
+    val percentage = calculateActualPercentageProgress(inProgress)
+
+    // A determinate emission (total > 0) that either belongs to a new (operation, total) phase or is
+    // the first tick of a phase (completed == 0) restarts the bar from 0. This lets the image-upload
+    // phase show real 0..100 progress instead of inheriting the ~99% left by the metadata sync.
+    // Indeterminate emissions (percentage == null, i.e. total <= 0) never reset the baseline so a
+    // no-op upload phase cannot blank out an in-progress download.
+    val phaseKey = inProgress.syncOperation to inProgress.total
+    val isNewPhase =
+      percentage != null && (phaseKey != currentSyncPhaseKey || inProgress.completed == 0)
+    if (percentage != null) currentSyncPhaseKey = phaseKey
+
+    _syncProgressStateFlow.update {
+      // Never move backwards within a phase. When the total is unknown (percentage == null) we
+      // cannot compute a value, so we hold the previous one and let the bar stay indeterminate.
+      val baseline = if (it.isSyncing && !isNewPhase) it.progressPercentage else 0
+      it.copy(
+        isSyncing = true,
+        progressPercentage = maxOf(baseline, percentage ?: baseline),
+        isUploadSync = isUpload,
+        isFirstTimeSync = it.isFirstTimeSync || firstTimeSync,
+      )
+    }
+  }
+
+  private fun isFirstTimeSync(): Boolean =
+    sharedPreferencesHelper.read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null).isNullOrEmpty()
+
+  /**
+   * Computes the sync progress percentage directly from the raw SDK status.
+   *
+   * The FHIR SDK ([com.google.android.fhir.sync.FhirSynchronizer]) reports a fixed [total] for the
+   * whole operation and a [completed] count that grows monotonically from `0..total`. We therefore
+   * just compute `completed / total`, capped below 100 so the bar never reads "complete" before the
+   * sync actually reaches a terminal Succeeded/Failed status.
+   *
+   * When the server does not report resource counts the SDK emits `total == 0`. In that case a
+   * percentage is meaningless (the previous implementation incorrectly rendered this as 99%), so we
+   * return `null` and let the bar stay indeterminate.
+   */
+  private fun calculateActualPercentageProgress(
+    progressSyncJobStatus: SyncJobStatus.InProgress,
+  ): Int? {
+    if (progressSyncJobStatus.total <= 0) return null
+    return (progressSyncJobStatus.completed * 100 / progressSyncJobStatus.total).coerceIn(0, 99)
   }
 
   private suspend fun pendingSyncImages(): Int =
