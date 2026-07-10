@@ -128,6 +128,7 @@
     <string name="questionnaire_not_found">This form is still being downloaded. Please wait for the sync to finish and try again.</string>
     <string name="no_visits">No visits</string>
     <string name="questionnaire_response_invalid">Please update the fields properly before submitting</string>
+    <string name="questionnaire_submission_failed">Something went wrong while saving the case. Please close the form and check the register before trying again.</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>
     <string name="application_version" translatable="false">Application Version</string>
     <string name="missing_subject_type">Missing subject type on questionnaire. Provide Questionnaire.subjectType to resolve.</string>

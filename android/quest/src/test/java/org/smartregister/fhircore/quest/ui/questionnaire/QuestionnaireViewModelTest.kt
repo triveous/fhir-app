@@ -406,6 +406,14 @@ class QuestionnaireViewModelTest : RobolectricTest() {
   }
 
   @Test
+  fun testTryStartSubmissionOnlyGrantsTheSubmissionSlotOnce() {
+    Assert.assertTrue(questionnaireViewModel.tryStartSubmission())
+    // Second submit (double-tap or re-submitting an already-saved form) must be rejected
+    Assert.assertFalse(questionnaireViewModel.tryStartSubmission())
+    Assert.assertFalse(questionnaireViewModel.tryStartSubmission())
+  }
+
+  @Test
   fun testPerformExtractionWithStructureMap() = runTest {
     mockkObject(ResourceMapper)
     val questionnaire = extractionQuestionnaire()
