@@ -67,6 +67,23 @@ class FeatureFlagUtilTest {
   }
 
   @Test
+  fun testReadsUseTenantPrefixedResourceIdFromPreferences() = runTest {
+    val tenantResourceId = "staging-2-feature-flags"
+    every { sharedPreferencesHelper.getFeatureFlagsResourceId() } returns tenantResourceId
+    coEvery { fhirEngine.get<Basic>(tenantResourceId) } throws
+      ResourceNotFoundException("Basic", tenantResourceId)
+    coEvery {
+      fhirResourceDataSource.getResource("Basic?_id=$tenantResourceId&_count=1")
+    } returns Bundle().apply { addEntry().resource = featureFlagsBasic(true) }
+
+    Assert.assertTrue(featureFlagUtil.isAiInferenceEnabled())
+
+    coVerify { fhirEngine.get<Basic>(tenantResourceId) }
+    coVerify { fhirResourceDataSource.getResource("Basic?_id=$tenantResourceId&_count=1") }
+    verify { sharedPreferencesHelper.saveLastKnownFeatureFlags(tenantResourceId, any()) }
+  }
+
+  @Test
   fun testEmptyNetworkResultFallsBackToLastKnownFeatureFlags() = runTest {
     coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } throws
       ResourceNotFoundException("Basic", featureFlagsResourceId)
