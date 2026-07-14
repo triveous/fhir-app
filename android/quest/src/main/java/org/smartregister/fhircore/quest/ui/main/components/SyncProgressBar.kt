@@ -74,7 +74,7 @@ fun SyncProgressBar(
   ) {
     val label =
       when {
-        syncProgressUiState.isUploadSync -> stringResource(R.string.sync_bar_uploading)
+        syncProgressUiState.isUploadSync -> stringResource(R.string.sync_bar_first_time)
         syncProgressUiState.isFirstTimeSync -> stringResource(R.string.sync_bar_first_time)
         else -> stringResource(R.string.sync_bar_downloading)
       }

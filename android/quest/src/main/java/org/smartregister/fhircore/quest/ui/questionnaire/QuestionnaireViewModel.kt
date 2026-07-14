@@ -45,10 +45,12 @@ import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.Group
 import org.hl7.fhir.r4.model.IdType
+import org.hl7.fhir.r4.model.Identifier
 import org.hl7.fhir.r4.model.Library
 import org.hl7.fhir.r4.model.ListResource
 import org.hl7.fhir.r4.model.ListResource.ListEntryComponent
 import org.hl7.fhir.r4.model.Parameters
+import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.Reference
@@ -179,6 +181,23 @@ constructor(
     submissionInFlight.set(false)
   }
 
+  /**
+   * User-facing aa-reference-id for the case registered in this questionnaire session. Generated
+   * once per session so a retried or accidentally repeated submission reuses the same id instead
+   * of minting a new one for every attempt.
+   */
+  private val sessionReferenceId: String by lazy {
+    (10_000_000..99_999_999).random().toString()
+  }
+
+  /**
+   * Resource id pinned onto the extracted subject (e.g. Patient) for fresh registrations. The
+   * StructureMap assigns `uuid()` on every extraction, so without this each accidental re-run of
+   * extraction registered a brand new patient; with a session-stable id a re-run upserts the same
+   * resource instead.
+   */
+  private val sessionSubjectResourceId: String by lazy { UUID.randomUUID().toString() }
+
 
   fun getUserName(): String {
     return secureSharedPreference.getPractitionerUserId()
@@ -273,17 +292,20 @@ constructor(
     viewModelScope.launch(SupervisorJob()) {
      try {
 
-      val patientId = (10_000_000..99_999_999).random().toString()
-
-      val idItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
-        linkId = "aa-reference-id"
-        addAnswer(
-          QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
-            value = StringType(patientId)
-          }
-        )
+      // Attach the user-facing reference id at most once: an edited response already carries the
+      // id the case was registered with, and adding a second aa-reference-id item would let the
+      // StructureMap overwrite the permanent id with a fresh random one.
+      if (currentQuestionnaireResponse.item.none { it.linkId == AA_REFERENCE_ID_LINK_ID }) {
+        val idItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+          linkId = AA_REFERENCE_ID_LINK_ID
+          addAnswer(
+            QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+              value = StringType(sessionReferenceId)
+            }
+          )
+        }
+        currentQuestionnaireResponse.addItem(idItem)
       }
-      currentQuestionnaireResponse.addItem(idItem)
 
       val questionnaireResponseValid =
         validateQuestionnaireResponse(
@@ -310,6 +332,26 @@ constructor(
           questionnaireResponse = currentQuestionnaireResponse,
           context = context,
         )
+
+      // performExtraction swallows failures and returns an empty Bundle. For a fresh registration
+      // (no subject yet) that means nothing would be saved — not even the QuestionnaireResponse —
+      // yet the flow used to continue and report success, silently losing the case. Fail loudly
+      // and release the submission latch: nothing was saved, so retrying cannot duplicate.
+      if (
+        bundle.entry.isNullOrEmpty() &&
+        currentQuestionnaireResponse.subject.reference.isNullOrEmpty()
+      ) {
+        Timber.e(
+          "Extraction produced no resources for ${questionnaireConfig.id}; aborting submission",
+        )
+        setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+        context.showToast(
+          context.getString(R.string.questionnaire_submission_failed),
+          Toast.LENGTH_LONG,
+        )
+        allowSubmissionRetry()
+        return@launch
+      }
 
       saveExtractedResources(
         bundle = bundle,
@@ -418,6 +460,18 @@ constructor(
     bundle.entry?.forEach { bundleEntryComponent ->
       bundleEntryComponent.resource?.run {
         applyResourceMetadata(questionnaireConfig, questionnaireResponse, context)
+        // Fresh registrations pin the subject resource to a session-stable id: the StructureMap
+        // generates uuid() per extraction, so if extraction ever runs twice for the same form
+        // session the second pass would otherwise register a duplicate patient instead of
+        // upserting this one.
+        if (
+          !questionnaireConfig.isEditable() &&
+          questionnaireResponse.subject.reference.isNullOrEmpty() &&
+          subjectType != null &&
+          resourceType == subjectType
+        ) {
+          id = sessionSubjectResourceId
+        }
         if (
           questionnaireResponse.subject.reference.isNullOrEmpty() &&
           subjectType != null &&
@@ -468,6 +522,14 @@ constructor(
           }
         }
 
+        // The register/profile screens surface the aa-reference-id from Patient.identifier; a
+        // stale server StructureMap (or a failed identifier rule) leaves it blank and the app
+        // shows "Not Available". Guarantee it here: new patients get the id generated for this
+        // session, edited patients keep the id they were registered with.
+        if (this is Patient && resourceType == subjectType) {
+          ensureReferenceIdIdentifier(this, questionnaireConfig, questionnaireResponse)
+        }
+
         // Set the Group's Related Entity Location metadata tag on Resource before saving.
         this.applyRelatedEntityLocationMetaTag(questionnaireConfig, context, subjectType)
 
@@ -511,6 +573,57 @@ constructor(
       defaultRepository.addOrUpdate(resource = questionnaireResponse)
     }
   }
+
+  /**
+   * Guarantees the subject [Patient] carries the user-facing reference-id identifier (system
+   * [PATIENT_REFERENCE_ID_SYSTEM]) with a non-blank value before it is saved:
+   * - Editing an existing case: the reference id is permanent, so the identifier already stored
+   *   on the patient wins over whatever this extraction produced.
+   * - New registration: when the StructureMap did not populate the identifier (stale map on the
+   *   server, failed rule) it is filled from the aa-reference-id answer of the
+   *   [QuestionnaireResponse].
+   */
+  private suspend fun ensureReferenceIdIdentifier(
+    patient: Patient,
+    questionnaireConfig: QuestionnaireConfig,
+    questionnaireResponse: QuestionnaireResponse,
+  ) {
+    val storedValue =
+      if (questionnaireConfig.isEditable()) {
+        runCatching { loadResource(ResourceType.Patient, patient.logicalId) as? Patient }
+          .getOrNull()
+          ?.referenceIdIdentifier()
+          ?.value
+          ?.takeUnless { it.isBlank() }
+      } else {
+        null
+      }
+
+    val referenceId =
+      storedValue
+        ?: patient.referenceIdIdentifier()?.value?.takeUnless { it.isBlank() }
+        ?: questionnaireResponse.item
+          .firstOrNull { it.linkId == AA_REFERENCE_ID_LINK_ID }
+          ?.answerFirstRep
+          ?.value
+          ?.primitiveValue()
+        ?: return
+
+    val identifier =
+      patient.referenceIdIdentifier()
+        ?: Identifier()
+          .apply {
+            use = Identifier.IdentifierUse.SECONDARY
+            system = PATIENT_REFERENCE_ID_SYSTEM
+          }
+          // First position so identifierFirstRep (what the UI shows) is the reference id even
+          // when other identifiers (e.g. ABHA) exist.
+          .also { patient.identifier.add(0, it) }
+    identifier.value = referenceId
+  }
+
+  private fun Patient.referenceIdIdentifier(): Identifier? =
+    identifier.firstOrNull { it.system == PATIENT_REFERENCE_ID_SYSTEM }
 
   private suspend fun Resource.applyRelatedEntityLocationMetaTag(
     questionnaireConfig: QuestionnaireConfig,
@@ -1293,6 +1406,8 @@ constructor(
 
   companion object {
     const val CONTAINED_LIST_TITLE = "GeneratedResourcesList"
+    const val AA_REFERENCE_ID_LINK_ID = "aa-reference-id"
+    const val PATIENT_REFERENCE_ID_SYSTEM = "https://midas.iisc.ac.in/fhir/identifier/patient-id"
     const val OUTPUT_PARAMETER_KEY = "OUTPUT"
     private const val LOW_CONFIDENCE_THRESHOLD = 65f
   }
