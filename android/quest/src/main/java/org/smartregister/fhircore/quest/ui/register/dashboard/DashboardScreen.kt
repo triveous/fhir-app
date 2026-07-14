@@ -78,8 +78,6 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
-import org.smartregister.fhircore.quest.ui.register.patients.getPatientsCount
-import org.smartregister.fhircore.quest.ui.register.patients.getSyncImageList
 import org.smartregister.fhircore.quest.ui.register.tasks.BottomSheetContent
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
@@ -105,12 +103,7 @@ fun DashboardScreen(
   val dashboardDataStateFlow by viewModel.dashboardDataStateFlow.collectAsState()
   val isFetching by viewModel.isFetching.collectAsState()
 
-  val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
-  val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
-  /*var totalImageLeftCountData = getSyncImageList(unSyncedImagesCount)
-  var totalPatientsLeftCountData = getPatientsCount(unSyncedPatientsCount.size)
-  var totalImageLeft by remember { mutableStateOf(totalImageLeftCountData) }
-  var totalPatientsLeft by remember { mutableStateOf(totalPatientsLeftCountData) }*/
+  val foregroundSyncDialogState by viewModel.foregroundSyncDialogState.collectAsState()
 
   LaunchedEffect(Unit) {
     PostHogAnalytics.captureScreenView("DashboardScreen")
@@ -203,12 +196,6 @@ fun DashboardScreen(
       ) { innerPadding ->
       val scrollState = rememberScrollState()
       Box {
-        //viewModel.imageCount = unSyncedImagesCount
-        //viewModel.unsyncedPatientsCount = unSyncedPatientsCount.size
-        /*totalImageLeftCountData = getSyncImageList(viewModel.imageCount)
-        totalPatientsLeftCountData = getPatientsCount(viewModel.unsyncedPatientsCount)
-        totalImageLeft = totalImageLeftCountData
-        totalPatientsLeft = totalPatientsLeftCountData*/
         Box(
           modifier = modifier
             .padding(innerPadding)
@@ -493,9 +480,7 @@ fun DashboardScreen(
         ForegroundSyncDialog(
           showDialog = viewModel.showDialog.value,
           title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
-          content = "${getSyncImageList(unSyncedImagesCount)} \n${getPatientsCount(unSyncedPatientsCount.size)}",
-          unSyncedImagesCount,
-          unSyncedPatientsCount.size,
+          state = foregroundSyncDialogState,
           confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
           dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
           onDismiss = {
@@ -522,7 +507,8 @@ fun DashboardScreen(
                 viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
               }
             }
-          }
+          },
+          onRetry = viewModel::refreshForegroundSyncStatus,
         )
       }
     }

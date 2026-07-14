@@ -236,6 +236,8 @@
     <string name="retake_photo">RETAKE PHOTO</string>
     <string name="image_saved">Image Saved</string>
     <string name="sync_status">Sync Status</string>
+    <string name="loading_sync_status">Checking sync status…</string>
+    <string name="sync_status_load_failed">Couldn\'t check the current sync status. Try again.</string>
     <string name="sync_now">Sync now</string>
     <string name="syncing">Syncing…</string>
     <string name="sync_in_progress">Please wait, sync is in progress</string>
