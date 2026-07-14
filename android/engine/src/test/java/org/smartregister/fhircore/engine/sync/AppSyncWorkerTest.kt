@@ -31,6 +31,7 @@ import org.junit.Assert
 import org.junit.Test
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.robolectric.RobolectricTest
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 
@@ -46,6 +47,7 @@ class AppSyncWorkerTest : RobolectricTest() {
     val fhirResourceService = mockk<FhirResourceService>()
     val secureSharedPreference = mockk<SecureSharedPreference>()
     val sharedPreferencesHelper = mockk<SharedPreferencesHelper>()
+    val featureFlagUtil = mockk<FeatureFlagUtil>(relaxed = true)
 
     every { taskExecutor.serialTaskExecutor } returns mockk()
     every { workerParams.taskExecutor } returns taskExecutor
@@ -62,6 +64,7 @@ class AppSyncWorkerTest : RobolectricTest() {
         secureSharedPreference,
         sharedPreferencesHelper,
         Gson(),
+        featureFlagUtil,
       )
 
     appSyncWorker.getDownloadWorkManager()
@@ -81,6 +84,7 @@ class AppSyncWorkerTest : RobolectricTest() {
     val fhirResourceService = mockk<FhirResourceService>()
     val secureSharedPreference = mockk<SecureSharedPreference>()
     val sharedPreferencesHelper = mockk<SharedPreferencesHelper>()
+    val featureFlagUtil = mockk<FeatureFlagUtil>(relaxed = true)
 
     every { taskExecutor.serialTaskExecutor } returns mockk()
     every { workerParams.taskExecutor } returns taskExecutor
@@ -96,6 +100,7 @@ class AppSyncWorkerTest : RobolectricTest() {
         secureSharedPreference,
         sharedPreferencesHelper,
         Gson(),
+        featureFlagUtil,
       )
 
     Assert.assertTrue(AppSyncWorker.mutex.tryLock())

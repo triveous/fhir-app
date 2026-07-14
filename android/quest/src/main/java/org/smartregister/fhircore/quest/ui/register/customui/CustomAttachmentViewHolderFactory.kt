@@ -59,8 +59,8 @@ import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
-import org.smartregister.fhircore.quest.util.FeatureFlagUtil
-import org.smartregister.fhircore.quest.util.FeatureFlagUtilEntryPoint
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
+import org.smartregister.fhircore.engine.util.FeatureFlagUtilEntryPoint
 import kotlinx.coroutines.runBlocking
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig

@@ -81,7 +81,7 @@ import org.opencv.android.Utils
 import org.opencv.core.Mat
 import org.opencv.imgproc.Imgproc
 import org.smartregister.fhircore.quest.util.DeviceMetrics
-import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.quest.util.ImageQualityAnalyzer
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer

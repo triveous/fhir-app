@@ -48,7 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip

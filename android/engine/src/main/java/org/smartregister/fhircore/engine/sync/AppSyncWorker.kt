@@ -68,6 +68,7 @@ import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.CON
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_EXTENSION
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
@@ -92,7 +93,8 @@ constructor(
     private val fhirResourceService: FhirResourceService,
     val secureSharedPreference: SecureSharedPreference,
     private val sharedPreferencesHelper: SharedPreferencesHelper,
-    private val gson: Gson
+    private val gson: Gson,
+    private val featureFlagUtil: FeatureFlagUtil
 ) : FhirSyncWorker(appContext, workerParams) {
     private val analyticsLogger: AnalyticsLogger by lazy {
         EntryPointAccessors.fromApplication(
@@ -151,6 +153,10 @@ constructor(
             syncListenerManager.configurationRegistry.loadConfigurationsIfNotLoaded(applicationContext)
             promoteToForegroundIfAllowed()
             val metaSyncResult = super.doWork()
+            // Feature flags are an app-config Basic that regular sync params never download, so
+            // refresh them here on every sync (never throws). This guarantees a server-side flag
+            // change is visible after exactly one sync instead of waiting for the next login.
+            featureFlagUtil.refreshFromServer()
             val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
 
             val retries = inputData.getInt("max_retires", 0)
