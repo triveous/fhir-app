@@ -114,6 +114,7 @@ fun RegisterScreen(
 ) {
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
     val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
+    val foregroundSyncDialogState by viewModel.foregroundSyncDialogState.collectAsState()
     val isShowPendingSyncBanner by viewModel.isShowPendingSyncBanner.collectAsState()
     val context = LocalContext.current
 
@@ -158,9 +159,7 @@ fun RegisterScreen(
             ForegroundSyncDialog(
                 showDialog = viewModel.showDialog.value,
                 title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
-                content = "${getSyncImageList(unSyncedImagesCount)} \n${getPatientsCount(unSyncedPatientsCount.size)}",
-                unSyncedImagesCount,
-                unSyncedPatientsCount.size,
+                state = foregroundSyncDialogState,
                 confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
                 dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
                 onDismiss = { viewModel.setShowDialog(false) },
@@ -176,6 +175,7 @@ fun RegisterScreen(
                         handleSyncConfirm(viewModel, appMainViewModel, launcher)
                     }
                 },
+                onRetry = viewModel::refreshForegroundSyncStatus,
             )
         }
     }

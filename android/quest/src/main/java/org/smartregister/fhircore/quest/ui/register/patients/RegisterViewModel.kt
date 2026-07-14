@@ -46,7 +46,9 @@ import com.google.android.fhir.search.search
 import com.google.android.fhir.sync.SyncDataParams
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -112,6 +114,7 @@ import org.smartregister.fhircore.quest.util.DraftsUtils.saveBundleToSharedPrefe
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.TaskProgressState
+import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialogState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import org.smartregister.model.practitioner.FhirPractitionerDetails
 import timber.log.Timber
@@ -219,6 +222,12 @@ constructor(
 
     private var _allUnSyncedImages = MutableStateFlow<Int>(0)
     val allUnSyncedImages: StateFlow<Int> = _allUnSyncedImages
+
+    private val _foregroundSyncDialogState =
+        MutableStateFlow<ForegroundSyncDialogState>(ForegroundSyncDialogState.Loading)
+    val foregroundSyncDialogState: StateFlow<ForegroundSyncDialogState> =
+        _foregroundSyncDialogState
+    private var foregroundSyncStatusRefreshJob: Job? = null
 
     private var _showDialog = mutableStateOf(false)
     val showDialog: State<Boolean> = _showDialog
@@ -1194,34 +1203,78 @@ constructor(
         }
     }
 
-    fun getAllUnSyncedPatients() {
+    private suspend fun loadAllUnSyncedPatients(): List<Patient2> {
         val patients = mutableListOf<Patient2>()
-        viewModelScope.launch(Dispatchers.IO) {
-            val data = fhirEngine.getUnsyncedLocalChanges()
-            data.forEachIndexed { index, localChange ->
-                val patient = parsePatientJson(localChange.payload)
-                patient?.let {
-                    if (patient.name.isNotEmpty()) {
-                        patients.add(patient)
-                    }
+        fhirEngine.getUnsyncedLocalChanges().forEach { localChange ->
+            val patient = parsePatientJson(localChange.payload)
+            patient?.let {
+                if (patient.name.isNotEmpty()) {
+                    patients.add(patient)
                 }
             }
-            patients.reverse()
-//      CoroutineScope(Dispatchers.Main).launch {
-            _allUnSyncedStateFlow.value = patients
-            //unsyncedPatientsCount = patients.size
-//      }
+        }
+        patients.reverse()
+        return patients
+    }
+
+    private suspend fun loadAllUnSyncedImagesCount(): Int =
+        fhirEngine
+            .search<DocumentReference> {}
+            .count { it.resource.description != DocumentReferenceCaseType.DRAFT.name }
+
+    fun getAllUnSyncedPatients() {
+        viewModelScope.launch(dispatcherProvider.io()) {
+            _allUnSyncedStateFlow.value = loadAllUnSyncedPatients()
         }
     }
 
     fun getAllUnSyncedPatientsImages() {
-        viewModelScope.launch(Dispatchers.IO) {
-
-            val imagesCount = fhirEngine.search<DocumentReference> {}.filter {  it.resource.description != DocumentReferenceCaseType.DRAFT.name }.count()
-            _allUnSyncedImages.value = imagesCount
-            //imageCount = imagesCount
-            //unsyncedPatientsCount = _allUnSyncedStateFlow.value.size
+        viewModelScope.launch(dispatcherProvider.io()) {
+            _allUnSyncedImages.value = loadAllUnSyncedImagesCount()
         }
+    }
+
+    /**
+     * Reloads both counts specifically for the foreground sync dialog.
+     *
+     * The dialog state is set to [ForegroundSyncDialogState.Loading] before any database work so a
+     * previously loaded value (especially zero) can never be presented as the current result. Both
+     * counts are published together only after this refresh finishes.
+     */
+    fun refreshForegroundSyncStatus() {
+        foregroundSyncStatusRefreshJob?.cancel()
+        _foregroundSyncDialogState.value = ForegroundSyncDialogState.Loading
+        foregroundSyncStatusRefreshJob =
+            viewModelScope.launch(dispatcherProvider.io()) {
+                try {
+                    val patients = loadAllUnSyncedPatients()
+                    val imageCount = loadAllUnSyncedImagesCount()
+
+                    // Keep the existing screen-level flows current too, but use the atomic dialog
+                    // state below as the only source rendered inside the dialog.
+                    _allUnSyncedStateFlow.value = patients
+                    _allUnSyncedImages.value = imageCount
+                    _foregroundSyncDialogState.value =
+                        ForegroundSyncDialogState.Loaded(
+                            imageCount = imageCount,
+                            patientsCount = patients.size,
+                        )
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    Timber.e(exception, "Failed to load foreground sync status")
+                    _foregroundSyncDialogState.value = ForegroundSyncDialogState.Failed
+                }
+            }
+    }
+
+    fun setShowDialog(value: Boolean) {
+        if (value) {
+            // Start the refresh before making the dialog visible. This guarantees the first frame
+            // is progress even when a previous invocation loaded zero pending resources.
+            refreshForegroundSyncStatus()
+        }
+        _showDialog.value = value
     }
 
     fun deleteIfNotOldDraft(resourceId: String) {
@@ -1506,10 +1559,6 @@ constructor(
         Patient,
         QuestionnaireResponse,
         Patient2
-    }
-
-    fun setShowDialog(value: Boolean) {
-        _showDialog.value = value
     }
 
     fun setPermissionGranted(value: Boolean) {
