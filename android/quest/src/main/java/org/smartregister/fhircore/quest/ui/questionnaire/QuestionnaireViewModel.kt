@@ -190,15 +190,6 @@ constructor(
     (10_000_000..99_999_999).random().toString()
   }
 
-  /**
-   * Resource id pinned onto the extracted subject (e.g. Patient) for fresh registrations. The
-   * StructureMap assigns `uuid()` on every extraction, so without this each accidental re-run of
-   * extraction registered a brand new patient; with a session-stable id a re-run upserts the same
-   * resource instead.
-   */
-  private val sessionSubjectResourceId: String by lazy { UUID.randomUUID().toString() }
-
-
   fun getUserName(): String {
     return secureSharedPreference.getPractitionerUserId()
   }
@@ -460,18 +451,6 @@ constructor(
     bundle.entry?.forEach { bundleEntryComponent ->
       bundleEntryComponent.resource?.run {
         applyResourceMetadata(questionnaireConfig, questionnaireResponse, context)
-        // Fresh registrations pin the subject resource to a session-stable id: the StructureMap
-        // generates uuid() per extraction, so if extraction ever runs twice for the same form
-        // session the second pass would otherwise register a duplicate patient instead of
-        // upserting this one.
-        if (
-          !questionnaireConfig.isEditable() &&
-          questionnaireResponse.subject.reference.isNullOrEmpty() &&
-          subjectType != null &&
-          resourceType == subjectType
-        ) {
-          id = sessionSubjectResourceId
-        }
         if (
           questionnaireResponse.subject.reference.isNullOrEmpty() &&
           subjectType != null &&
