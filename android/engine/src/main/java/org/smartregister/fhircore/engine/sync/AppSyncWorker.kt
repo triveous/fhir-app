@@ -22,6 +22,7 @@ import android.content.Context
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.net.Uri
 import android.provider.Settings
+import androidx.annotation.VisibleForTesting
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.hilt.work.HiltWorker
@@ -46,6 +47,9 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
@@ -106,6 +110,22 @@ constructor(
     companion object {
         val mutex = Mutex()
         val uploadImageMutex = Mutex()
+
+        private val _isSyncRunning = MutableStateFlow(false)
+
+        /**
+         * Observable mirror of [mutex]'s locked state, for UI that must react to a sync starting or
+         * finishing (a [Mutex] cannot be collected). [mutex] remains the authority for deciding
+         * whether to start work; this flow only reports. It is flipped alongside every lock/unlock
+         * in [doWork], so a killed process simply restarts it at `false`.
+         */
+        val isSyncRunning: StateFlow<Boolean> = _isSyncRunning.asStateFlow()
+
+        /** Drives [isSyncRunning] without running a real worker. */
+        @VisibleForTesting
+        fun setSyncRunningForTest(running: Boolean) {
+            _isSyncRunning.value = running
+        }
         const val SYNC_METADATA_SYSTEM = "http://hl7.org/fhir/codes"
         const val SYNC_METADATA_CODE = "sync-metadata"
         const val LAST_SYNC_TIME_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/last-sync-date"
@@ -144,6 +164,7 @@ constructor(
             Timber.i("AppSyncWorker sync already running; skipping duplicate worker")
             return Result.success()
         }
+        _isSyncRunning.value = true
 
         return try {
             Timber.i("AppSyncWorker Running within lock sync worker")
@@ -188,6 +209,7 @@ constructor(
                 ),
             )
         } finally {
+            _isSyncRunning.value = false
             mutex.unlock()
         }
     }

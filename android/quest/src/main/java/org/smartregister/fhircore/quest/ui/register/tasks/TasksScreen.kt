@@ -218,6 +218,7 @@ fun PendingTasksScreen(
     val selectStatusToUpdate = stringResource(id = R.string.select_status_to_update)
 
     val foregroundSyncDialogState by viewModel.foregroundSyncDialogState.collectAsState()
+    val isSyncing by viewModel.isSyncRunning.collectAsState()
 
     LaunchedEffect(Unit) {
         PostHogAnalytics.captureScreenView("TasksScreen")
@@ -334,6 +335,7 @@ fun PendingTasksScreen(
                         },
                         toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
                         isOnline = isOnline,
+                        isSyncing = isSyncing,
                     ) { event ->
                     }
                     Box(

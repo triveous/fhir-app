@@ -116,6 +116,7 @@ fun RegisterScreen(
     val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
     val foregroundSyncDialogState by viewModel.foregroundSyncDialogState.collectAsState()
     val isShowPendingSyncBanner by viewModel.isShowPendingSyncBanner.collectAsState()
+    val isSyncing by viewModel.isSyncRunning.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -139,6 +140,7 @@ fun RegisterScreen(
                 modifier = modifier,
                 viewModel = viewModel,
                 isOnline = isOnline,
+                isSyncing = isSyncing,
                 isShowPendingSyncBanner = isShowPendingSyncBanner,
                 unSyncedImagesCount = unSyncedImagesCount,
                 unSyncedPatientsCount = unSyncedPatientsCount,
@@ -186,6 +188,7 @@ private fun RegisterTopBar(
     modifier: Modifier,
     viewModel: RegisterViewModel,
     isOnline: Boolean,
+    isSyncing: Boolean,
     isShowPendingSyncBanner: Boolean,
     unSyncedImagesCount: Int,
     unSyncedPatientsCount: List<Any>,
@@ -197,6 +200,7 @@ private fun RegisterTopBar(
             title = stringResource(id = R.string.appname),
             toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
             isOnline = isOnline,
+            isSyncing = isSyncing,
             onSync = {
                 viewModel.appMainEvent = it
                 viewModel.setShowDialog(true)
