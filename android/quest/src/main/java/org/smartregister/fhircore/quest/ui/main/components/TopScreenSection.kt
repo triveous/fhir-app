@@ -17,6 +17,12 @@
 package org.smartregister.fhircore.quest.ui.main.components
 
 import android.content.Intent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,6 +32,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
@@ -37,9 +44,12 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.NetworkWifi
 import androidx.compose.material.icons.filled.SignalWifiOff
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -69,6 +79,9 @@ const val TRAILING_ICON_TEST_TAG = "trailingIconTestTag"
 const val TRAILING_ICON_BUTTON_TEST_TAG = "trailingIconButtonTestTag"
 const val LEADING_ICON_TEST_TAG = "leadingIconTestTag"
 const val SEARCH_FIELD_TEST_TAG = "searchFieldTestTag"
+const val SYNCING_INDICATOR_TEST_TAG = "syncingIndicatorTestTag"
+
+private const val SYNCING_ROTATION_DURATION_MS = 1200
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -77,6 +90,7 @@ fun TopScreenSection(
   title: String = stringResource(id = R.string.appname),
   toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
   isOnline: Boolean = true,
+  isSyncing: Boolean = false,
   onSync: (AppMainEvent) -> Unit,
   onClick: (ToolbarClickEvent) -> Unit,
 
@@ -161,17 +175,54 @@ fun TopScreenSection(
             .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Icon(
-          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_cases_sync),
-          contentDescription = FILTER,
-          tint = if (isOnline) Color.White else Color.Gray,
-          modifier =
-          modifier
-            .clickable { onSync(AppMainEvent.SyncData(context)) }
-            .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(
+            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_cases_sync),
+            contentDescription = FILTER,
+            tint = if (isOnline) Color.White else Color.Gray,
+            modifier =
+            modifier
+              .clickable { onSync(AppMainEvent.SyncData(context)) }
+              .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
+          )
+          if (isSyncing) {
+            Spacer(modifier = Modifier.width(4.dp))
+            SyncingIndicator()
+          }
+        }
 
       }
     }
   }
+}
+
+/**
+ * The conventional continuously rotating sync glyph, shown beside the cloud icon while a sync worker
+ * is actually running. It only reports state, so the cloud icon stays the sole click target and this
+ * carries the description a screen reader announces.
+ */
+@Composable
+private fun SyncingIndicator(modifier: Modifier = Modifier) {
+  val infiniteTransition = rememberInfiniteTransition(label = "syncing")
+  val rotation by infiniteTransition.animateFloat(
+    initialValue = 0f,
+    targetValue = 360f,
+    animationSpec =
+    infiniteRepeatable(
+      animation = tween(durationMillis = SYNCING_ROTATION_DURATION_MS, easing = LinearEasing),
+      repeatMode = RepeatMode.Restart,
+    ),
+    label = "syncingRotation",
+  )
+
+  Icon(
+    imageVector = Icons.Filled.Sync,
+    contentDescription = stringResource(id = R.string.syncing),
+    tint = Color.White,
+    modifier =
+    modifier
+      .size(16.dp)
+      .rotate(rotation)
+      .testTag(SYNCING_INDICATOR_TEST_TAG),
+  )
 }

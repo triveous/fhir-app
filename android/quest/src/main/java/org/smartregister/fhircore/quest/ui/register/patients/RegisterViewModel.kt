@@ -55,6 +55,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -88,6 +89,7 @@ import org.smartregister.fhircore.engine.domain.model.ResourceConfig
 import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
 import org.smartregister.fhircore.engine.rulesengine.ResourceDataRulesExecutor
+import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
@@ -229,8 +231,12 @@ constructor(
         _foregroundSyncDialogState
     private var foregroundSyncStatusRefreshJob: Job? = null
 
+    /** Whether a sync worker is running right now, for the toolbar's active-sync indicator. */
+    val isSyncRunning: StateFlow<Boolean> = AppSyncWorker.isSyncRunning
+
     private var _showDialog = mutableStateOf(false)
     val showDialog: State<Boolean> = _showDialog
+    private var syncStateWatchJob: Job? = null
 
     private var _permissionGranted = mutableStateOf(false)
     val permissionGranted: State<Boolean> = _permissionGranted
@@ -1273,8 +1279,29 @@ constructor(
             // Start the refresh before making the dialog visible. This guarantees the first frame
             // is progress even when a previous invocation loaded zero pending resources.
             refreshForegroundSyncStatus()
+            watchSyncWhileDialogIsOpen()
+        } else {
+            syncStateWatchJob?.cancel()
+            syncStateWatchJob = null
         }
         _showDialog.value = value
+    }
+
+    /**
+     * A sync running underneath the open dialog invalidates the counts it is showing: they were read
+     * when it opened, and every uploaded case and image drops them. Re-read on each start/stop so an
+     * open dialog converges on the true pending count instead of stranding the numbers from before
+     * the sync.
+     *
+     * `drop(1)` skips the value the [StateFlow] replays on subscription, which is not a transition —
+     * [setShowDialog] has just refreshed for it.
+     */
+    private fun watchSyncWhileDialogIsOpen() {
+        syncStateWatchJob?.cancel()
+        syncStateWatchJob =
+            viewModelScope.launch {
+                isSyncRunning.drop(1).collect { refreshForegroundSyncStatus() }
+            }
     }
 
     fun deleteIfNotOldDraft(resourceId: String) {
