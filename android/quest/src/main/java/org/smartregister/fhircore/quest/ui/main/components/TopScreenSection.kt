@@ -17,45 +17,51 @@
 package org.smartregister.fhircore.quest.ui.main.components
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CellTower
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.NetworkWifi
-import androidx.compose.material.icons.filled.SignalWifiOff
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.R
@@ -67,6 +73,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.GenericActivity
 import org.smartregister.fhircore.quest.ui.register.patients.GenericActivityArg
 
 const val DRAWER_MENU = "Drawer Menu"
+const val PROFILE = "Profile"
 const val SEARCH = "Search"
 const val CLEAR = "Clear"
 const val FILTER = "Filter"
@@ -81,7 +88,16 @@ const val LEADING_ICON_TEST_TAG = "leadingIconTestTag"
 const val SEARCH_FIELD_TEST_TAG = "searchFieldTestTag"
 const val SYNCING_INDICATOR_TEST_TAG = "syncingIndicatorTestTag"
 
-private const val SYNCING_ROTATION_DURATION_MS = 1200
+private val SYNC_ICON_BOX_SIZE = 40.dp
+private val SYNC_CLOUD_WIDTH = 30.dp
+private val SYNC_CLOUD_HEIGHT = 20.dp
+private val SYNC_ARROWS_SIZE = 15.dp
+private val SYNC_ARROWS_Y_OFFSET = 0.5.dp
+private const val SYNC_ARROWS_ROTATION_MS = 1100
+private const val SYNC_ARROWS_POP_MS = 250
+private const val SYNC_CLOUD_SHIMMER_MS = 1400
+private const val SYNC_CLOUD_RESTING_ALPHA = 0.7f
+private const val SYNC_CLOUD_SHIMMER_BAND_FRACTION = 0.6f
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -93,7 +109,6 @@ fun TopScreenSection(
   isSyncing: Boolean = false,
   onSync: (AppMainEvent) -> Unit,
   onClick: (ToolbarClickEvent) -> Unit,
-
 ) {
   Column(
     modifier = modifier
@@ -102,13 +117,11 @@ fun TopScreenSection(
   ) {
     Row(
       modifier =
-      modifier
+      Modifier
         .fillMaxWidth()
         .height(64.dp)
-        .padding(horizontal = 16.dp, vertical = 16.dp)
-        .testTag(
-          TITLE_ROW_TEST_TAG,
-        ),
+        .padding(start = 16.dp, end = 4.dp)
+        .testTag(TITLE_ROW_TEST_TAG),
       verticalAlignment = Alignment.CenterVertically,
     ) {
       if (toolBarHomeNavigation == ToolBarHomeNavigation.NAVIGATE_BACK) {
@@ -117,7 +130,7 @@ fun TopScreenSection(
           contentDescription = DRAWER_MENU,
           tint = Color.White,
           modifier =
-            modifier
+            Modifier
               .clickable { onClick(ToolbarClickEvent.Navigate) }
               .testTag(TOP_ROW_ICON_TEST_TAG),
         )
@@ -127,102 +140,189 @@ fun TopScreenSection(
         fontSize = 24.sp,
         color = Color.White,
         fontWeight = FontWeight.Bold,
-        modifier = modifier
+        modifier = Modifier
           .padding(start = 8.dp)
           .weight(1f)
           .testTag(TOP_ROW_TEXT_TEST_TAG),
       )
       val context = LocalContext.current
 
-      // Network status indicator
-//      Row(
-//        verticalAlignment = Alignment.CenterVertically,
-//        modifier = Modifier.padding(end = 8.dp, start = 8.dp),
-//      ) {
-//        // Online/offline status indicator as a round dot
-//        Canvas(
-//          modifier = Modifier
-//            .padding(end = 4.dp)
-//            .width(8.dp)
-//            .height(16.dp),
-//          onDraw = {
-//            drawCircle(
-//              color = if (isOnline) Color(0xFF6FD571) else Color(0xFFF44336),
-//              radius = size.minDimension / 2
-//            )
-//          }
-//        )
-//        Text(
-//          text = if (isOnline) "Online" else "Offline",
-//          fontSize = 14.sp,
-//          color = Color.White,
-//        )
-//      }
-
       if (toolBarHomeNavigation == ToolBarHomeNavigation.SYNC) {
-        Icon(
-          painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_profile_actionbar),
-          contentDescription = FILTER,
-          tint = Color.White,
-          modifier =
-          modifier
-            .clickable {
-              val intent = Intent(context, GenericActivity::class.java).apply {
-                putExtra(GenericActivityArg.ARG_FROM, GenericActivityArg.FROM_PROFILE)
-              }
-              context.startActivity(intent)
+        IconButton(
+          onClick = {
+            val intent = Intent(context, GenericActivity::class.java).apply {
+              putExtra(GenericActivityArg.ARG_FROM, GenericActivityArg.FROM_PROFILE)
             }
-            .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+            context.startActivity(intent)
+          },
+        ) {
           Icon(
-            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_cases_sync),
-            contentDescription = FILTER,
-            tint = if (isOnline) Color.White else Color.Gray,
-            modifier =
-            modifier
-              .clickable { onSync(AppMainEvent.SyncData(context)) }
-              .testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
+            painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_profile_actionbar),
+            contentDescription = PROFILE,
+            tint = Color.White,
+            modifier = Modifier.testTag(TOP_ROW_FILTER_ICON_TEST_TAG),
           )
-          if (isSyncing) {
-            Spacer(modifier = Modifier.width(4.dp))
-            SyncingIndicator()
-          }
         }
-
+        SyncActionButton(
+          isOnline = isOnline,
+          isSyncing = isSyncing,
+          onClick = { onSync(AppMainEvent.SyncData(context)) },
+        )
       }
     }
   }
 }
 
 /**
- * The conventional continuously rotating sync glyph, shown beside the cloud icon while a sync worker
- * is actually running. It only reports state, so the cloud icon stays the sole click target and this
- * carries the description a screen reader announces.
+ * Single sync affordance for the app bar. Idle it is a plain cloud; while a sync worker runs the
+ * circular arrows pop in at the cloud's center and rotate, and a shimmer band sweeps across the
+ * cloud itself so the ongoing sync is evident even at a glance. The button stays clickable during
+ * a sync — the caller already guards against concurrent syncs and informs the user.
  */
 @Composable
-private fun SyncingIndicator(modifier: Modifier = Modifier) {
-  val infiniteTransition = rememberInfiniteTransition(label = "syncing")
-  val rotation by infiniteTransition.animateFloat(
-    initialValue = 0f,
-    targetValue = 360f,
-    animationSpec =
-    infiniteRepeatable(
-      animation = tween(durationMillis = SYNCING_ROTATION_DURATION_MS, easing = LinearEasing),
-      repeatMode = RepeatMode.Restart,
-    ),
-    label = "syncingRotation",
-  )
+private fun SyncActionButton(
+  isOnline: Boolean,
+  isSyncing: Boolean,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val iconTint = if (isOnline || isSyncing) Color.White else Color.White.copy(alpha = 0.6f)
+  val contentDescription =
+    if (isSyncing) stringResource(id = R.string.syncing) else stringResource(id = R.string.sync)
+
+  IconButton(onClick = onClick, modifier = modifier) {
+    Box(modifier = Modifier.size(SYNC_ICON_BOX_SIZE), contentAlignment = Alignment.Center) {
+      SyncCloud(isSyncing = isSyncing, tint = iconTint, contentDescription = contentDescription)
+      AnimatedVisibility(
+        visible = isSyncing,
+        enter =
+          fadeIn(animationSpec = tween(SYNC_ARROWS_POP_MS)) +
+            scaleIn(animationSpec = tween(SYNC_ARROWS_POP_MS), initialScale = 0.4f),
+        exit =
+          fadeOut(animationSpec = tween(SYNC_ARROWS_POP_MS)) +
+            scaleOut(animationSpec = tween(SYNC_ARROWS_POP_MS), targetScale = 0.4f),
+      ) {
+        RotatingSyncArrows(tint = iconTint)
+      }
+    }
+  }
+}
+
+/**
+ * The cloud outline. While syncing it dims slightly and a bright band sweeps across the glyph —
+ * the classic shimmer. The gradient is masked to the icon's own pixels by compositing the layer
+ * offscreen and drawing the band with [BlendMode.SrcAtop], so nothing bleeds onto the app bar.
+ */
+@Composable
+private fun SyncCloud(
+  isSyncing: Boolean,
+  tint: Color,
+  contentDescription: String,
+  modifier: Modifier = Modifier,
+) {
+  val sizeModifier =
+    modifier
+      .size(SYNC_CLOUD_WIDTH, SYNC_CLOUD_HEIGHT)
+      .testTag(TOP_ROW_FILTER_ICON_TEST_TAG)
+  if (isSyncing) {
+    val shimmer = rememberInfiniteTransition(label = "cloudShimmer")
+    val bandStart by
+      shimmer.animateFloat(
+        initialValue = -SYNC_CLOUD_SHIMMER_BAND_FRACTION,
+        targetValue = 1f + SYNC_CLOUD_SHIMMER_BAND_FRACTION,
+        animationSpec =
+          infiniteRepeatable(
+            animation = tween(durationMillis = SYNC_CLOUD_SHIMMER_MS, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+          ),
+        label = "cloudShimmerBand",
+      )
+    Icon(
+      painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_cases_sync),
+      contentDescription = contentDescription,
+      tint = tint.copy(alpha = tint.alpha * SYNC_CLOUD_RESTING_ALPHA),
+      modifier =
+        sizeModifier
+          .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+          .drawWithContent {
+            drawContent()
+            val band = size.width * SYNC_CLOUD_SHIMMER_BAND_FRACTION
+            val x = bandStart * size.width
+            drawRect(
+              brush =
+                Brush.linearGradient(
+                  colors = listOf(Color.Transparent, tint, Color.Transparent),
+                  start = Offset(x, 0f),
+                  end = Offset(x + band, size.height),
+                ),
+              blendMode = BlendMode.SrcAtop,
+            )
+          },
+    )
+  } else {
+    Icon(
+      painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_cases_sync),
+      contentDescription = contentDescription,
+      tint = tint,
+      modifier = sizeModifier,
+    )
+  }
+}
+
+/**
+ * Circular sync arrows spinning at the cloud's center, counter-clockwise — the direction their
+ * arrowheads point. Only composed while a sync runs; the caller's [AnimatedVisibility] pop
+ * handles their entrance and exit, so a plain infinite transition is enough here.
+ */
+@Composable
+private fun RotatingSyncArrows(tint: Color, modifier: Modifier = Modifier) {
+  val transition = rememberInfiniteTransition(label = "syncArrows")
+  val rotation by
+    transition.animateFloat(
+      initialValue = 0f,
+      targetValue = -360f,
+      animationSpec =
+        infiniteRepeatable(
+          animation = tween(durationMillis = SYNC_ARROWS_ROTATION_MS, easing = LinearEasing),
+          repeatMode = RepeatMode.Restart,
+        ),
+      label = "syncArrowsRotation",
+    )
 
   Icon(
-    imageVector = Icons.Filled.Sync,
-    contentDescription = stringResource(id = R.string.syncing),
-    tint = Color.White,
-    modifier =
-    modifier
-      .size(16.dp)
+    painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_sync_arrows),
+    contentDescription = null,
+    tint = tint,
+    modifier = modifier
+      .size(SYNC_ARROWS_SIZE)
+      .offset(y = SYNC_ARROWS_Y_OFFSET)
       .rotate(rotation)
       .testTag(SYNCING_INDICATOR_TEST_TAG),
+  )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TopScreenSectionSyncingPreview() {
+  TopScreenSection(
+    title = "App Name",
+    toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
+    isOnline = true,
+    isSyncing = true,
+    onSync = {},
+    onClick = {},
+  )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TopScreenSectionIdlePreview() {
+  TopScreenSection(
+    title = "App Name",
+    toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
+    isOnline = true,
+    isSyncing = false,
+    onSync = {},
+    onClick = {},
   )
 }
