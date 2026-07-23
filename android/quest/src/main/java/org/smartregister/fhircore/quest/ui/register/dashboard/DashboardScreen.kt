@@ -105,6 +105,8 @@ fun DashboardScreen(
 
   val foregroundSyncDialogState by viewModel.foregroundSyncDialogState.collectAsState()
   val isSyncing by viewModel.isSyncRunning.collectAsState()
+  val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
+  val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
 
   LaunchedEffect(Unit) {
     PostHogAnalytics.captureScreenView("DashboardScreen")
@@ -189,6 +191,7 @@ fun DashboardScreen(
             toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
             isOnline = isOnline,
             isSyncing = isSyncing,
+            pendingSyncCount = unSyncedPatientsCount.size + unSyncedImagesCount,
           ) { event ->
             navController.popBackStack()
           }
