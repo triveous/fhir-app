@@ -201,6 +201,7 @@ private fun RegisterTopBar(
             toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
             isOnline = isOnline,
             isSyncing = isSyncing,
+            pendingSyncCount = unSyncedPatientsCount.size + unSyncedImagesCount,
             onSync = {
                 viewModel.appMainEvent = it
                 viewModel.setShowDialog(true)

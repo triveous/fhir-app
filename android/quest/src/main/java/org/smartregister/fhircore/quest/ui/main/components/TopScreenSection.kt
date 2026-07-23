@@ -28,16 +28,20 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -67,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.DarkColors
+import org.smartregister.fhircore.engine.ui.theme.WarningColor
 import org.smartregister.fhircore.quest.event.ToolbarClickEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.register.patients.GenericActivity
@@ -87,17 +92,24 @@ const val TRAILING_ICON_BUTTON_TEST_TAG = "trailingIconButtonTestTag"
 const val LEADING_ICON_TEST_TAG = "leadingIconTestTag"
 const val SEARCH_FIELD_TEST_TAG = "searchFieldTestTag"
 const val SYNCING_INDICATOR_TEST_TAG = "syncingIndicatorTestTag"
+const val SYNC_COMPLETE_INDICATOR_TEST_TAG = "syncCompleteIndicatorTestTag"
+const val SYNC_PENDING_INDICATOR_TEST_TAG = "syncPendingIndicatorTestTag"
 
 private val SYNC_ICON_BOX_SIZE = 40.dp
 private val SYNC_CLOUD_WIDTH = 30.dp
 private val SYNC_CLOUD_HEIGHT = 20.dp
 private val SYNC_ARROWS_SIZE = 15.dp
 private val SYNC_ARROWS_Y_OFFSET = 0.5.dp
+private val SYNC_CHECK_SIZE = 16.dp
+private val SYNC_BADGE_SIZE = 16.dp
+private val SYNC_BADGE_BORDER = 1.5.dp
+private val SYNC_BADGE_H_PADDING = 3.dp
 private const val SYNC_ARROWS_ROTATION_MS = 1100
 private const val SYNC_ARROWS_POP_MS = 250
 private const val SYNC_CLOUD_SHIMMER_MS = 1400
 private const val SYNC_CLOUD_RESTING_ALPHA = 0.7f
 private const val SYNC_CLOUD_SHIMMER_BAND_FRACTION = 0.6f
+private const val SYNC_BADGE_MAX_COUNT = 9
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -107,6 +119,7 @@ fun TopScreenSection(
   toolBarHomeNavigation: ToolBarHomeNavigation = ToolBarHomeNavigation.OPEN_DRAWER,
   isOnline: Boolean = true,
   isSyncing: Boolean = false,
+  pendingSyncCount: Int? = null,
   onSync: (AppMainEvent) -> Unit,
   onClick: (ToolbarClickEvent) -> Unit,
 ) {
@@ -166,6 +179,7 @@ fun TopScreenSection(
         SyncActionButton(
           isOnline = isOnline,
           isSyncing = isSyncing,
+          pendingSyncCount = pendingSyncCount,
           onClick = { onSync(AppMainEvent.SyncData(context)) },
         )
       }
@@ -174,21 +188,35 @@ fun TopScreenSection(
 }
 
 /**
- * Single sync affordance for the app bar. Idle it is a plain cloud; while a sync worker runs the
- * circular arrows pop in at the cloud's center and rotate, and a shimmer band sweeps across the
- * cloud itself so the ongoing sync is evident even at a glance. The button stays clickable during
- * a sync — the caller already guards against concurrent syncs and informs the user.
+ * Single sync affordance for the app bar with three visually distinct states:
+ * - **Syncing**: the circular arrows pop in at the cloud's center and rotate while a shimmer band
+ *   sweeps across the cloud, so an ongoing sync is evident at a glance.
+ * - **Up to date**: when nothing is pending upload, a green check badge sits at the cloud's
+ *   lower-right — the "all changes synced" confirmation the product team asked for.
+ * - **Pending**: with unsynced work waiting, the plain cloud invites a manual sync.
+ *
+ * The up-to-date/pending distinction is driven purely by [pendingSyncCount]; it is opt-in, so a
+ * caller that does not track pending work passes `null` and the badge is never shown (avoiding a
+ * false "synced" state on a screen that cannot actually confirm it). Syncing always wins over the
+ * badge. The button stays clickable throughout — the caller guards against concurrent syncs.
  */
 @Composable
 private fun SyncActionButton(
   isOnline: Boolean,
   isSyncing: Boolean,
+  pendingSyncCount: Int?,
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val iconTint = if (isOnline || isSyncing) Color.White else Color.White.copy(alpha = 0.6f)
+  val isUpToDate = pendingSyncCount != null && !isSyncing && pendingSyncCount == 0
+  val isPending = pendingSyncCount != null && !isSyncing && pendingSyncCount >= 1
   val contentDescription =
-    if (isSyncing) stringResource(id = R.string.syncing) else stringResource(id = R.string.sync)
+    when {
+      isSyncing -> stringResource(id = R.string.syncing)
+      isUpToDate -> stringResource(id = R.string.sync_up_to_date)
+      else -> stringResource(id = R.string.sync)
+    }
 
   IconButton(onClick = onClick, modifier = modifier) {
     Box(modifier = Modifier.size(SYNC_ICON_BOX_SIZE), contentAlignment = Alignment.Center) {
@@ -204,8 +232,78 @@ private fun SyncActionButton(
       ) {
         RotatingSyncArrows(tint = iconTint)
       }
+      AnimatedVisibility(
+        visible = isUpToDate,
+        modifier = Modifier.align(Alignment.BottomEnd),
+        enter =
+          fadeIn(animationSpec = tween(SYNC_ARROWS_POP_MS)) +
+            scaleIn(animationSpec = tween(SYNC_ARROWS_POP_MS), initialScale = 0.4f),
+        exit =
+          fadeOut(animationSpec = tween(SYNC_ARROWS_POP_MS)) +
+            scaleOut(animationSpec = tween(SYNC_ARROWS_POP_MS), targetScale = 0.4f),
+      ) {
+        SyncCompleteBadge()
+      }
+      AnimatedVisibility(
+        visible = isPending,
+        modifier = Modifier.align(Alignment.TopEnd),
+        enter =
+          fadeIn(animationSpec = tween(SYNC_ARROWS_POP_MS)) +
+            scaleIn(animationSpec = tween(SYNC_ARROWS_POP_MS), initialScale = 0.4f),
+        exit =
+          fadeOut(animationSpec = tween(SYNC_ARROWS_POP_MS)) +
+            scaleOut(animationSpec = tween(SYNC_ARROWS_POP_MS), targetScale = 0.4f),
+      ) {
+        SyncPendingBadge(count = pendingSyncCount ?: 0)
+      }
     }
   }
+}
+
+/**
+ * Amber count badge at the cloud's upper-right showing how many items ([count]) are waiting to
+ * upload — cases plus images. Capped at "[SYNC_BADGE_MAX_COUNT]+" so a large backlog stays legible.
+ * A thin app-bar-coloured ring separates it from the cloud glyph beneath. Amber (waiting) is the
+ * deliberate mid-point between this and the green "all synced" check.
+ */
+@Composable
+private fun SyncPendingBadge(count: Int, modifier: Modifier = Modifier) {
+  val label = if (count > SYNC_BADGE_MAX_COUNT) "$SYNC_BADGE_MAX_COUNT+" else count.toString()
+  Box(
+    modifier =
+      modifier
+        .defaultMinSize(minWidth = SYNC_BADGE_SIZE, minHeight = SYNC_BADGE_SIZE)
+        .background(WarningColor, CircleShape)
+        .border(BorderStroke(SYNC_BADGE_BORDER, DarkColors.primary), CircleShape)
+        .padding(horizontal = SYNC_BADGE_H_PADDING)
+        .testTag(SYNC_PENDING_INDICATOR_TEST_TAG),
+    contentAlignment = Alignment.Center,
+  ) {
+    Text(
+      text = label,
+      color = Color.White,
+      fontSize = 9.sp,
+      fontWeight = FontWeight.Bold,
+    )
+  }
+}
+
+/**
+ * Green check badge pinned to the cloud's lower-right corner while everything is synced. The glyph
+ * ([R.drawable.ic_check_circled]) is already a filled green disc, so it is drawn untinted for a
+ * crisp "done" mark against the dark app bar.
+ */
+@Composable
+private fun SyncCompleteBadge(modifier: Modifier = Modifier) {
+  Icon(
+    painter =
+      painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_check_circled),
+    contentDescription = null,
+    tint = Color.White,
+    modifier = modifier
+      .size(SYNC_CHECK_SIZE)
+      .testTag(SYNC_COMPLETE_INDICATOR_TEST_TAG),
+  )
 }
 
 /**
@@ -316,12 +414,27 @@ private fun TopScreenSectionSyncingPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun TopScreenSectionIdlePreview() {
+private fun TopScreenSectionPendingPreview() {
   TopScreenSection(
     title = "App Name",
     toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
     isOnline = true,
     isSyncing = false,
+    pendingSyncCount = 3,
+    onSync = {},
+    onClick = {},
+  )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TopScreenSectionUpToDatePreview() {
+  TopScreenSection(
+    title = "App Name",
+    toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
+    isOnline = true,
+    isSyncing = false,
+    pendingSyncCount = 0,
     onSync = {},
     onClick = {},
   )
