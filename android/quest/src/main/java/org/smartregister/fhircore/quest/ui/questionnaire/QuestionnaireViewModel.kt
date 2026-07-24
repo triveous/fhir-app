@@ -18,6 +18,7 @@ package org.smartregister.fhircore.quest.ui.questionnaire
 
 import android.content.Context
 import android.widget.Toast
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -43,6 +44,7 @@ import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.Base
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.Bundle
+import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Group
 import org.hl7.fhir.r4.model.IdType
 import org.hl7.fhir.r4.model.Identifier
@@ -111,6 +113,7 @@ import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import org.smartregister.fhircore.quest.util.languageExtensionToActionParameters
+import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.hl7.fhir.r4.model.BooleanType
 import timber.log.Timber
 import java.util.Date
@@ -261,6 +264,102 @@ constructor(
         }
       }
     return questionnaire
+  }
+
+  /**
+   * Reconciles the DocumentReferences referenced by the screening-image answers of
+   * [questionnaireResponse] against the local [FhirEngine], mutating the response in place
+   * immediately before submission. Extracted from `QuestionnaireActivity.registerFragmentResultListener`
+   * so this logic — the guard against the DocumentReference 404 — is unit testable.
+   *
+   * For every screening image answer that carries an attachment URL:
+   * - a DRAFT DocumentReference is flipped to SUBMITTED (so the sync worker uploads it), or
+   * - if the DocumentReference is missing locally (the precondition for the server-side 404) the
+   *   dangling answer is dropped, so the uploaded QuestionnaireResponse never references a resource
+   *   the server never received.
+   *
+   * Items whose linkId ends with [AI_RESULT_SUFFIX] and answers without an attachment are ignored.
+   * Any non-[ResourceNotFoundException] failure while fetching leaves the answer untouched (matching
+   * the previous behaviour). Missing-reference analytics are intentionally left to the caller — via
+   * the returned [DocumentReferenceReconciliationResult] — so this function has no UI/analytics side
+   * effects and stays testable.
+   */
+  suspend fun reconcileDocumentReferencesForSubmission(
+    questionnaireResponse: QuestionnaireResponse,
+  ): DocumentReferenceReconciliationResult {
+    val submittedDraftIds = mutableListOf<String>()
+    val missingReferences = mutableListOf<MissingDocumentReference>()
+    val unparseableUrls = mutableListOf<String>()
+
+    Timber.d("=== Starting DocumentReference update processing ===")
+    questionnaireResponse.item
+      .filter { it.linkId == SCREENING_GROUP_LINK_ID }
+      .forEach { screeningGroup ->
+        screeningGroup.item
+          .filter { it.linkId == PATIENT_SCREENING_IMAGE_GROUP_LINK_ID }
+          .forEach { imageGroup ->
+            imageGroup.item.forEach { image ->
+              // AI-result items carry no attachment; never reconcile them.
+              if (image.linkId.endsWith(AI_RESULT_SUFFIX)) return@forEach
+              // Iterate over a copy so a dangling answer can be removed in-loop.
+              image.answer.toList().forEach answerLoop@{ answer ->
+                // Screening-image answers always carry an Attachment; guard so a non-attachment
+                // answer is skipped rather than throwing from HAPI's getValueAttachment().
+                if (!answer.hasValueAttachment()) return@answerLoop
+                val attachment = answer.valueAttachment
+                val documentReferenceId = extractDocumentReferenceIdFromUrl(attachment.url)
+                if (documentReferenceId == null) {
+                  Timber.w("Could not extract DocumentReference ID from URL: ${attachment.url}")
+                  attachment.url?.let { unparseableUrls.add(it) }
+                  return@answerLoop
+                }
+                val fetched =
+                  try {
+                    fhirEngine.get(ResourceType.DocumentReference, documentReferenceId)
+                      as DocumentReference
+                  } catch (notFound: ResourceNotFoundException) {
+                    Timber.e(
+                      "DocumentReference %s referenced by %s is missing locally; dropping the dangling attachment so the submitted QuestionnaireResponse does not reference a resource the server never received (root cause of the DocumentReference 404).",
+                      documentReferenceId,
+                      image.linkId,
+                    )
+                    image.answer.remove(answer)
+                    missingReferences.add(
+                      MissingDocumentReference(image.linkId, documentReferenceId),
+                    )
+                    return@answerLoop
+                  } catch (e: Exception) {
+                    Timber.e(e, "Error fetching DocumentReference status for ID: $documentReferenceId")
+                    return@answerLoop
+                  }
+                if (fetched.description == DocumentReferenceCaseType.DRAFT.name) {
+                  fetched.description = DocumentReferenceCaseType.SUBMITTED.name
+                  fhirEngine.update(fetched)
+                  submittedDraftIds.add(documentReferenceId)
+                  Timber.i("DocumentReference $documentReferenceId description updated to SUBMITTED")
+                }
+              }
+            }
+          }
+      }
+    Timber.d("=== Finished DocumentReference update processing ===")
+
+    return DocumentReferenceReconciliationResult(
+      submittedDraftIds = submittedDraftIds,
+      missingReferences = missingReferences,
+      unparseableUrls = unparseableUrls,
+    )
+  }
+
+  /**
+   * Extracts the DocumentReference logical id from a binary-access-read URL of the form
+   * `.../DocumentReference/{id}/$binary-access-read?...`. Returns null when [url] is null or the id
+   * cannot be located.
+   */
+  @VisibleForTesting
+  internal fun extractDocumentReferenceIdFromUrl(url: String?): String? {
+    if (url == null) return null
+    return Regex("DocumentReference/([^/]+)/").find(url)?.groupValues?.get(1)
   }
 
   /**
@@ -1386,6 +1485,8 @@ constructor(
   companion object {
     const val CONTAINED_LIST_TITLE = "GeneratedResourcesList"
     const val AA_REFERENCE_ID_LINK_ID = "aa-reference-id"
+    const val SCREENING_GROUP_LINK_ID = "screening-group"
+    const val PATIENT_SCREENING_IMAGE_GROUP_LINK_ID = "patient-screening-image-group"
     const val PATIENT_REFERENCE_ID_SYSTEM = "https://midas.iisc.ac.in/fhir/identifier/patient-id"
     const val OUTPUT_PARAMETER_KEY = "OUTPUT"
     private const val LOW_CONFIDENCE_THRESHOLD = 65f
@@ -1400,4 +1501,23 @@ data class AiInferenceSummary(
   val nonSuspiciousImageCount: Int = 0,
   val lowConfidenceImageCount: Int = 0,
   val meanConfidence: Float = 0f,
+)
+
+/**
+ * Outcome of [QuestionnaireViewModel.reconcileDocumentReferencesForSubmission].
+ *
+ * @property submittedDraftIds ids of DocumentReferences flipped DRAFT -> SUBMITTED.
+ * @property missingReferences answers dropped because their DocumentReference is absent locally.
+ * @property unparseableUrls attachment URLs from which no DocumentReference id could be extracted.
+ */
+data class DocumentReferenceReconciliationResult(
+  val submittedDraftIds: List<String> = emptyList(),
+  val missingReferences: List<MissingDocumentReference> = emptyList(),
+  val unparseableUrls: List<String> = emptyList(),
+)
+
+/** A screening-image answer whose DocumentReference is absent from the local FhirEngine. */
+data class MissingDocumentReference(
+  val linkId: String,
+  val documentReferenceId: String,
 )

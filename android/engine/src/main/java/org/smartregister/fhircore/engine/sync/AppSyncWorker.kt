@@ -277,7 +277,19 @@ constructor(
         val result = docReferences.map {
             val uriString = it.resource.getExtensionByUrl(UPLOAD_IMAGE_URL)?.value?.asStringValue()
             if (uriString.isNullOrBlank()) {
+                // S5: a DocumentReference with no file-location extension can never be uploaded and
+                // is otherwise silently dropped from the success fold below. Surface it loudly so
+                // these malformed drafts are visible instead of vanishing without a trace.
                 Timber.e(Exception("Empty or null URI string for document: ${it.resource.logicalId} - $pendingDocuments pending"))
+                analyticsLogger.capture(
+                    AnalyticsLogger.Events.DOCUMENT_REFERENCE_MISSING_FILE_LOCATION,
+                    mapOf(
+                        AnalyticsLogger.Props.DOCUMENT_ID to it.resource.logicalId,
+                        AnalyticsLogger.Props.PENDING_DOCUMENTS to pendingDocuments,
+                        AnalyticsLogger.Props.ERROR_MESSAGE to
+                            "DocumentReference has no file-location extension; cannot upload",
+                    ),
+                )
                 return@map it.resource to null
             }
             it.resource to uriString.toUri()

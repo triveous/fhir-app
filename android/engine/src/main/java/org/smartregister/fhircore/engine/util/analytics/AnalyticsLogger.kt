@@ -21,6 +21,12 @@ interface AnalyticsLogger {
 
   object Events {
     const val IMAGE_UPLOAD_COMPLETED = "image_upload_completed"
+
+    /**
+     * A DocumentReference reached the upload phase with no file-location extension, so it can never
+     * be uploaded. Emitted so these malformed drafts are visible instead of being silently dropped.
+     */
+    const val DOCUMENT_REFERENCE_MISSING_FILE_LOCATION = "document_reference_missing_file_location"
   }
 
   object Props {
