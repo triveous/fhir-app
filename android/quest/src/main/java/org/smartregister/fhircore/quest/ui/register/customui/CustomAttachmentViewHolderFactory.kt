@@ -57,6 +57,7 @@ import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
@@ -67,6 +68,7 @@ import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
+import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import timber.log.Timber
@@ -496,10 +498,16 @@ internal object CustomAttachmentViewHolderFactory :
                                             }
                                         }
 
+                                        // IMPORTANT: the DocumentReference id (carried in the URL)
+                                        // is deliberately NOT baked in here. It is attached below,
+                                        // only AFTER create(doc) durably persists the resource (see
+                                        // the coroutine). Writing the URL before the resource exists
+                                        // is the root cause of "QR references a DocumentReference
+                                        // that 404s": the id can outlive a resource that was never
+                                        // persisted or synced.
                                         value =
                                             Attachment().apply {
                                                 contentType = attachmentMimeTypeWithSubType
-                                                url = doc.getUrl(sharedPreferencesHelper)
                                                 title = capturedFile.name
                                                 creation = Date()
                                             }
@@ -553,9 +561,31 @@ internal object CustomAttachmentViewHolderFactory :
                                 }
                             }
 
+                            // The slot may already hold a previous capture (retake / re-shoot).
+                            // Capture its URL now so the orphaned DRAFT DocumentReference + its JPEG
+                            // can be purged once the new answer is in place.
+                            val previousAttachmentUrl =
+                                questionnaireViewItem.answers.firstOrNull()?.valueAttachment?.url
+
                             context.lifecycleScope.launch {
-                                FhirEngineProvider.getInstance(context.applicationContext)
-                                    .create(doc)
+                                // Persist the DocumentReference FIRST. Only once it is durably in the
+                                // engine do we bake its id into the QR answer. If create fails we
+                                // surface an error and leave the QR untouched, so the response can
+                                // never point at a resource that does not exist.
+                                try {
+                                    fhirEngine.create(doc)
+                                } catch (e: Exception) {
+                                    Timber.e(e, "Failed to persist DocumentReference ${doc.logicalId}; not attaching to the response")
+                                    displaySnackbar(view, R.string.upload_failed)
+                                    return@launch
+                                }
+                                val persistedAttachment = answer.value as? Attachment
+                                persistedAttachment?.url = doc.getUrl(sharedPreferencesHelper)
+
+                                // Replace flow: the new capture supersedes the previous one; purge
+                                // the now-orphaned DRAFT DocumentReference + file it left behind.
+                                purgeDraftDocumentReference(previousAttachmentUrl)
+
                                 questionnaireViewItem.setAnswer(answer)
                                 divider.visibility = View.VISIBLE
                                 displayPreview(
@@ -624,18 +654,31 @@ internal object CustomAttachmentViewHolderFactory :
                     val doc = createDocumentReference(attachmentUri, attachmentMimeTypeWithSubType)
                     val answer =
                         QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+                            // URL (DocumentReference id) intentionally omitted here; it is attached
+                            // below only after create(doc) succeeds. See the take-photo flow.
                             value =
                                 Attachment().apply {
                                     contentType = attachmentMimeTypeWithSubType
-                                    url = doc.getUrl(sharedPreferencesHelper)
                                     title = attachmentTitle
                                     creation = Date()
                                     language = ""
                                 }
                         }
 
+                    val previousAttachmentUrl =
+                        questionnaireViewItem.answers.firstOrNull()?.valueAttachment?.url
+
                     context.lifecycleScope.launch {
-                        FhirEngineProvider.getInstance(context.applicationContext).create(doc)
+                        try {
+                            fhirEngine.create(doc)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to persist DocumentReference ${doc.logicalId}; not attaching to the response")
+                            displaySnackbar(view, R.string.upload_failed)
+                            return@launch
+                        }
+                        val persistedAttachment = answer.value as? Attachment
+                        persistedAttachment?.url = doc.getUrl(sharedPreferencesHelper)
+                        purgeDraftDocumentReference(previousAttachmentUrl)
                         questionnaireViewItem.setAnswer(answer)
                         divider.visibility = View.VISIBLE
                         displayPreview(
@@ -873,10 +916,47 @@ internal object CustomAttachmentViewHolderFactory :
             }
 
 
+            /**
+             * Purges a not-yet-submitted (DRAFT) DocumentReference and deletes its backing JPEG.
+             *
+             * Called when a captured photo is deleted or superseded by a retake. Only DRAFT
+             * documents (never submitted/synced) are removed, so editing a case that already has a
+             * submitted image can never delete server-bound data. A missing id, an already-purged
+             * row and any non-DRAFT document are all no-ops.
+             */
+            private suspend fun purgeDraftDocumentReference(attachmentUrl: String?) {
+                val documentReferenceId = extractDocumentReferenceId(attachmentUrl) ?: return
+                try {
+                    val doc =
+                        fhirEngine.get(ResourceType.DocumentReference, documentReferenceId)
+                            as? DocumentReference ?: return
+                    if (doc.description != DocumentReferenceCaseType.DRAFT.name) return
+
+                    // Delete the JPEG the DocumentReference points at (file-location extension).
+                    (doc.getExtensionByUrl(EXTENSION_FILE_LOCATION)?.value as? StringType)?.value
+                        ?.let { fileLocation ->
+                            runCatching {
+                                context.contentResolver.delete(Uri.parse(fileLocation), null, null)
+                            }
+                                .onFailure { Timber.w(it, "Could not delete file for $documentReferenceId") }
+                        }
+
+                    fhirEngine.purge(ResourceType.DocumentReference, documentReferenceId, true)
+                    Timber.i("Purged orphaned DRAFT DocumentReference $documentReferenceId and its file")
+                } catch (e: Exception) {
+                    // ResourceNotFoundException (already gone) or any purge failure — nothing to do.
+                    Timber.w(e, "No DRAFT DocumentReference to purge for id $documentReferenceId")
+                }
+            }
+
             private fun onDeleteClicked(view: View) {
                 context.lifecycleScope.launch {
-                    val attachmentType =
-                        getMimeType(questionnaireViewItem.answers.first().valueAttachment.contentType)
+                    val deletedAttachment = questionnaireViewItem.answers.first().valueAttachment
+                    val attachmentType = getMimeType(deletedAttachment.contentType)
+                    // Purge the orphaned DRAFT DocumentReference + its JPEG so a deleted photo does
+                    // not leave a stale resource/file behind (an unbounded local leak, and a pool of
+                    // stale drafts that a later draft-restore could resurrect a dead id from).
+                    purgeDraftDocumentReference(deletedAttachment.url)
                     questionnaireViewItem.clearAnswer()
 
                     val questionnaireItem = questionnaireViewItem.questionnaireItem
@@ -1201,6 +1281,16 @@ fun DocumentReference.getUrl(sharedPreferencesHelper: SharedPreferencesHelper?):
 
     return "${sharedPreferencesHelper?.getFhirBaseUrl()}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
 
+}
+
+/**
+ * Extracts the DocumentReference logical id from a binary-access-read URL of the form
+ * `.../DocumentReference/{id}/$binary-access-read?...`. Returns null when [url] is null or the id
+ * cannot be located.
+ */
+private fun extractDocumentReferenceId(url: String?): String? {
+    if (url == null) return null
+    return Regex("DocumentReference/([^/]+)/").find(url)?.groupValues?.get(1)
 }
 
 internal const val MODEL6_PREDICTION_URL =

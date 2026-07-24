@@ -39,7 +39,6 @@ import com.google.android.gms.location.LocationServices
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.BooleanType
-import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.IdType
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
@@ -65,7 +64,6 @@ import org.smartregister.fhircore.engine.util.extension.parcelableArrayList
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.databinding.QuestionnaireActivityBinding
-import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_LINK_ID
 import org.smartregister.fhircore.quest.util.DeviceMetrics
 import org.smartregister.fhircore.quest.util.LocationUtils
@@ -585,46 +583,24 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             // set author
             questionnaireResponse.author = ref
 
-            Timber.d("=== Starting DocumentReference update processing ===")
-            for (item in questionnaireResponse.item) {
-              if (item.linkId == "screening-group"){
-                Timber.d("Found screening-group for DocumentReference updates")
-                item.item.forEach{ group ->
-                  if (group.linkId == "patient-screening-image-group"){
-                    Timber.d("Found patient-screening-image-group for DocumentReference updates")
-                    group.item.forEach{ image ->
-                      // Skip AI result items in this loop too
-                      if (image.linkId.endsWith("-ai-result")) {
-                        Timber.d("Skipping AI result item in DocumentReference loop: ${image.linkId}")
-                        return@forEach
-                      }
-
-                      Timber.d("Processing DocumentReference for image: ${image.linkId}")
-                      image.answer.forEach{
-                        it.valueAttachment?.let { attachment ->
-                          val documentReferenceId = extractDocumentReferenceIdFromUrl(attachment.url)
-                          if (documentReferenceId != null) {
-                            try {
-                              val fetchedDocumentReference = fhirEngine.get(ResourceType.DocumentReference, documentReferenceId) as DocumentReference
-                              if(fetchedDocumentReference.description == DocumentReferenceCaseType.DRAFT.name){
-                                fetchedDocumentReference.description = DocumentReferenceCaseType.SUBMITTED.name
-                                fhirEngine.update(fetchedDocumentReference)
-                                Timber.i("DocumentReference $documentReferenceId description updated to SUBMITTED")
-                              }
-                            } catch (e: Exception) {
-                              Timber.e(e, "Error updating DocumentReference status for ID: $documentReferenceId")
-                            }
-                          } else {
-                            Timber.w("Could not extract DocumentReference ID from URL: ${attachment.url}")
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
+            // Reconcile the screening-image DocumentReferences against the local engine (flip
+            // DRAFT -> SUBMITTED, drop any answer whose DocumentReference is missing locally). The
+            // logic lives in the ViewModel so it is unit tested; the Activity only turns the missing
+            // -reference result into analytics.
+            val docReferenceReconciliation =
+              viewModel.reconcileDocumentReferencesForSubmission(questionnaireResponse)
+            docReferenceReconciliation.missingReferences.forEach { missing ->
+              PostHogAnalytics.captureError(
+                "QuestionnaireActivity",
+                "DocumentReference missing at submit",
+                mapOf(
+                  PostHogAnalytics.Props.DOCUMENT_ID to missing.documentReferenceId,
+                  "link_id" to missing.linkId,
+                  PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id,
+                  PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                ),
+              )
             }
-            Timber.d("=== Finished DocumentReference update processing ===")
 
             val aiEnabled = featureFlagUtil.isAiInferenceEnabled()
 
@@ -742,14 +718,6 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       return null
     }
     return searchItems(questionnaire.item)
-  }
-
-  private fun extractDocumentReferenceIdFromUrl(url: String?): String? {
-    if (url == null) return null
-    // Example URL:  http://your-fhir-server/DocumentReference/123/$binary-access-read...
-    val regex = Regex("DocumentReference/([^/]+)/")  // Much more robust regex.
-    val matchResult = regex.find(url)
-    return matchResult?.groupValues?.get(1) // The ID is the first captured group.
   }
 
   private fun handleBackPress() {
