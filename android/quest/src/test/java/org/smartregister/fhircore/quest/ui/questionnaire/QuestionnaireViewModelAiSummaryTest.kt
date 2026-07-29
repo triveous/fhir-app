@@ -104,5 +104,6 @@ class QuestionnaireViewModelAiSummaryTest {
       configurationRegistry = mockk<ConfigurationRegistry>(relaxed = true),
       syncBroadcaster = mockk<SyncBroadcaster>(relaxed = true),
       fhirEngine = mockk<FhirEngine>(relaxed = true),
+      uploadedDocumentReferenceLedger = mockk(relaxed = true),
     )
 }

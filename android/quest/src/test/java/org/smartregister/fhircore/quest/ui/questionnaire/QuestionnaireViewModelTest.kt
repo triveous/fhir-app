@@ -198,6 +198,7 @@ class QuestionnaireViewModelTest : RobolectricTest() {
           configurationRegistry = configurationRegistry,
           syncBroadcaster = syncBroadcaster,
           fhirEngine = fhirEngine,
+          uploadedDocumentReferenceLedger = mockk(relaxed = true),
         ),
       )
 

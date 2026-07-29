@@ -1568,7 +1568,7 @@ constructor(
     }
 
     fun getUserName(): String {
-        return secureSharedPreference.getPractitionerUserId() ?: "Guest"
+        return secureSharedPreference.retrieveSessionUsername() ?: "Guest"
     }
 
     // ResourceData class with all three types and meta information

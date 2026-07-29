@@ -32,6 +32,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import ca.uhn.fhir.context.FhirContext
 import com.google.android.fhir.FhirEngine
+import com.google.android.fhir.LocalChange
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.get
 import com.google.android.fhir.search.search
@@ -75,14 +76,17 @@ import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REP
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
 import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
 import org.smartregister.fhircore.engine.util.analytics.AnalyticsLoggerEntryPoint
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.createNotification
+import retrofit2.HttpException
 import timber.log.Timber
 import java.io.FileNotFoundException
+import java.net.HttpURLConnection.HTTP_NOT_FOUND
 import java.util.Date
 
 @HiltWorker
@@ -98,7 +102,8 @@ constructor(
     val secureSharedPreference: SecureSharedPreference,
     private val sharedPreferencesHelper: SharedPreferencesHelper,
     private val gson: Gson,
-    private val featureFlagUtil: FeatureFlagUtil
+    private val featureFlagUtil: FeatureFlagUtil,
+    private val uploadedDocumentReferenceLedger: UploadedDocumentReferenceLedger,
 ) : FhirSyncWorker(appContext, workerParams) {
     private val analyticsLogger: AnalyticsLogger by lazy {
         EntryPointAccessors.fromApplication(
@@ -135,6 +140,49 @@ constructor(
         const val IMG_UPLOAD_ERROR_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-error"
         const val IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-failed-permanently"
         const val TIME_TAKEN_TOUPLOAD_IMG_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/time-taken-to-upload-img"
+
+        /**
+         * Whether the queued [changeTypes] for one resource would be uploaded as a write that
+         * replaces the whole resource — and would therefore erase a binary written by
+         * `$binary-access-write` before it.
+         *
+         * Mirrors `PerResourcePatchGenerator.mergeLocalChangesForSingleResource` +
+         * `TransactionBundleGenerator.getGenerator(PUT, PATCH)`:
+         * - a set beginning with `INSERT` squashes to one **PUT of the full resource** ⇒ unsafe;
+         * - any `DELETE` uploads as `DELETE /DocumentReference/{id}` ⇒ unsafe;
+         * - `UPDATE`-only squashes to a **JSON PATCH** over the changed paths. Ours only ever touch
+         *   `/description`, `/docStatus` and `/extension`, never `content` ⇒ safe.
+         *
+         * Being precise here matters: treating every pending change as unsafe would defer the
+         * images of every freshly submitted case until the next successful metadata sync, because
+         * the DRAFT -> SUBMITTED flip always leaves an UPDATE behind.
+         */
+        @VisibleForTesting
+        internal fun wouldOverwriteResourceOnUpload(changeTypes: List<LocalChange.Type>): Boolean =
+            changeTypes.firstOrNull() == LocalChange.Type.INSERT ||
+                changeTypes.contains(LocalChange.Type.DELETE)
+
+        /**
+         * Maps a failed metadata lookup onto [ServerDocumentLookup].
+         *
+         * The single rule: **only an HTTP 404 proves the server does not have the resource.**
+         * Everything else — real 5xx, 401, and the synthetic 900/901/902/903 codes the app's own
+         * OkHttp interceptors manufacture for offline, DNS and timeout conditions
+         * (`NetworkModule.buildErrorResponse`) — leaves the server's state unknown, and every
+         * caller must then do nothing rather than guess.
+         */
+        @VisibleForTesting
+        internal fun classifyServerLookupFailure(
+            documentId: String,
+            error: Throwable,
+        ): ServerDocumentLookup =
+            if (error is HttpException && error.code() == HTTP_NOT_FOUND) {
+                Timber.i("No DocumentReference on server for id $documentId: HTTP 404")
+                ServerDocumentLookup.NotFound
+            } else {
+                Timber.i("DocumentReference $documentId state unknown: ${error.localizedMessage}")
+                ServerDocumentLookup.Unavailable(error)
+            }
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
@@ -253,8 +301,6 @@ constructor(
         }.sortedByDescending { it.resource.date }
         val totalDocuments = docReferences.size
         var pendingDocuments = totalDocuments
-        var atLeastOneSuccess = false
-
 
         Timber.i("Found $totalDocuments document(s) to upload")
 
@@ -295,17 +341,82 @@ constructor(
             it.resource to uriString.toUri()
         }.filter { it.second !== null }.map {
             val docReference = it.first
-            val serverDocRef = getDocumentReferenceMetaDataFromServer(docReference)
-
-            //Image is not found on the device & server
-            if (!filesExists(it.second) && !serverDocRef.hasImageDataOnServer()){
-                if(imageNotPresentOnDeviceFinalizeDocumentOnServer(docReference)){
-                    openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
-                }
-            }
             val fileUri = it.second ?: return@map false
 
             try {
+                val lookup = getDocumentReferenceMetaDataFromServer(docReference)
+                val fileState = localFileState(fileUri)
+                val pendingChanges =
+                    openSrpFhirEngine.getLocalChanges(docReference.resourceType, docReference.logicalId)
+
+                // The whole safety decision lives in decideDocumentAction (see its KDoc for the
+                // invariants). This block only carries it out, so the branch table can be tested
+                // without a WorkManager, a Hilt entry point or a FHIR server.
+                //
+                // Assigned to a val on purpose: as an *expression* the compiler enforces
+                // exhaustiveness, so adding a DocumentAction is a build error here rather than a
+                // silent fall-through into the upload path. (`when` used as a statement would only
+                // warn, and this project does not build with -Werror.)
+                val proceedToUpload: Boolean =
+                    when (decideDocumentAction(lookup, fileState, pendingChanges.map { it.type })) {
+                        DocumentAction.SkipServerStateUnknown -> {
+                            Timber.w(
+                                (lookup as? ServerDocumentLookup.Unavailable)?.error,
+                                "Skipping DocumentReference ${docReference.logicalId} this run; server state unknown",
+                            )
+                            false
+                        }
+
+                        DocumentAction.SkipFileStateUnknown -> {
+                            Timber.w(
+                                (fileState as? LocalFileState.Unreadable)?.error,
+                                "Skipping DocumentReference ${docReference.logicalId} this run; image file state unknown",
+                            )
+                            false
+                        }
+
+                        DocumentAction.FinalizeAsImageLostAndPurge -> {
+                            // The server has the resource, so the QuestionnaireResponse URL resolves
+                            // even though the image itself is lost. Record before purging: a process
+                            // death between the two would leave an id that looks dangling at submit.
+                            if (imageNotPresentOnDeviceFinalizeDocumentOnServer(docReference)) {
+                                uploadedDocumentReferenceLedger.recordUploaded(docReference.logicalId)
+                                openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+                            }
+                            false
+                        }
+
+                        DocumentAction.ReportImageLostKeepRow -> {
+                            Timber.e(
+                                Exception(
+                                    "Image file missing and DocumentReference ${docReference.logicalId} absent from server",
+                                ),
+                            )
+                            analyticsLogger.capture(
+                                AnalyticsLogger.Events.DOCUMENT_REFERENCE_IMAGE_FILE_LOST,
+                                mapOf(
+                                    AnalyticsLogger.Props.DOCUMENT_ID to docReference.logicalId,
+                                    AnalyticsLogger.Props.PENDING_DOCUMENTS to pendingDocuments,
+                                    AnalyticsLogger.Props.ERROR_MESSAGE to
+                                        "Local image file is gone and the server has no DocumentReference for this id",
+                                ),
+                            )
+                            false
+                        }
+
+                        DocumentAction.DeferPendingResourceWrite -> {
+                            Timber.w(
+                                "Deferring DocumentReference ${docReference.logicalId}: unsynced ${pendingChanges.map { it.type }} would be sent as a whole-resource write over the uploaded image",
+                            )
+                            false
+                        }
+
+                        DocumentAction.Upload -> true
+                    }
+                if (!proceedToUpload) return@map false
+
+                val serverDocRef = (lookup as? ServerDocumentLookup.Found)?.documentReference
+
                 uploadImageMutex.withLock {
                     Timber.i("Processing document reference with logicalId: ${docReference.logicalId}")
 
@@ -321,21 +432,29 @@ constructor(
                     if (success) {
                         // CRITICAL: Re-verify from server that image data exists before deleting locally.
                         // This prevents data loss if the upload appeared successful but data didn't persist.
-                        val verifiedServerDoc = getDocumentReferenceMetaDataFromServer(docReference)
+                        val verified = getDocumentReferenceMetaDataFromServer(docReference)
+                        val verifiedServerDoc = (verified as? ServerDocumentLookup.Found)?.documentReference
                         if (!verifiedServerDoc.hasImageDataOnServer()) {
                             Timber.e(Exception("SAFETY CHECK FAILED: Upload reported success but image NOT found on server for ${docReference.logicalId}. Keeping local image."))
                             return@withLock false
                         }
 
-                        atLeastOneSuccess = true
-
-                        // Clean up local resources — server confirmed to have image data
+                        // Clean up local resources — server confirmed to have image data.
+                        // Record the id first: once the row is purged, a later submission of a
+                        // response carrying this id can only tell "uploaded" from "lost" via the
+                        // ledger, and losing the row without the ledger entry is what makes a good
+                        // attachment look like a dangling reference.
+                        uploadedDocumentReferenceLedger.recordUploaded(docReference.logicalId)
                         openSrpFhirEngine.purge(
                             docReference.resourceType,
                             docReference.logicalId,
                             true
                         )
-                        applicationContext.contentResolver.delete(fileUri, null, null)
+                        // The image is safely on the server; failing to delete the local JPEG is a
+                        // storage leak, not data loss, and must not flip this document to "failed"
+                        // and keep the whole sync retrying forever.
+                        runCatching { applicationContext.contentResolver.delete(fileUri, null, null) }
+                            .onFailure { Timber.w(it, "Could not delete uploaded image file $fileUri") }
 
                         pendingDocuments--
                         updateProgress(context, notificationBuilder, totalDocuments, pendingDocuments)
@@ -354,6 +473,11 @@ constructor(
                         false
                     }
                 }
+            } catch (e: CancellationException) {
+                // WorkManager stopped us. Do not swallow this: the remaining documents must not be
+                // processed on a cancelled scope, where a purge could still interleave with a
+                // half-finished upload.
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Exception during version-aware upload for document: ${docReference.logicalId} - $pendingDocuments pending")
                 false
@@ -368,40 +492,43 @@ constructor(
         return result
     }
 
-private fun filesExists(uri: Uri?): Boolean {
-    if (uri == null) return false
-    return try {
-        applicationContext.contentResolver.openInputStream(uri)?.use { it.available() > 0 } ?: false
-    } catch (e: Exception) {
-        Timber.e(e, "Exception checking file existence for uri: $uri")
-        return false
+    /**
+     * Whether the captured image is still readable on this device.
+     *
+     * Tri-state for the same reason the server lookup is: "I could not read the file" is not "the
+     * file is gone". Only a [FileNotFoundException] (or a resolver that returns no stream at all)
+     * proves absence. Every other failure — a `SecurityException` after the process was recreated
+     * and lost its URI grant, a transient I/O error, storage briefly unavailable — used to be
+     * reported as absence, which sends the document down the "image permanently lost" path and
+     * purges a row whose JPEG was sitting on disk the whole time.
+     */
+    internal sealed interface LocalFileState {
+        /** The file is present and non-empty. */
+        data object Present : LocalFileState
+
+        /** The file definitively does not exist, or exists but is empty. */
+        data object Absent : LocalFileState
+
+        /** The file could not be read. Its existence is unknown; assume nothing. */
+        data class Unreadable(val error: Throwable) : LocalFileState
     }
-}
 
-    /**
-     * Checks if the DocumentReference on the server has been marked as 'final'.
-     */
-    private fun DocumentReference?.isFinalOnServer(): Boolean =
-        this?.docStatus == DocumentReference.ReferredDocumentStatus.FINAL
+    private fun localFileState(uri: Uri?): LocalFileState {
+        if (uri == null) return LocalFileState.Absent
+        return try {
+            val stream = applicationContext.contentResolver.openInputStream(uri)
+                ?: return LocalFileState.Absent
+            stream.use { if (it.available() > 0) LocalFileState.Present else LocalFileState.Absent }
+        } catch (e: FileNotFoundException) {
+            LocalFileState.Absent
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "Could not determine whether the image file exists for uri: $uri")
+            LocalFileState.Unreadable(e)
+        }
+    }
 
-    /**
-     * Checks if the DocumentReference on the server has an attachment with a non-zero size.
-     */
-    private fun DocumentReference?.hasImageDataOnServer(): Boolean =
-        this?.content?.any { (it.attachment?.size ?: 0) > 0 } == true
-
-    /**
-     * Checks if a record for this DocumentReference (preliminary or final) already exists on the server.
-     */
-    private fun DocumentReference?.hasRecordOnServer(): Boolean =
-        this?.docStatus in setOf(
-            DocumentReference.ReferredDocumentStatus.PRELIMINARY,
-            DocumentReference.ReferredDocumentStatus.FINAL
-        )
-
-    /**
-     * Checks if the DocumentReference on the server is complete (has data and is final).
-     */
     private fun DocumentReference?.isCompleteOnServer(): Boolean =
         isFinalOnServer() && hasImageDataOnServer()
 
@@ -436,7 +563,14 @@ private fun filesExists(uri: Uri?): Boolean {
             // 3. Main Upload Flow: Execute steps based on server state.
 
             // Step 3a: Create the preliminary metadata record if it doesn't exist.
-            if (!serverDocRef.hasRecordOnServer()) {
+            //
+            // Keyed on `serverDocRef == null` — which now means exactly "the server answered 404" —
+            // and NOT on hasRecordOnServer(). That helper infers existence from `docStatus`, so a
+            // resource the server returned without a readable docStatus (an `_elements` projection
+            // that omits it, a resource written by an older client) would be treated as absent and
+            // re-created by a metadata-only PUT that erases whatever binary it already held. If the
+            // server handed us the resource, it exists; docStatus is Step 3c's problem.
+            if (serverDocRef == null) {
                 createMetadataRecordOnServer(docReference, fileUri, context)
             }
 
@@ -448,8 +582,14 @@ private fun filesExists(uri: Uri?): Boolean {
                 // here — that queues a local change, and the subsequent super.doWork()
                 // would PUT the full DocumentReference (without binary data) to the server,
                 // potentially overwriting the image we just uploaded.
+                //
+                // The update() call this comment forbids was present until now, and it is how a
+                // successfully uploaded image ended up unreadable: the queued change squashes with
+                // the document's still-pending INSERT into a single PUT of the whole resource whose
+                // content.attachment carries no data, wiping what $binary-access-write just stored.
+                // Losing the local FINAL marker costs nothing — isCompleteOnServer() re-derives it
+                // from the server on the next run.
                 docReference.docStatus = DocumentReference.ReferredDocumentStatus.FINAL
-                openSrpFhirEngine.update(docReference)
             }
 
             // Step 3c: Finalize the document status on the server.
@@ -460,6 +600,9 @@ private fun filesExists(uri: Uri?): Boolean {
             Timber.i("Version-aware upload completed successfully for: ${docReference.logicalId}")
             true // Success
         }.onFailure { e ->
+            // runCatching swallows cancellation too; rethrow so a stopped worker actually stops
+            // instead of reporting a "failed upload" and marching on to the next document.
+            if (e is CancellationException) throw e
             Timber.e(e, "Version-aware upload failed for document: ${docReference.logicalId}")
         }.getOrDefault(false)
     }
@@ -524,14 +667,28 @@ private fun filesExists(uri: Uri?): Boolean {
                 bytesUploaded = bytes.size,
                 errorMessage = response.message(),
             )
+            // Annotate in memory only. Persisting this via openSrpFhirEngine.update() queued a
+            // local change on the DocumentReference, which the trailing super.doWork() then PUT to
+            // the server as a full resource with an empty attachment — erasing any image already
+            // stored there. The failure is already carried by the analytics event above.
             docReference.addExtension().apply {
                 url = IMG_UPLOAD_ERROR_EXTENSION
                 setValue(StringType("Upload failed: ${response.code()} - ${response.message()}"))
             }
-            openSrpFhirEngine.update(docReference)
-            
-            // Handle specific cleanup logic for failed uploads
+
+            // Handle specific cleanup logic for failed uploads. 410 Gone is the server stating the
+            // resource was deleted, so the id can never resolve again; drop the local copy rather
+            // than retrying forever, and make the permanent loss visible.
             if (response.code() in listOf(410)) {
+                analyticsLogger.capture(
+                    AnalyticsLogger.Events.DOCUMENT_REFERENCE_GONE_ON_SERVER,
+                    mapOf(
+                        AnalyticsLogger.Props.DOCUMENT_ID to docReference.logicalId,
+                        AnalyticsLogger.Props.RESPONSE_CODE to response.code(),
+                        AnalyticsLogger.Props.ERROR_MESSAGE to
+                            "Server returned 410 Gone; purging local DocumentReference and image",
+                    ),
+                )
                 openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
                 context.contentResolver.delete(fileUri, null, null)
             }
@@ -647,15 +804,45 @@ private fun filesExists(uri: Uri?): Boolean {
 
     }
 
-    // The metadata fetch function remains the same
-    private suspend fun getDocumentReferenceMetaDataFromServer(docReference: DocumentReference): DocumentReference? {
+    /**
+     * The result of asking the server about a [DocumentReference].
+     *
+     * The distinction between [NotFound] and [Unavailable] is load-bearing. This lookup used to
+     * collapse every failure to `null`, so a DNS failure, a 401 or a timeout all read as "the
+     * server does not have this document". Everything downstream branches on that answer, and each
+     * branch does damage when the answer is wrong:
+     * - `createMetadataRecordOnServer` PUTs a metadata-only copy of the resource, erasing an image
+     *   the server may already hold (`$binary-access-read` then 404s on a resource that exists);
+     * - the missing-file path PATCHes and then force-purges the local row, discarding a pending
+     *   INSERT local change and stranding the id in the QuestionnaireResponse forever.
+     *
+     * When the server cannot be reached the only correct action is to do nothing and retry.
+     */
+    internal sealed interface ServerDocumentLookup {
+        /** The server returned the resource. */
+        data class Found(val documentReference: DocumentReference) : ServerDocumentLookup
+
+        /** The server answered, authoritatively, that no such resource exists (HTTP 404). */
+        data object NotFound : ServerDocumentLookup
+
+        /** The server could not be asked. Its state is unknown; assume nothing. */
+        data class Unavailable(val error: Throwable) : ServerDocumentLookup
+    }
+
+    private suspend fun getDocumentReferenceMetaDataFromServer(
+        docReference: DocumentReference,
+    ): ServerDocumentLookup {
         return try {
-            fhirResourceService.getDocumentReferenceMeta(docReference.logicalId)
+            ServerDocumentLookup.Found(
+                fhirResourceService.getDocumentReferenceMeta(docReference.logicalId),
+            )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Timber.i("No DocumentReference on server for id ${docReference.logicalId}: ${e.localizedMessage}")
-            null
+            classifyServerLookupFailure(docReference.logicalId, e)
         }
     }
+
 
     // Custom exception class for tracking upload errors
     data class ImageUploadAPIException(
@@ -773,4 +960,93 @@ private fun filesExists(uri: Uri?): Boolean {
         }
         notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
     }
+}
+
+/**
+ * Checks if the DocumentReference on the server has been marked as 'final'.
+ *
+ * File-level and `internal` so the per-document decision table below can be unit tested without
+ * constructing a worker.
+ */
+internal fun DocumentReference?.isFinalOnServer(): Boolean =
+    this?.docStatus == DocumentReference.ReferredDocumentStatus.FINAL
+
+/**
+ * Checks if the DocumentReference on the server has an attachment with a non-zero size.
+ *
+ * Deliberately strict — `size > 0` only, never `hasData() || hasUrl()`. A false positive here
+ * causes a purge with no image on the server, which is permanent loss; a false negative only costs
+ * a redundant re-upload.
+ */
+internal fun DocumentReference?.hasImageDataOnServer(): Boolean =
+    this?.content?.any { (it.attachment?.size ?: 0) > 0 } == true
+
+/**
+ * What the sync worker should do with one DocumentReference this run.
+ *
+ * Extracted from `performDocumentReferenceUpload` so the safety invariants I1-I3 are expressed as
+ * one exhaustively testable decision rather than as nested branches inside a coroutine that needs a
+ * WorkManager, a Hilt entry point and a FHIR server to exercise.
+ */
+internal sealed interface DocumentAction {
+    /** The server could not be asked. Touch nothing; retry next run. (I1) */
+    data object SkipServerStateUnknown : DocumentAction
+
+    /** The local JPEG could not be read. Touch nothing; retry next run. (I1) */
+    data object SkipFileStateUnknown : DocumentAction
+
+    /**
+     * The JPEG is gone and the server holds the resource with no image. The reference still
+     * resolves, so mark the image permanently failed, record it, and stop carrying the row. (I2/I4)
+     */
+    data object FinalizeAsImageLostAndPurge : DocumentAction
+
+    /**
+     * The JPEG is gone and the server has no resource for this id. Purging would strand the id in
+     * an already-submitted response forever, so keep the row and report the loss.
+     */
+    data object ReportImageLostKeepRow : DocumentAction
+
+    /** A queued whole-resource write would land after the binary and erase it. Defer. (I3) */
+    data object DeferPendingResourceWrite : DocumentAction
+
+    /** Safe to run the upload state machine. */
+    data object Upload : DocumentAction
+}
+
+/**
+ * The per-document decision. Order is load-bearing: an unknown answer must short-circuit before any
+ * branch that writes, patches or purges.
+ *
+ * @param lookup what `GET /DocumentReference/{id}` told us — [ServerDocumentLookup.NotFound] only
+ *   when the server actually answered 404.
+ * @param fileState whether the backing JPEG is readable on this device.
+ * @param pendingChangeTypes queued `LocalChange` types for this resource, in order.
+ */
+internal fun decideDocumentAction(
+    lookup: AppSyncWorker.ServerDocumentLookup,
+    fileState: AppSyncWorker.LocalFileState,
+    pendingChangeTypes: List<LocalChange.Type>,
+): DocumentAction {
+    if (lookup is AppSyncWorker.ServerDocumentLookup.Unavailable) {
+        return DocumentAction.SkipServerStateUnknown
+    }
+    if (fileState is AppSyncWorker.LocalFileState.Unreadable) {
+        return DocumentAction.SkipFileStateUnknown
+    }
+    val serverDocRef = (lookup as? AppSyncWorker.ServerDocumentLookup.Found)?.documentReference
+    if (fileState is AppSyncWorker.LocalFileState.Absent && !serverDocRef.hasImageDataOnServer()) {
+        // A file-less document whose image IS already on the server is not handled here: it falls
+        // through to Upload, where the state machine finalizes and the caller purges. Only the
+        // "no image anywhere" case is terminal.
+        return if (serverDocRef != null) {
+            DocumentAction.FinalizeAsImageLostAndPurge
+        } else {
+            DocumentAction.ReportImageLostKeepRow
+        }
+    }
+    if (AppSyncWorker.wouldOverwriteResourceOnUpload(pendingChangeTypes)) {
+        return DocumentAction.DeferPendingResourceWrite
+    }
+    return DocumentAction.Upload
 }

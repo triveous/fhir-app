@@ -50,6 +50,7 @@ import com.google.android.material.divider.MaterialDivider
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.DecimalType
@@ -561,11 +562,20 @@ internal object CustomAttachmentViewHolderFactory :
                                 }
                             }
 
+                            // `questionnaireViewItem` is an `override lateinit var` that bind()
+                            // reassigns as RecyclerView recycles this delegate across all image
+                            // slots. Pin it to a local now: the coroutine below suspends twice, and
+                            // reading the field again afterwards can yield a *different* slot — we
+                            // would then purge one slot's DocumentReference and delete its JPEG
+                            // while writing the answer to another, destroying an image and leaving
+                            // the first slot pointing at a resource that no longer exists.
+                            val boundViewItem = questionnaireViewItem
+
                             // The slot may already hold a previous capture (retake / re-shoot).
                             // Capture its URL now so the orphaned DRAFT DocumentReference + its JPEG
                             // can be purged once the new answer is in place.
                             val previousAttachmentUrl =
-                                questionnaireViewItem.answers.firstOrNull()?.valueAttachment?.url
+                                boundViewItem.answers.firstOrNull()?.valueAttachment?.url
 
                             context.lifecycleScope.launch {
                                 // Persist the DocumentReference FIRST. Only once it is durably in the
@@ -584,9 +594,10 @@ internal object CustomAttachmentViewHolderFactory :
 
                                 // Replace flow: the new capture supersedes the previous one; purge
                                 // the now-orphaned DRAFT DocumentReference + file it left behind.
+                                // Same slot as `previousAttachmentUrl` came from — see boundViewItem.
                                 purgeDraftDocumentReference(previousAttachmentUrl)
 
-                                questionnaireViewItem.setAnswer(answer)
+                                boundViewItem.setAnswer(answer)
                                 divider.visibility = View.VISIBLE
                                 displayPreview(
                                     attachmentType = attachmentMimeType,
@@ -665,8 +676,11 @@ internal object CustomAttachmentViewHolderFactory :
                                 }
                         }
 
+                    // Pinned for the same reason as the take-photo path: the field is reassigned on
+                    // every bind(), and purging one slot while answering another deletes an image.
+                    val boundViewItem = questionnaireViewItem
                     val previousAttachmentUrl =
-                        questionnaireViewItem.answers.firstOrNull()?.valueAttachment?.url
+                        boundViewItem.answers.firstOrNull()?.valueAttachment?.url
 
                     context.lifecycleScope.launch {
                         try {
@@ -679,7 +693,7 @@ internal object CustomAttachmentViewHolderFactory :
                         val persistedAttachment = answer.value as? Attachment
                         persistedAttachment?.url = doc.getUrl(sharedPreferencesHelper)
                         purgeDraftDocumentReference(previousAttachmentUrl)
-                        questionnaireViewItem.setAnswer(answer)
+                        boundViewItem.setAnswer(answer)
                         divider.visibility = View.VISIBLE
                         displayPreview(
                             attachmentType = attachmentMimeType,
@@ -925,41 +939,31 @@ internal object CustomAttachmentViewHolderFactory :
              * row and any non-DRAFT document are all no-ops.
              */
             private suspend fun purgeDraftDocumentReference(attachmentUrl: String?) {
-                val documentReferenceId = extractDocumentReferenceId(attachmentUrl) ?: return
-                try {
-                    val doc =
-                        fhirEngine.get(ResourceType.DocumentReference, documentReferenceId)
-                            as? DocumentReference ?: return
-                    if (doc.description != DocumentReferenceCaseType.DRAFT.name) return
-
-                    // Delete the JPEG the DocumentReference points at (file-location extension).
-                    (doc.getExtensionByUrl(EXTENSION_FILE_LOCATION)?.value as? StringType)?.value
-                        ?.let { fileLocation ->
-                            runCatching {
-                                context.contentResolver.delete(Uri.parse(fileLocation), null, null)
-                            }
-                                .onFailure { Timber.w(it, "Could not delete file for $documentReferenceId") }
-                        }
-
-                    fhirEngine.purge(ResourceType.DocumentReference, documentReferenceId, true)
-                    Timber.i("Purged orphaned DRAFT DocumentReference $documentReferenceId and its file")
-                } catch (e: Exception) {
-                    // ResourceNotFoundException (already gone) or any purge failure — nothing to do.
-                    Timber.w(e, "No DRAFT DocumentReference to purge for id $documentReferenceId")
-                }
+                purgeDraftDocumentReferenceIfSafe(
+                    fhirEngine = fhirEngine,
+                    attachmentUrl = attachmentUrl,
+                    deleteFile = { fileLocation ->
+                        context.contentResolver.delete(Uri.parse(fileLocation), null, null)
+                    },
+                )
             }
 
             private fun onDeleteClicked(view: View) {
+                // Pinned before the coroutine: purgeDraftDocumentReference suspends, and clearing
+                // the answer on a slot other than the one whose file we just deleted would leave a
+                // live answer pointing at a deleted image.
+                val boundViewItem = questionnaireViewItem
                 context.lifecycleScope.launch {
-                    val deletedAttachment = questionnaireViewItem.answers.first().valueAttachment
+                    val deletedAttachment =
+                        boundViewItem.answers.firstOrNull()?.valueAttachment ?: return@launch
                     val attachmentType = getMimeType(deletedAttachment.contentType)
-                    // Purge the orphaned DRAFT DocumentReference + its JPEG so a deleted photo does
-                    // not leave a stale resource/file behind (an unbounded local leak, and a pool of
-                    // stale drafts that a later draft-restore could resurrect a dead id from).
+                    // Clear the answer FIRST, then purge. If the purge throws, the worst case is an
+                    // orphaned DRAFT row and its JPEG (a storage leak); the reverse order risks a
+                    // deleted image still referenced by a live answer.
+                    boundViewItem.clearAnswer()
                     purgeDraftDocumentReference(deletedAttachment.url)
-                    questionnaireViewItem.clearAnswer()
 
-                    val questionnaireItem = questionnaireViewItem.questionnaireItem
+                    val questionnaireItem = boundViewItem.questionnaireItem
                     questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
                     questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
                     questionnaireItem.removeExtension(MODEL6_PREDICTION_URL)
@@ -1161,7 +1165,7 @@ internal object CustomAttachmentViewHolderFactory :
         }
 
 
-    private fun createDocumentReference(attachmentUri: Uri, mimeType: String): DocumentReference {
+    internal fun createDocumentReference(attachmentUri: Uri, mimeType: String): DocumentReference {
 
         val doc = DocumentReference().apply {
 
@@ -1288,9 +1292,69 @@ fun DocumentReference.getUrl(sharedPreferencesHelper: SharedPreferencesHelper?):
  * `.../DocumentReference/{id}/$binary-access-read?...`. Returns null when [url] is null or the id
  * cannot be located.
  */
-private fun extractDocumentReferenceId(url: String?): String? {
+internal fun extractDocumentReferenceId(url: String?): String? {
     if (url == null) return null
     return Regex("DocumentReference/([^/]+)/").find(url)?.groupValues?.get(1)
+}
+
+/** Why [purgeDraftDocumentReferenceIfSafe] did or did not remove anything. */
+internal enum class PurgeDraftOutcome {
+    /** No DocumentReference id could be read from the URL. */
+    NO_ID,
+
+    /** The row is already gone, or the lookup failed. */
+    NOT_FOUND,
+
+    /** The document is not a DRAFT — it may be referenced by a submitted response. Left alone. */
+    NOT_DRAFT,
+
+    /** The DRAFT row was purged and its JPEG deleted. */
+    PURGED,
+}
+
+/**
+ * Purges a not-yet-submitted (DRAFT) DocumentReference and deletes its backing JPEG.
+ *
+ * Called when a captured photo is deleted or superseded by a retake. **Only DRAFT documents are
+ * removed**, so editing a case whose image was already submitted can never delete server-bound
+ * data — that guard is the reason this is destructive-but-safe, and it is the single most important
+ * thing to preserve here.
+ *
+ * A missing id, an already-purged row and any non-DRAFT document are all no-ops. A failure to
+ * delete the file is not fatal: an orphan JPEG is a storage leak, whereas skipping the purge would
+ * leave a stale row behind.
+ *
+ * Extracted from the view-holder delegate — which is an anonymous object inside a singleton and
+ * cannot be constructed in a test — so this behaviour is verifiable.
+ */
+internal suspend fun purgeDraftDocumentReferenceIfSafe(
+    fhirEngine: FhirEngine,
+    attachmentUrl: String?,
+    deleteFile: (String) -> Unit,
+): PurgeDraftOutcome {
+    val documentReferenceId = extractDocumentReferenceId(attachmentUrl) ?: return PurgeDraftOutcome.NO_ID
+    return try {
+        val doc =
+            fhirEngine.get(ResourceType.DocumentReference, documentReferenceId) as? DocumentReference
+                ?: return PurgeDraftOutcome.NOT_FOUND
+        if (doc.description != DocumentReferenceCaseType.DRAFT.name) return PurgeDraftOutcome.NOT_DRAFT
+
+        // Delete the JPEG the DocumentReference points at (file-location extension).
+        (doc.getExtensionByUrl(EXTENSION_FILE_LOCATION)?.value as? StringType)?.value?.let { fileLocation ->
+            runCatching { deleteFile(fileLocation) }
+                .onFailure { Timber.w(it, "Could not delete file for $documentReferenceId") }
+        }
+
+        fhirEngine.purge(ResourceType.DocumentReference, documentReferenceId, true)
+        Timber.i("Purged orphaned DRAFT DocumentReference $documentReferenceId and its file")
+        PurgeDraftOutcome.PURGED
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (e: Exception) {
+        // ResourceNotFoundException (already gone) or any purge failure — nothing to do.
+        Timber.w(e, "No DRAFT DocumentReference to purge for id $documentReferenceId")
+        PurgeDraftOutcome.NOT_FOUND
+    }
 }
 
 internal const val MODEL6_PREDICTION_URL =
