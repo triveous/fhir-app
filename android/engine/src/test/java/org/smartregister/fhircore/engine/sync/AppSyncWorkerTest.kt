@@ -25,6 +25,7 @@ import com.google.gson.Gson
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.hl7.fhir.r4.model.ResourceType
 import org.junit.Assert
@@ -65,6 +66,7 @@ class AppSyncWorkerTest : RobolectricTest() {
         sharedPreferencesHelper,
         Gson(),
         featureFlagUtil,
+        mockk(relaxed = true),
       )
 
     appSyncWorker.getDownloadWorkManager()
@@ -75,7 +77,7 @@ class AppSyncWorkerTest : RobolectricTest() {
   }
 
   @Test
-  fun `doWork should skip duplicate sync worker when another sync is running`() = runTest {
+  fun `doWork should skip duplicate sync worker when another sync is running`() = runBlocking {
     val workerParams = mockk<WorkerParameters>()
     val syncListenerManager = mockk<SyncListenerManager>()
     val fhirEngine = mockk<FhirEngine>()
@@ -101,6 +103,7 @@ class AppSyncWorkerTest : RobolectricTest() {
         sharedPreferencesHelper,
         Gson(),
         featureFlagUtil,
+        mockk(relaxed = true),
       )
 
     Assert.assertTrue(AppSyncWorker.mutex.tryLock())

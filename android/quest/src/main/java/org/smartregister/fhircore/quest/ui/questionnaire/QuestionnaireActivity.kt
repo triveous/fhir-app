@@ -56,6 +56,7 @@ import org.smartregister.fhircore.engine.ui.base.AlertDialogue
 import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
+import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
 import org.smartregister.fhircore.engine.util.extension.clearText
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.engine.util.extension.logicalId
@@ -596,6 +597,33 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 mapOf(
                   PostHogAnalytics.Props.DOCUMENT_ID to missing.documentReferenceId,
                   "link_id" to missing.linkId,
+                  PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id,
+                  PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                ),
+              )
+            }
+            // The document could not be flipped to SUBMITTED, so the sync worker will never see it
+            // and its image will never leave the device — silent until now.
+            docReferenceReconciliation.failedFlips.forEach { failed ->
+              PostHogAnalytics.captureError(
+                "QuestionnaireActivity",
+                "DocumentReference flip to SUBMITTED failed; image will not upload",
+                mapOf(
+                  PostHogAnalytics.Props.DOCUMENT_ID to failed.documentReferenceId,
+                  "link_id" to failed.linkId,
+                  PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id,
+                  PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                ),
+              )
+            }
+            // Not an error: the image was uploaded and the local row purged, so the reference the
+            // response carries still resolves. Tracked separately so it never gets confused with
+            // the dangling-reference case above.
+            docReferenceReconciliation.uploadedButPurgedIds.forEach { documentId ->
+              PostHogAnalytics.capture(
+                AnalyticsLogger.Events.DOCUMENT_REFERENCE_RESOLVED_FROM_LEDGER,
+                mapOf(
+                  PostHogAnalytics.Props.DOCUMENT_ID to documentId,
                   PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id,
                   PostHogAnalytics.Props.SCREENING_ID to screeningId,
                 ),

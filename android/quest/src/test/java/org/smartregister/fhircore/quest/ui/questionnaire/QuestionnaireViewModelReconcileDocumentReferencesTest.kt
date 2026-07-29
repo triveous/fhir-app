@@ -20,6 +20,7 @@ import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.db.ResourceNotFoundException
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
@@ -34,6 +35,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 
 /**
@@ -47,10 +49,13 @@ import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCa
 class QuestionnaireViewModelReconcileDocumentReferencesTest {
 
   private val fhirEngine: FhirEngine = mockk()
+  private val uploadedDocumentReferenceLedger: UploadedDocumentReferenceLedger = mockk()
   private lateinit var viewModel: QuestionnaireViewModel
 
   @Before
   fun setUp() {
+    // Default: nothing was ever confirmed on the server, so a missing row means a dangling id.
+    every { uploadedDocumentReferenceLedger.wasUploaded(any()) } returns false
     viewModel =
       QuestionnaireViewModel(
         defaultRepository = mockk(relaxed = true),
@@ -65,6 +70,7 @@ class QuestionnaireViewModelReconcileDocumentReferencesTest {
         configurationRegistry = mockk(relaxed = true),
         syncBroadcaster = mockk(relaxed = true),
         fhirEngine = fhirEngine,
+        uploadedDocumentReferenceLedger = uploadedDocumentReferenceLedger,
       )
     coEvery { fhirEngine.update(resource = anyVararg()) } just runs
   }
@@ -122,6 +128,90 @@ class QuestionnaireViewModelReconcileDocumentReferencesTest {
     // The dangling answer was dropped so the uploaded QR does not reference a phantom resource.
     assertEquals(0, response.imageItem("image-1").answer.size)
     coVerify(exactly = 0) { fhirEngine.update(any<DocumentReference>()) }
+  }
+
+  @Test
+  fun uploadedThenPurgedDocumentReferenceKeepsItsAnswer() {
+    // Reproduces the production sequence traced for doc f6bd7c3d on 2026-07-07: the sync worker
+    // uploaded the image, verified it on the server and purged the local row at 08:42:12; a second
+    // submission of the same response ran the reconciliation at 08:43:14. The reference is valid —
+    // dropping the answer here would strip a successfully uploaded image off the case.
+    val id = "doc-uploaded-then-purged"
+    coEvery { fhirEngine.get(ResourceType.DocumentReference, id) } throws
+      ResourceNotFoundException("DocumentReference", id)
+    every { uploadedDocumentReferenceLedger.wasUploaded(id) } returns true
+    val response = screeningResponse(imageItem("image-1", attachmentAnswer(id)))
+
+    val result = runBlocking { viewModel.reconcileDocumentReferencesForSubmission(response) }
+
+    assertEquals(listOf(id), result.uploadedButPurgedIds)
+    assertTrue(result.missingReferences.isEmpty())
+    assertEquals(1, response.imageItem("image-1").answer.size)
+  }
+
+  @Test
+  fun mixedPurgedAndLostReferencesAreSeparated() {
+    val uploadedId = "doc-uploaded"
+    val lostId = "doc-lost"
+    coEvery { fhirEngine.get(ResourceType.DocumentReference, uploadedId) } throws
+      ResourceNotFoundException("DocumentReference", uploadedId)
+    coEvery { fhirEngine.get(ResourceType.DocumentReference, lostId) } throws
+      ResourceNotFoundException("DocumentReference", lostId)
+    every { uploadedDocumentReferenceLedger.wasUploaded(uploadedId) } returns true
+    every { uploadedDocumentReferenceLedger.wasUploaded(lostId) } returns false
+    val response =
+      screeningResponse(
+        imageItem("image-1", attachmentAnswer(uploadedId)),
+        imageItem("image-2", attachmentAnswer(lostId)),
+      )
+
+    val result = runBlocking { viewModel.reconcileDocumentReferencesForSubmission(response) }
+
+    assertEquals(listOf(uploadedId), result.uploadedButPurgedIds)
+    assertEquals(listOf(MissingDocumentReference("image-2", lostId)), result.missingReferences)
+    assertEquals(1, response.imageItem("image-1").answer.size)
+    assertEquals(0, response.imageItem("image-2").answer.size)
+  }
+
+  @Test
+  fun aFailedFlipIsReportedSoTheUnuploadableImageIsVisible() {
+    // AppSyncWorker only ever looks at non-DRAFT documents. A document left at DRAFT because the
+    // flip failed is invisible to it forever, so its image never leaves the device while the
+    // metadata sync still PUTs the resource — an id that resolves to a binary-less record.
+    val id = "doc-flip-fails"
+    val doc = documentReference(id, DocumentReferenceCaseType.DRAFT.name)
+    coEvery { fhirEngine.get(ResourceType.DocumentReference, id) } returns doc
+    coEvery { fhirEngine.update(resource = anyVararg()) } throws IllegalStateException("db locked")
+    val response = screeningResponse(imageItem("image-1", attachmentAnswer(id)))
+
+    val result = runBlocking { viewModel.reconcileDocumentReferencesForSubmission(response) }
+
+    assertEquals(listOf(MissingDocumentReference("image-1", id)), result.failedFlips)
+    assertTrue(result.submittedDraftIds.isEmpty())
+    // The answer is retained: the image is still on the device and still recoverable.
+    assertEquals(1, response.imageItem("image-1").answer.size)
+  }
+
+  @Test
+  fun cancellationPropagatesInsteadOfBeingReportedAsReconciled() {
+    val id = "doc-cancelled"
+    coEvery { fhirEngine.get(ResourceType.DocumentReference, id) } throws
+      kotlinx.coroutines.CancellationException("submit scope died")
+    val response = screeningResponse(imageItem("image-1", attachmentAnswer(id)))
+
+    var thrown: Throwable? = null
+    try {
+      runBlocking { viewModel.reconcileDocumentReferencesForSubmission(response) }
+    } catch (e: Throwable) {
+      thrown = e
+    }
+
+    assertTrue(
+      "cancellation must not be swallowed, was $thrown",
+      thrown is kotlinx.coroutines.CancellationException,
+    )
+    // Nothing was dropped on the way out.
+    assertEquals(1, response.imageItem("image-1").answer.size)
   }
 
   @Test

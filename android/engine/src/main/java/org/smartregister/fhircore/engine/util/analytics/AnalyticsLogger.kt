@@ -27,6 +27,23 @@ interface AnalyticsLogger {
      * be uploaded. Emitted so these malformed drafts are visible instead of being silently dropped.
      */
     const val DOCUMENT_REFERENCE_MISSING_FILE_LOCATION = "document_reference_missing_file_location"
+
+    /**
+     * The image file backing a DocumentReference is gone from the device *and* the server has no
+     * resource for that id, so the attachment URL already sitting in a submitted
+     * QuestionnaireResponse can never resolve. This is the terminal, unrecoverable form of the
+     * "DocumentReference 404" and should be alerted on.
+     */
+    const val DOCUMENT_REFERENCE_IMAGE_FILE_LOST = "document_reference_image_file_lost"
+
+    /** The server answered 410 Gone for a DocumentReference we still hold locally. */
+    const val DOCUMENT_REFERENCE_GONE_ON_SERVER = "document_reference_gone_on_server"
+
+    /**
+     * A submitted QuestionnaireResponse referenced a DocumentReference that is absent from the
+     * local engine but recorded as uploaded. The reference is valid; emitted for visibility only.
+     */
+    const val DOCUMENT_REFERENCE_RESOLVED_FROM_LEDGER = "document_reference_resolved_from_ledger"
   }
 
   object Props {

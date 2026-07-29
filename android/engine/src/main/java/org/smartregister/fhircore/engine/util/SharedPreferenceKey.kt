@@ -44,5 +44,12 @@ enum class SharedPreferenceKey {
   DRAFTS,
   KEY_LANGUAGE,
   KEY_LANGUAGE_CODE,
-  LAST_SYNC_DATE_TIME
+  LAST_SYNC_DATE_TIME,
+
+  /**
+   * Ids of DocumentReferences confirmed on the server before being purged locally.
+   *
+   * @see org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
+   */
+  UPLOADED_DOCUMENT_REFERENCES
 }

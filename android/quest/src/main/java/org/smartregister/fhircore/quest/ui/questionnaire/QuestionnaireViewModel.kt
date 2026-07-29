@@ -36,6 +36,7 @@ import com.google.android.fhir.search.filter.TokenParamFilterCriterion
 import com.google.android.fhir.search.search
 import com.google.android.fhir.workflow.FhirOperator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -113,6 +114,7 @@ import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import org.smartregister.fhircore.quest.util.languageExtensionToActionParameters
+import org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.hl7.fhir.r4.model.BooleanType
 import timber.log.Timber
@@ -137,7 +139,8 @@ constructor(
   val fhirPathDataExtractor: FhirPathDataExtractor,
   val configurationRegistry: ConfigurationRegistry,
   val syncBroadcaster: SyncBroadcaster,
-  val fhirEngine: FhirEngine
+  val fhirEngine: FhirEngine,
+  val uploadedDocumentReferenceLedger: UploadedDocumentReferenceLedger,
 ) : ViewModel() {
   private val parser = FhirContext.forR4Cached().newJsonParser()
 
@@ -290,6 +293,8 @@ constructor(
     val submittedDraftIds = mutableListOf<String>()
     val missingReferences = mutableListOf<MissingDocumentReference>()
     val unparseableUrls = mutableListOf<String>()
+    val uploadedButPurgedIds = mutableListOf<String>()
+    val failedFlips = mutableListOf<MissingDocumentReference>()
 
     Timber.d("=== Starting DocumentReference update processing ===")
     questionnaireResponse.item
@@ -318,23 +323,56 @@ constructor(
                     fhirEngine.get(ResourceType.DocumentReference, documentReferenceId)
                       as DocumentReference
                   } catch (notFound: ResourceNotFoundException) {
-                    Timber.e(
-                      "DocumentReference %s referenced by %s is missing locally; dropping the dangling attachment so the submitted QuestionnaireResponse does not reference a resource the server never received (root cause of the DocumentReference 404).",
-                      documentReferenceId,
-                      image.linkId,
-                    )
-                    image.answer.remove(answer)
-                    missingReferences.add(
-                      MissingDocumentReference(image.linkId, documentReferenceId),
-                    )
+                    // Absent from the engine has two very different meanings, and the sync worker
+                    // produces the harmless one far more often: once an image is uploaded and
+                    // verified, the worker purges the row while the id stays valid on the server.
+                    // The ledger records exactly those ids. Dropping such an answer would delete a
+                    // perfectly good image from the submission, so only answers whose id was never
+                    // confirmed uploaded are treated as dangling.
+                    if (uploadedDocumentReferenceLedger.wasUploaded(documentReferenceId)) {
+                      Timber.i(
+                        "DocumentReference %s referenced by %s was already uploaded and purged locally; keeping the attachment.",
+                        documentReferenceId,
+                        image.linkId,
+                      )
+                      uploadedButPurgedIds.add(documentReferenceId)
+                    } else {
+                      Timber.e(
+                        "DocumentReference %s referenced by %s is missing locally and was never confirmed on the server; dropping the dangling attachment so the submitted QuestionnaireResponse does not reference a resource the server never received (root cause of the DocumentReference 404).",
+                        documentReferenceId,
+                        image.linkId,
+                      )
+                      image.answer.remove(answer)
+                      missingReferences.add(
+                        MissingDocumentReference(image.linkId, documentReferenceId),
+                      )
+                    }
                     return@answerLoop
+                  } catch (cancellation: CancellationException) {
+                    // The submit coroutine is going away (user backed out, activity finishing).
+                    // Do not keep looping on a dead scope — and do not report the remaining
+                    // documents as reconciled when they were never looked at.
+                    throw cancellation
                   } catch (e: Exception) {
                     Timber.e(e, "Error fetching DocumentReference status for ID: $documentReferenceId")
+                    failedFlips.add(MissingDocumentReference(image.linkId, documentReferenceId))
                     return@answerLoop
                   }
                 if (fetched.description == DocumentReferenceCaseType.DRAFT.name) {
                   fetched.description = DocumentReferenceCaseType.SUBMITTED.name
-                  fhirEngine.update(fetched)
+                  try {
+                    fhirEngine.update(fetched)
+                  } catch (cancellation: CancellationException) {
+                    throw cancellation
+                  } catch (e: Exception) {
+                    // A DocumentReference left at DRAFT is invisible to AppSyncWorker, so its image
+                    // is never uploaded — the response ends up referencing a resource that exists
+                    // (the metadata sync PUTs it regardless) but has no binary. Silent until now;
+                    // the caller turns this into an analytics event.
+                    Timber.e(e, "Failed to flip DocumentReference $documentReferenceId to SUBMITTED; its image will not be uploaded")
+                    failedFlips.add(MissingDocumentReference(image.linkId, documentReferenceId))
+                    return@answerLoop
+                  }
                   submittedDraftIds.add(documentReferenceId)
                   Timber.i("DocumentReference $documentReferenceId description updated to SUBMITTED")
                 }
@@ -348,6 +386,8 @@ constructor(
       submittedDraftIds = submittedDraftIds,
       missingReferences = missingReferences,
       unparseableUrls = unparseableUrls,
+      uploadedButPurgedIds = uploadedButPurgedIds,
+      failedFlips = failedFlips,
     )
   }
 
@@ -1507,13 +1547,21 @@ data class AiInferenceSummary(
  * Outcome of [QuestionnaireViewModel.reconcileDocumentReferencesForSubmission].
  *
  * @property submittedDraftIds ids of DocumentReferences flipped DRAFT -> SUBMITTED.
- * @property missingReferences answers dropped because their DocumentReference is absent locally.
+ * @property missingReferences answers dropped because their DocumentReference is absent locally
+ *   *and* was never confirmed on the server — the ids that would have produced a 404.
  * @property unparseableUrls attachment URLs from which no DocumentReference id could be extracted.
+ * @property uploadedButPurgedIds ids absent locally but recorded as uploaded, whose answers were
+ *   deliberately kept because the server holds the resource.
+ * @property failedFlips documents that could not be read or could not be flipped to SUBMITTED.
+ *   These stay invisible to `AppSyncWorker` (which skips DRAFT), so their images are never
+ *   uploaded — the response ends up referencing a resource with no binary.
  */
 data class DocumentReferenceReconciliationResult(
   val submittedDraftIds: List<String> = emptyList(),
   val missingReferences: List<MissingDocumentReference> = emptyList(),
   val unparseableUrls: List<String> = emptyList(),
+  val uploadedButPurgedIds: List<String> = emptyList(),
+  val failedFlips: List<MissingDocumentReference> = emptyList(),
 )
 
 /** A screening-image answer whose DocumentReference is absent from the local FhirEngine. */
