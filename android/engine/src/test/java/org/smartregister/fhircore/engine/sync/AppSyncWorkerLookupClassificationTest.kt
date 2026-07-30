@@ -45,11 +45,11 @@ class AppSyncWorkerLookupClassificationTest {
     )
 
   private fun classify(error: Throwable) =
-    AppSyncWorker.classifyServerLookupFailure("doc-1", error)
+    classifyServerLookupFailure("doc-1", error)
 
   @Test
   fun `http 404 is the only response that proves absence`() {
-    assertTrue(classify(httpException(404)) is AppSyncWorker.ServerDocumentLookup.NotFound)
+    assertTrue(classify(httpException(404)) is ServerDocumentLookup.NotFound)
   }
 
   @Test
@@ -59,7 +59,7 @@ class AppSyncWorkerLookupClassificationTest {
     listOf(900, 901, 902, 903).forEach { code ->
       assertTrue(
         "HTTP $code must not be read as absence",
-        classify(httpException(code)) is AppSyncWorker.ServerDocumentLookup.Unavailable,
+        classify(httpException(code)) is ServerDocumentLookup.Unavailable,
       )
     }
   }
@@ -69,7 +69,7 @@ class AppSyncWorkerLookupClassificationTest {
     listOf(401, 403, 409, 410, 500, 502, 503, 504).forEach { code ->
       assertTrue(
         "HTTP $code must not be read as absence",
-        classify(httpException(code)) is AppSyncWorker.ServerDocumentLookup.Unavailable,
+        classify(httpException(code)) is ServerDocumentLookup.Unavailable,
       )
     }
   }
@@ -84,7 +84,7 @@ class AppSyncWorkerLookupClassificationTest {
       .forEach { error ->
         assertTrue(
           "${error::class.simpleName} must not be read as absence",
-          classify(error) is AppSyncWorker.ServerDocumentLookup.Unavailable,
+          classify(error) is ServerDocumentLookup.Unavailable,
         )
       }
   }
@@ -94,11 +94,11 @@ class AppSyncWorkerLookupClassificationTest {
   @Test
   fun `a pending INSERT is unsafe - it squashes to a full-resource PUT`() {
     assertTrue(
-      AppSyncWorker.wouldOverwriteResourceOnUpload(listOf(LocalChange.Type.INSERT)),
+      wouldOverwriteResourceOnUpload(listOf(LocalChange.Type.INSERT)),
     )
     // INSERT followed by later edits still squashes to a single PUT of the whole resource.
     assertTrue(
-      AppSyncWorker.wouldOverwriteResourceOnUpload(
+      wouldOverwriteResourceOnUpload(
         listOf(LocalChange.Type.INSERT, LocalChange.Type.UPDATE, LocalChange.Type.UPDATE),
       ),
     )
@@ -107,7 +107,7 @@ class AppSyncWorkerLookupClassificationTest {
   @Test
   fun `a pending DELETE is unsafe`() {
     assertTrue(
-      AppSyncWorker.wouldOverwriteResourceOnUpload(
+      wouldOverwriteResourceOnUpload(
         listOf(LocalChange.Type.UPDATE, LocalChange.Type.DELETE),
       ),
     )
@@ -117,9 +117,9 @@ class AppSyncWorkerLookupClassificationTest {
   fun `UPDATE-only is safe - it uploads as a JSON PATCH, not a whole-resource write`() {
     // This is the state every freshly submitted case is in: the DRAFT -> SUBMITTED flip leaves one
     // UPDATE behind. Treating it as unsafe would defer every case's images by a whole sync cycle.
-    assertFalse(AppSyncWorker.wouldOverwriteResourceOnUpload(listOf(LocalChange.Type.UPDATE)))
+    assertFalse(wouldOverwriteResourceOnUpload(listOf(LocalChange.Type.UPDATE)))
     assertFalse(
-      AppSyncWorker.wouldOverwriteResourceOnUpload(
+      wouldOverwriteResourceOnUpload(
         listOf(LocalChange.Type.UPDATE, LocalChange.Type.UPDATE),
       ),
     )
@@ -127,7 +127,7 @@ class AppSyncWorkerLookupClassificationTest {
 
   @Test
   fun `no pending changes is safe`() {
-    assertFalse(AppSyncWorker.wouldOverwriteResourceOnUpload(emptyList()))
+    assertFalse(wouldOverwriteResourceOnUpload(emptyList()))
   }
 
   @Test
@@ -136,7 +136,7 @@ class AppSyncWorkerLookupClassificationTest {
 
     val result = classify(boom)
 
-    assertTrue(result is AppSyncWorker.ServerDocumentLookup.Unavailable)
-    assertTrue((result as AppSyncWorker.ServerDocumentLookup.Unavailable).error === boom)
+    assertTrue(result is ServerDocumentLookup.Unavailable)
+    assertTrue((result as ServerDocumentLookup.Unavailable).error === boom)
   }
 }

@@ -48,25 +48,25 @@ class DocumentActionDecisionTest {
       }
     }
 
-  private val found = AppSyncWorker.ServerDocumentLookup.Found(serverDoc())
+  private val found = ServerDocumentLookup.Found(serverDoc())
   private val foundWithImage =
-    AppSyncWorker.ServerDocumentLookup.Found(
+    ServerDocumentLookup.Found(
       serverDoc(DocumentReference.ReferredDocumentStatus.FINAL, attachmentSize = 1234),
     )
-  private val notFound = AppSyncWorker.ServerDocumentLookup.NotFound
-  private val unavailable = AppSyncWorker.ServerDocumentLookup.Unavailable(IOException("offline"))
+  private val notFound = ServerDocumentLookup.NotFound
+  private val unavailable = ServerDocumentLookup.Unavailable(IOException("offline"))
 
-  private val filePresent = AppSyncWorker.LocalFileState.Present
-  private val fileAbsent = AppSyncWorker.LocalFileState.Absent
-  private val fileUnreadable = AppSyncWorker.LocalFileState.Unreadable(SecurityException("no grant"))
+  private val filePresent = LocalFileState.Present
+  private val fileAbsent = LocalFileState.Absent
+  private val fileUnreadable = LocalFileState.Unreadable(SecurityException("no grant"))
 
   private val noChanges = emptyList<LocalChange.Type>()
   private val insertPending = listOf(LocalChange.Type.INSERT)
   private val updatePending = listOf(LocalChange.Type.UPDATE)
 
   private fun decide(
-    lookup: AppSyncWorker.ServerDocumentLookup,
-    fileState: AppSyncWorker.LocalFileState,
+    lookup: ServerDocumentLookup,
+    fileState: LocalFileState,
     pending: List<LocalChange.Type> = noChanges,
   ) = decideDocumentAction(lookup, fileState, pending)
 

@@ -92,7 +92,7 @@ interface AnalyticsLogger {
 
     /**
      * Furthest stage the upload state machine reached before failing. One of the
-     * `AppSyncWorker.UploadStage` labels: `starting`, `creating_metadata`, `uploading_binary`,
+     * `UploadStage` labels: `starting`, `creating_metadata`, `uploading_binary`,
      * `recording_duration`, `finalizing`.
      */
     const val UPLOAD_STAGE = "upload_stage"
