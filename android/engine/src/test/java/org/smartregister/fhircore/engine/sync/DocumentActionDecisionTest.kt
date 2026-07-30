@@ -114,7 +114,20 @@ class DocumentActionDecisionTest {
   @Test
   fun `file gone but the image is already on the server proceeds to upload for finalization`() {
     // Nothing is lost: the state machine finalizes from server state and never reads the file.
+    // Both file-touching steps (createMetadataRecordOnServer, uploadFileContent) are gated on the
+    // server lacking the resource/image, so neither runs here.
     assertEquals(DocumentAction.Upload, decide(foundWithImage, fileAbsent))
+    assertEquals(DocumentAction.Upload, decide(foundWithImage, fileAbsent, updatePending))
+  }
+
+  @Test
+  fun `file gone with the image on the server still defers behind a queued INSERT`() {
+    // The same case as above, but the queued whole-resource write outranks it: the INSERT would be
+    // PUT over the image the server already holds. Deferring costs one sync cycle and loses nothing.
+    assertEquals(
+      DocumentAction.DeferPendingResourceWrite,
+      decide(foundWithImage, fileAbsent, insertPending),
+    )
   }
 
   // ── I3: queued whole-resource writes ─────────────────────────────────────────────────────────
