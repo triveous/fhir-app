@@ -32,7 +32,6 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import ca.uhn.fhir.context.FhirContext
 import com.google.android.fhir.FhirEngine
-import com.google.android.fhir.LocalChange
 import com.google.android.fhir.datacapture.extensions.asStringValue
 import com.google.android.fhir.get
 import com.google.android.fhir.search.search
@@ -83,10 +82,7 @@ import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.createNotification
-import retrofit2.HttpException
 import timber.log.Timber
-import java.io.FileNotFoundException
-import java.net.HttpURLConnection.HTTP_NOT_FOUND
 import java.util.Date
 
 /**
@@ -158,47 +154,6 @@ constructor(
         const val IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-failed-permanently"
         const val TIME_TAKEN_TOUPLOAD_IMG_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/time-taken-to-upload-img"
 
-        /**
-         * Whether the changes queued for a resource would go up as a write that replaces the whole
-         * resource — and would therefore erase an image `$binary-access-write` stored just before.
-         *
-         * This mirrors how the FHIR SDK squashes queued changes into requests:
-         * - a run starting with `INSERT` becomes a single **PUT of the full resource** ⇒ unsafe;
-         * - any `DELETE` becomes `DELETE /DocumentReference/{id}` ⇒ unsafe;
-         * - `UPDATE`-only becomes a **JSON PATCH** of just the changed paths. Ours only ever touch
-         *   `/description`, `/docStatus` and `/extension`, never `content` ⇒ safe.
-         *
-         * That last case has to stay safe. Flipping a case from DRAFT to SUBMITTED always leaves an
-         * UPDATE behind, so treating every pending change as unsafe would hold back the photos of
-         * every freshly submitted case for a whole sync cycle.
-         */
-        @VisibleForTesting
-        internal fun wouldOverwriteResourceOnUpload(changeTypes: List<LocalChange.Type>): Boolean =
-            changeTypes.firstOrNull() == LocalChange.Type.INSERT ||
-                changeTypes.contains(LocalChange.Type.DELETE)
-
-        /**
-         * Turns a failed metadata lookup into a [ServerDocumentLookup].
-         *
-         * Only an HTTP 404 proves the server does not have the resource. Everything else — 5xx, 401,
-         * and the synthetic 900-903 codes this app's own OkHttp interceptors produce for offline,
-         * DNS and timeout conditions — leaves the answer unknown, and callers must then do nothing
-         * rather than guess.
-         */
-        @VisibleForTesting
-        internal fun classifyServerLookupFailure(
-            documentId: String,
-            error: Throwable,
-        ): ServerDocumentLookup =
-            if (error is HttpException && error.code() == HTTP_NOT_FOUND) {
-                Timber.d("No DocumentReference on server for id $documentId: HTTP 404")
-                ServerDocumentLookup.NotFound
-            } else {
-                // Debug on purpose: an offline device hits this for every pending photo on every
-                // sync. The count travels to PostHog in the run summary instead.
-                Timber.d("DocumentReference $documentId state unknown: ${error.localizedMessage}")
-                ServerDocumentLookup.Unavailable(error)
-            }
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
@@ -401,7 +356,7 @@ constructor(
 
             try {
                 val lookup = getDocumentReferenceMetaDataFromServer(docReference)
-                val fileState = localFileState(fileUri)
+                val fileState = applicationContext.contentResolver.localFileState(fileUri)
                 val pendingChanges =
                     openSrpFhirEngine.getLocalChanges(docReference.resourceType, docReference.logicalId)
 
@@ -588,64 +543,6 @@ constructor(
     }
 
     /**
-     * Per-run counters — one for each outcome a document can reach — plus a sample of the ids left
-     * over for next time.
-     *
-     * Counting is what lets the per-document paths stay quiet. Skips and defers are normal and
-     * high-volume; what actually matters is whether they keep happening to the same device run after
-     * run, and totals show that where individual log lines do not.
-     */
-    @VisibleForTesting
-    internal class DocumentUploadTally {
-        var uploaded = 0
-        var failed = 0
-        var skippedServerUnknown = 0
-        var skippedFileUnknown = 0
-        var deferredPendingWrite = 0
-        var finalizedImageLost = 0
-        var imageLostNoServerRecord = 0
-        var missingFileLocation = 0
-
-        /** Reached, but deliberately not attempted because the worker had been told to stop. */
-        var stoppedBeforeAttempt = 0
-
-        private val stuckIds = ArrayDeque<String>()
-
-        /**
-         * Notes a document being carried over to a future run.
-         *
-         * Call this for the outcomes that leave the photo un-uploaded and report nothing themselves:
-         * the two skips, the defer, a stop, and a failure. The terminal outcomes already publish
-         * their own id, and an uploaded document is finished.
-         *
-         * Holds at most [MAX_STUCK_IDS]. Documents arrive newest-first, so dropping from the front
-         * keeps the **oldest** — the ones stuck longest, which are the ones worth chasing. Flipping
-         * that is a behaviour change, not a cleanup.
-         */
-        fun recordStuck(documentId: String) {
-            if (stuckIds.size == MAX_STUCK_IDS) stuckIds.removeFirst()
-            stuckIds.addLast(documentId)
-        }
-
-        /** The retained stuck ids, oldest first. */
-        fun stuckDocumentIds(): List<String> = stuckIds.reversed()
-
-        fun accountedFor(): Int =
-            uploaded + failed + skippedServerUnknown + skippedFileUnknown + deferredPendingWrite +
-                finalizedImageLost + imageLostNoServerRecord + missingFileLocation +
-                stoppedBeforeAttempt
-
-        companion object {
-            /**
-             * A backlog can run to thousands of documents, and one event cannot usefully carry them
-             * all. Twenty is enough to spot the persistently stuck ones, and the counters still give
-             * the exact totals, so truncating the list costs no measurement.
-             */
-            const val MAX_STUCK_IDS = 20
-        }
-    }
-
-    /**
      * Publishes the single event describing this pass: how many photos went up, and what happened to
      * the ones that did not.
      *
@@ -704,67 +601,6 @@ constructor(
             // hide the real cause.
             Timber.d(it, "Could not report document upload run")
         }
-    }
-
-    /**
-     * Whether the captured image is still readable on this device.
-     *
-     * Three-way for the same reason as [ServerDocumentLookup]: "I could not read the file" is not
-     * "the file is gone". Only a genuinely missing file proves absence. A lost URI permission after
-     * the process was recreated, a transient I/O error, storage briefly unavailable — none of those
-     * prove anything, and calling them absence throws away a photo sitting on disk.
-     */
-    internal sealed interface LocalFileState {
-        /** The file is present and non-empty. */
-        data object Present : LocalFileState
-
-        /** The file definitively does not exist, or exists but is empty. */
-        data object Absent : LocalFileState
-
-        /** The file could not be read. Its existence is unknown; assume nothing. */
-        data class Unreadable(val error: Throwable) : LocalFileState
-    }
-
-    private fun localFileState(uri: Uri?): LocalFileState {
-        if (uri == null) return LocalFileState.Absent
-        return try {
-            val stream = applicationContext.contentResolver.openInputStream(uri)
-                ?: return LocalFileState.Absent
-            stream.use { if (it.available() > 0) LocalFileState.Present else LocalFileState.Absent }
-        } catch (e: FileNotFoundException) {
-            LocalFileState.Absent
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Debug: a device that has lost its URI permissions hits this for its whole backlog on
-            // every sync. The caller logs the same throwable and counts it.
-            Timber.d(e, "Could not determine whether the image file exists for uri: $uri")
-            LocalFileState.Unreadable(e)
-        }
-    }
-
-    /** Whether the server's copy has both the image bytes and a final status — nothing left to do. */
-    private fun DocumentReference?.isCompleteOnServer(): Boolean =
-        isFinalOnServer() && hasImageDataOnServer()
-
-    /**
-     * How far the upload got. Reported on failure as [AnalyticsLogger.Props.UPLOAD_STAGE], which is
-     * what makes a stuck document diagnosable in production without a log line per step per photo.
-     */
-    private enum class UploadStage(val label: String) {
-        STARTING("starting"),
-
-        /** Step 1 — creating the resource with `PUT /DocumentReference/{id}`. */
-        CREATING_METADATA("creating_metadata"),
-
-        /** Step 2 — sending the bytes to `$binary-access-write`. */
-        UPLOADING_BINARY("uploading_binary"),
-
-        /** The PATCH after step 2 that records how long the upload took. */
-        RECORDING_DURATION("recording_duration"),
-
-        /** Step 3 — patching docStatus to final. */
-        FINALIZING("finalizing"),
     }
 
     /**
@@ -1074,25 +910,6 @@ constructor(
 
     }
 
-    /**
-     * What the server said when asked about a DocumentReference.
-     *
-     * [NotFound] and [Unavailable] have to stay separate. "The server says it does not have this"
-     * licenses creating the resource, and — if the local file is also gone — giving up on the photo.
-     * "I could not reach the server" licenses nothing at all: the only safe move is to leave the
-     * document exactly as it is and ask again next run.
-     */
-    internal sealed interface ServerDocumentLookup {
-        /** The server returned the resource. */
-        data class Found(val documentReference: DocumentReference) : ServerDocumentLookup
-
-        /** The server answered, authoritatively, that no such resource exists (HTTP 404). */
-        data object NotFound : ServerDocumentLookup
-
-        /** The server could not be asked. Its state is unknown; assume nothing. */
-        data class Unavailable(val error: Throwable) : ServerDocumentLookup
-    }
-
     /** Fetches the server's copy of a document, or says why it could not. */
     private suspend fun getDocumentReferenceMetaDataFromServer(
         docReference: DocumentReference,
@@ -1108,14 +925,6 @@ constructor(
         }
     }
 
-
-    /** Raised when `$binary-access-write` answers with a non-2xx status. */
-    data class ImageUploadAPIException(
-        val documentId: String,
-        val responseCode: Int,
-        val responseMessage: String,
-        val pendingDocuments: Int
-    ) : Exception("Image upload failed for document $documentId: $responseCode $responseMessage ($pendingDocuments pending)")
 
     private fun getDeviceId(): String {
         return Settings.Secure.getString(
@@ -1231,93 +1040,4 @@ constructor(
         }
         notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
     }
-}
-
-/**
- * Whether the server's copy is marked final. Null-safe — no copy on the server means not final.
- *
- * File-level and `internal` so [decideDocumentAction] below can be unit-tested without building a
- * worker.
- */
-internal fun DocumentReference?.isFinalOnServer(): Boolean =
-    this?.docStatus == DocumentReference.ReferredDocumentStatus.FINAL
-
-/**
- * Whether the server's copy actually holds image bytes.
- *
- * Strict on purpose: a non-zero attachment size, never `hasData()` or `hasUrl()`. A false positive
- * here purges a photo the server never received; a false negative only costs a redundant re-upload.
- */
-internal fun DocumentReference?.hasImageDataOnServer(): Boolean =
-    this?.content?.any { (it.attachment?.size ?: 0) > 0 } == true
-
-/**
- * What to do with one DocumentReference this run — the result of [decideDocumentAction].
- *
- * A separate type so the decision can be tested on its own, without a WorkManager, a Hilt entry
- * point or a FHIR server behind it.
- */
-internal sealed interface DocumentAction {
-    /** Server unreachable. Change nothing; ask again next run. */
-    data object SkipServerStateUnknown : DocumentAction
-
-    /** The local image could not be read. Change nothing; try again next run. */
-    data object SkipFileStateUnknown : DocumentAction
-
-    /**
-     * The image is gone from the device, but the server holds the resource. The URL in the submitted
-     * response still resolves, so mark the image permanently failed up there and stop carrying the
-     * local row.
-     */
-    data object FinalizeAsImageLostAndPurge : DocumentAction
-
-    /**
-     * The image is gone from the device *and* the server has no resource for this id. Keep the local
-     * row: it is the only thing that can still create that resource, and purging it would leave the
-     * id in an already-submitted response pointing at nothing forever.
-     */
-    data object ReportImageLostKeepRow : DocumentAction
-
-    /** A queued whole-resource write would land after the bytes and erase them. Wait for it. */
-    data object DeferPendingResourceWrite : DocumentAction
-
-    /** Nothing in the way. Run the upload. */
-    data object Upload : DocumentAction
-}
-
-/**
- * Picks what to do with one document.
- *
- * The order of these checks *is* the safety property: anything we are not sure about returns before
- * the branches that write, patch or purge. So an offline device with a missing file is a skip, never
- * a "photo lost".
- *
- * @param lookup what `GET /DocumentReference/{id}` came back with.
- * @param fileState whether the local JPEG is readable.
- * @param pendingChangeTypes local changes still queued for this resource, in order.
- */
-internal fun decideDocumentAction(
-    lookup: AppSyncWorker.ServerDocumentLookup,
-    fileState: AppSyncWorker.LocalFileState,
-    pendingChangeTypes: List<LocalChange.Type>,
-): DocumentAction {
-    if (lookup is AppSyncWorker.ServerDocumentLookup.Unavailable) {
-        return DocumentAction.SkipServerStateUnknown
-    }
-    if (fileState is AppSyncWorker.LocalFileState.Unreadable) {
-        return DocumentAction.SkipFileStateUnknown
-    }
-    val serverDocRef = (lookup as? AppSyncWorker.ServerDocumentLookup.Found)?.documentReference
-    if (fileState is AppSyncWorker.LocalFileState.Absent && !serverDocRef.hasImageDataOnServer()) {
-        // Note this only catches "no image anywhere".
-        return if (serverDocRef != null) {
-            DocumentAction.FinalizeAsImageLostAndPurge
-        } else {
-            DocumentAction.ReportImageLostKeepRow
-        }
-    }
-    if (AppSyncWorker.wouldOverwriteResourceOnUpload(pendingChangeTypes)) {
-        return DocumentAction.DeferPendingResourceWrite
-    }
-    return DocumentAction.Upload
 }

@@ -31,18 +31,18 @@ import org.junit.Test
  */
 class DocumentUploadTallyTest {
 
-  private val cap = AppSyncWorker.DocumentUploadTally.MAX_STUCK_IDS
+  private val cap = DocumentUploadTally.MAX_STUCK_IDS
 
   // ── the stuck-id buffer ──────────────────────────────────────────────────────────────────────
 
   @Test
   fun `an empty tally reports no stuck ids`() {
-    assertEquals(emptyList<String>(), AppSyncWorker.DocumentUploadTally().stuckDocumentIds())
+    assertEquals(emptyList<String>(), DocumentUploadTally().stuckDocumentIds())
   }
 
   @Test
   fun `ids below the cap are all retained, oldest first`() {
-    val tally = AppSyncWorker.DocumentUploadTally()
+    val tally = DocumentUploadTally()
     // The worker records newest-first, so "doc-1" here is the most recently captured image.
     listOf("doc-1", "doc-2", "doc-3").forEach(tally::recordStuck)
 
@@ -51,7 +51,7 @@ class DocumentUploadTallyTest {
 
   @Test
   fun `over the cap the oldest ids are kept and the newest dropped`() {
-    val tally = AppSyncWorker.DocumentUploadTally()
+    val tally = DocumentUploadTally()
     // 30 documents, recorded newest-first: "doc-0" is newest, "doc-29" is oldest.
     (0 until 30).forEach { tally.recordStuck("doc-$it") }
 
@@ -66,7 +66,7 @@ class DocumentUploadTallyTest {
 
   @Test
   fun `exactly the cap keeps everything`() {
-    val tally = AppSyncWorker.DocumentUploadTally()
+    val tally = DocumentUploadTally()
     (0 until cap).forEach { tally.recordStuck("doc-$it") }
 
     assertEquals(cap, tally.stuckDocumentIds().size)
@@ -77,7 +77,7 @@ class DocumentUploadTallyTest {
   fun `the same id recorded twice is not de-duplicated`() {
     // Deliberate: a document can only reach one outcome per run, so a repeat means the caller
     // double-counted. Silently collapsing it would hide that from the sum check.
-    val tally = AppSyncWorker.DocumentUploadTally()
+    val tally = DocumentUploadTally()
     tally.recordStuck("doc-1")
     tally.recordStuck("doc-1")
 
@@ -88,7 +88,7 @@ class DocumentUploadTallyTest {
 
   @Test
   fun `a fresh tally accounts for nothing`() {
-    assertEquals(0, AppSyncWorker.DocumentUploadTally().accountedFor())
+    assertEquals(0, DocumentUploadTally().accountedFor())
   }
 
   @Test
@@ -96,7 +96,7 @@ class DocumentUploadTallyTest {
     // Each field is set to a distinct value so a field omitted from accountedFor(), or added twice,
     // changes the sum rather than cancelling out.
     val tally =
-      AppSyncWorker.DocumentUploadTally().apply {
+      DocumentUploadTally().apply {
         uploaded = 1
         failed = 2
         skippedServerUnknown = 4
@@ -113,7 +113,7 @@ class DocumentUploadTallyTest {
 
   @Test
   fun `recording stuck ids does not affect the counters`() {
-    val tally = AppSyncWorker.DocumentUploadTally().apply { skippedServerUnknown = 3 }
+    val tally = DocumentUploadTally().apply { skippedServerUnknown = 3 }
     repeat(50) { tally.recordStuck("doc-$it") }
 
     assertEquals(3, tally.accountedFor())
