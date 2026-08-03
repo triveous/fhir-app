@@ -44,6 +44,10 @@ import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
 import com.google.android.fhir.sync.upload.UploadStrategy
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.TypeAdapter
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonWriter
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.EntryPointAccessors
@@ -88,6 +92,8 @@ import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.createNotification
 import timber.log.Timber
 import java.util.Date
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * The app's one and only sync worker. A run does two things, in this order:
@@ -122,6 +128,35 @@ constructor(
     private val featureFlagUtil: FeatureFlagUtil,
     private val uploadedDocumentReferenceLedger: UploadedDocumentReferenceLedger,
 ) : FhirSyncWorker(appContext, workerParams) {
+    /**
+     * Serializes worker progress exactly the way the FHIR SDK reads it back.
+     *
+     * [SyncJobStatus] carries `timestamp: OffsetDateTime`, and the SDK deserializes progress in
+     * `Sync.getWorkerInfo` with its own Gson, whose adapter writes that as an ISO-8601 string and
+     * reads it with `nextString()`. The injected application Gson has no `OffsetDateTime` adapter,
+     * so it reflected the value into a nested object and the SDK's reader blew up with
+     * `Expected a string but was BEGIN_OBJECT at path $.timestamp` — on the main thread, inside the
+     * LiveData-backed sync status flow.
+     *
+     * The SDK's own adapter is `internal`, so this mirrors it. Keep the two in step: this format is
+     * a wire contract with the SDK, not a local choice.
+     */
+    private val progressGson: Gson by lazy {
+        GsonBuilder()
+            .registerTypeAdapter(
+                OffsetDateTime::class.java,
+                object : TypeAdapter<OffsetDateTime>() {
+                    override fun write(out: JsonWriter, value: OffsetDateTime) {
+                        out.value(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value))
+                    }
+
+                    override fun read(input: JsonReader): OffsetDateTime =
+                        OffsetDateTime.parse(input.nextString())
+                }.nullSafe(),
+            )
+            .create()
+    }
+
     private val analyticsLogger: AnalyticsLogger by lazy {
         EntryPointAccessors.fromApplication(
             applicationContext,
@@ -1113,7 +1148,8 @@ constructor(
         val status = SyncJobStatus.InProgress(SyncOperation.UPLOAD, total = total, completed = uploaded)
         return workDataOf(
             "StateType" to status::class.java.name,
-            "State" to gson.toJson(status),
+            // progressGson, not the injected one — see the note on progressGson.
+            "State" to progressGson.toJson(status),
         )
     }
 

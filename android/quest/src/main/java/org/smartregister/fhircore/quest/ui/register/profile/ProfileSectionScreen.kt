@@ -94,7 +94,9 @@ fun ProfileSectionScreen(
     onClickChangeLanguage:() -> Unit
 ) {
 
-    val userNameText = viewModel.getUserName()
+    // The login username, not getUserName(): that returns the Practitioner logical id, which is a
+    // UUID on newer accounts and is not something to show an FLW as their own name.
+    val userNameText = viewModel.getDisplayUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var showChangePinDialog by remember { mutableStateOf(false) }
     var aiInferenceEnabled by remember { mutableStateOf(false) }
