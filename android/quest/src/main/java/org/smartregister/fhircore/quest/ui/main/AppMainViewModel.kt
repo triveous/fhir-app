@@ -17,7 +17,6 @@
 package org.smartregister.fhircore.quest.ui.main
 
 import android.content.Context
-import android.os.SystemClock
 import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.lifecycle.ViewModel
@@ -109,7 +108,6 @@ constructor(
 ) : ViewModel() {
 
   private val simpleDateFormat = SimpleDateFormat(SYNC_TIMESTAMP_OUTPUT_FORMAT, Locale.getDefault())
-  private var syncStartedAtMs: Long? = null
 
   /**
    * Identifies the current determinate progress phase as an (operation, total) pair. A single sync
@@ -192,7 +190,6 @@ constructor(
       is AppMainEvent.SyncData -> {
         Timber.d("SyncData event received. isForeground=$isForeground")
         if (event.context.isDeviceOnline()) {
-          syncStartedAtMs = SystemClock.elapsedRealtime()
           PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
           setPostHogUserProperties()
           if (!isForeground) {
@@ -215,11 +212,15 @@ constructor(
             formatLastSyncTimestamp(event.state.timestamp),
           )
         }
+        // sync_completed is no longer captured here. AppSyncWorker reports it for every run, so
+        // emitting from this listener too would double-count the manually triggered ones — and this
+        // listener never fired for background syncs, which is what made the metric unusable.
+        // Person properties are still refreshed here so the register's pending counts stay current.
         if (
           event.state is CurrentSyncJobStatus.Succeeded ||
             event.state is CurrentSyncJobStatus.Failed
         ) {
-          captureSyncCompleted(event.state)
+          setPostHogUserProperties()
         }
       }
       is AppMainEvent.TriggerWorkflow ->
@@ -253,36 +254,6 @@ constructor(
     }
   }
 
-  private fun captureSyncCompleted(state: CurrentSyncJobStatus) {
-    viewModelScope.launch(dispatcherProvider.io()) {
-      val pendingImages = pendingSyncImages()
-      val pendingCases = pendingSyncCases()
-      val syncDuration = syncStartedAtMs?.let { SystemClock.elapsedRealtime() - it }
-      val syncStatus =
-        when (state) {
-          is CurrentSyncJobStatus.Succeeded -> "succeeded"
-          is CurrentSyncJobStatus.Failed -> "failed"
-          else -> return@launch
-        }
-
-      PostHogAnalytics.capture(
-        PostHogAnalytics.Events.SYNC_COMPLETED,
-        mapOf(
-          PostHogAnalytics.Props.SYNC_STATUS to syncStatus,
-          PostHogAnalytics.Props.SYNC_DURATION_MS to syncDuration,
-          PostHogAnalytics.Props.PENDING_IMAGES_AFTER to pendingImages,
-          PostHogAnalytics.Props.PENDING_CASES_AFTER to pendingCases,
-          PostHogAnalytics.Props.ERROR_MESSAGE to
-            (state as? CurrentSyncJobStatus.Failed)?.toString(),
-        ),
-      )
-      updatePostHogUserProperties(
-        pendingSyncImages = pendingImages,
-        pendingSyncCases = pendingCases,
-      )
-      syncStartedAtMs = null
-    }
-  }
 
   /**
    * Updates [syncProgressStateFlow] from the raw sync status emitted by the FHIR sync worker. The

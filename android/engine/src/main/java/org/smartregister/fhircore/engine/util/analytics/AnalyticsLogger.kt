@@ -77,6 +77,25 @@ interface AnalyticsLogger {
      * local engine but recorded as uploaded. The reference is valid; emitted for visibility only.
      */
     const val DOCUMENT_REFERENCE_RESOLVED_FROM_LEDGER = "document_reference_resolved_from_ledger"
+
+    /**
+     * A sync run began. Emitted from the worker itself rather than from a screen, so it covers every
+     * sync — periodic and background runs included, which is most of them.
+     *
+     * Pairs with [SYNC_COMPLETED] on the same [Props.SYNC_RUN_ID]. A start with no matching
+     * completion is a run that was killed mid-flight (process death, WorkManager cancellation) and
+     * is otherwise invisible.
+     */
+    const val SYNC_STARTED = "sync_started"
+
+    /**
+     * A sync run reached a terminal state, with the outcome and the backlog it left behind.
+     *
+     * Previously captured from `AppMainActivity.onSync`, which only receives statuses while a screen
+     * is listening — so background syncs never reported, and production sync success rates only ever
+     * described manually triggered runs.
+     */
+    const val SYNC_COMPLETED = "sync_completed"
   }
 
   object Props {
@@ -86,6 +105,21 @@ interface AnalyticsLogger {
     const val PENDING_DOCUMENTS = "pending_documents"
     const val BYTES_UPLOADED = "bytes_uploaded"
     const val ERROR_MESSAGE = "error_message"
+
+    /** Correlates [Events.SYNC_STARTED] with its [Events.SYNC_COMPLETED]. */
+    const val SYNC_RUN_ID = "sync_run_id"
+
+    /** `succeeded`, `failed` or `retry` — the worker's own verdict on the run. */
+    const val SYNC_STATUS = "sync_status"
+
+    const val SYNC_DURATION_MS = "sync_duration_ms"
+
+    /** True while no sync has ever reached a terminal success on this install. */
+    const val IS_FIRST_TIME_SYNC = "is_first_time_sync"
+
+    /** Backlog still on the device when the run finished; the number that should trend to zero. */
+    const val PENDING_IMAGES_AFTER = "pending_images_after"
+    const val PENDING_CASES_AFTER = "pending_cases_after"
 
     /** Simple class name of the throwable, so failures can be grouped without parsing messages. */
     const val ERROR_TYPE = "error_type"

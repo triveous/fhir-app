@@ -677,6 +677,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 questionnaireConfig = questionnaireConfig,
                 actionParameters = actionParameters,
                 context = this@QuestionnaireActivity,
+                onSubmissionAbandoned = ::releaseQuestionnaireSubmissionLock,
               ) { idTypes, qrResult ->
                 viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
                 submissionIdTypes = idTypes
@@ -708,6 +709,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 questionnaireConfig = questionnaireConfig,
                 actionParameters = actionParameters,
                 context = this@QuestionnaireActivity,
+                onSubmissionAbandoned = ::releaseQuestionnaireSubmissionLock,
               ) { idTypes, qrResult ->
                 viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
                 ScreeningTimer.markStep(screeningId, "submission_completed")
@@ -842,6 +844,17 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private suspend fun retrieveQuestionnaireResponse(): QuestionnaireResponse? =
     (supportFragmentManager.findFragmentByTag(QUESTIONNAIRE_FRAGMENT_TAG) as QuestionnaireFragment?)
       ?.getQuestionnaireResponse()
+
+  /**
+   * Lets the user submit again after a submission that saved nothing. The data capture library locks
+   * its submit button when it hands over a response and holds the lock for the whole
+   * extract-and-save window — that is what stops repeated taps registering the same case twice — so
+   * an abandoned submission has to hand the button back explicitly.
+   */
+  private fun releaseQuestionnaireSubmissionLock() {
+    (supportFragmentManager.findFragmentByTag(QUESTIONNAIRE_FRAGMENT_TAG) as QuestionnaireFragment?)
+      ?.releaseSubmissionLock()
+  }
 
   companion object {
 

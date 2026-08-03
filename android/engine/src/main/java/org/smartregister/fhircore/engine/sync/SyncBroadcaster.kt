@@ -137,7 +137,11 @@ constructor(
         onSyncListener.onSync(it.currentSyncJobStatus)
       }
     }
-      .catch { throwable -> Timber.e("Encountered an error during periodic sync:", throwable) }
+      // Throwable first: Timber.e(message, throwable) binds to e(String, vararg args), which treats
+      // the throwable as a format argument and drops it when the message has no placeholder. That
+      // left every periodic-sync failure reported as a bare string with no reason and no stack
+      // trace, and stopped ReleaseTree routing it to error tracking as an exception.
+      .catch { throwable -> Timber.e(throwable, "Encountered an error during periodic sync") }
       .shareIn(coroutineScope, SharingStarted.Eagerly, 1)
       .launchIn(coroutineScope)
   }
@@ -148,7 +152,8 @@ constructor(
     this.onEach {
       syncListenerManager.onSyncListeners.forEach { onSyncListener -> onSyncListener.onSync(it) }
     }
-      .catch { throwable -> Timber.e("Encountered an error during one time sync:", throwable) }
+      // Throwable first — see the periodic-sync note above.
+      .catch { throwable -> Timber.e(throwable, "Encountered an error during one time sync") }
       .shareIn(coroutineScope, SharingStarted.Eagerly, 1)
       .launchIn(coroutineScope)
   }

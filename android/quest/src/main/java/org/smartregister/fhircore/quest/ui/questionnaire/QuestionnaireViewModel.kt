@@ -417,6 +417,16 @@ constructor(
     questionnaireConfig: QuestionnaireConfig,
     actionParameters: List<ActionParameter>,
     context: Context,
+    /**
+     * Invoked when the submission is abandoned with nothing saved and the user is left on the
+     * questionnaire. The submit button locks itself when it hands over a response and stays locked
+     * for the whole extract-and-save window, so it has to be told it can reopen — otherwise a failed
+     * submission leaves the user unable to retry. Deliberately not invoked from the catch below:
+     * resources may be partially saved there, and retrying could register the case twice.
+     *
+     * Declared before [onSuccessfulSubmission] so that stays the trailing lambda at every call site.
+     */
+    onSubmissionAbandoned: () -> Unit = {},
     onSuccessfulSubmission: (List<IdType>, QuestionnaireResponse) -> Unit,
   ) {
     viewModelScope.launch(SupervisorJob()) {
@@ -450,6 +460,7 @@ constructor(
         setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
         // Nothing was saved; let the user fix the response and submit again.
         allowSubmissionRetry()
+        onSubmissionAbandoned()
         return@launch
       }
 
@@ -480,6 +491,7 @@ constructor(
           Toast.LENGTH_LONG,
         )
         allowSubmissionRetry()
+        onSubmissionAbandoned()
         return@launch
       }
 
@@ -1007,7 +1019,7 @@ constructor(
           }
         }
       } catch (resourceNotFoundException: ResourceNotFoundException) {
-        Timber.e("Unable to update resource's _lastUpdated", resourceNotFoundException)
+        Timber.e(resourceNotFoundException, "Unable to update resource's _lastUpdated")
       } catch (illegalArgumentException: IllegalArgumentException) {
         Timber.e(
           "No enum constant org.hl7.fhir.r4.model.ResourceType.${param.value.substringBefore("/")}",
