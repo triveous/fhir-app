@@ -21,6 +21,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.net.Uri
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.annotation.VisibleForTesting
 import androidx.core.app.NotificationCompat
@@ -47,6 +48,8 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,6 +77,7 @@ import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
+import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
 import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
@@ -144,6 +148,9 @@ constructor(
         fun setSyncRunningForTest(running: Boolean) {
             _isSyncRunning.value = running
         }
+        /** Depth cap when walking a cause chain, so a cyclic chain cannot spin. */
+        private const val MAX_CAUSE_DEPTH = 10
+
         const val SYNC_METADATA_SYSTEM = "http://hl7.org/fhir/codes"
         const val SYNC_METADATA_CODE = "sync-metadata"
         const val LAST_SYNC_TIME_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/last-sync-date"
@@ -185,6 +192,18 @@ constructor(
         }
         _isSyncRunning.value = true
 
+        // Reported from the worker, not from a screen: periodic and background runs are most of the
+        // syncs that happen and none of them had a listening Activity, so until now they produced no
+        // telemetry at all. runId pairs this start with its completion below.
+        val runId = id.toString()
+        val startedAtMs = SystemClock.elapsedRealtime()
+        val firstTimeSync =
+            sharedPreferencesHelper.read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null)
+                .isNullOrEmpty()
+        captureSyncStarted(runId, firstTimeSync)
+        var syncStatus = "failed"
+        var syncError: String? = null
+
         return try {
             Timber.d("AppSyncWorker Running within lock sync worker")
             // A worker can start in a fresh process where the AppSettingActivity bootstrap never
@@ -202,10 +221,16 @@ constructor(
             val retries = inputData.getInt("max_retires", 0)
             if (metaSyncResult.javaClass === Result.success().javaClass) {
                 when (allDocUploaded) {
-                    true -> Result.success()
+                    true -> {
+                        syncStatus = "succeeded"
+                        Result.success()
+                    }
                     false -> if (retries > runAttemptCount) {
+                        syncStatus = "retry"
+                        syncError = "Failed to upload all files"
                         Result.retry()
                     } else {
+                        syncError = "Failed to upload all files"
                         Result.failure(
                             workDataOf(
                                 "error" to Exception::class.java.name,
@@ -215,11 +240,15 @@ constructor(
                     }
                 }
             } else {
+                syncError = "Metadata sync did not succeed"
                 metaSyncResult
             }
         } catch (e: CancellationException) {
+            syncStatus = "cancelled"
+            syncError = e.describe()
             throw e
         } catch (e: Exception) {
+            syncError = e.describe()
             // This catch spans config loading, the metadata sync, the flag refresh and the image
             // pass, so name the exception type — otherwise the report says a sync failed without
             // saying which part of it.
@@ -231,10 +260,91 @@ constructor(
                 ),
             )
         } finally {
+            // In the finally so a run that is cancelled or throws still reports a terminal status —
+            // those are the runs worth seeing. Also stamps LAST_SYNC_TIMESTAMP on success, which was
+            // previously only written by the Activity listener and so never updated for a background
+            // sync, leaving isFirstTimeSync() permanently true on installs that only ever synced in
+            // the background.
+            captureSyncCompleted(runId, syncStatus, SystemClock.elapsedRealtime() - startedAtMs, firstTimeSync, syncError)
             _isSyncRunning.value = false
             mutex.unlock()
         }
     }
+
+    /**
+     * A description that is never null.
+     *
+     * [Throwable.message] is null for whole families of IO failures — `EOFException` and several
+     * `SocketException`s among them — and the analytics capture drops null properties, so those
+     * failures used to arrive carrying nothing but an exception class name. Falls back to
+     * `toString()` and appends the root cause, which is usually where the real reason is.
+     */
+    private fun Throwable.describe(): String {
+        val head = message?.takeIf { it.isNotBlank() } ?: toString()
+        // Bounded walk: a self-referencing or cyclic cause chain must not spin here.
+        var root: Throwable = this
+        repeat(MAX_CAUSE_DEPTH) {
+            val next = root.cause ?: return@repeat
+            if (next === root) return@repeat
+            root = next
+        }
+        if (root === this) return head
+        val rootMessage = root.message?.takeIf { it.isNotBlank() } ?: root.toString()
+        return "$head; caused by ${root::class.java.simpleName}: $rootMessage"
+    }
+
+    private fun captureSyncStarted(runId: String, firstTimeSync: Boolean) {
+        runCatching {
+            analyticsLogger.capture(
+                AnalyticsLogger.Events.SYNC_STARTED,
+                mapOf(
+                    AnalyticsLogger.Props.SYNC_RUN_ID to runId,
+                    AnalyticsLogger.Props.IS_FIRST_TIME_SYNC to firstTimeSync,
+                ),
+            )
+        }.onFailure { Timber.d(it, "Could not report sync start") }
+    }
+
+    private suspend fun captureSyncCompleted(
+        runId: String,
+        status: String,
+        durationMs: Long,
+        firstTimeSync: Boolean,
+        error: String?,
+    ) {
+        // NonCancellable: this runs from a finally, and on the cancellation path the coroutine is
+        // already cancelled — every suspending call below would throw immediately and the run that
+        // was killed mid-flight, the most interesting kind, would report nothing.
+        runCatching {
+            withContext(NonCancellable) {
+            if (status == "succeeded") {
+                sharedPreferencesHelper.write(
+                    SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name,
+                    formatSyncTimestamp(Date()),
+                )
+            }
+            val pendingImages =
+                openSrpFhirEngine.search<DocumentReference> {}
+                    .count { it.resource.description != DocumentReferenceCaseType.DRAFT }
+            val pendingCases = openSrpFhirEngine.getUnsyncedLocalChanges().size
+            analyticsLogger.capture(
+                AnalyticsLogger.Events.SYNC_COMPLETED,
+                mapOf(
+                    AnalyticsLogger.Props.SYNC_RUN_ID to runId,
+                    AnalyticsLogger.Props.SYNC_STATUS to status,
+                    AnalyticsLogger.Props.SYNC_DURATION_MS to durationMs,
+                    AnalyticsLogger.Props.IS_FIRST_TIME_SYNC to firstTimeSync,
+                    AnalyticsLogger.Props.PENDING_IMAGES_AFTER to pendingImages,
+                    AnalyticsLogger.Props.PENDING_CASES_AFTER to pendingCases,
+                    AnalyticsLogger.Props.ERROR_MESSAGE to error,
+                ),
+            )
+            }
+        }.onFailure { Timber.d(it, "Could not report sync completion") }
+    }
+
+    private fun formatSyncTimestamp(date: Date): String =
+        java.text.SimpleDateFormat("MMM d, hh:mm aa", java.util.Locale.getDefault()).format(date)
 
     /**
      * Shows the sync notification if the OS will allow it, and carries on quietly if it will not.
@@ -695,7 +805,10 @@ constructor(
                     AnalyticsLogger.Props.DOCUMENT_ID to docReference.logicalId,
                     AnalyticsLogger.Props.UPLOAD_STAGE to stage.label,
                     AnalyticsLogger.Props.ERROR_TYPE to e::class.java.simpleName,
-                    AnalyticsLogger.Props.ERROR_MESSAGE to e.message,
+                    // describe(), not e.message: the message is null for EOFException and friends,
+                    // and null properties are dropped at capture — so the one thing you need to know
+                    // (why it failed) was exactly what went missing.
+                    AnalyticsLogger.Props.ERROR_MESSAGE to e.describe(),
                     AnalyticsLogger.Props.RESPONSE_CODE to
                         (e as? ImageUploadAPIException)?.responseCode,
                     AnalyticsLogger.Props.PENDING_DOCUMENTS to pendingDocuments,

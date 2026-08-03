@@ -239,7 +239,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
           if (progressSyncJob.syncOperation == SyncOperation.UPLOAD) {
             lifecycleScope.launch {
               registerViewModel.emitSnackBarState(
-                SnackBarMessageConfig(message = getString(R.string.uploading_images_title)),
+                SnackBarMessageConfig(message = getString(R.string.syncing)),
               )
             }
           }
