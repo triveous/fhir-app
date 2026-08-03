@@ -110,7 +110,7 @@ class FeatureFlagUtil @Inject constructor(
     private fun applyAndPersist(resourceId: String, flags: Map<String, Boolean>, source: String) {
         cachedFlags = flags
         sharedPreferencesHelper.saveLastKnownFeatureFlags(resourceId, flags)
-        Timber.i("Feature flags from %s id=%s: %s", source, resourceId, flags)
+        Timber.d("Feature flags from %s id=%s: %s", source, resourceId, flags)
     }
 
     private fun Basic.toFlagsMap(): Map<String, Boolean> =

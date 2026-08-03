@@ -1567,9 +1567,38 @@ constructor(
         )
     }
 
+    /**
+     * The practitioner every register query filters `general-practitioner` by.
+     *
+     * This must be the Practitioner **logical id**, not the login username. Those are equal only on
+     * older accounts: newer ones are created with a server-generated UUID, so `flwtestim5` logs in
+     * with that username while its Practitioner resource is
+     * `41267729-587e-4857-a7ce-e8d467e9c758`. The sync downloads patients filtered by the logical id
+     * and [QuestionnaireViewModel.getUserName] stamps `generalPractitioner` with it too, so a
+     * register searching by username matched nothing on those accounts — the first-time sync
+     * completed, the patients were on the device, and the register stayed empty.
+     *
+     * Returns an empty string when no practitioner id is stored, which matches no patient. That is
+     * the honest result: the previous "Guest" fallback silently searched for `Practitioner/Guest`
+     * and looked identical to "this user has no cases".
+     */
     fun getUserName(): String {
-        return secureSharedPreference.retrieveSessionUsername() ?: "Guest"
+        val practitionerId = secureSharedPreference.getPractitionerUserId()
+        if (practitionerId.isEmpty()) {
+            Timber.w("No practitioner id stored; register queries will return no patients")
+        }
+        return practitionerId
     }
+
+    /**
+     * The FLW's login username, for showing to the FLW.
+     *
+     * Deliberately separate from [getUserName]: that one returns the Practitioner logical id every
+     * FHIR query filters by, which on newer accounts is a server-generated UUID — correct for a
+     * query, meaningless to someone reading their own profile.
+     */
+    fun getDisplayUserName(): String =
+        secureSharedPreference.retrieveSessionUsername().orEmpty()
 
     // ResourceData class with all three types and meta information
     data class AllPatientsResourceData(
