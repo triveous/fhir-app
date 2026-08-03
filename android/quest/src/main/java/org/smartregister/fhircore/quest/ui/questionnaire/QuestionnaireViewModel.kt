@@ -538,7 +538,10 @@ constructor(
           ?: emptyList()
       onSuccessfulSubmission(idTypes, currentQuestionnaireResponse)
 
-      // Trigger one time sync after question submission
+      // Push the case up now if there is a network. The case is already saved locally as a pending
+      // local change, so on an offline device this is a no-op by design: SyncBroadcaster skips the
+      // request rather than running a sync that can only fail, and the connectivity-constrained
+      // periodic worker uploads it once the device is back online.
       syncBroadcaster.runOneTimeSync()
      } catch (exception: Exception) {
        // Resources may have been partially saved at this point, so the submission latch stays
@@ -1515,6 +1518,7 @@ constructor(
         val qr = fhirEngine.get(ResourceType.QuestionnaireResponse, qrId) as QuestionnaireResponse
         qr.addExtension(REFER_CASE_URL, BooleanType(true))
         fhirEngine.update(qr)
+        // Skipped when offline; the referral is queued as a local change and rides the next sync.
         syncBroadcaster.runOneTimeSync()
       } catch (e: Exception) {
         Timber.e(e, "Error updating QuestionnaireResponse with refer case")

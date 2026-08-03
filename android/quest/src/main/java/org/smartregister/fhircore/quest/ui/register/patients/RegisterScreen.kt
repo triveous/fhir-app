@@ -155,6 +155,7 @@ fun RegisterScreen(
                     noResultConfig = noResultConfig,
                     navController = navController,
                     registerUiState = registerUiState,
+                    isSyncing = isSyncing,
                 )
             }
 
@@ -277,6 +278,7 @@ private fun RegisterContent(
     noResultConfig: NoResultsConfig,
     navController: NavController,
     registerUiState: RegisterUiState,
+    isSyncing: Boolean,
 ) {
     val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
     val savedRes by viewModel.allSavedDraftResponse.collectAsState()
@@ -284,12 +286,17 @@ private fun RegisterContent(
     var deleteDraftId by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
+    // An empty register while a sync is downloading is not "no cases" — it is "not here yet". Saying
+    // so matters most right after a first-time sync was interrupted, when the register is empty and
+    // the resumed sync is the thing that will fill it.
+    val isLoadingCases = isFetching || isSyncing
+
     if (allSyncedPatients.isEmpty() && savedRes.isEmpty()) {
         EmptyRegisterView(
             modifier = modifier,
             noResultConfig = noResultConfig,
             navController = navController,
-            isFetching = isFetching,
+            isFetching = isLoadingCases,
         )
     } else {
         PopulatedRegisterView(
@@ -300,6 +307,7 @@ private fun RegisterContent(
             registerUiState = registerUiState,
             allSyncedPatients = allSyncedPatients,
             savedRes = savedRes,
+            isLoadingCases = isLoadingCases,
             showDeleteDialog = showDeleteDialog,
             onDeleteDraft = { id, show ->
                 deleteDraftId = id
@@ -399,6 +407,7 @@ private fun PopulatedRegisterView(
     registerUiState: RegisterUiState,
     allSyncedPatients: List<RegisterViewModel.AllPatientsResourceData>,
     savedRes: List<QuestionnaireResponse>,
+    isLoadingCases: Boolean,
     showDeleteDialog: Boolean,
     onDeleteDraft: (String, Boolean) -> Unit,
     onConfirmDelete: () -> Unit,
@@ -449,8 +458,8 @@ private fun PopulatedRegisterView(
                             ShowAllPatients(
                                 modifier = modifier,
                                 patients = allSyncedPatients.take(MAX_VISIBLE_ITEMS),
-                                viewModel = viewModel,
                                 allPatientsSize = allSyncedPatients.size,
+                                isLoadingCases = isLoadingCases,
                             )
                         }
                         Spacer(
@@ -587,11 +596,9 @@ private fun DraftsListSection(
 private fun ShowAllPatients(
     modifier: Modifier,
     patients: List<RegisterViewModel.AllPatientsResourceData>,
-    viewModel: RegisterViewModel,
     allPatientsSize: Int,
+    isLoadingCases: Boolean,
 ) {
-    val isFetchingPatients by viewModel.isFetchingPatients.collectAsState()
-
     Box(
         modifier = modifier
             .padding(top = 8.dp)
@@ -600,8 +607,8 @@ private fun ShowAllPatients(
     ) {
         if (patients.isEmpty()) {
             EmptyStateSection(
-                isFetchingPatients = isFetchingPatients,
-                textLabel = if (isFetchingPatients) {
+                isFetchingPatients = isLoadingCases,
+                textLabel = if (isLoadingCases) {
                     stringResource(id = org.smartregister.fhircore.quest.R.string.loading_patients)
                 } else {
                     stringResource(id = org.smartregister.fhircore.quest.R.string.no_patients_added)

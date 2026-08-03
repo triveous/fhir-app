@@ -58,6 +58,7 @@ import org.smartregister.fhircore.engine.data.local.register.RegisterRepository
 import org.smartregister.fhircore.engine.domain.networkUtils.DocumentReferenceCaseType
 import org.smartregister.fhircore.engine.domain.model.ActionParameter
 import org.smartregister.fhircore.engine.domain.model.ActionParameterType
+import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.sync.SyncBroadcaster
 import org.smartregister.fhircore.engine.task.FhirCarePlanGenerator
 import org.smartregister.fhircore.engine.task.FhirCompleteCarePlanWorker
@@ -370,6 +371,27 @@ constructor(
 
   private fun isFirstTimeSync(): Boolean =
     sharedPreferencesHelper.read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null).isNullOrEmpty()
+
+  /**
+   * Restarts the first-time sync when a previous attempt never finished.
+   *
+   * Opening the app only calls [SyncBroadcaster.schedulePeriodicSync], and the FHIR SDK enqueues
+   * that work with `ExistingPeriodicWorkPolicy.KEEP` — so on every launch after the first, the
+   * existing schedule is left alone and the next attempt is up to `syncInterval` minutes away. A
+   * first-time sync that was cut short (the app force-stopped while it was downloading, say) would
+   * therefore leave the user on an empty register for that whole interval with nothing to do about
+   * it but wait. While [SharedPreferenceKey.LAST_SYNC_TIMESTAMP] is unset no sync has ever reached a
+   * terminal Succeeded status, so there is data still to fetch and it is worth fetching now.
+   *
+   * Skipped when a sync is already running, so this never races the run it is meant to replace.
+   */
+  fun resumeIncompleteFirstTimeSync(context: Context) {
+    if (!isFirstTimeSync()) return
+    if (!context.isDeviceOnline()) return
+    if (AppSyncWorker.isSyncRunning.value) return
+    Timber.i("First-time sync has never completed; starting one now instead of waiting for the periodic schedule")
+    viewModelScope.launch { syncBroadcaster.runOneTimeSync() }
+  }
 
   /**
    * Computes the sync progress percentage directly from the raw SDK status.
