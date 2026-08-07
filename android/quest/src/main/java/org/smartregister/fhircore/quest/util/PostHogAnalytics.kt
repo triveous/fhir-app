@@ -24,6 +24,13 @@ object PostHogAnalytics {
         const val SYNC_INITIATED = "sync_initiated"
         const val SYNC_COMPLETED = "sync_completed"
         const val QUESTIONNAIRE_OPENED = "questionnaire_opened"
+
+        /**
+         * The questionnaire screen was destroyed and recreated (configuration change, low-memory
+         * kill or crash restore) and the form had to be rebuilt from scratch. Any answers the user
+         * had already typed are gone, so a spike here explains abandoned screenings.
+         */
+        const val QUESTIONNAIRE_RECREATED = "questionnaire_recreated"
         const val QUESTIONNAIRE_SUBMITTED = "questionnaire_submitted"
         const val QUESTIONNAIRE_DRAFT_SAVED = "questionnaire_draft_saved"
         const val QUESTIONNAIRE_DRAFT_DELETED = "questionnaire_draft_deleted"

@@ -32,6 +32,7 @@ import androidx.activity.viewModels
 import androidx.core.os.bundleOf
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.withStarted
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.fhir.datacapture.QuestionnaireFragment
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -200,6 +201,11 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       screeningId = ScreeningTimer.start(DeviceMetrics.batteryPct(this))
     }
 
+    // Set up the toolbar before anything that can suspend or bail out, so the screen never shows the
+    // layout's design-time defaults. Previously this ran inside renderQuestionnaire(), which is
+    // skipped on a recreated activity, leaving the placeholder title on screen.
+    setupQuestionnaireToolbar()
+
     viewModel.questionnaireProgressStateLiveData.observe(this) { progressState ->
       alertDialog =
         if (progressState?.active == false) {
@@ -216,7 +222,20 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         }
     }
 
-    if (savedInstanceState == null) renderQuestionnaire()
+    // Always (re)build the form, never only on first creation. Turning on battery saver flips the
+    // system into dark mode, and that `uiMode` configuration change destroys and recreates this
+    // activity; a low-memory kill or a crash restore does the same. `savedInstanceState` is then
+    // non-null, and because onSaveInstanceState() wipes the bundle the FragmentManager has no
+    // QuestionnaireFragment to restore either — so skipping the call left the user on an empty
+    // white container. renderQuestionnaire() is idempotent: it no-ops when the fragment is attached.
+    if (savedInstanceState != null) {
+      Timber.i("QuestionnaireActivity recreated; rebuilding questionnaire ${questionnaireConfig.id}")
+      PostHogAnalytics.capture(
+        PostHogAnalytics.Events.QUESTIONNAIRE_RECREATED,
+        questionnaireAnalyticsProps(),
+      )
+    }
+    renderQuestionnaire()
 
     PostHogAnalytics.captureScreenView("QuestionnaireActivity")
     PostHogAnalytics.capture(
@@ -339,24 +358,27 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     outState.clear()
   }
 
+  /** Applies the toolbar chrome. Safe to call on every creation, including a recreated activity. */
+  private fun setupQuestionnaireToolbar() {
+    with(viewBinding) {
+      questionnaireToolbar.apply {
+        setNavigationIcon(R.drawable.ic_arrow_back)
+        setNavigationOnClickListener { handleBackPress() }
+      }
+      questionnaireTitle.apply { text = getString(R.string.add_case) }
+      clearAll.apply {
+        visibility = if (questionnaireConfig.showClearAll) View.VISIBLE else View.GONE
+        setOnClickListener {
+          // TODO Clear current QuestionnaireResponse items -> SDK
+        }
+      }
+    }
+  }
+
   private fun renderQuestionnaire() {
     lifecycleScope.launch {
       if (supportFragmentManager.findFragmentByTag(QUESTIONNAIRE_FRAGMENT_TAG) == null) {
         viewModel.setProgressState(QuestionnaireProgressState.QuestionnaireLaunch(true))
-        with(viewBinding) {
-          questionnaireToolbar.apply {
-            setNavigationIcon(R.drawable.ic_arrow_back)
-            setNavigationOnClickListener { handleBackPress() }
-          }
-          questionnaireTitle.apply { text = getString(R.string.add_case) }
-          clearAll.apply {
-            visibility = if (questionnaireConfig.showClearAll) View.VISIBLE else View.GONE
-            setOnClickListener {
-              // TODO Clear current QuestionnaireResponse items -> SDK
-            }
-          }
-        }
-
 
         questionnaire = viewModel.retrieveQuestionnaire(questionnaireConfig, actionParameters,sharedPreferencesHelper.getLanguageCode())
 
@@ -374,9 +396,15 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
 
         try {
           val questionnaireFragmentBuilder = buildQuestionnaireFragment(loadedQuestionnaire)
-          supportFragmentManager.commit {
-            setReorderingAllowed(true)
-            add(R.id.container, questionnaireFragmentBuilder.build(), QUESTIONNAIRE_FRAGMENT_TAG)
+          // Loading the questionnaire suspends, so by now the user may have backgrounded the app and
+          // the FragmentManager may have saved its state — commit() throws IllegalStateException in
+          // that window. Waiting for STARTED commits when the user comes back instead of crashing or
+          // dropping the transaction and leaving the container empty.
+          withStarted {
+            supportFragmentManager.commit {
+              setReorderingAllowed(true)
+              add(R.id.container, questionnaireFragmentBuilder.build(), QUESTIONNAIRE_FRAGMENT_TAG)
+            }
           }
 
           registerFragmentResultListener()
