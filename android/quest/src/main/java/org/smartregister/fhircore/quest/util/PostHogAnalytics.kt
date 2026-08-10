@@ -33,6 +33,13 @@ object PostHogAnalytics {
         const val QUESTIONNAIRE_RECREATED = "questionnaire_recreated"
         const val QUESTIONNAIRE_SUBMITTED = "questionnaire_submitted"
         const val QUESTIONNAIRE_DRAFT_SAVED = "questionnaire_draft_saved"
+
+        /**
+         * The user pressed back while a submission was already in flight and the press was refused.
+         * Expected to be rare; a spike means submissions are slow enough that FLWs give up on them,
+         * which is worth chasing before they start losing confidence in the submit button.
+         */
+        const val BACK_PRESSED_DURING_SUBMISSION = "back_pressed_during_submission"
         const val QUESTIONNAIRE_DRAFT_DELETED = "questionnaire_draft_deleted"
         const val AI_INFERENCE_COMPLETED = "ai_inference_completed"
         const val AI_RESULT_VIEWED = "ai_result_viewed"

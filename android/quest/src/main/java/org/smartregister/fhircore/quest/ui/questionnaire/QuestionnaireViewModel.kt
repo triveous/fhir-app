@@ -122,6 +122,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 
 @HiltViewModel
@@ -171,20 +172,45 @@ constructor(
   val isDraftSaved: LiveData<Boolean>
     get() = _isDraftSaved
 
+  /** The mutually exclusive ways a questionnaire session can end. */
+  enum class SessionOutcome {
+    NONE,
+    SUBMITTING,
+    SAVING_DRAFT,
+  }
+
   /**
-   * Latched when a submission starts for this questionnaire session. Guards against duplicate
-   * case registration from double-tapping submit (each tap re-runs extraction and saves a brand
-   * new Patient) or re-submitting an already-saved form, e.g. after navigating back from the AI
-   * result screen. Only reset when the submission fails before any resource is saved so the user
-   * can retry.
+   * A questionnaire session must end in exactly one way — the case is submitted, or a draft is
+   * saved. This single CAS-guarded latch is shared by both terminal paths so they can never both
+   * run, which guards two races seen in the field:
+   * - double-tapping submit, where each tap re-ran extraction and saved a brand new Patient, or
+   *   re-submitting an already-saved form, e.g. after navigating back from the AI result screen;
+   * - pressing back while a submission is in flight, which saved a draft *alongside* the submitted
+   *   case. Reopening that draft and submitting it registered the case a second time with its
+   *   screening images missing, because the first submission had already flipped those
+   *   DocumentReferences to SUBMITTED and the sync worker had since purged them locally — so
+   *   [reconcileDocumentReferencesForSubmission] dropped the now-dangling answers.
+   *
+   * Only reset when a submission fails before any resource is saved, so the user can retry.
    */
-  private val submissionInFlight = AtomicBoolean(false)
+  private val sessionOutcome = AtomicReference(SessionOutcome.NONE)
 
   /** Returns true if the caller acquired the (single) submission slot for this session. */
-  fun tryStartSubmission(): Boolean = submissionInFlight.compareAndSet(false, true)
+  fun tryStartSubmission(): Boolean =
+    sessionOutcome.compareAndSet(SessionOutcome.NONE, SessionOutcome.SUBMITTING)
+
+  /** Returns true if the caller acquired the (single) draft-save slot for this session. */
+  fun tryStartDraftSave(): Boolean =
+    sessionOutcome.compareAndSet(SessionOutcome.NONE, SessionOutcome.SAVING_DRAFT)
+
+  /**
+   * True while a submission owns this session. The back button must refuse to save a draft for as
+   * long as this holds, otherwise the case and a draft of the same data both end up on the device.
+   */
+  fun isSubmissionInFlight(): Boolean = sessionOutcome.get() == SessionOutcome.SUBMITTING
 
   private fun allowSubmissionRetry() {
-    submissionInFlight.set(false)
+    sessionOutcome.set(SessionOutcome.NONE)
   }
 
   /**
@@ -925,13 +951,47 @@ constructor(
       }
       .getOrDefault(Bundle())
 
+  /** True when this item, or anything nested under it, carries an answer value. */
+  private fun QuestionnaireResponse.QuestionnaireResponseItemComponent.hasAnyAnswer(): Boolean =
+    answer.any { it.hasValue() || it.item.any(::hasAnyAnswerIn) } || item.any(::hasAnyAnswerIn)
+
+  private fun hasAnyAnswerIn(
+    item: QuestionnaireResponse.QuestionnaireResponseItemComponent,
+  ): Boolean = item.hasAnyAnswer()
+
   /**
    * This function saves [QuestionnaireResponse] as draft if any of the [QuestionnaireResponse.item]
    * has an answer.
    */
-  fun saveDraftQuestionnaire(questionnaireResponse: QuestionnaireResponse) {
+  fun saveDraftQuestionnaire(
+    questionnaireResponse: QuestionnaireResponse,
+    /**
+     * Invoked exactly once, on the main thread, when the save has settled — successfully, with
+     * nothing to save, or after a failure. The caller shows a blocking progress dialog while this is
+     * running, so a path that never reports back leaves the user stuck on a spinner; that is what
+     * the old `catch` branch did, because only the success paths posted [_isDraftSaved].
+     */
+    onSaved: () -> Unit = {},
+  ) {
     viewModelScope.launch {
-      val questionnaireHasAnswer = questionnaireResponse.item.any { it?.item?.get(1)?.hasAnswer() == true }
+      try {
+        persistDraft(questionnaireResponse)
+      } finally {
+        // Settled either way: the caller is holding a modal progress dialog open until it hears
+        // back, so this has to run on every path — including a failure inside persistDraft.
+        _isDraftSaved.postValue(true)
+        onSaved()
+      }
+    }
+  }
+
+  private suspend fun persistDraft(questionnaireResponse: QuestionnaireResponse) {
+      // Was `item.any { it.item.get(1).hasAnswer() }`, which threw IndexOutOfBoundsException for any
+      // response item with fewer than two nested items — killing the whole coroutine before anything
+      // was written, so back-pressing silently discarded the user's answers and left the progress
+      // dialog spinning. Walk the tree instead: a draft is worth keeping if there is an answer
+      // anywhere in it.
+      val questionnaireHasAnswer = questionnaireResponse.item.any { it.hasAnyAnswer() }
       if (questionnaireHasAnswer) {
         try {
           val ref = Reference().apply { reference =  "Practitioner/${getUserName()}"}
@@ -952,8 +1012,7 @@ constructor(
 
           if (responses.find { it.id == questionnaireResponse.id } != null){
             defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)
-            _isDraftSaved.postValue(true)
-            return@launch
+            return
           }
           val draftResponsesJson = getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
           var draftResBundle = parseDraftResponses(parser, draftResponsesJson)
@@ -982,14 +1041,10 @@ constructor(
             sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
           }
 
-          _isDraftSaved.postValue(true)
         }catch (exception: Exception){
           Timber.e(exception, "An error occurred while saveDraftQuestionnaire")
         }
-      } else {
-        _isDraftSaved.postValue(true)
       }
-    }
   }
 
   /**

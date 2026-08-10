@@ -779,29 +779,61 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   }
 
   private fun handleBackPress() {
+    // A submission owns the screen from the moment the user taps Submit. Extraction, the
+    // DocumentReference reconciliation and — when the AI flag is on — image inference all run
+    // *before* the progress dialog goes up, so for several seconds there is no modal to swallow the
+    // hardware back button. Saving a draft in that window is what produced the case-plus-draft pair
+    // QA reported: reopening that draft and submitting it registered the case a second time, minus
+    // the screening images, because the first submission had already flipped those
+    // DocumentReferences to SUBMITTED and the sync worker had purged them locally.
+    if (viewModel.isSubmissionInFlight()) {
+      Timber.w(
+        "Back pressed while questionnaire ${questionnaireConfig.id} is being submitted; ignoring",
+      )
+      PostHogAnalytics.capture(
+        PostHogAnalytics.Events.BACK_PRESSED_DURING_SUBMISSION,
+        questionnaireAnalyticsProps(),
+      )
+      showToast(getString(R.string.submission_in_progress))
+      return
+    }
+
     if (questionnaireConfig.isReadOnly()) {
       finish()
     } else if (questionnaireConfig.saveDraft) {
+      // One draft per session. Repeated fast presses used to stack a progress dialog, a
+      // saveDraftQuestionnaire() call and a leaked observeForever() each; and because _isDraftSaved
+      // latches to true and was never reset, every observer registered after the first fired
+      // immediately, dismissing the dialog and finishing the activity before its own write landed.
+      if (!viewModel.tryStartDraftSave()) {
+        Timber.d("Draft save already under way for ${questionnaireConfig.id}; ignoring back press")
+        return
+      }
+
       val dialogue = AlertDialogue.showProgressAlert(this, R.string.extraction_in_progress)
 
       lifecycleScope.launch {
-        retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
-          viewModel.isDraftSaved.observeForever {
-            if (it){
-              PostHogAnalytics.capture(
-                PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_SAVED,
-                questionnaireAnalyticsProps(),
-              )
-              ScreeningTimer.end(
-                screeningId,
-                outcome = "draft_saved",
-                extraProps = screeningCompletionProps(),
-              )
-              dialogue.dismiss()
-              finish()
-            }
-          }
-          viewModel.saveDraftQuestionnaire(questionnaireResponse)
+        val questionnaireResponse = retrieveQuestionnaireResponse()
+        if (questionnaireResponse == null) {
+          // Nothing to save — but the dialog is already up, so it has to come down explicitly or
+          // the user is stranded on a spinner.
+          Timber.w("No questionnaire response to save as draft for ${questionnaireConfig.id}")
+          dialogue.dismiss()
+          finish()
+          return@launch
+        }
+        viewModel.saveDraftQuestionnaire(questionnaireResponse) {
+          PostHogAnalytics.capture(
+            PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_SAVED,
+            questionnaireAnalyticsProps(),
+          )
+          ScreeningTimer.end(
+            screeningId,
+            outcome = "draft_saved",
+            extraProps = screeningCompletionProps(),
+          )
+          dialogue.dismiss()
+          finish()
         }
       }
     } else {
