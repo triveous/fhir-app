@@ -43,6 +43,7 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.hl7.fhir.r4.model.Address
 import org.hl7.fhir.r4.model.Attachment
@@ -412,6 +413,67 @@ class QuestionnaireViewModelTest : RobolectricTest() {
     // Second submit (double-tap or re-submitting an already-saved form) must be rejected
     Assert.assertFalse(questionnaireViewModel.tryStartSubmission())
     Assert.assertFalse(questionnaireViewModel.tryStartSubmission())
+  }
+
+  /**
+   * The back button must not be able to save a draft of a case that is already being submitted —
+   * that pair (submitted case + draft of the same data) is what let QA re-submit the draft and
+   * register the case twice, with its screening images dropped.
+   */
+  @Test
+  fun testDraftSaveIsRefusedWhileASubmissionIsInFlight() {
+    Assert.assertFalse(questionnaireViewModel.isSubmissionInFlight())
+
+    Assert.assertTrue(questionnaireViewModel.tryStartSubmission())
+
+    Assert.assertTrue(questionnaireViewModel.isSubmissionInFlight())
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+    // Repeated fast back presses keep being refused.
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+  }
+
+  /** The reverse race: a draft save already under way must block a late submit. */
+  @Test
+  fun testSubmissionIsRefusedOnceADraftSaveHasStarted() {
+    Assert.assertTrue(questionnaireViewModel.tryStartDraftSave())
+
+    // A draft save is not a submission, so back must not be mistaken for one.
+    Assert.assertFalse(questionnaireViewModel.isSubmissionInFlight())
+    Assert.assertFalse(questionnaireViewModel.tryStartSubmission())
+  }
+
+  @Test
+  fun testOnlyOneDraftSaveSlotIsGrantedPerSession() {
+    Assert.assertTrue(questionnaireViewModel.tryStartDraftSave())
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+  }
+
+  /**
+   * The caller holds a modal progress dialog open until this reports back, so a failed save has to
+   * settle too — otherwise the user is stranded on a spinner with no way forward.
+   */
+  @Test
+  fun testSaveDraftQuestionnaireReportsBackWhenTheSaveFails() = runTest {
+    coEvery { defaultRepository.addOrUpdate(any(), any()) } throws RuntimeException("disk full")
+    val questionnaireResponse =
+      QuestionnaireResponse().apply {
+        addItem(
+          QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+            addAnswer(
+              QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                .setValue(StringType("Sky is the limit")),
+            )
+          },
+        )
+      }
+
+    var settled = 0
+    questionnaireViewModel.saveDraftQuestionnaire(questionnaireResponse) { settled++ }
+    advanceUntilIdle()
+
+    Assert.assertEquals(1, settled)
   }
 
   @Test
