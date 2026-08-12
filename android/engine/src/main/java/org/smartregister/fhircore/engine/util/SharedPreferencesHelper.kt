@@ -142,7 +142,7 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
         }
     }
     fun getSiteName(): String? {
-       return prefs.getString(SharedPreferenceKey.SITE_NAME.name, null)
+        return prefs.getString(SharedPreferenceKey.SITE_NAME.name, null)
     }
 
     fun getFhirBaseUrl(): String {
