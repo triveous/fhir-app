@@ -28,6 +28,7 @@ import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.BooleanType
+import org.hl7.fhir.r4.model.Bundle
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -65,6 +66,24 @@ class FeatureFlagUtilTest {
     coVerify(exactly = 0) { fhirResourceDataSource.getBasic(any()) }
   }
 
+
+  @Test
+  fun testReadsUseTenantPrefixedResourceIdFromPreferences() = runTest {
+    val tenantResourceId = "staging-2-feature-flags"
+    every { sharedPreferencesHelper.getFeatureFlagsResourceId() } returns tenantResourceId
+    coEvery { fhirEngine.get<Basic>(tenantResourceId) } throws
+            ResourceNotFoundException("Basic", tenantResourceId)
+    coEvery {
+      fhirResourceDataSource.getResource("Basic?_id=$tenantResourceId&_count=1")
+    } returns Bundle().apply { addEntry().resource = featureFlagsBasic(true) }
+
+    Assert.assertTrue(featureFlagUtil.isAiInferenceEnabled())
+
+    coVerify { fhirEngine.get<Basic>(tenantResourceId) }
+    coVerify { fhirResourceDataSource.getResource("Basic?_id=$tenantResourceId&_count=1") }
+    verify { sharedPreferencesHelper.saveLastKnownFeatureFlags(tenantResourceId, any()) }
+  }
+  
   @Test
   fun testFailedNetworkReadFallsBackToLastKnownFeatureFlags() = runTest {
     coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } throws

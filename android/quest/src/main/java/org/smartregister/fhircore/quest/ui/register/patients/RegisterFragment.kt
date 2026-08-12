@@ -348,6 +348,11 @@ class RegisterFragment : Fragment(), OnSyncListener {
   }
 
   suspend fun handleQuestionnaireSubmission(questionnaireSubmission: QuestionnaireSubmission) {
+    // The case is registered, so the draft it came from must disappear before the user can get back
+    // to this screen — a reopened draft submits the same case again, and that second submission
+    // arrives with its screening images stripped.
+    registerViewModel.purgeSubmittedDraft()
+
     if (questionnaireSubmission.questionnaireConfig.saveQuestionnaireResponse) {
       appMainViewModel.run {
         onQuestionnaireSubmission(questionnaireSubmission)
