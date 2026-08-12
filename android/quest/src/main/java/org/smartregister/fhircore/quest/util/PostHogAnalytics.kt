@@ -41,6 +41,14 @@ object PostHogAnalytics {
          */
         const val BACK_PRESSED_DURING_SUBMISSION = "back_pressed_during_submission"
         const val QUESTIONNAIRE_DRAFT_DELETED = "questionnaire_draft_deleted"
+
+        /**
+         * A submission stopped at the post-extraction guardrail because required questions had no
+         * answer. The data capture library should already have caught this on its own submit
+         * button, so every one of these means something downstream emptied an answer — worth an
+         * alert, not just a count.
+         */
+        const val SUBMISSION_BLOCKED_INCOMPLETE = "submission_blocked_incomplete"
         const val AI_INFERENCE_COMPLETED = "ai_inference_completed"
         const val AI_RESULT_VIEWED = "ai_result_viewed"
         const val AI_REFER_CASE = "ai_refer_case"

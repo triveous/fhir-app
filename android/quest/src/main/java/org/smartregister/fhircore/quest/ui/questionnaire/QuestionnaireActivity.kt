@@ -706,6 +706,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 actionParameters = actionParameters,
                 context = this@QuestionnaireActivity,
                 onSubmissionAbandoned = ::releaseQuestionnaireSubmissionLock,
+                onIncompleteSubmission = ::reportIncompleteSubmission,
               ) { idTypes, qrResult ->
                 viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
                 submissionIdTypes = idTypes
@@ -738,6 +739,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 actionParameters = actionParameters,
                 context = this@QuestionnaireActivity,
                 onSubmissionAbandoned = ::releaseQuestionnaireSubmissionLock,
+                onIncompleteSubmission = ::reportIncompleteSubmission,
               ) { idTypes, qrResult ->
                 viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
                 ScreeningTimer.markStep(screeningId, "submission_completed")
@@ -822,14 +824,18 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           finish()
           return@launch
         }
-        viewModel.saveDraftQuestionnaire(questionnaireResponse) {
-          PostHogAnalytics.capture(
-            PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_SAVED,
-            questionnaireAnalyticsProps(),
-          )
+        viewModel.saveDraftQuestionnaire(questionnaireResponse) { draftSaved ->
+          // An untouched form is abandoned, not drafted — reporting it as a saved draft would
+          // overstate draft usage and hide how often FLWs open the form and back straight out.
+          if (draftSaved) {
+            PostHogAnalytics.capture(
+              PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_SAVED,
+              questionnaireAnalyticsProps(),
+            )
+          }
           ScreeningTimer.end(
             screeningId,
-            outcome = "draft_saved",
+            outcome = if (draftSaved) "draft_saved" else "abandoned",
             extraProps = screeningCompletionProps(),
           )
           dialogue.dismiss()
@@ -904,6 +910,31 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private suspend fun retrieveQuestionnaireResponse(): QuestionnaireResponse? =
     (supportFragmentManager.findFragmentByTag(QUESTIONNAIRE_FRAGMENT_TAG) as QuestionnaireFragment?)
       ?.getQuestionnaireResponse()
+
+  /**
+   * Names the required questions that stopped the submission, so the user can go and fill them in
+   * rather than tapping a submit button that keeps refusing without saying why. Nothing has been
+   * saved at this point, and [releaseQuestionnaireSubmissionLock] follows, so the form stays open
+   * and submittable.
+   */
+  private fun reportIncompleteSubmission(unanswered: List<UnansweredRequiredQuestion>) {
+    PostHogAnalytics.capture(
+      PostHogAnalytics.Events.SUBMISSION_BLOCKED_INCOMPLETE,
+      questionnaireAnalyticsProps(
+        "missing_link_ids" to unanswered.joinToString { it.linkId },
+        "missing_count" to unanswered.size,
+      ),
+    )
+    AlertDialogue.showErrorAlert(
+      context = this,
+      message =
+        getString(
+          R.string.submission_blocked_message,
+          unanswered.joinToString(separator = "\n") { "• ${it.label}" },
+        ),
+      title = getString(R.string.submission_blocked_title),
+    )
+  }
 
   /**
    * Lets the user submit again after a submission that saved nothing. The data capture library locks

@@ -41,12 +41,14 @@ import ca.uhn.fhir.rest.gclient.StringClientParam
 import ca.uhn.fhir.rest.gclient.TokenClientParam
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.extensions.asStringValue
+import com.google.android.fhir.db.ResourceNotFoundException
 import com.google.android.fhir.search.Order
 import com.google.android.fhir.search.search
 import com.google.android.fhir.sync.SyncDataParams
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -1177,7 +1179,7 @@ constructor(
     }
 
     fun getAllDraftResponses() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(dispatcherProvider.io()) {
             _isFetching.value = true
             val allResponses = mutableListOf<QuestionnaireResponse>()
             try {
@@ -1305,7 +1307,8 @@ constructor(
     }
 
     fun deleteIfNotOldDraft(resourceId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        openedDraftId.set(resourceId)
+        viewModelScope.launch(dispatcherProvider.io()) {
             try {
                 val parser = FhirContext.forR4Cached().newJsonParser()
                 val draftResponsesJson =
@@ -1323,8 +1326,88 @@ constructor(
         }
     }
 
+    /**
+     * Drops the draft a submitted case came from, so it can never be reopened and submitted again.
+     *
+     * Resubmitting it registers a duplicate case whose screening images are missing: the first
+     * submission already flipped those DocumentReferences to SUBMITTED and the sync worker has since
+     * purged them locally, so the reconciliation drops the now-dangling answers.
+     *
+     * The rendered list is trimmed *synchronously* before the storage work starts. [deleteIfNotOldDraft]
+     * only clears the SharedPreferences copy — an engine-backed INPROGRESS draft survives it — and
+     * [getAllDraftResponses] is asynchronous (a prefs read plus a FhirEngine search), which is the
+     * window QA tapped the stale card in after backing out of a submission.
+     */
+    fun purgeSubmittedDraft() {
+        val draftId = openedDraftId.getAndSet(null) ?: return
+        val draftLogicalId = draftId.extractLogicalIdUuid()
+
+        _allSavedDraftResponseStateFlow.value =
+            _allSavedDraftResponseStateFlow.value.filterNot {
+                it.id?.extractLogicalIdUuid() == draftLogicalId
+            }
+
+        viewModelScope.launch(dispatcherProvider.io()) {
+            // [deleteIfNotOldDraft] takes a draft out of shared preferences the moment it is opened,
+            // and only a back-out puts it back. So finding it here means the user abandoned it
+            // earlier and this submission is a different, unrelated case — deleting it would throw
+            // away work the user still expects to see.
+            val stillPending =
+                try {
+                    val parser = FhirContext.forR4Cached().newJsonParser()
+                    parseDraftResponses(
+                        parser,
+                        getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper),
+                    )
+                        ?.entry
+                        // Compare logical ids: HAPI hands back a qualified id
+                        // ("QuestionnaireResponse/abc") for a parsed resource, while the id the
+                        // draft was opened with can be either form.
+                        ?.fastAny { it.resource?.id?.extractLogicalIdUuid() == draftLogicalId } == true
+                } catch (exception: Exception) {
+                    // Never delete on an unknown state; a stale row is recoverable, lost work is not.
+                    Timber.e(exception, "Failed to check whether draft $draftId is still pending")
+                    true
+                }
+
+            if (stillPending) {
+                Timber.i("Draft $draftId was abandoned, not submitted; leaving it in place")
+            } else {
+                // A draft held as an INPROGRESS QuestionnaireResponse in the engine has to go too,
+                // otherwise the next getAllDraftResponses() search brings it straight back. Only
+                // while it is still INPROGRESS, though — the submitted case reuses the draft's id,
+                // so [deleteDraftFromRepository] refuses once the response has been completed.
+                try {
+                    deleteDraftFromRepository(draftId)
+                } catch (exception: Exception) {
+                    Timber.e(exception, "Failed to delete submitted draft $draftId from the engine")
+                }
+            }
+
+            // Restores the row if the trim above was wrong, and reflects the deletion if it was not.
+            getAllDraftResponses()
+        }
+    }
+
+    /** Forgets the opened draft without deleting it — the user backed out instead of submitting. */
+    fun forgetOpenedDraft() {
+        openedDraftId.set(null)
+    }
+
+    companion object {
+        /**
+         * Id of the draft most recently opened for editing, so it can be purged once its case is
+         * submitted — see [purgeSubmittedDraft].
+         *
+         * Process-wide rather than per-instance because the home register and the "view all" screen
+         * each own a separate fragment-scoped RegisterViewModel: a draft opened from one screen is
+         * routinely submitted while a different instance is the one handling the result event.
+         */
+        private val openedDraftId = AtomicReference<String?>(null)
+    }
+
     fun softDeleteDraft(resourceId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(dispatcherProvider.io()) {
             try {
                 val parser = FhirContext.forR4Cached().newJsonParser()
 
@@ -1350,10 +1433,48 @@ constructor(
     }
 
 
+    /**
+     * Deletes the draft [QuestionnaireResponse] [resourceId] — but only for as long as it really is
+     * a draft.
+     *
+     * A draft and the case submitted from it are the *same resource*. The draft's id survives the
+     * round trip through QuestionnaireFragment (the response is handed over as JSON and comes back
+     * with its id intact), so submitting a draft stores the case's response under the id the draft
+     * was saved with, flipping its status from INPROGRESS to COMPLETED. Deleting by id afterwards
+     * therefore destroyed the registered case's QuestionnaireResponse: the Patient, Encounter,
+     * Observations and Media survived, but every answer the FLW had typed and every screening image
+     * was gone — the case opened blank on the dashboard. Directly submitted cases were unaffected
+     * precisely because no draft id was ever recorded for them.
+     *
+     * A completed response is never listed as a draft anyway — [getAllDraftResponses] only searches
+     * the engine for INPROGRESS ones — so refusing here costs nothing and keeps the guarantee that a
+     * submitted draft cannot be reopened.
+     */
     private suspend fun deleteDraftFromRepository(resourceId: String) {
+        val logicalId = resourceId.extractLogicalIdUuid()
+        val storedDraft =
+            try {
+                fhirEngine.get(ResourceType.QuestionnaireResponse, logicalId) as QuestionnaireResponse
+            } catch (notFound: ResourceNotFoundException) {
+                // Only ever lived in shared preferences; there is nothing in the engine to delete.
+                null
+            }
+
+        if (
+            storedDraft != null &&
+            storedDraft.status != QuestionnaireResponse.QuestionnaireResponseStatus.INPROGRESS
+        ) {
+            Timber.i(
+                "QuestionnaireResponse %s is %s, not a draft; keeping it — its case has been submitted",
+                logicalId,
+                storedDraft.status,
+            )
+            return
+        }
+
         registerRepository.delete(
             resourceType = ResourceType.QuestionnaireResponse,
-            resourceId = resourceId.extractLogicalIdUuid(),
+            resourceId = logicalId,
             softDelete = false
         )
     }

@@ -45,6 +45,7 @@ import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.Base
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.Bundle
+import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Group
 import org.hl7.fhir.r4.model.IdType
@@ -453,6 +454,11 @@ constructor(
      * Declared before [onSuccessfulSubmission] so that stays the trailing lambda at every call site.
      */
     onSubmissionAbandoned: () -> Unit = {},
+    /**
+     * Invoked with the required questions the response leaves unanswered, so the caller can name
+     * them for the user. Always followed by [onSubmissionAbandoned]; nothing has been saved.
+     */
+    onIncompleteSubmission: (List<UnansweredRequiredQuestion>) -> Unit = {},
     onSuccessfulSubmission: (List<IdType>, QuestionnaireResponse) -> Unit,
   ) {
     viewModelScope.launch(SupervisorJob()) {
@@ -500,16 +506,41 @@ constructor(
           context = context,
         )
 
+      // Last gate before anything is written or synced. Extraction is pure — it only builds the
+      // Bundle in memory — so every abort below leaves the device exactly as it was and releases the
+      // submission latch, letting the user fix the form and submit again.
+
+      // A required question with no answer must never reach the server. The library checks this on
+      // its own submit button, but the response has been through the app's hands since then; see
+      // [findUnansweredRequiredQuestions].
+      val unansweredRequiredQuestions =
+        findUnansweredRequiredQuestions(questionnaire, currentQuestionnaireResponse)
+      if (unansweredRequiredQuestions.isNotEmpty()) {
+        Timber.e(
+          "Blocking submission of ${questionnaireConfig.id}: required question(s) unanswered: %s",
+          unansweredRequiredQuestions.joinToString { it.linkId },
+        )
+        setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+        allowSubmissionRetry()
+        onIncompleteSubmission(unansweredRequiredQuestions)
+        onSubmissionAbandoned()
+        return@launch
+      }
+
       // performExtraction swallows failures and returns an empty Bundle. For a fresh registration
       // (no subject yet) that means nothing would be saved — not even the QuestionnaireResponse —
       // yet the flow used to continue and report success, silently losing the case. Fail loudly
       // and release the submission latch: nothing was saved, so retrying cannot duplicate.
       if (
-        bundle.entry.isNullOrEmpty() &&
-        currentQuestionnaireResponse.subject.reference.isNullOrEmpty()
+        extractionProducedNothingUsable(
+          bundle = bundle,
+          questionnaire = questionnaire,
+          questionnaireConfig = questionnaireConfig,
+          questionnaireResponse = currentQuestionnaireResponse,
+        )
       ) {
         Timber.e(
-          "Extraction produced no resources for ${questionnaireConfig.id}; aborting submission",
+          "Extraction produced no usable resources for ${questionnaireConfig.id}; aborting submission",
         )
         setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
         context.showToast(
@@ -594,6 +625,43 @@ constructor(
      }
     }
   }
+
+  /**
+   * Whether the extraction left nothing worth saving.
+   *
+   * Two shapes of failure, both of which used to register a case that opens blank:
+   * - an empty Bundle for a fresh registration — [performExtraction] swallows StructureMap failures
+   *   and returns one, so nothing at all would be written, not even the QuestionnaireResponse;
+   * - a Bundle with no subject resource, or a subject resource carrying nothing but bookkeeping
+   *   (id/meta/text/identifier). That is what a StructureMap that runs but maps nothing produces:
+   *   a Patient husk with no name, gender or address behind a valid-looking reference id.
+   *
+   * Only fresh registrations are judged on the subject resource. An edit or follow-up already has
+   * its subject, and legitimately extracts Observations and Encounters instead.
+   */
+  @VisibleForTesting
+  internal fun extractionProducedNothingUsable(
+    bundle: Bundle,
+    questionnaire: Questionnaire,
+    questionnaireConfig: QuestionnaireConfig,
+    questionnaireResponse: QuestionnaireResponse,
+  ): Boolean {
+    val isFreshRegistration = questionnaireResponse.subject.reference.isNullOrEmpty()
+    if (bundle.entry.isNullOrEmpty()) return isFreshRegistration
+    if (!isFreshRegistration) return false
+
+    val subjectType = questionnaireSubjectType(questionnaire, questionnaireConfig) ?: return false
+    val subject =
+      bundle.entry.mapNotNull { it.resource }.firstOrNull { it.resourceType == subjectType }
+        ?: return true
+    return subject.carriesOnlyBookkeeping()
+  }
+
+  /** True when every populated element of this resource is metadata rather than entered data. */
+  private fun Resource.carriesOnlyBookkeeping(): Boolean =
+    children().none { property ->
+      property.name !in BOOKKEEPING_ELEMENTS && property.hasValues()
+    }
 
   suspend fun saveExtractedResources(
     bundle: Bundle,
@@ -951,6 +1019,117 @@ constructor(
       }
       .getOrDefault(Bundle())
 
+  /**
+   * The required questions of [questionnaire] that [questionnaireResponse] does not actually answer.
+   *
+   * The data capture library already blocks its own submit button on required fields, but that check
+   * happens *before* the app gets the response, and the app then keeps working on it — most notably
+   * [reconcileDocumentReferencesForSubmission], which deletes screening-image answers whose
+   * DocumentReference has gone missing locally, and `patient-screening-image-1` is required. This is
+   * the last look at the data before anything is written or synced.
+   *
+   * It is deliberately stricter than the library's `RequiredValidator`, which is satisfied by
+   * `answer.any { it.hasValue() }`: a whitespace-only name, a Coding with neither code nor display
+   * and an Attachment with neither url nor data all count as answers there and as missing here.
+   *
+   * Never reports a question the user was not asked:
+   * - hidden items (and everything nested under them) are skipped, exactly as the library does;
+   * - an item absent from the response is only reported when its parent group *is* present and the
+   *   item has no `enableWhen` of its own — a disabled item is legitimately absent, because
+   *   `QuestionnaireFragment.getQuestionnaireResponse()` strips disabled items on the way out.
+   */
+  fun findUnansweredRequiredQuestions(
+    questionnaire: Questionnaire,
+    questionnaireResponse: QuestionnaireResponse,
+  ): List<UnansweredRequiredQuestion> {
+    val responseItems =
+      mutableMapOf<String, MutableList<QuestionnaireResponse.QuestionnaireResponseItemComponent>>()
+    indexResponseItems(questionnaireResponse.item, responseItems)
+
+    val unanswered = mutableListOf<UnansweredRequiredQuestion>()
+    collectUnansweredRequiredQuestions(
+      items = questionnaire.item,
+      parentPresentInResponse = true,
+      responseItems = responseItems,
+      unanswered = unanswered,
+    )
+    return unanswered
+  }
+
+  /** Indexes every response item by linkId, including those nested under an answer. */
+  private fun indexResponseItems(
+    items: List<QuestionnaireResponse.QuestionnaireResponseItemComponent>,
+    into: MutableMap<String, MutableList<QuestionnaireResponse.QuestionnaireResponseItemComponent>>,
+  ) {
+    items.forEach { item ->
+      item.linkId?.let { into.getOrPut(it) { mutableListOf() }.add(item) }
+      indexResponseItems(item.item, into)
+      item.answer.forEach { indexResponseItems(it.item, into) }
+    }
+  }
+
+  private fun collectUnansweredRequiredQuestions(
+    items: List<Questionnaire.QuestionnaireItemComponent>,
+    parentPresentInResponse: Boolean,
+    responseItems:
+      Map<String, List<QuestionnaireResponse.QuestionnaireResponseItemComponent>>,
+    unanswered: MutableList<UnansweredRequiredQuestion>,
+  ) {
+    items.forEach { item ->
+      if (item.isHiddenQuestionnaireItem()) return@forEach
+
+      val presentInResponse = responseItems.containsKey(item.linkId)
+      val answerable =
+        item.type != Questionnaire.QuestionnaireItemType.GROUP &&
+          item.type != Questionnaire.QuestionnaireItemType.DISPLAY &&
+          item.type != Questionnaire.QuestionnaireItemType.NULL
+
+      if (item.required && answerable) {
+        val missing =
+          if (presentInResponse) {
+            responseItems.getValue(item.linkId).none { responseItem ->
+              responseItem.answer.any { it.hasRealValue() }
+            }
+          } else {
+            parentPresentInResponse && !item.hasEnableWhen()
+          }
+        if (missing) {
+          unanswered.add(
+            UnansweredRequiredQuestion(
+              linkId = item.linkId,
+              label = item.text?.takeIf { it.isNotBlank() } ?: item.linkId,
+            ),
+          )
+        }
+      }
+
+      collectUnansweredRequiredQuestions(
+        items = item.item,
+        parentPresentInResponse = presentInResponse,
+        responseItems = responseItems,
+        unanswered = unanswered,
+      )
+    }
+  }
+
+  private fun Questionnaire.QuestionnaireItemComponent.isHiddenQuestionnaireItem(): Boolean =
+    (getExtensionByUrl(EXTENSION_HIDDEN_URL)?.value as? BooleanType)?.booleanValue() == true
+
+  /**
+   * Whether this answer holds something a human actually entered. `hasValue()` is not enough: it is
+   * true for a blank string and for an empty Coding or Attachment shell.
+   */
+  private fun QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent.hasRealValue():
+    Boolean {
+    val answerValue = value ?: return false
+    return when (answerValue) {
+      is Attachment -> !answerValue.url.isNullOrBlank() || answerValue.hasData()
+      is Coding -> !answerValue.code.isNullOrBlank() || !answerValue.display.isNullOrBlank()
+      is Reference -> !answerValue.reference.isNullOrBlank()
+      else -> answerValue.primitiveValue()?.isNotBlank() ?: !answerValue.isEmpty
+    }
+  }
+
   /** True when this item, or anything nested under it, carries an answer value. */
   private fun QuestionnaireResponse.QuestionnaireResponseItemComponent.hasAnyAnswer(): Boolean =
     answer.any { it.hasValue() || it.item.any(::hasAnyAnswerIn) } || item.any(::hasAnyAnswerIn)
@@ -959,41 +1138,74 @@ constructor(
     item: QuestionnaireResponse.QuestionnaireResponseItemComponent,
   ): Boolean = item.hasAnyAnswer()
 
+  /** Depth-first lookup of the first item carrying [linkId], or null when the form has no such item. */
+  private fun findItemByLinkId(
+    items: List<QuestionnaireResponse.QuestionnaireResponseItemComponent>,
+    linkId: String,
+  ): QuestionnaireResponse.QuestionnaireResponseItemComponent? {
+    items.forEach { item ->
+      if (item.linkId == linkId) return item
+      findItemByLinkId(item.item, linkId)?.let { return it }
+    }
+    return null
+  }
+
   /**
-   * This function saves [QuestionnaireResponse] as draft if any of the [QuestionnaireResponse.item]
-   * has an answer.
+   * Whether this response holds anything worth keeping as a draft.
+   *
+   * "Has any answer" is not enough on its own: a registration form opens with answers already in
+   * place — the age-unit radio's `initialSelected`, and the FLW's district/state pre-filled from
+   * their Practitioner record — so an untouched form looks answered, and every Add-New-Case followed
+   * by back saved another empty guest draft.
+   *
+   * The patient's given name is the agreed minimum: no name, no draft. Forms with no such item (any
+   * other draft-enabled questionnaire) keep the previous any-answer behaviour, so this stays correct
+   * beyond the registration flow.
+   */
+  fun hasDraftWorthyData(questionnaireResponse: QuestionnaireResponse): Boolean {
+    val givenName = findItemByLinkId(questionnaireResponse.item, PATIENT_GIVEN_NAME_LINK_ID)
+    return if (givenName != null) {
+      givenName.answer.any { !it.value?.primitiveValue().isNullOrBlank() }
+    } else {
+      questionnaireResponse.item.any { it.hasAnyAnswer() }
+    }
+  }
+
+  /**
+   * Saves [questionnaireResponse] as a draft, provided the user actually entered something — see
+   * [hasDraftWorthyData].
    */
   fun saveDraftQuestionnaire(
     questionnaireResponse: QuestionnaireResponse,
     /**
-     * Invoked exactly once, on the main thread, when the save has settled — successfully, with
-     * nothing to save, or after a failure. The caller shows a blocking progress dialog while this is
-     * running, so a path that never reports back leaves the user stuck on a spinner; that is what
-     * the old `catch` branch did, because only the success paths posted [_isDraftSaved].
+     * Invoked exactly once, on the main thread, when the save has settled, with true only when a
+     * draft was really written. The caller shows a blocking progress dialog while this is running,
+     * so a path that never reports back leaves the user stuck on a spinner; that is what the old
+     * `catch` branch did, because only the success paths posted [_isDraftSaved].
      */
-    onSaved: () -> Unit = {},
+    onSaved: (saved: Boolean) -> Unit = {},
   ) {
     viewModelScope.launch {
+      var saved = false
       try {
-        persistDraft(questionnaireResponse)
+        saved = persistDraft(questionnaireResponse)
       } finally {
         // Settled either way: the caller is holding a modal progress dialog open until it hears
         // back, so this has to run on every path — including a failure inside persistDraft.
         _isDraftSaved.postValue(true)
-        onSaved()
+        onSaved(saved)
       }
     }
   }
 
-  private suspend fun persistDraft(questionnaireResponse: QuestionnaireResponse) {
-      // Was `item.any { it.item.get(1).hasAnswer() }`, which threw IndexOutOfBoundsException for any
-      // response item with fewer than two nested items — killing the whole coroutine before anything
-      // was written, so back-pressing silently discarded the user's answers and left the progress
-      // dialog spinning. Walk the tree instead: a draft is worth keeping if there is an answer
-      // anywhere in it.
-      val questionnaireHasAnswer = questionnaireResponse.item.any { it.hasAnyAnswer() }
-      if (questionnaireHasAnswer) {
-        try {
+  /** Returns true when a draft was actually written. */
+  private suspend fun persistDraft(questionnaireResponse: QuestionnaireResponse): Boolean {
+      val questionnaireHasAnswer = hasDraftWorthyData(questionnaireResponse)
+      if (!questionnaireHasAnswer) {
+        Timber.i("Nothing entered on the questionnaire; not saving an empty draft")
+        return false
+      }
+      return try {
           val ref = Reference().apply { reference =  "Practitioner/${getUserName()}"}
           // set author
           questionnaireResponse.author = ref
@@ -1012,7 +1224,7 @@ constructor(
 
           if (responses.find { it.id == questionnaireResponse.id } != null){
             defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)
-            return
+            return true
           }
           val draftResponsesJson = getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
           var draftResBundle = parseDraftResponses(parser, draftResponsesJson)
@@ -1040,11 +1252,11 @@ constructor(
             val bundleJson = parser.encodeResourceToString(draftResBundle)
             sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
           }
-
+          true
         }catch (exception: Exception){
           Timber.e(exception, "An error occurred while saveDraftQuestionnaire")
+          false
         }
-      }
   }
 
   /**
@@ -1598,11 +1810,46 @@ constructor(
     const val AA_REFERENCE_ID_LINK_ID = "aa-reference-id"
     const val SCREENING_GROUP_LINK_ID = "screening-group"
     const val PATIENT_SCREENING_IMAGE_GROUP_LINK_ID = "patient-screening-image-group"
+
+    /** The patient's first name — the minimum the user must enter for a draft to be worth keeping. */
+    const val PATIENT_GIVEN_NAME_LINK_ID = "patient-name-given"
     const val PATIENT_REFERENCE_ID_SYSTEM = "https://midas.iisc.ac.in/fhir/identifier/patient-id"
     const val OUTPUT_PARAMETER_KEY = "OUTPUT"
     private const val LOW_CONFIDENCE_THRESHOLD = 65f
+
+    /** https://hl7.org/fhir/R4/extension-questionnaire-hidden.html */
+    private const val EXTENSION_HIDDEN_URL =
+      "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden"
+
+    /**
+     * Elements every extracted resource carries whether or not the user entered anything, so their
+     * presence says nothing about whether the extraction worked — see [carriesOnlyBookkeeping].
+     */
+    private val BOOKKEEPING_ELEMENTS =
+      setOf(
+        "id",
+        "meta",
+        "implicitRules",
+        "language",
+        "text",
+        "contained",
+        "extension",
+        "modifierExtension",
+        "identifier",
+      )
   }
 }
+
+/**
+ * A required question of the [Questionnaire] that the [QuestionnaireResponse] does not answer.
+ *
+ * @property linkId the questionnaire item's linkId, for logs and analytics.
+ * @property label the question as the user saw it, for the message that names what is missing.
+ */
+data class UnansweredRequiredQuestion(
+  val linkId: String,
+  val label: String,
+)
 
 data class AiInferenceSummary(
   val isSuspicious: Boolean,

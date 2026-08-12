@@ -476,6 +476,120 @@ class QuestionnaireViewModelTest : RobolectricTest() {
     Assert.assertEquals(1, settled)
   }
 
+  /**
+   * A registration form opens with answers already in place — the age-unit radio's initialSelected
+   * and the FLW's district/state pre-filled from their Practitioner record — so "has any answer" was
+   * true before the user touched anything, and every Add-New-Case-then-back left another empty guest
+   * draft behind.
+   */
+  @Test
+  fun testUntouchedRegistrationFormDoesNotCreateADraft() = runTest {
+    var saved: Boolean? = null
+    questionnaireViewModel.saveDraftQuestionnaire(registrationResponse(givenName = null)) {
+      saved = it
+    }
+    advanceUntilIdle()
+
+    Assert.assertEquals(false, saved)
+    coVerify(exactly = 0) { defaultRepository.addOrUpdate(any(), any()) }
+  }
+
+  @Test
+  fun testBlankFirstNameDoesNotCreateADraft() = runTest {
+    var saved: Boolean? = null
+    questionnaireViewModel.saveDraftQuestionnaire(registrationResponse(givenName = "   ")) {
+      saved = it
+    }
+    advanceUntilIdle()
+
+    Assert.assertEquals(false, saved)
+  }
+
+  @Test
+  fun testFirstNameEnteredMakesTheFormDraftWorthy() {
+    Assert.assertTrue(
+      questionnaireViewModel.hasDraftWorthyData(registrationResponse(givenName = "Asha")),
+    )
+  }
+
+  @Test
+  fun testPrefilledDefaultsAloneAreNotDraftWorthy() {
+    // Only the age-unit radio and the FLW's state — nothing the user typed.
+    Assert.assertFalse(
+      questionnaireViewModel.hasDraftWorthyData(registrationResponse(givenName = null)),
+    )
+    Assert.assertFalse(
+      questionnaireViewModel.hasDraftWorthyData(registrationResponse(givenName = "  ")),
+    )
+  }
+
+  /**
+   * Other draft-enabled questionnaires have no first-name item, so they keep the previous
+   * any-answer behaviour rather than losing drafts entirely.
+   */
+  @Test
+  fun testFormWithoutAFirstNameItemFallsBackToAnyAnswer() {
+    val noNameForm =
+      QuestionnaireResponse().apply {
+        addItem(
+          QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+            linkId = "some-other-question"
+            addAnswer(
+              QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                .setValue(StringType("an answer")),
+            )
+          },
+        )
+      }
+
+    Assert.assertTrue(questionnaireViewModel.hasDraftWorthyData(noNameForm))
+    Assert.assertFalse(questionnaireViewModel.hasDraftWorthyData(QuestionnaireResponse()))
+  }
+
+  /**
+   * A registration response shaped like the real form: pre-filled defaults the user never touched,
+   * plus an optional first name.
+   */
+  private fun registrationResponse(givenName: String?) =
+    QuestionnaireResponse().apply {
+      addItem(
+        QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+          linkId = "basic-info-group"
+          addItem(
+            QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+              // Pre-selected by the questionnaire itself, not by the user.
+              linkId = "patient-age"
+              addAnswer(
+                QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                  .setValue(StringType("By years")),
+              )
+            },
+          )
+          addItem(
+            QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+              // Pre-filled from the FLW's Practitioner address.
+              linkId = "patient-address-state"
+              addAnswer(
+                QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                  .setValue(StringType("Karnataka")),
+              )
+            },
+          )
+          addItem(
+            QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+              linkId = QuestionnaireViewModel.PATIENT_GIVEN_NAME_LINK_ID
+              givenName?.let {
+                addAnswer(
+                  QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                    .setValue(StringType(it)),
+                )
+              }
+            },
+          )
+        },
+      )
+    }
+
   @Test
   fun testPerformExtractionWithStructureMap() = runTest {
     mockkObject(ResourceMapper)
