@@ -66,7 +66,7 @@ import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterFragment
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
-import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.quest.util.extensions.interpolateActionParamsValue
 
 @OptIn(ExperimentalMaterialApi::class)

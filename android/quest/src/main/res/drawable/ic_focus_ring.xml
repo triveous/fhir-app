@@ -1,0 +1,28 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="80"
+    android:viewportHeight="80">
+    <!-- Focus reticle: a ring with four short ticks, like a standard camera focus indicator. -->
+    <path
+        android:pathData="M40,4 a36,36 0 1,0 0,72 a36,36 0 1,0 0,-72 Z"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M40,1 L40,12"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:pathData="M40,68 L40,79"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:pathData="M1,40 L12,40"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+    <path
+        android:pathData="M68,40 L79,40"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF" />
+</vector>

@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="68dp"
+    android:height="68dp"
+    android:viewportWidth="68"
+    android:viewportHeight="68">
+    <!-- Dimmed outer ring shown while a capture is in flight -->
+    <path
+        android:pathData="M34,3 a31,31 0 1,0 0,62 a31,31 0 1,0 0,-62 Z"
+        android:strokeWidth="4"
+        android:strokeColor="#80FFFFFF"
+        android:fillColor="#00000000" />
+    <!-- Dimmed inner circle so the shutter clearly reads as "busy / can't tap again" -->
+    <path
+        android:pathData="M34,9 a25,25 0 1,0 0,50 a25,25 0 1,0 0,-50 Z"
+        android:fillColor="#80BDBDBD" />
+</vector>

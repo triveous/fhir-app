@@ -352,9 +352,9 @@ constructor(
         }
       } catch (exception: Exception) {
         if (exception is IllegalArgumentException) {
-          Timber.e("key is not a member of practitioner keys: ", exception)
+          Timber.e(exception, "key is not a member of practitioner keys")
         } else {
-          Timber.e("An exception occurred while fetching your key from sharedPrefs: ", exception)
+          Timber.e(exception, "An exception occurred while fetching your key from sharedPrefs")
         }
       }
       return ""

@@ -79,6 +79,7 @@
             android:name=".ui.questionnaire.QuestionnaireActivity"
             android:exported="false"
             android:screenOrientation="portrait"
+            android:configChanges="uiMode"
             android:theme="@style/AppTheme" />
         <activity
             android:name="androidx.compose.ui.tooling.PreviewActivity"

@@ -126,6 +126,16 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
+            <!-- Tap-to-focus indicator. Positioned at the tap point and animated at runtime. -->
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/focusRing"
+                android:layout_width="@dimen/focus_ring_size"
+                android:layout_height="@dimen/focus_ring_size"
+                android:contentDescription="@string/take_photo"
+                android:elevation="@dimen/spacing_16"
+                android:src="@drawable/ic_focus_ring"
+                android:visibility="gone" />
+
         </FrameLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -229,12 +239,74 @@
 
         </LinearLayout>
 
-        <androidx.appcompat.widget.AppCompatImageView
-            android:id="@+id/captureButton"
+        <FrameLayout
             android:layout_width="72dp"
             android:layout_height="72dp"
-            android:src="@drawable/ic_camera_shutter"
             android:layout_gravity="center"
-            android:elevation="@dimen/spacing_16" />
+            android:elevation="@dimen/spacing_16">
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/captureButton"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:background="@null"
+                android:contentDescription="@string/take_photo"
+                android:src="@drawable/camera_shutter_button" />
+
+            <!-- Spinner sits directly over the shutter while a capture is in flight, so the user
+                 sees the photo is being taken and doesn't tap again. -->
+            <ProgressBar
+                android:id="@+id/captureProgress"
+                style="?android:attr/progressBarStyle"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_gravity="center"
+                android:indeterminateTint="@color/colorPrimary"
+                android:visibility="gone" />
+
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Quick white "screen flash" overlay played on capture, mimicking a standard camera app. -->
+    <View
+        android:id="@+id/captureFlashOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:background="@color/white"
+        android:clickable="false"
+        android:elevation="@dimen/spacing_36"
+        android:focusable="false"
+        android:visibility="gone" />
+
+    <!-- Blocking overlay shown while a submitted photo is processed/saved. clickable=true so it
+         swallows taps, preventing a second submit while the AI inference runs. -->
+    <LinearLayout
+        android:id="@+id/processingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/translucent_background"
+        android:clickable="true"
+        android:elevation="@dimen/spacing_36"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            style="?android:attr/progressBarStyle"
+            android:indeterminateTint="@color/white" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_16"
+            android:text="@string/processing_image"
+            android:textColor="@color/white"
+            android:textSize="16sp" />
+
     </LinearLayout>
 </FrameLayout>
