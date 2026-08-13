@@ -114,7 +114,9 @@ fun RegisterScreen(
 ) {
     val unSyncedImagesCount by viewModel.allUnSyncedImages.collectAsState()
     val unSyncedPatientsCount by viewModel.allUnSyncedStateFlow.collectAsState()
+    val foregroundSyncDialogState by viewModel.foregroundSyncDialogState.collectAsState()
     val isShowPendingSyncBanner by viewModel.isShowPendingSyncBanner.collectAsState()
+    val isSyncing by viewModel.isSyncRunning.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -138,6 +140,7 @@ fun RegisterScreen(
                 modifier = modifier,
                 viewModel = viewModel,
                 isOnline = isOnline,
+                isSyncing = isSyncing,
                 isShowPendingSyncBanner = isShowPendingSyncBanner,
                 unSyncedImagesCount = unSyncedImagesCount,
                 unSyncedPatientsCount = unSyncedPatientsCount,
@@ -152,15 +155,14 @@ fun RegisterScreen(
                     noResultConfig = noResultConfig,
                     navController = navController,
                     registerUiState = registerUiState,
+                    isSyncing = isSyncing,
                 )
             }
 
             ForegroundSyncDialog(
                 showDialog = viewModel.showDialog.value,
                 title = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_status),
-                content = "${getSyncImageList(unSyncedImagesCount)} \n${getPatientsCount(unSyncedPatientsCount.size)}",
-                unSyncedImagesCount,
-                unSyncedPatientsCount.size,
+                state = foregroundSyncDialogState,
                 confirmButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.sync_now),
                 dismissButtonText = stringResource(id = org.smartregister.fhircore.quest.R.string.okay),
                 onDismiss = { viewModel.setShowDialog(false) },
@@ -176,6 +178,7 @@ fun RegisterScreen(
                         handleSyncConfirm(viewModel, appMainViewModel, launcher)
                     }
                 },
+                onRetry = viewModel::refreshForegroundSyncStatus,
             )
         }
     }
@@ -186,6 +189,7 @@ private fun RegisterTopBar(
     modifier: Modifier,
     viewModel: RegisterViewModel,
     isOnline: Boolean,
+    isSyncing: Boolean,
     isShowPendingSyncBanner: Boolean,
     unSyncedImagesCount: Int,
     unSyncedPatientsCount: List<Any>,
@@ -197,6 +201,8 @@ private fun RegisterTopBar(
             title = stringResource(id = R.string.appname),
             toolBarHomeNavigation = ToolBarHomeNavigation.SYNC,
             isOnline = isOnline,
+            isSyncing = isSyncing,
+            pendingSyncCount = unSyncedPatientsCount.size + unSyncedImagesCount,
             onSync = {
                 viewModel.appMainEvent = it
                 viewModel.setShowDialog(true)
@@ -272,19 +278,25 @@ private fun RegisterContent(
     noResultConfig: NoResultsConfig,
     navController: NavController,
     registerUiState: RegisterUiState,
+    isSyncing: Boolean,
 ) {
     val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
     val savedRes by viewModel.allSavedDraftResponse.collectAsState()
-    val isFetching by viewModel.isFetching.collectAsState()
+    val isFetching by viewModel.isFetchingPatients.collectAsState()
     var deleteDraftId by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // An empty register while a sync is downloading is not "no cases" — it is "not here yet". Saying
+    // so matters most right after a first-time sync was interrupted, when the register is empty and
+    // the resumed sync is the thing that will fill it.
+    val isLoadingCases = isFetching || isSyncing
 
     if (allSyncedPatients.isEmpty() && savedRes.isEmpty()) {
         EmptyRegisterView(
             modifier = modifier,
             noResultConfig = noResultConfig,
             navController = navController,
-            isFetching = isFetching,
+            isFetching = isLoadingCases,
         )
     } else {
         PopulatedRegisterView(
@@ -295,6 +307,7 @@ private fun RegisterContent(
             registerUiState = registerUiState,
             allSyncedPatients = allSyncedPatients,
             savedRes = savedRes,
+            isLoadingCases = isLoadingCases,
             showDeleteDialog = showDeleteDialog,
             onDeleteDraft = { id, show ->
                 deleteDraftId = id
@@ -394,6 +407,7 @@ private fun PopulatedRegisterView(
     registerUiState: RegisterUiState,
     allSyncedPatients: List<RegisterViewModel.AllPatientsResourceData>,
     savedRes: List<QuestionnaireResponse>,
+    isLoadingCases: Boolean,
     showDeleteDialog: Boolean,
     onDeleteDraft: (String, Boolean) -> Unit,
     onConfirmDelete: () -> Unit,
@@ -444,8 +458,8 @@ private fun PopulatedRegisterView(
                             ShowAllPatients(
                                 modifier = modifier,
                                 patients = allSyncedPatients.take(MAX_VISIBLE_ITEMS),
-                                viewModel = viewModel,
                                 allPatientsSize = allSyncedPatients.size,
+                                isLoadingCases = isLoadingCases,
                             )
                         }
                         Spacer(
@@ -582,11 +596,9 @@ private fun DraftsListSection(
 private fun ShowAllPatients(
     modifier: Modifier,
     patients: List<RegisterViewModel.AllPatientsResourceData>,
-    viewModel: RegisterViewModel,
     allPatientsSize: Int,
+    isLoadingCases: Boolean,
 ) {
-    val isFetchingPatients by viewModel.isFetching.collectAsState()
-
     Box(
         modifier = modifier
             .padding(top = 8.dp)
@@ -595,8 +607,8 @@ private fun ShowAllPatients(
     ) {
         if (patients.isEmpty()) {
             EmptyStateSection(
-                isFetchingPatients = isFetchingPatients,
-                textLabel = if (isFetchingPatients) {
+                isFetchingPatients = isLoadingCases,
+                textLabel = if (isLoadingCases) {
                     stringResource(id = org.smartregister.fhircore.quest.R.string.loading_patients)
                 } else {
                     stringResource(id = org.smartregister.fhircore.quest.R.string.no_patients_added)

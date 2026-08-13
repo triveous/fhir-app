@@ -32,6 +32,7 @@ import androidx.activity.viewModels
 import androidx.core.os.bundleOf
 import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.withStarted
 import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.fhir.datacapture.QuestionnaireFragment
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -39,7 +40,6 @@ import com.google.android.gms.location.LocationServices
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.BooleanType
-import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.IdType
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
@@ -57,6 +57,7 @@ import org.smartregister.fhircore.engine.ui.base.AlertDialogue
 import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
+import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
 import org.smartregister.fhircore.engine.util.extension.clearText
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.engine.util.extension.logicalId
@@ -65,14 +66,13 @@ import org.smartregister.fhircore.engine.util.extension.parcelableArrayList
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.databinding.QuestionnaireActivityBinding
-import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_LINK_ID
 import org.smartregister.fhircore.quest.util.DeviceMetrics
 import org.smartregister.fhircore.quest.util.LocationUtils
 import org.smartregister.fhircore.quest.util.PermissionUtils
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.ResourceUtils
-import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
 import timber.log.Timber
@@ -144,6 +144,37 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           },
         )
         finish()
+      } else if (submissionQRResult != null) {
+        // The case was already saved before AIResultActivity was launched, so dismissing that
+        // screen (e.g. system back) cannot undo the submission. Close this activity with the
+        // saved result; returning to the stale form would let the user submit the same case
+        // again and register a duplicate.
+        PostHogAnalytics.capture(
+          PostHogAnalytics.Events.QUESTIONNAIRE_SUBMITTED,
+          questionnaireAnalyticsProps(
+            PostHogAnalytics.Props.REFER_CASE to false,
+            PostHogAnalytics.Props.AI_VERDICT to
+              (if (isSuspiciousResult) "suspicious" else "non_suspicious"),
+            PostHogAnalytics.Props.AI_OVERRIDDEN to false,
+          ),
+        )
+        ScreeningTimer.end(
+          screeningId,
+          outcome = "submitted",
+          extraProps =
+            screeningCompletionProps(
+              PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspiciousResult,
+            ),
+        )
+        setResult(
+          Activity.RESULT_OK,
+          Intent().apply {
+            putExtra(QUESTIONNAIRE_RESPONSE, submissionQRResult as Serializable)
+            putExtra(QUESTIONNAIRE_SUBMISSION_EXTRACTED_RESOURCE_IDS, submissionIdTypes as Serializable)
+            putExtra(QUESTIONNAIRE_CONFIG, questionnaireConfig as Parcelable)
+          },
+        )
+        finish()
       }
     }
 
@@ -170,6 +201,11 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       screeningId = ScreeningTimer.start(DeviceMetrics.batteryPct(this))
     }
 
+    // Set up the toolbar before anything that can suspend or bail out, so the screen never shows the
+    // layout's design-time defaults. Previously this ran inside renderQuestionnaire(), which is
+    // skipped on a recreated activity, leaving the placeholder title on screen.
+    setupQuestionnaireToolbar()
+
     viewModel.questionnaireProgressStateLiveData.observe(this) { progressState ->
       alertDialog =
         if (progressState?.active == false) {
@@ -186,7 +222,20 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
         }
     }
 
-    if (savedInstanceState == null) renderQuestionnaire()
+    // Always (re)build the form, never only on first creation. Turning on battery saver flips the
+    // system into dark mode, and that `uiMode` configuration change destroys and recreates this
+    // activity; a low-memory kill or a crash restore does the same. `savedInstanceState` is then
+    // non-null, and because onSaveInstanceState() wipes the bundle the FragmentManager has no
+    // QuestionnaireFragment to restore either — so skipping the call left the user on an empty
+    // white container. renderQuestionnaire() is idempotent: it no-ops when the fragment is attached.
+    if (savedInstanceState != null) {
+      Timber.i("QuestionnaireActivity recreated; rebuilding questionnaire ${questionnaireConfig.id}")
+      PostHogAnalytics.capture(
+        PostHogAnalytics.Events.QUESTIONNAIRE_RECREATED,
+        questionnaireAnalyticsProps(),
+      )
+    }
+    renderQuestionnaire()
 
     PostHogAnalytics.captureScreenView("QuestionnaireActivity")
     PostHogAnalytics.capture(
@@ -309,24 +358,27 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     outState.clear()
   }
 
+  /** Applies the toolbar chrome. Safe to call on every creation, including a recreated activity. */
+  private fun setupQuestionnaireToolbar() {
+    with(viewBinding) {
+      questionnaireToolbar.apply {
+        setNavigationIcon(R.drawable.ic_arrow_back)
+        setNavigationOnClickListener { handleBackPress() }
+      }
+      questionnaireTitle.apply { text = getString(R.string.add_case) }
+      clearAll.apply {
+        visibility = if (questionnaireConfig.showClearAll) View.VISIBLE else View.GONE
+        setOnClickListener {
+          // TODO Clear current QuestionnaireResponse items -> SDK
+        }
+      }
+    }
+  }
+
   private fun renderQuestionnaire() {
     lifecycleScope.launch {
       if (supportFragmentManager.findFragmentByTag(QUESTIONNAIRE_FRAGMENT_TAG) == null) {
         viewModel.setProgressState(QuestionnaireProgressState.QuestionnaireLaunch(true))
-        with(viewBinding) {
-          questionnaireToolbar.apply {
-            setNavigationIcon(R.drawable.ic_arrow_back)
-            setNavigationOnClickListener { handleBackPress() }
-          }
-          questionnaireTitle.apply { text = getString(R.string.add_case) }
-          clearAll.apply {
-            visibility = if (questionnaireConfig.showClearAll) View.VISIBLE else View.GONE
-            setOnClickListener {
-              // TODO Clear current QuestionnaireResponse items -> SDK
-            }
-          }
-        }
-
 
         questionnaire = viewModel.retrieveQuestionnaire(questionnaireConfig, actionParameters,sharedPreferencesHelper.getLanguageCode())
 
@@ -344,9 +396,15 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
 
         try {
           val questionnaireFragmentBuilder = buildQuestionnaireFragment(loadedQuestionnaire)
-          supportFragmentManager.commit {
-            setReorderingAllowed(true)
-            add(R.id.container, questionnaireFragmentBuilder.build(), QUESTIONNAIRE_FRAGMENT_TAG)
+          // Loading the questionnaire suspends, so by now the user may have backgrounded the app and
+          // the FragmentManager may have saved its state — commit() throws IllegalStateException in
+          // that window. Waiting for STARTED commits when the user comes back instead of crashing or
+          // dropping the transaction and leaving the container empty.
+          withStarted {
+            supportFragmentManager.commit {
+              setReorderingAllowed(true)
+              add(R.id.container, questionnaireFragmentBuilder.build(), QUESTIONNAIRE_FRAGMENT_TAG)
+            }
           }
 
           registerFragmentResultListener()
@@ -534,6 +592,16 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           finish()
         }
         if (questionnaireResponse != null && questionnaire != null) {
+          // Single submission per questionnaire session: a double-tap on submit delivers this
+          // fragment result twice and each pass would extract + save a brand new Patient,
+          // producing the duplicate case registrations seen in production.
+          if (!viewModel.tryStartSubmission()) {
+            Timber.w(
+              "Ignoring duplicate submission of questionnaire ${questionnaireConfig.id}; " +
+                "a submission is already in progress or completed",
+            )
+            return@launch
+          }
           viewModel.run {
             if (currentLocation != null) {
               questionnaireResponse.contained.add(
@@ -544,46 +612,51 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             // set author
             questionnaireResponse.author = ref
 
-            Timber.d("=== Starting DocumentReference update processing ===")
-            for (item in questionnaireResponse.item) {
-              if (item.linkId == "screening-group"){
-                Timber.d("Found screening-group for DocumentReference updates")
-                item.item.forEach{ group ->
-                  if (group.linkId == "patient-screening-image-group"){
-                    Timber.d("Found patient-screening-image-group for DocumentReference updates")
-                    group.item.forEach{ image ->
-                      // Skip AI result items in this loop too
-                      if (image.linkId.endsWith("-ai-result")) {
-                        Timber.d("Skipping AI result item in DocumentReference loop: ${image.linkId}")
-                        return@forEach
-                      }
-
-                      Timber.d("Processing DocumentReference for image: ${image.linkId}")
-                      image.answer.forEach{
-                        it.valueAttachment?.let { attachment ->
-                          val documentReferenceId = extractDocumentReferenceIdFromUrl(attachment.url)
-                          if (documentReferenceId != null) {
-                            try {
-                              val fetchedDocumentReference = fhirEngine.get(ResourceType.DocumentReference, documentReferenceId) as DocumentReference
-                              if(fetchedDocumentReference.description == DocumentReferenceCaseType.DRAFT.name){
-                                fetchedDocumentReference.description = DocumentReferenceCaseType.SUBMITTED.name
-                                fhirEngine.update(fetchedDocumentReference)
-                                Timber.i("DocumentReference $documentReferenceId description updated to SUBMITTED")
-                              }
-                            } catch (e: Exception) {
-                              Timber.e(e, "Error updating DocumentReference status for ID: $documentReferenceId")
-                            }
-                          } else {
-                            Timber.w("Could not extract DocumentReference ID from URL: ${attachment.url}")
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
+            // Reconcile the screening-image DocumentReferences against the local engine (flip
+            // DRAFT -> SUBMITTED, drop any answer whose DocumentReference is missing locally). The
+            // logic lives in the ViewModel so it is unit tested; the Activity only turns the missing
+            // -reference result into analytics.
+            val docReferenceReconciliation =
+              viewModel.reconcileDocumentReferencesForSubmission(questionnaireResponse)
+            docReferenceReconciliation.missingReferences.forEach { missing ->
+              PostHogAnalytics.captureError(
+                "QuestionnaireActivity",
+                "DocumentReference missing at submit",
+                mapOf(
+                  PostHogAnalytics.Props.DOCUMENT_ID to missing.documentReferenceId,
+                  "link_id" to missing.linkId,
+                  PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id,
+                  PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                ),
+              )
             }
-            Timber.d("=== Finished DocumentReference update processing ===")
+            // The document could not be flipped to SUBMITTED, so the sync worker will never see it
+            // and its image will never leave the device — silent until now.
+            docReferenceReconciliation.failedFlips.forEach { failed ->
+              PostHogAnalytics.captureError(
+                "QuestionnaireActivity",
+                "DocumentReference flip to SUBMITTED failed; image will not upload",
+                mapOf(
+                  PostHogAnalytics.Props.DOCUMENT_ID to failed.documentReferenceId,
+                  "link_id" to failed.linkId,
+                  PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id,
+                  PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                ),
+              )
+            }
+            // Not an error: the image was uploaded and the local row purged, so the reference the
+            // response carries still resolves. Tracked separately so it never gets confused with
+            // the dangling-reference case above.
+            docReferenceReconciliation.uploadedButPurgedIds.forEach { documentId ->
+              PostHogAnalytics.capture(
+                AnalyticsLogger.Events.DOCUMENT_REFERENCE_RESOLVED_FROM_LEDGER,
+                mapOf(
+                  PostHogAnalytics.Props.DOCUMENT_ID to documentId,
+                  PostHogAnalytics.Props.QUESTIONNAIRE_ID to questionnaireConfig.id,
+                  PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                ),
+              )
+            }
 
             val aiEnabled = featureFlagUtil.isAiInferenceEnabled()
 
@@ -632,6 +705,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 questionnaireConfig = questionnaireConfig,
                 actionParameters = actionParameters,
                 context = this@QuestionnaireActivity,
+                onSubmissionAbandoned = ::releaseQuestionnaireSubmissionLock,
+                onIncompleteSubmission = ::reportIncompleteSubmission,
               ) { idTypes, qrResult ->
                 viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
                 submissionIdTypes = idTypes
@@ -663,6 +738,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 questionnaireConfig = questionnaireConfig,
                 actionParameters = actionParameters,
                 context = this@QuestionnaireActivity,
+                onSubmissionAbandoned = ::releaseQuestionnaireSubmissionLock,
+                onIncompleteSubmission = ::reportIncompleteSubmission,
               ) { idTypes, qrResult ->
                 viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
                 ScreeningTimer.markStep(screeningId, "submission_completed")
@@ -703,38 +780,66 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     return searchItems(questionnaire.item)
   }
 
-  private fun extractDocumentReferenceIdFromUrl(url: String?): String? {
-    if (url == null) return null
-    // Example URL:  http://your-fhir-server/DocumentReference/123/$binary-access-read...
-    val regex = Regex("DocumentReference/([^/]+)/")  // Much more robust regex.
-    val matchResult = regex.find(url)
-    return matchResult?.groupValues?.get(1) // The ID is the first captured group.
-  }
-
   private fun handleBackPress() {
+    // A submission owns the screen from the moment the user taps Submit. Extraction, the
+    // DocumentReference reconciliation and — when the AI flag is on — image inference all run
+    // *before* the progress dialog goes up, so for several seconds there is no modal to swallow the
+    // hardware back button. Saving a draft in that window is what produced the case-plus-draft pair
+    // QA reported: reopening that draft and submitting it registered the case a second time, minus
+    // the screening images, because the first submission had already flipped those
+    // DocumentReferences to SUBMITTED and the sync worker had purged them locally.
+    if (viewModel.isSubmissionInFlight()) {
+      Timber.w(
+        "Back pressed while questionnaire ${questionnaireConfig.id} is being submitted; ignoring",
+      )
+      PostHogAnalytics.capture(
+        PostHogAnalytics.Events.BACK_PRESSED_DURING_SUBMISSION,
+        questionnaireAnalyticsProps(),
+      )
+      showToast(getString(R.string.submission_in_progress))
+      return
+    }
+
     if (questionnaireConfig.isReadOnly()) {
       finish()
     } else if (questionnaireConfig.saveDraft) {
+      // One draft per session. Repeated fast presses used to stack a progress dialog, a
+      // saveDraftQuestionnaire() call and a leaked observeForever() each; and because _isDraftSaved
+      // latches to true and was never reset, every observer registered after the first fired
+      // immediately, dismissing the dialog and finishing the activity before its own write landed.
+      if (!viewModel.tryStartDraftSave()) {
+        Timber.d("Draft save already under way for ${questionnaireConfig.id}; ignoring back press")
+        return
+      }
+
       val dialogue = AlertDialogue.showProgressAlert(this, R.string.extraction_in_progress)
 
       lifecycleScope.launch {
-        retrieveQuestionnaireResponse()?.let { questionnaireResponse ->
-          viewModel.isDraftSaved.observeForever {
-            if (it){
-              PostHogAnalytics.capture(
-                PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_SAVED,
-                questionnaireAnalyticsProps(),
-              )
-              ScreeningTimer.end(
-                screeningId,
-                outcome = "draft_saved",
-                extraProps = screeningCompletionProps(),
-              )
-              dialogue.dismiss()
-              finish()
-            }
+        val questionnaireResponse = retrieveQuestionnaireResponse()
+        if (questionnaireResponse == null) {
+          // Nothing to save — but the dialog is already up, so it has to come down explicitly or
+          // the user is stranded on a spinner.
+          Timber.w("No questionnaire response to save as draft for ${questionnaireConfig.id}")
+          dialogue.dismiss()
+          finish()
+          return@launch
+        }
+        viewModel.saveDraftQuestionnaire(questionnaireResponse) { draftSaved ->
+          // An untouched form is abandoned, not drafted — reporting it as a saved draft would
+          // overstate draft usage and hide how often FLWs open the form and back straight out.
+          if (draftSaved) {
+            PostHogAnalytics.capture(
+              PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_SAVED,
+              questionnaireAnalyticsProps(),
+            )
           }
-          viewModel.saveDraftQuestionnaire(questionnaireResponse)
+          ScreeningTimer.end(
+            screeningId,
+            outcome = if (draftSaved) "draft_saved" else "abandoned",
+            extraProps = screeningCompletionProps(),
+          )
+          dialogue.dismiss()
+          finish()
         }
       }
     } else {
@@ -805,6 +910,42 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private suspend fun retrieveQuestionnaireResponse(): QuestionnaireResponse? =
     (supportFragmentManager.findFragmentByTag(QUESTIONNAIRE_FRAGMENT_TAG) as QuestionnaireFragment?)
       ?.getQuestionnaireResponse()
+
+  /**
+   * Names the required questions that stopped the submission, so the user can go and fill them in
+   * rather than tapping a submit button that keeps refusing without saying why. Nothing has been
+   * saved at this point, and [releaseQuestionnaireSubmissionLock] follows, so the form stays open
+   * and submittable.
+   */
+  private fun reportIncompleteSubmission(unanswered: List<UnansweredRequiredQuestion>) {
+    PostHogAnalytics.capture(
+      PostHogAnalytics.Events.SUBMISSION_BLOCKED_INCOMPLETE,
+      questionnaireAnalyticsProps(
+        "missing_link_ids" to unanswered.joinToString { it.linkId },
+        "missing_count" to unanswered.size,
+      ),
+    )
+    AlertDialogue.showErrorAlert(
+      context = this,
+      message =
+        getString(
+          R.string.submission_blocked_message,
+          unanswered.joinToString(separator = "\n") { "• ${it.label}" },
+        ),
+      title = getString(R.string.submission_blocked_title),
+    )
+  }
+
+  /**
+   * Lets the user submit again after a submission that saved nothing. The data capture library locks
+   * its submit button when it hands over a response and holds the lock for the whole
+   * extract-and-save window — that is what stops repeated taps registering the same case twice — so
+   * an abandoned submission has to hand the button back explicitly.
+   */
+  private fun releaseQuestionnaireSubmissionLock() {
+    (supportFragmentManager.findFragmentByTag(QUESTIONNAIRE_FRAGMENT_TAG) as QuestionnaireFragment?)
+      ?.releaseSubmissionLock()
+  }
 
   companion object {
 

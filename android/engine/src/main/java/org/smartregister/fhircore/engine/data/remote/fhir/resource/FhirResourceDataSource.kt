@@ -20,6 +20,7 @@ import javax.inject.Inject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.OperationOutcome
 import org.hl7.fhir.r4.model.Resource
@@ -64,4 +65,7 @@ class FhirResourceDataSource @Inject constructor(private val resourceService: Fh
 
   suspend fun search(resourceType: String, searchParameters: Map<String, String>): Bundle =
     resourceService.searchResource(resourceType, searchParameters)
+
+  /** Direct instance read of a [Basic] resource; bypasses HAPI's search-results cache. */
+  suspend fun getBasic(resourceId: String): Basic = resourceService.getBasicResource(resourceId)
 }

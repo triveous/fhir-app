@@ -17,7 +17,7 @@ core-testing = "2.2.0"
 coreSplashscreen = "1.0.1"
 coverallsGradlePlugin = "2.12.0"
 cqfFhirCr = "3.0.0-PRE9"
-data-capture = "1.1.0-preview12-build7-SNAPSHOT"
+data-capture = "1.1.0-preview12-build8-SNAPSHOT"
 datastore = "1.0.0"
 desugar-jdk-libs = "2.0.4"
 dokkaBase = "1.8.20"
@@ -57,7 +57,7 @@ navigation = "2.7.7"
 okhttp = "4.12.0"
 okhttp-logging-interceptor = "4.11.0"
 orchestrator = "1.4.2"
-p2p-lib = "0.6.11-SNAPSHOT"
+p2p-lib = "0.6.11"
 androidx-paging = "3.2.0"
 playServicesLocation = "21.2.0"
 preference-ktx = "1.2.1"
@@ -175,8 +175,11 @@ navigation-ui-ktx = { group = "androidx.navigation", name = "navigation-ui-ktx",
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp-logging-interceptor" }
 orchestrator = { group = "androidx.test", name = "orchestrator", version.ref = "orchestrator" }
-#p2p-lib = { group = "org.smartregister", name = "p2p-lib", version.ref = "p2p-lib" }
-p2p-lib = { group = "com.github.onaio", name = "android-p2p", version = "main-SNAPSHOT" }
+# Was com.github.onaio:android-p2p:main-SNAPSHOT via JitPack, which stopped resolving once JitPack's
+# build of that branch started failing ("No build artifacts found") — a moving target no local cache
+# could survive, because cacheChangingModulesFor(0) re-resolves it on every build. 0.6.11 is the
+# released artifact on Maven Central and is what opensrp/fhircore main uses.
+p2p-lib = { group = "org.smartregister", name = "p2p-lib", version.ref = "p2p-lib" }
 paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "androidx-paging" }
 paging-runtime-ktx = { group = "androidx.paging", name = "paging-runtime-ktx", version.ref = "androidx-paging" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }

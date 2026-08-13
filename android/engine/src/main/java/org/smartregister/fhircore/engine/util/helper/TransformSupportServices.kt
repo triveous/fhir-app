@@ -56,7 +56,11 @@ class TransformSupportServices @Inject constructor(val simpleWorkerContext: Simp
   val outputs: MutableList<Base> = mutableListOf()
 
   override fun log(message: String) {
-    Timber.i(message)
+    // Debug, not info: the StructureMap engine calls this for every rule and every condition it
+    // evaluates, so one questionnaire extraction produces dozens of lines. At info level ReleaseTree
+    // forwarded each one to analytics as an `info_log` event — 71% of everything the project
+    // ingested. Kept at debug so it still shows in logcat when diagnosing an extraction locally.
+    Timber.d(message)
   }
 
   @Throws(FHIRException::class)

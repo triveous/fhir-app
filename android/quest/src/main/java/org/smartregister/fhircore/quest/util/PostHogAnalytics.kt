@@ -24,9 +24,31 @@ object PostHogAnalytics {
         const val SYNC_INITIATED = "sync_initiated"
         const val SYNC_COMPLETED = "sync_completed"
         const val QUESTIONNAIRE_OPENED = "questionnaire_opened"
+
+        /**
+         * The questionnaire screen was destroyed and recreated (configuration change, low-memory
+         * kill or crash restore) and the form had to be rebuilt from scratch. Any answers the user
+         * had already typed are gone, so a spike here explains abandoned screenings.
+         */
+        const val QUESTIONNAIRE_RECREATED = "questionnaire_recreated"
         const val QUESTIONNAIRE_SUBMITTED = "questionnaire_submitted"
         const val QUESTIONNAIRE_DRAFT_SAVED = "questionnaire_draft_saved"
+
+        /**
+         * The user pressed back while a submission was already in flight and the press was refused.
+         * Expected to be rare; a spike means submissions are slow enough that FLWs give up on them,
+         * which is worth chasing before they start losing confidence in the submit button.
+         */
+        const val BACK_PRESSED_DURING_SUBMISSION = "back_pressed_during_submission"
         const val QUESTIONNAIRE_DRAFT_DELETED = "questionnaire_draft_deleted"
+
+        /**
+         * A submission stopped at the post-extraction guardrail because required questions had no
+         * answer. The data capture library should already have caught this on its own submit
+         * button, so every one of these means something downstream emptied an answer — worth an
+         * alert, not just a count.
+         */
+        const val SUBMISSION_BLOCKED_INCOMPLETE = "submission_blocked_incomplete"
         const val AI_INFERENCE_COMPLETED = "ai_inference_completed"
         const val AI_RESULT_VIEWED = "ai_result_viewed"
         const val AI_REFER_CASE = "ai_refer_case"

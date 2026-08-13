@@ -146,6 +146,10 @@ fun AIResultScreen(
     onRefer: () -> Unit
 ) {
     val context = LocalContext.current
+    // The case is already saved when this screen opens, so system back must report a result
+    // (RESULT_OK, refer_case=false) like the Done button instead of returning the user to the
+    // already-submitted form, where submitting again would register a duplicate case.
+    BackHandler(onBack = onClose)
     val backgroundColor = if (isSuspicious) Colors.CORNSILK else LighterBlue
     val title = if (isSuspicious) stringResource(R.string.add_patient) else "AI Result"
     var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }

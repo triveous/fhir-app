@@ -36,9 +36,11 @@ import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.launchActivityWithNoBackStackHistory
+import org.smartregister.fhircore.quest.ui.appsetting.AppSettingActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.pin.PinLoginActivity
 import org.smartregister.p2p.P2PLibrary
+import timber.log.Timber
 
 @AndroidEntryPoint
 open class LoginActivity : BaseMultiLanguageActivity() {
@@ -53,6 +55,18 @@ open class LoginActivity : BaseMultiLanguageActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     this.applyWindowInsetListener()
+
+    // After process death the OS can recreate this activity directly, bypassing the
+    // AppSettingActivity bootstrap that loads the application configuration into memory. In that
+    // state reading the application configuration (e.g. pinEnabled() in navigateToScreen() below)
+    // throws NoSuchElementException ("Key application is missing in the map"). Detect the missing
+    // configuration and restart from the app's entry point, which reloads it from the local
+    // database before navigating back here.
+    if (!loginViewModel.isApplicationConfigurationLoaded()) {
+      Timber.w("Application configuration not loaded (process recreated); restarting bootstrap")
+      launchActivityWithNoBackStackHistory<AppSettingActivity>()
+      return
+    }
 
     // Cancel sync background job to get new auth token; login required, refresh token expired
     val cancelBackgroundSync =

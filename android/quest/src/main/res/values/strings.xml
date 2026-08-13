@@ -23,6 +23,7 @@
     <string name="upload_document">Upload Document</string>
     <string name="upload_failed">Upload failed</string>
     <string name="image_capture_failed">Image capture failed</string>
+    <string name="processing_image">Processing image…</string>
     <string name="upload_file">Upload File</string>
     <string name="upload_photo">Upload Photo</string>
     <string name="upload_video">Upload Video</string>
@@ -127,6 +128,10 @@
     <string name="questionnaire_not_found">This form is still being downloaded. Please wait for the sync to finish and try again.</string>
     <string name="no_visits">No visits</string>
     <string name="questionnaire_response_invalid">Please update the fields properly before submitting</string>
+    <string name="submission_blocked_title">Case not submitted</string>
+    <string name="submission_blocked_message">These required questions still need an answer:\n\n%1$s\n\nPlease fill them in and submit again.</string>
+    <string name="questionnaire_submission_failed">Something went wrong while saving the case. Please close the form and check the register before trying again.</string>
+    <string name="submission_in_progress">Saving the case… please wait.</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>
     <string name="application_version" translatable="false">Application Version</string>
     <string name="missing_subject_type">Missing subject type on questionnaire. Provide Questionnaire.subjectType to resolve.</string>
@@ -234,6 +239,8 @@
     <string name="retake_photo">RETAKE PHOTO</string>
     <string name="image_saved">Image Saved</string>
     <string name="sync_status">Sync Status</string>
+    <string name="loading_sync_status">Checking sync status…</string>
+    <string name="sync_status_load_failed">Couldn\'t check the current sync status. Try again.</string>
     <string name="sync_now">Sync now</string>
     <string name="syncing">Syncing…</string>
     <string name="sync_in_progress">Please wait, sync is in progress</string>

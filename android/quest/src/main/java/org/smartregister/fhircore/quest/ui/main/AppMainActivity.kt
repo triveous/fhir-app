@@ -180,6 +180,8 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
 //        retrieveAppMainUiState()
         if (isDeviceOnline()) {
           appMainViewModel.setPostHogUserProperties()
+          // Collects sync statuses for the lifetime of this activity and so never returns; nothing
+          // may be added after it inside this coroutine.
           syncBroadcaster.schedulePeriodicSync(applicationConfiguration.syncInterval)
         } else {
           showToast(
@@ -188,6 +190,7 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
           )
         }
       }
+      lifecycleScope.launch { resumeIncompleteFirstTimeSync(this@AppMainActivity) }
       schedulePeriodicJobs()
     }
   }

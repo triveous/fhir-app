@@ -1,0 +1,15 @@
+<!--
+  Bold circular sync arrows drawn to stay legible at ~12dp inside the cloud of
+  ic_cases_sync. Two 130-degree annular arcs (stroke 3.2 of a 24 viewport) with
+  triangular arrowheads pointing counter-clockwise - the direction SyncArrows
+  rotates the glyph while a sync is running.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <path
+      android:pathData="M20.16,8.2 A9,9 0 0 0 3.84,8.2 L6.74,9.55 A5.8,5.8 0 0 1 17.26,9.55 Z M3.8,12.71 L2.7,6.93 L8.49,9.15 Z M3.84,15.8 A9,9 0 0 0 20.16,15.8 L17.26,14.45 A5.8,5.8 0 0 1 6.74,14.45 Z M20.2,11.29 L21.3,17.07 L15.51,14.85 Z"
+      android:fillColor="#ffffff"/>
+</vector>

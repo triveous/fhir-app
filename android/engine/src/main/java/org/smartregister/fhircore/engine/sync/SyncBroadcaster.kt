@@ -17,6 +17,7 @@
 package org.smartregister.fhircore.engine.sync
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.work.Constraints
 import androidx.work.NetworkType
 import androidx.work.OutOfQuotaPolicy
@@ -40,6 +41,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -67,10 +69,7 @@ constructor(
    */
   suspend fun runOneTimeSync() = coroutineScope {
     Timber.i("Running one time sync...")
-    if (AppSyncWorker.mutex.isLocked) {
-      Timber.i("Sync already running; skipping one time sync request")
-      return@coroutineScope
-    }
+    if (!shouldStartOneTimeSync("one time sync request")) return@coroutineScope
     Sync.oneTimeSync<AppSyncWorker>(context).handleOneTimeSyncJobStatus(this)
   }
 
@@ -80,11 +79,35 @@ constructor(
    */
   suspend fun runOneTimeSync(expedited: OutOfQuotaPolicy? = null) = coroutineScope {
     Timber.i("Running one time sync with expedited...")
-    if (AppSyncWorker.mutex.isLocked) {
-      Timber.i("Sync already running; skipping expedited one time sync request")
-      return@coroutineScope
-    }
+    if (!shouldStartOneTimeSync("expedited one time sync request")) return@coroutineScope
     Sync.oneTimeSync<AppSyncWorker>(context, expedited = expedited).handleOneTimeSyncJobStatus(this)
+  }
+
+  /**
+   * Whether a one-time sync is worth enqueuing right now.
+   *
+   * Unlike the periodic request — which carries a `NetworkType.CONNECTED` constraint, so WorkManager
+   * simply holds it until the device is back online — the SDK builds the one-time request with **no
+   * constraints** (`Sync.createOneTimeWorkRequest`). Enqueued on an offline device it therefore runs
+   * straight away and fails its way through the whole worker: the metadata sync, the feature-flag
+   * refresh, and a server lookup for every pending screening photo. Nothing is gained (the records
+   * stay queued as local changes either way) and the run costs battery, fills error tracking with
+   * failures that only mean "no signal", and skews the sync analytics.
+   *
+   * Skipping loses nothing: whatever was just saved travels on the next sync, and the periodic
+   * worker is already scheduled with a connectivity constraint to run it once there is a network.
+   */
+  @VisibleForTesting
+  internal fun shouldStartOneTimeSync(request: String): Boolean {
+    if (AppSyncWorker.mutex.isLocked) {
+      Timber.i("Sync already running; skipping $request")
+      return false
+    }
+    if (!context.isDeviceOnline()) {
+      Timber.i("Device is offline; skipping $request. It will sync on the next periodic run.")
+      return false
+    }
+    return true
   }
 
   /**
@@ -114,7 +137,11 @@ constructor(
         onSyncListener.onSync(it.currentSyncJobStatus)
       }
     }
-      .catch { throwable -> Timber.e("Encountered an error during periodic sync:", throwable) }
+      // Throwable first: Timber.e(message, throwable) binds to e(String, vararg args), which treats
+      // the throwable as a format argument and drops it when the message has no placeholder. That
+      // left every periodic-sync failure reported as a bare string with no reason and no stack
+      // trace, and stopped ReleaseTree routing it to error tracking as an exception.
+      .catch { throwable -> Timber.e(throwable, "Encountered an error during periodic sync") }
       .shareIn(coroutineScope, SharingStarted.Eagerly, 1)
       .launchIn(coroutineScope)
   }
@@ -125,7 +152,8 @@ constructor(
     this.onEach {
       syncListenerManager.onSyncListeners.forEach { onSyncListener -> onSyncListener.onSync(it) }
     }
-      .catch { throwable -> Timber.e("Encountered an error during one time sync:", throwable) }
+      // Throwable first — see the periodic-sync note above.
+      .catch { throwable -> Timber.e(throwable, "Encountered an error during one time sync") }
       .shareIn(coroutineScope, SharingStarted.Eagerly, 1)
       .launchIn(coroutineScope)
   }

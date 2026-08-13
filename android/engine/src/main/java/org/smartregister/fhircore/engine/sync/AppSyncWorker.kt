@@ -21,7 +21,9 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.net.Uri
+import android.os.SystemClock
 import android.provider.Settings
+import androidx.annotation.VisibleForTesting
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.hilt.work.HiltWorker
@@ -42,10 +44,19 @@ import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
 import com.google.android.fhir.sync.upload.UploadStrategy
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.TypeAdapter
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonWriter
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
@@ -68,8 +79,11 @@ import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.CON
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_EXTENSION
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.DOC_STATUS
 import org.smartregister.fhircore.engine.domain.networkUtils.WorkerConstants.REPLACE
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
+import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
 import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
 import org.smartregister.fhircore.engine.util.analytics.AnalyticsLoggerEntryPoint
 import org.smartregister.fhircore.engine.util.extension.logicalId
@@ -77,9 +91,27 @@ import org.smartregister.fhircore.engine.util.notificationHelper.CHANNEL_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.NOTIFICATION_ID
 import org.smartregister.fhircore.engine.util.notificationHelper.createNotification
 import timber.log.Timber
-import java.io.FileNotFoundException
 import java.util.Date
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
+/**
+ * The app's one and only sync worker. A run does two things, in this order:
+ *
+ * 1. **Metadata sync** — [FhirSyncWorker.doWork] uploads every pending local change and downloads
+ *    the practitioner's data. Screening photos are not part of this. A DocumentReference travels
+ *    here as ordinary FHIR, carrying no image bytes.
+ * 2. **Image upload** — [performDocumentReferenceUpload] then walks the DocumentReferences of
+ *    submitted cases and pushes each photo up with HAPI's `$binary-access-write` operation.
+ *
+ * Knowing the split explains most of the care in this file. A submitted QuestionnaireResponse
+ * already contains the image URL, built from the DocumentReference id at capture time. Phase 1
+ * publishes that URL; phase 2 is what makes it resolve. In between, the id points at nothing — which
+ * is fine and temporary, *provided the local row survives to be retried*. So the rule throughout is:
+ * never delete the local row or the local JPEG until the server is known to hold the image.
+ *
+ * Only one run happens at a time; a second worker sees [mutex] held and returns success immediately.
+ */
 @HiltWorker
 class AppSyncWorker
 @AssistedInject
@@ -92,8 +124,39 @@ constructor(
     private val fhirResourceService: FhirResourceService,
     val secureSharedPreference: SecureSharedPreference,
     private val sharedPreferencesHelper: SharedPreferencesHelper,
-    private val gson: Gson
+    private val gson: Gson,
+    private val featureFlagUtil: FeatureFlagUtil,
+    private val uploadedDocumentReferenceLedger: UploadedDocumentReferenceLedger,
 ) : FhirSyncWorker(appContext, workerParams) {
+    /**
+     * Serializes worker progress exactly the way the FHIR SDK reads it back.
+     *
+     * [SyncJobStatus] carries `timestamp: OffsetDateTime`, and the SDK deserializes progress in
+     * `Sync.getWorkerInfo` with its own Gson, whose adapter writes that as an ISO-8601 string and
+     * reads it with `nextString()`. The injected application Gson has no `OffsetDateTime` adapter,
+     * so it reflected the value into a nested object and the SDK's reader blew up with
+     * `Expected a string but was BEGIN_OBJECT at path $.timestamp` — on the main thread, inside the
+     * LiveData-backed sync status flow.
+     *
+     * The SDK's own adapter is `internal`, so this mirrors it. Keep the two in step: this format is
+     * a wire contract with the SDK, not a local choice.
+     */
+    private val progressGson: Gson by lazy {
+        GsonBuilder()
+            .registerTypeAdapter(
+                OffsetDateTime::class.java,
+                object : TypeAdapter<OffsetDateTime>() {
+                    override fun write(out: JsonWriter, value: OffsetDateTime) {
+                        out.value(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value))
+                    }
+
+                    override fun read(input: JsonReader): OffsetDateTime =
+                        OffsetDateTime.parse(input.nextString())
+                }.nullSafe(),
+            )
+            .create()
+    }
+
     private val analyticsLogger: AnalyticsLogger by lazy {
         EntryPointAccessors.fromApplication(
             applicationContext,
@@ -104,6 +167,25 @@ constructor(
     companion object {
         val mutex = Mutex()
         val uploadImageMutex = Mutex()
+
+        private val _isSyncRunning = MutableStateFlow(false)
+
+        /**
+         * Observable mirror of [mutex]'s state, for UI that reacts to a sync starting or finishing
+         * (a [Mutex] cannot be collected). [mutex] is still the authority on whether to start work;
+         * this only reports. It is flipped alongside every lock and unlock in [doWork], so a killed
+         * process simply comes back with it `false`.
+         */
+        val isSyncRunning: StateFlow<Boolean> = _isSyncRunning.asStateFlow()
+
+        /** Drives [isSyncRunning] without running a real worker. */
+        @VisibleForTesting
+        fun setSyncRunningForTest(running: Boolean) {
+            _isSyncRunning.value = running
+        }
+        /** Depth cap when walking a cause chain, so a cyclic chain cannot spin. */
+        private const val MAX_CAUSE_DEPTH = 10
+
         const val SYNC_METADATA_SYSTEM = "http://hl7.org/fhir/codes"
         const val SYNC_METADATA_CODE = "sync-metadata"
         const val LAST_SYNC_TIME_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/last-sync-date"
@@ -113,6 +195,7 @@ constructor(
         const val IMG_UPLOAD_ERROR_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-error"
         const val IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/img-upload-failed-permanently"
         const val TIME_TAKEN_TOUPLOAD_IMG_EXTENSION = "https://midas.iisc.ac.in/fhir/StructureDefinition/time-taken-to-upload-img"
+
     }
 
     override fun getConflictResolver(): ConflictResolver = AcceptLocalConflictResolver
@@ -137,25 +220,52 @@ constructor(
     }
 
     override suspend fun doWork(): Result {
-        Timber.i("AppSyncWorker Running sync worker")
+        Timber.d("AppSyncWorker Running sync worker")
         if (!mutex.tryLock()) {
-            Timber.i("AppSyncWorker sync already running; skipping duplicate worker")
+            Timber.d("AppSyncWorker sync already running; skipping duplicate worker")
             return Result.success()
         }
+        _isSyncRunning.value = true
+
+        // Reported from the worker, not from a screen: periodic and background runs are most of the
+        // syncs that happen and none of them had a listening Activity, so until now they produced no
+        // telemetry at all. runId pairs this start with its completion below.
+        val runId = id.toString()
+        val startedAtMs = SystemClock.elapsedRealtime()
+        val firstTimeSync =
+            sharedPreferencesHelper.read(SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name, null)
+                .isNullOrEmpty()
+        captureSyncStarted(runId, firstTimeSync)
+        var syncStatus = "failed"
+        var syncError: String? = null
 
         return try {
-            Timber.i("AppSyncWorker Running within lock sync worker")
+            Timber.d("AppSyncWorker Running within lock sync worker")
+            // A worker can start in a fresh process where the AppSettingActivity bootstrap never
+            // ran, leaving the config map empty. Load configs first, or loadSyncParams() (called via
+            // getDownloadWorkManager) fails with "Key application is missing in the map".
+            syncListenerManager.configurationRegistry.loadConfigurationsIfNotLoaded(applicationContext)
             promoteToForegroundIfAllowed()
             val metaSyncResult = super.doWork()
+            // Feature flags live in an app-config Basic that the normal sync params never download,
+            // so refresh them here on every run (this never throws). A flag changed on the server is
+            // then live after one sync instead of waiting for the next login.
+            featureFlagUtil.refreshFromServer()
             val allDocUploaded = performDocumentReferenceUpload(applicationContext, id.toString())
 
             val retries = inputData.getInt("max_retires", 0)
             if (metaSyncResult.javaClass === Result.success().javaClass) {
                 when (allDocUploaded) {
-                    true -> Result.success()
+                    true -> {
+                        syncStatus = "succeeded"
+                        Result.success()
+                    }
                     false -> if (retries > runAttemptCount) {
+                        syncStatus = "retry"
+                        syncError = "Failed to upload all files"
                         Result.retry()
                     } else {
+                        syncError = "Failed to upload all files"
                         Result.failure(
                             workDataOf(
                                 "error" to Exception::class.java.name,
@@ -165,12 +275,19 @@ constructor(
                     }
                 }
             } else {
+                syncError = "Metadata sync did not succeed"
                 metaSyncResult
             }
         } catch (e: CancellationException) {
+            syncStatus = "cancelled"
+            syncError = e.describe()
             throw e
         } catch (e: Exception) {
-            Timber.e(e, "Appsync worker")
+            syncError = e.describe()
+            // This catch spans config loading, the metadata sync, the flag refresh and the image
+            // pass, so name the exception type — otherwise the report says a sync failed without
+            // saying which part of it.
+            Timber.e(e, "AppSyncWorker run failed before completing: ${e::class.java.simpleName}")
             Result.failure(
                 workDataOf(
                     "error" to e::class.java.name,
@@ -178,10 +295,96 @@ constructor(
                 ),
             )
         } finally {
+            // In the finally so a run that is cancelled or throws still reports a terminal status —
+            // those are the runs worth seeing. Also stamps LAST_SYNC_TIMESTAMP on success, which was
+            // previously only written by the Activity listener and so never updated for a background
+            // sync, leaving isFirstTimeSync() permanently true on installs that only ever synced in
+            // the background.
+            captureSyncCompleted(runId, syncStatus, SystemClock.elapsedRealtime() - startedAtMs, firstTimeSync, syncError)
+            _isSyncRunning.value = false
             mutex.unlock()
         }
     }
 
+    /**
+     * A description that is never null.
+     *
+     * [Throwable.message] is null for whole families of IO failures — `EOFException` and several
+     * `SocketException`s among them — and the analytics capture drops null properties, so those
+     * failures used to arrive carrying nothing but an exception class name. Falls back to
+     * `toString()` and appends the root cause, which is usually where the real reason is.
+     */
+    private fun Throwable.describe(): String {
+        val head = message?.takeIf { it.isNotBlank() } ?: toString()
+        // Bounded walk: a self-referencing or cyclic cause chain must not spin here.
+        var root: Throwable = this
+        repeat(MAX_CAUSE_DEPTH) {
+            val next = root.cause ?: return@repeat
+            if (next === root) return@repeat
+            root = next
+        }
+        if (root === this) return head
+        val rootMessage = root.message?.takeIf { it.isNotBlank() } ?: root.toString()
+        return "$head; caused by ${root::class.java.simpleName}: $rootMessage"
+    }
+
+    private fun captureSyncStarted(runId: String, firstTimeSync: Boolean) {
+        runCatching {
+            analyticsLogger.capture(
+                AnalyticsLogger.Events.SYNC_STARTED,
+                mapOf(
+                    AnalyticsLogger.Props.SYNC_RUN_ID to runId,
+                    AnalyticsLogger.Props.IS_FIRST_TIME_SYNC to firstTimeSync,
+                ),
+            )
+        }.onFailure { Timber.d(it, "Could not report sync start") }
+    }
+
+    private suspend fun captureSyncCompleted(
+        runId: String,
+        status: String,
+        durationMs: Long,
+        firstTimeSync: Boolean,
+        error: String?,
+    ) {
+        // NonCancellable: this runs from a finally, and on the cancellation path the coroutine is
+        // already cancelled — every suspending call below would throw immediately and the run that
+        // was killed mid-flight, the most interesting kind, would report nothing.
+        runCatching {
+            withContext(NonCancellable) {
+            if (status == "succeeded") {
+                sharedPreferencesHelper.write(
+                    SharedPreferenceKey.LAST_SYNC_TIMESTAMP.name,
+                    formatSyncTimestamp(Date()),
+                )
+            }
+            val pendingImages =
+                openSrpFhirEngine.search<DocumentReference> {}
+                    .count { it.resource.description != DocumentReferenceCaseType.DRAFT }
+            val pendingCases = openSrpFhirEngine.getUnsyncedLocalChanges().size
+            analyticsLogger.capture(
+                AnalyticsLogger.Events.SYNC_COMPLETED,
+                mapOf(
+                    AnalyticsLogger.Props.SYNC_RUN_ID to runId,
+                    AnalyticsLogger.Props.SYNC_STATUS to status,
+                    AnalyticsLogger.Props.SYNC_DURATION_MS to durationMs,
+                    AnalyticsLogger.Props.IS_FIRST_TIME_SYNC to firstTimeSync,
+                    AnalyticsLogger.Props.PENDING_IMAGES_AFTER to pendingImages,
+                    AnalyticsLogger.Props.PENDING_CASES_AFTER to pendingCases,
+                    AnalyticsLogger.Props.ERROR_MESSAGE to error,
+                ),
+            )
+            }
+        }.onFailure { Timber.d(it, "Could not report sync completion") }
+    }
+
+    private fun formatSyncTimestamp(date: Date): String =
+        java.text.SimpleDateFormat("MMM d, hh:mm aa", java.util.Locale.getDefault()).format(date)
+
+    /**
+     * Shows the sync notification if the OS will allow it, and carries on quietly if it will not.
+     * Background restrictions are a device setting, not an error worth failing the sync over.
+     */
     private suspend fun promoteToForegroundIfAllowed() {
         try {
             setForeground(getForegroundInfo())
@@ -199,6 +402,10 @@ constructor(
         }
     }
 
+    /**
+     * Whether this is the OS refusing a foreground service start. Matched by name and message
+     * because the exception class only exists from API 31 and can arrive wrapped.
+     */
     private fun Throwable.isForegroundServiceStartRestriction(): Boolean {
         var throwable: Throwable? = this
         while (throwable != null) {
@@ -213,26 +420,39 @@ constructor(
         return false
     }
 
+    /**
+     * Phase 2 of a sync: get the photo of every submitted DocumentReference onto the server.
+     *
+     * Drafts are left out — their photos belong to a case the FLW has not finished yet. For each of
+     * the rest, newest first:
+     *
+     * 1. ask the server what it already has ([getDocumentReferenceMetaDataFromServer]),
+     * 2. check whether the local JPEG is readable ([localFileState]),
+     * 3. read any local changes still queued for the resource,
+     * 4. hand all three to [decideDocumentAction] and carry out the outcome it picks.
+     *
+     * Every document ends up in exactly one [DocumentUploadTally] counter, and the run publishes a
+     * single summary event before returning.
+     *
+     * @return true only if every document is now on the server. The caller turns false into a retry.
+     */
     private suspend fun performDocumentReferenceUpload(context: Context, workerId: String): Boolean {
-        Timber.i("Starting version-aware document reference upload for worker: $workerId")
+        Timber.d("Starting version-aware document reference upload for worker: $workerId")
 
         val docReferences = openSrpFhirEngine.search<DocumentReference> {}.filter {
             it.resource.description != DocumentReferenceCaseType.DRAFT
         }.sortedByDescending { it.resource.date }
         val totalDocuments = docReferences.size
         var pendingDocuments = totalDocuments
-        var atLeastOneSuccess = false
+        val tally = DocumentUploadTally()
 
+        Timber.d("Found $totalDocuments document(s) to upload")
 
-        Timber.i("Found $totalDocuments document(s) to upload")
-
-        // Surface the image-upload phase as real sync progress. The FHIR SDK only relays worker
-        // progress that is serialized as a SyncJobStatus (keys "StateType"/"State"); the earlier
-        // custom "progress" key was silently dropped by the SDK, which is why downstream progress
-        // UIs froze at the ~99% left by the preceding metadata sync. The in-app bar is shown only
-        // for the first-time sync, but a first-time sync can still include images (cases registered
-        // before the initial sync ever succeeded), so emitting a real InProgress(UPLOAD) keeps that
-        // bar tracking uploaded/total instead of freezing.
+        // Report image upload as real sync progress. The SDK only relays worker progress that is
+        // serialized as a SyncJobStatus (the "StateType"/"State" keys), so a custom progress key is
+        // dropped and progress UIs freeze wherever the metadata sync left them. The in-app bar only
+        // shows for a first-time sync, but a first sync can still carry photos — cases registered
+        // before it ever succeeded — so emit a real InProgress(UPLOAD) to keep it moving.
         if (totalDocuments > 0) {
             setProgress(
                 buildImageUploadProgressData(uploaded = 0, total = totalDocuments),
@@ -242,28 +462,132 @@ constructor(
         val notificationManager = createNotificationChannel(context)
         val notificationBuilder = createNotificationBuilder(context, totalDocuments, pendingDocuments)
 
+        // try/finally so the summary is published even when the worker is stopped half way through —
+        // those runs are the interesting ones. `passCompleted` records which of the two happened, so
+        // a partial tally is never mistaken for a complete one.
+        var passCompleted = false
+        try {
         val result = docReferences.map {
             val uriString = it.resource.getExtensionByUrl(UPLOAD_IMAGE_URL)?.value?.asStringValue()
             if (uriString.isNullOrBlank()) {
+                // Nothing to upload and never will be. Report it, because it would otherwise drop
+                // out of the fold below without leaving any trace.
+                tally.missingFileLocation++
                 Timber.e(Exception("Empty or null URI string for document: ${it.resource.logicalId} - $pendingDocuments pending"))
+                analyticsLogger.capture(
+                    AnalyticsLogger.Events.DOCUMENT_REFERENCE_MISSING_FILE_LOCATION,
+                    mapOf(
+                        AnalyticsLogger.Props.DOCUMENT_ID to it.resource.logicalId,
+                        AnalyticsLogger.Props.PENDING_DOCUMENTS to pendingDocuments,
+                        AnalyticsLogger.Props.ERROR_MESSAGE to
+                            "DocumentReference has no file-location extension; cannot upload",
+                    ),
+                )
                 return@map it.resource to null
             }
             it.resource to uriString.toUri()
         }.filter { it.second !== null }.map {
             val docReference = it.first
-            val serverDocRef = getDocumentReferenceMetaDataFromServer(docReference)
-
-            //Image is not found on the device & server
-            if (!filesExists(it.second) && !serverDocRef.hasImageDataOnServer()){
-                if(imageNotPresentOnDeviceFinalizeDocumentOnServer(docReference)){
-                    openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
-                }
-            }
             val fileUri = it.second ?: return@map false
 
+            // Stop at a document boundary. WorkManager sets isStopped before it cancels the scope,
+            // so noticing it here avoids being killed mid-upload or mid-purge — and leaves the tally
+            // intact, which a thrown CancellationException would not.
+            if (isStopped) {
+                tally.stoppedBeforeAttempt++
+                tally.recordStuck(docReference.logicalId)
+                return@map false
+            }
+
             try {
+                val lookup = getDocumentReferenceMetaDataFromServer(docReference)
+                val fileState = applicationContext.contentResolver.localFileState(fileUri)
+                val pendingChanges =
+                    openSrpFhirEngine.getLocalChanges(docReference.resourceType, docReference.logicalId)
+
+                // decideDocumentAction owns the whole branch table so it can be unit-tested on its
+                // own; this block only carries out whichever outcome it returned.
+                //
+                // Written as an expression, not a statement, so the compiler enforces
+                // exhaustiveness: a new DocumentAction then breaks the build here instead of
+                // quietly falling through to the upload path. (A `when` statement would only warn.)
+                val proceedToUpload: Boolean =
+                    when (decideDocumentAction(lookup, fileState, pendingChanges.map { it.type })) {
+                        // Skips and defers are routine — an offline device, or one mid-submission,
+                        // hits them for every pending photo. Debug level, counted in the summary,
+                        // rather than a log line per document per sync.
+                        DocumentAction.SkipServerStateUnknown -> {
+                            tally.skippedServerUnknown++
+                            tally.recordStuck(docReference.logicalId)
+                            Timber.d(
+                                (lookup as? ServerDocumentLookup.Unavailable)?.error,
+                                "Skipping DocumentReference ${docReference.logicalId} this run; server state unknown",
+                            )
+                            false
+                        }
+
+                        DocumentAction.SkipFileStateUnknown -> {
+                            tally.skippedFileUnknown++
+                            tally.recordStuck(docReference.logicalId)
+                            Timber.d(
+                                (fileState as? LocalFileState.Unreadable)?.error,
+                                "Skipping DocumentReference ${docReference.logicalId} this run; image file state unknown",
+                            )
+                            false
+                        }
+
+                        DocumentAction.FinalizeAsImageLostAndPurge -> {
+                            // The image is gone but the server holds the resource, so the URL in the
+                            // submitted response still resolves. Note the id in the ledger before
+                            // purging: a process death between the two would otherwise leave that id
+                            // looking dangling at the next submission.
+                            tally.finalizedImageLost++
+                            if (imageNotPresentOnDeviceFinalizeDocumentOnServer(docReference)) {
+                                uploadedDocumentReferenceLedger.recordUploaded(docReference.logicalId)
+                                openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
+                            }
+                            false
+                        }
+
+                        DocumentAction.ReportImageLostKeepRow -> {
+                            // A photo that can never be recovered. Reported twice on purpose: an
+                            // exception so it reaches error tracking and can be alerted on, and an
+                            // event so it can be looked up by document id.
+                            tally.imageLostNoServerRecord++
+                            Timber.e(
+                                Exception(
+                                    "Image file missing and DocumentReference ${docReference.logicalId} absent from server",
+                                ),
+                            )
+                            analyticsLogger.capture(
+                                AnalyticsLogger.Events.DOCUMENT_REFERENCE_IMAGE_FILE_LOST,
+                                mapOf(
+                                    AnalyticsLogger.Props.DOCUMENT_ID to docReference.logicalId,
+                                    AnalyticsLogger.Props.PENDING_DOCUMENTS to pendingDocuments,
+                                    AnalyticsLogger.Props.ERROR_MESSAGE to
+                                        "Local image file is gone and the server has no DocumentReference for this id",
+                                ),
+                            )
+                            false
+                        }
+
+                        DocumentAction.DeferPendingResourceWrite -> {
+                            tally.deferredPendingWrite++
+                            tally.recordStuck(docReference.logicalId)
+                            Timber.d(
+                                "Deferring DocumentReference ${docReference.logicalId}: unsynced ${pendingChanges.map { it.type }} would be sent as a whole-resource write over the uploaded image",
+                            )
+                            false
+                        }
+
+                        DocumentAction.Upload -> true
+                    }
+                if (!proceedToUpload) return@map false
+
+                val serverDocRef = (lookup as? ServerDocumentLookup.Found)?.documentReference
+
                 uploadImageMutex.withLock {
-                    Timber.i("Processing document reference with logicalId: ${docReference.logicalId}")
+                    Timber.d("Processing document reference with logicalId: ${docReference.logicalId}")
 
                     val success =
                         uploadDocumentReferenceVersionAware(
@@ -275,23 +599,44 @@ constructor(
                         )
 
                     if (success) {
-                        // CRITICAL: Re-verify from server that image data exists before deleting locally.
-                        // This prevents data loss if the upload appeared successful but data didn't persist.
-                        val verifiedServerDoc = getDocumentReferenceMetaDataFromServer(docReference)
+                        // Read the document back before touching anything local. A write that
+                        // reported success but cannot be confirmed is not good enough to delete the
+                        // only remaining copy of the photo on.
+                        val verified = getDocumentReferenceMetaDataFromServer(docReference)
+                        val verifiedServerDoc = (verified as? ServerDocumentLookup.Found)?.documentReference
                         if (!verifiedServerDoc.hasImageDataOnServer()) {
+                            // Either the server did not keep the bytes, or this second GET failed.
+                            // Both mean the same thing: keep the local image and try again. Not data
+                            // loss — but a document that lands here on every run is stuck, so record
+                            // the id somewhere it can be queried.
+                            tally.failed++
+                            tally.recordStuck(docReference.logicalId)
                             Timber.e(Exception("SAFETY CHECK FAILED: Upload reported success but image NOT found on server for ${docReference.logicalId}. Keeping local image."))
+                            analyticsLogger.capture(
+                                AnalyticsLogger.Events.DOCUMENT_REFERENCE_UPLOAD_UNVERIFIED,
+                                mapOf(
+                                    AnalyticsLogger.Props.DOCUMENT_ID to docReference.logicalId,
+                                    AnalyticsLogger.Props.PENDING_DOCUMENTS to pendingDocuments,
+                                    AnalyticsLogger.Props.ERROR_MESSAGE to
+                                        "Upload reported success but no image data on server; keeping local copy",
+                                ),
+                            )
                             return@withLock false
                         }
 
-                        atLeastOneSuccess = true
-
-                        // Clean up local resources — server confirmed to have image data
+                        // Confirmed on the server, so the local copies can go. Ledger first: once
+                        // the row is purged, a later submission carrying this id can only tell
+                        // "uploaded" from "lost" by looking it up there.
+                        uploadedDocumentReferenceLedger.recordUploaded(docReference.logicalId)
                         openSrpFhirEngine.purge(
                             docReference.resourceType,
                             docReference.logicalId,
                             true
                         )
-                        applicationContext.contentResolver.delete(fileUri, null, null)
+                        // A JPEG we fail to delete is wasted space, not lost data. It must not mark
+                        // this document failed and send the whole sync back round to retry it.
+                        runCatching { applicationContext.contentResolver.delete(fileUri, null, null) }
+                            .onFailure { Timber.w(it, "Could not delete uploaded image file $fileUri") }
 
                         pendingDocuments--
                         updateProgress(context, notificationBuilder, totalDocuments, pendingDocuments)
@@ -303,64 +648,117 @@ constructor(
                             ),
                         )
 
-                        Timber.i("Successfully completed version-aware upload for document: ${docReference.logicalId}")
+                        tally.uploaded++
+                        Timber.d("Successfully completed version-aware upload for document: ${docReference.logicalId}")
                         true
                     } else {
-                        Timber.e(Exception("Failed version-aware upload for document: ${docReference.logicalId}"))
+                        // uploadDocumentReferenceVersionAware already reported the cause, with its
+                        // stack trace and the step it failed at. Nothing to add here.
+                        tally.failed++
+                        tally.recordStuck(docReference.logicalId)
+                        Timber.d("Failed version-aware upload for document: ${docReference.logicalId}")
                         false
                     }
                 }
+            } catch (e: CancellationException) {
+                // The worker is being stopped. Let it stop: the remaining documents must not be
+                // processed on a dead scope, where a purge could interleave with a half-finished
+                // upload.
+                throw e
             } catch (e: Exception) {
+                tally.failed++
+                tally.recordStuck(docReference.logicalId)
                 Timber.e(e, "Exception during version-aware upload for document: ${docReference.logicalId} - $pendingDocuments pending")
                 false
             }
         }.all { it }
+        // Every document now has an outcome, so the tally is complete and its sum can be checked.
+        // Whatever fails below cannot make it wrong.
+        passCompleted = true
 
         updateLastSyncDate(pendingDocuments)
         super.doWork()
 
         updateNotification(context, notificationManager, notificationBuilder, result)
-        Timber.i("Finished version-aware document reference upload for worker: $workerId")
+        Timber.d("Finished version-aware document reference upload for worker: $workerId")
         return result
+        } finally {
+            reportUploadRun(tally, totalDocuments, passCompleted)
+        }
     }
 
-private fun filesExists(uri: Uri?): Boolean {
-    if (uri == null) return false
-    return try {
-        applicationContext.contentResolver.openInputStream(uri)?.use { it.available() > 0 } ?: false
-    } catch (e: Exception) {
-        Timber.e(e, "Exception checking file existence for uri: $uri")
-        return false
+    /**
+     * Publishes the single event describing this pass: how many photos went up, and what happened to
+     * the ones that did not.
+     *
+     * Called from a `finally`, which sets two constraints. It runs on a possibly-cancelled coroutine
+     * — safe, because every call it makes is non-suspending — and it must never throw, or a
+     * telemetry failure would replace whatever actually stopped the run.
+     *
+     * Sends nothing when the device had no photos to upload; otherwise every idle sync would publish
+     * a row of zeroes.
+     *
+     * @param passCompleted false when the pass was cut short. Those runs are still reported — a
+     *   worker that keeps getting stopped is exactly what you want to see — but flagged, so a
+     *   partial tally is never read as a whole one.
+     */
+    private fun reportUploadRun(
+        tally: DocumentUploadTally,
+        totalDocuments: Int,
+        passCompleted: Boolean,
+    ) {
+        if (totalDocuments == 0) return
+
+        runCatching {
+            val unprocessed = (totalDocuments - tally.accountedFor()).coerceAtLeast(0)
+            analyticsLogger.capture(
+                AnalyticsLogger.Events.DOCUMENT_UPLOAD_RUN_COMPLETED,
+                mapOf(
+                    AnalyticsLogger.Props.TOTAL_DOCUMENTS to totalDocuments,
+                    AnalyticsLogger.Props.UPLOADED_DOCUMENTS to tally.uploaded,
+                    AnalyticsLogger.Props.FAILED_DOCUMENTS to tally.failed,
+                    AnalyticsLogger.Props.SKIPPED_SERVER_UNKNOWN to tally.skippedServerUnknown,
+                    AnalyticsLogger.Props.SKIPPED_FILE_UNKNOWN to tally.skippedFileUnknown,
+                    AnalyticsLogger.Props.DEFERRED_PENDING_WRITE to tally.deferredPendingWrite,
+                    AnalyticsLogger.Props.FINALIZED_IMAGE_LOST to tally.finalizedImageLost,
+                    AnalyticsLogger.Props.IMAGE_LOST_NO_SERVER_RECORD to tally.imageLostNoServerRecord,
+                    AnalyticsLogger.Props.MISSING_FILE_LOCATION to tally.missingFileLocation,
+                    AnalyticsLogger.Props.STOPPED_BEFORE_ATTEMPT to tally.stoppedBeforeAttempt,
+                    AnalyticsLogger.Props.RUN_COMPLETED to passCompleted,
+                    AnalyticsLogger.Props.UNPROCESSED_DOCUMENTS to unprocessed,
+                    AnalyticsLogger.Props.STUCK_DOCUMENT_IDS to tally.stuckDocumentIds(),
+                ),
+            )
+
+            // The counters should partition the documents. If they stop doing so, some outcome is no
+            // longer being counted and every query built on this event quietly under-reports — so
+            // say so loudly. Only meaningful on a completed pass; an interrupted one leaves
+            // documents uncounted by design.
+            if (passCompleted && tally.accountedFor() != totalDocuments) {
+                Timber.e(
+                    Exception(
+                        "Document upload tally mismatch: counted ${tally.accountedFor()} of $totalDocuments documents",
+                    ),
+                )
+            }
+        }.onFailure {
+            // Swallowed, and debug only: this runs while unwinding, where anything thrown would
+            // hide the real cause.
+            Timber.d(it, "Could not report document upload run")
+        }
     }
-}
 
     /**
-     * Checks if the DocumentReference on the server has been marked as 'final'.
+     * Brings one DocumentReference fully up to date on the server: resource created, bytes uploaded,
+     * status final.
+     *
+     * Each step is skipped when [serverDocRef] shows the server already has that part, which is what
+     * makes the upload resumable — an attempt interrupted after the bytes landed but before the
+     * status was patched picks up at step 3 next run instead of sending the photo again.
+     *
+     * @param serverDocRef the server's copy of the document, or null if the server answered 404.
+     * @return true if the document is complete on the server by the time this returns.
      */
-    private fun DocumentReference?.isFinalOnServer(): Boolean =
-        this?.docStatus == DocumentReference.ReferredDocumentStatus.FINAL
-
-    /**
-     * Checks if the DocumentReference on the server has an attachment with a non-zero size.
-     */
-    private fun DocumentReference?.hasImageDataOnServer(): Boolean =
-        this?.content?.any { (it.attachment?.size ?: 0) > 0 } == true
-
-    /**
-     * Checks if a record for this DocumentReference (preliminary or final) already exists on the server.
-     */
-    private fun DocumentReference?.hasRecordOnServer(): Boolean =
-        this?.docStatus in setOf(
-            DocumentReference.ReferredDocumentStatus.PRELIMINARY,
-            DocumentReference.ReferredDocumentStatus.FINAL
-        )
-
-    /**
-     * Checks if the DocumentReference on the server is complete (has data and is final).
-     */
-    private fun DocumentReference?.isCompleteOnServer(): Boolean =
-        isFinalOnServer() && hasImageDataOnServer()
-
     private suspend fun uploadDocumentReferenceVersionAware(
         docReference: DocumentReference,
         fileUri: Uri,
@@ -368,20 +766,24 @@ private fun filesExists(uri: Uri?): Boolean {
         serverDocRef: DocumentReference?,
         pendingDocuments: Int,
     ): Boolean {
+        // Set immediately before each call that can throw, so a failure names the step that broke
+        // rather than the one we were about to try.
+        var stage = UploadStage.STARTING
         return runCatching {
-            Timber.i("Starting version-aware upload for document: ${docReference.logicalId}")
+            Timber.d("Starting version-aware upload for document: ${docReference.logicalId}")
 
-            // 1. If the document is already fully uploaded and finalized, we're done.
+            // 1. Already complete on the server — nothing to do.
             if (serverDocRef.isCompleteOnServer()) {
-                Timber.i("Server already has complete DocumentReference: ${docReference.logicalId}. Skipping.")
+                Timber.d("Server already has complete DocumentReference: ${docReference.logicalId}. Skipping.")
                 return@runCatching true
             }
 
-            // 2. State correction: If local is 'final' but server is not, and image IS on server,
-            // just patch the server status. Only safe to skip upload if image is confirmed on server.
+            // 2. Local says final, server does not. If the image is confirmed up there, all that is
+            // missing is the status, so patch it and skip the upload entirely.
             if (docReference.docStatus == DocumentReference.ReferredDocumentStatus.FINAL && !serverDocRef.isFinalOnServer()) {
                 if (serverDocRef.hasImageDataOnServer()) {
-                    Timber.i("Local DocumentReference is final and image exists on server, updating server status for ${docReference.logicalId}")
+                    Timber.d("Local DocumentReference is final and image exists on server, updating server status for ${docReference.logicalId}")
+                    stage = UploadStage.FINALIZING
                     finalizeDocumentOnServer(docReference)
                     return@runCatching true
                 } else {
@@ -389,42 +791,75 @@ private fun filesExists(uri: Uri?): Boolean {
                 }
             }
 
-            // 3. Main Upload Flow: Execute steps based on server state.
+            // 3. Otherwise work through the steps the server is still missing.
 
-            // Step 3a: Create the preliminary metadata record if it doesn't exist.
-            if (!serverDocRef.hasRecordOnServer()) {
+            // Step 3a: create the resource if the server does not have it.
+            //
+            // Keyed on `serverDocRef == null`, which means the server answered 404 — deliberately
+            // not on docStatus. If the server handed us the resource then it exists, whatever its
+            // status says, and re-creating it with a metadata-only PUT would wipe the image it
+            // already holds. Its status is step 3c's problem.
+            if (serverDocRef == null) {
+                stage = UploadStage.CREATING_METADATA
                 createMetadataRecordOnServer(docReference, fileUri, context)
             }
 
-            // Step 3b: Upload the file's binary content if it's missing.
+            // Step 3b: send the bytes if the server has no image yet.
             if (!serverDocRef.hasImageDataOnServer()) {
+                stage = UploadStage.UPLOADING_BINARY
                 val timeTaken = uploadFileContent(docReference, fileUri, context, pendingDocuments)
+                stage = UploadStage.RECORDING_DURATION
                 addUploadTimeTaken(docReference, timeTaken)
-                // Track progress in-memory only. Do NOT call openSrpFhirEngine.update()
-                // here — that queues a local change, and the subsequent super.doWork()
-                // would PUT the full DocumentReference (without binary data) to the server,
-                // potentially overwriting the image we just uploaded.
+                // In memory only. Do NOT persist this with openSrpFhirEngine.update(): that queues a
+                // local change, and the metadata sync at the end of the run would then PUT the whole
+                // resource — attachment empty — straight over the image just uploaded. Not saving it
+                // costs nothing, because isCompleteOnServer() reads the status back from the server
+                // on the next run.
                 docReference.docStatus = DocumentReference.ReferredDocumentStatus.FINAL
-                openSrpFhirEngine.update(docReference)
             }
 
-            // Step 3c: Finalize the document status on the server.
+            // Step 3c: mark the document final on the server.
             if (!serverDocRef.isFinalOnServer()) {
+                stage = UploadStage.FINALIZING
                 finalizeDocumentOnServer(docReference)
             }
 
-            Timber.i("Version-aware upload completed successfully for: ${docReference.logicalId}")
+            Timber.d("Version-aware upload completed successfully for: ${docReference.logicalId}")
             true // Success
         }.onFailure { e ->
-            Timber.e(e, "Version-aware upload failed for document: ${docReference.logicalId}")
+            // runCatching catches cancellation too, so rethrow it — a stopped worker should stop,
+            // not record a failed upload and move on to the next document.
+            if (e is CancellationException) throw e
+            Timber.e(e, "Version-aware upload failed for document: ${docReference.logicalId} at stage ${stage.label}")
+            // Reported twice, for two different jobs: the exception carries the stack trace that
+            // error tracking groups on, the event carries the dimensions you can query — which step
+            // is failing, for whom, and whether it is getting worse.
+            analyticsLogger.capture(
+                AnalyticsLogger.Events.DOCUMENT_UPLOAD_ATTEMPT_FAILED,
+                mapOf(
+                    AnalyticsLogger.Props.DOCUMENT_ID to docReference.logicalId,
+                    AnalyticsLogger.Props.UPLOAD_STAGE to stage.label,
+                    AnalyticsLogger.Props.ERROR_TYPE to e::class.java.simpleName,
+                    // describe(), not e.message: the message is null for EOFException and friends,
+                    // and null properties are dropped at capture — so the one thing you need to know
+                    // (why it failed) was exactly what went missing.
+                    AnalyticsLogger.Props.ERROR_MESSAGE to e.describe(),
+                    AnalyticsLogger.Props.RESPONSE_CODE to
+                        (e as? ImageUploadAPIException)?.responseCode,
+                    AnalyticsLogger.Props.PENDING_DOCUMENTS to pendingDocuments,
+                ),
+            )
         }.getOrDefault(false)
     }
 
     /**
-     * Step 1: Creates the DocumentReference resource on the server with a 'preliminary' status.
+     * Step 1: create the resource on the server, preliminary and carrying no image bytes.
+     *
+     * Throws if the local file is unreadable, so we never publish a record for a photo we cannot
+     * actually send.
      */
     private suspend fun createMetadataRecordOnServer(docReference: DocumentReference, fileUri: Uri, context: Context) {
-        Timber.i("Step 1: Creating metadata record for ${docReference.logicalId}")
+        Timber.d("Step 1: Creating metadata record for ${docReference.logicalId}")
 
         // Ensure the local file exists before creating a server record for it.
         val fileExists = context.contentResolver.openInputStream(fileUri)?.use { it.available() > 0 } ?: false
@@ -434,18 +869,21 @@ private fun filesExists(uri: Uri?): Boolean {
 
         val metadataDocReference = docReference.copy().apply {
             docStatus = DocumentReference.ReferredDocumentStatus.PRELIMINARY
-            content.forEach { it.attachment?.data = null } // Ensure no data is embedded
+            content.forEach { it.attachment?.data = null } // The bytes go up separately, in step 2.
         }
 
         val docReferenceJson = FhirContext.forR4Cached().newJsonParser().encodeResourceToString(metadataDocReference)
         val requestBody = docReferenceJson.encodeToByteArray().toRequestBody(HEADER_APPLICATION_JSON.toMediaType())
 
         fhirResourceService.insertResource(docReference.fhirType(), docReference.logicalId, requestBody)
-        Timber.i("Step 1 completed: Metadata record created for ${docReference.logicalId}")
+        Timber.d("Step 1 completed: Metadata record created for ${docReference.logicalId}")
     }
 
     /**
-     * Step 2: Uploads the binary file content to the existing DocumentReference.
+     * Step 2: send the image bytes to `$binary-access-write`.
+     *
+     * @return how long the upload took, in milliseconds.
+     * @throws ImageUploadAPIException if the server answered with a non-2xx status.
      */
     private suspend fun uploadFileContent(
         docReference: DocumentReference,
@@ -453,7 +891,7 @@ private fun filesExists(uri: Uri?): Boolean {
         context: Context,
         pendingDocuments: Int,
     ): Long {
-        Timber.i("Step 2: Uploading file content for ${docReference.logicalId}")
+        Timber.d("Step 2: Uploading file content for ${docReference.logicalId}")
 
         val bytes = context.contentResolver.openInputStream(fileUri)
             ?.use { it.buffered().readBytes() }
@@ -480,18 +918,30 @@ private fun filesExists(uri: Uri?): Boolean {
                 bytesUploaded = bytes.size,
                 errorMessage = response.message(),
             )
+            // In memory only, for the same reason as the docStatus in step 3b: persisting this would
+            // queue a local change that the next metadata sync PUTs over the image. The failure is
+            // already carried by the event above.
             docReference.addExtension().apply {
                 url = IMG_UPLOAD_ERROR_EXTENSION
                 setValue(StringType("Upload failed: ${response.code()} - ${response.message()}"))
             }
-            openSrpFhirEngine.update(docReference)
-            
-            // Handle specific cleanup logic for failed uploads
+
+            // 410 Gone is the server saying the resource was deleted, so this id will never resolve
+            // again. Retrying is pointless — drop the local copy and record the loss.
             if (response.code() in listOf(410)) {
+                analyticsLogger.capture(
+                    AnalyticsLogger.Events.DOCUMENT_REFERENCE_GONE_ON_SERVER,
+                    mapOf(
+                        AnalyticsLogger.Props.DOCUMENT_ID to docReference.logicalId,
+                        AnalyticsLogger.Props.RESPONSE_CODE to response.code(),
+                        AnalyticsLogger.Props.ERROR_MESSAGE to
+                            "Server returned 410 Gone; purging local DocumentReference and image",
+                    ),
+                )
                 openSrpFhirEngine.purge(docReference.resourceType, docReference.logicalId, true)
                 context.contentResolver.delete(fileUri, null, null)
             }
-            // Throw a specific exception to be caught by the top-level handler
+            // Carries the response code out to the caller, which reports it as the failed stage.
             throw ImageUploadAPIException(
                 documentId = docReference.logicalId,
                 responseCode = response.code(),
@@ -506,10 +956,14 @@ private fun filesExists(uri: Uri?): Boolean {
             pendingDocuments = pendingDocuments,
             bytesUploaded = bytes.size,
         )
-        Timber.i("Step 2 completed: File content uploaded for ${docReference.logicalId}")
+        Timber.d("Step 2 completed: File content uploaded for ${docReference.logicalId}")
         return timeTaken
     }
 
+    /**
+     * Records the outcome of one byte upload, successful or not. This is the per-photo timing and
+     * size data — how slow uploads are in the field, and how big the photos being sent are.
+     */
     private fun captureImageUploadCompleted(
         docReference: DocumentReference,
         uploadDurationMs: Long,
@@ -531,11 +985,9 @@ private fun filesExists(uri: Uri?): Boolean {
         )
     }
 
-    /**
-     * Step 3: Updates the DocumentReference status to 'final' using a JSON Patch.
-     */
+    /** Step 3: patch docStatus to final, marking the document complete on the server. */
     private suspend fun finalizeDocumentOnServer(docReference: DocumentReference) {
-        Timber.i("Step 3: Finalizing document status for ${docReference.logicalId}")
+        Timber.d("Step 3: Finalizing document status for ${docReference.logicalId}")
         fhirResourceService.updateResource(
             docReference.fhirType(),
             docReference.logicalId,
@@ -543,14 +995,12 @@ private fun filesExists(uri: Uri?): Boolean {
                 CONTENT_TYPE.toMediaTypeOrNull()
             )
         )
-        Timber.i("Step 3 completed: Document status finalized for ${docReference.logicalId}")
+        Timber.d("Step 3 completed: Document status finalized for ${docReference.logicalId}")
     }
 
-    /**
-     * Updates the DocumentReference status time taken to upload image using a JSON Patch.
-     */
+    /** Records how long the upload took, as an extension on the server's copy. */
     private suspend fun addUploadTimeTaken(docReference: DocumentReference, timeTaken: Long) {
-        Timber.i("addUploadTimeTaken ${docReference.logicalId}")
+        Timber.d("addUploadTimeTaken ${docReference.logicalId}")
 
         val extensionValue = ExtensionValue(
             url = TIME_TAKEN_TOUPLOAD_IMG_EXTENSION,
@@ -570,14 +1020,19 @@ private fun filesExists(uri: Uri?): Boolean {
             )
         )
 
-        Timber.i("Added Upload Time Taken: ${docReference.logicalId} status:${result.docStatus.name}")
+        Timber.d("Added Upload Time Taken: ${docReference.logicalId} status:${result.docStatus.name}")
     }
 
     /**
-     * Update the DocumentReference with image permanent failure ext & status to 'final'.
+     * Marks the server's copy as permanently missing its image, and final. Used when the photo is
+     * gone from the device and cannot be recovered — the reference stays resolvable, it just says
+     * the image never arrived.
+     *
+     * @return true if the server confirmed the status change. The caller only purges the local row
+     *   when it did, so a failed patch leaves the document to be retried.
      */
     private suspend fun imageNotPresentOnDeviceFinalizeDocumentOnServer(docReference: DocumentReference) : Boolean {
-        Timber.i("Finalizing image FAILED for ${docReference.logicalId}")
+        Timber.d("Finalizing image FAILED for ${docReference.logicalId}")
 
         val extensionValue = ExtensionValue(
             url = IMG_UPLOAD_FAILED_PERMANENTLY_EXTENSION,
@@ -598,28 +1053,26 @@ private fun filesExists(uri: Uri?): Boolean {
             )
         )
 
-        Timber.i("Step 3 updateDocResource: ${docReference.logicalId} status:${result.docStatus.name}")
+        Timber.d("Step 3 updateDocResource: ${docReference.logicalId} status:${result.docStatus.name}")
         return result.docStatus.name.lowercase() == DocumentReference.ReferredDocumentStatus.FINAL.name.lowercase()
 
     }
 
-    // The metadata fetch function remains the same
-    private suspend fun getDocumentReferenceMetaDataFromServer(docReference: DocumentReference): DocumentReference? {
+    /** Fetches the server's copy of a document, or says why it could not. */
+    private suspend fun getDocumentReferenceMetaDataFromServer(
+        docReference: DocumentReference,
+    ): ServerDocumentLookup {
         return try {
-            fhirResourceService.getDocumentReferenceMeta(docReference.logicalId)
+            ServerDocumentLookup.Found(
+                fhirResourceService.getDocumentReferenceMeta(docReference.logicalId),
+            )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Timber.i("No DocumentReference on server for id ${docReference.logicalId}: ${e.localizedMessage}")
-            null
+            classifyServerLookupFailure(docReference.logicalId, e)
         }
     }
 
-    // Custom exception class for tracking upload errors
-    data class ImageUploadAPIException(
-        val documentId: String,
-        val responseCode: Int,
-        val responseMessage: String,
-        val pendingDocuments: Int
-    ) : Exception("Image upload failed for document $documentId: $responseCode $responseMessage ($pendingDocuments pending)")
 
     private fun getDeviceId(): String {
         return Settings.Secure.getString(
@@ -628,6 +1081,14 @@ private fun filesExists(uri: Uri?): Boolean {
         )
     }
 
+    /**
+     * Writes a per-device Basic recording when this device last synced, who was logged in, and how
+     * many photos are still waiting. It is how pending backlogs can be seen server-side, per device,
+     * without asking the FLW.
+     *
+     * Failures are logged and swallowed: this is bookkeeping, and losing it must not fail a sync that
+     * otherwise worked.
+     */
     private suspend fun updateLastSyncDate(pendingDocuments: Int) {
         try {
             secureSharedPreference.updateLastSyncDataTime(System.currentTimeMillis())
@@ -668,10 +1129,10 @@ private fun filesExists(uri: Uri?): Boolean {
 
             if (existingResource != null) {
                 openSrpFhirEngine.update(syncMetadata)
-                Timber.i("Successfully updated sync metadata for device: $deviceId")
+                Timber.d("Successfully updated sync metadata for device: $deviceId")
             } else {
                 openSrpFhirEngine.create(syncMetadata)
-                Timber.i("Successfully created sync metadata for device: $deviceId")
+                Timber.d("Successfully created sync metadata for device: $deviceId")
             }
         } catch (e: Exception) {
             Timber.e(e, "Failed to update sync metadata")
@@ -679,17 +1140,16 @@ private fun filesExists(uri: Uri?): Boolean {
     }
 
     /**
-     * Serializes an image-upload [SyncJobStatus.InProgress] into the WorkManager progress [Data]
-     * format that the FHIR SDK ([com.google.android.fhir.sync.Sync.getWorkerInfo]) understands, so
-     * the emission is relayed to the registered [OnSyncListener]s as
-     * [com.google.android.fhir.sync.CurrentSyncJobStatus.Running] and drives the in-app sync
-     * progress bar. The keys/serialization mirror `FhirSyncWorker.buildWorkData`.
+     * Packs image-upload progress into the WorkManager [Data] shape the FHIR SDK understands, so the
+     * emission reaches the registered sync listeners and drives the in-app progress bar. The keys
+     * and serialization have to match `FhirSyncWorker.buildWorkData` — the SDK ignores anything else.
      */
     private fun buildImageUploadProgressData(uploaded: Int, total: Int): Data {
         val status = SyncJobStatus.InProgress(SyncOperation.UPLOAD, total = total, completed = uploaded)
         return workDataOf(
             "StateType" to status::class.java.name,
-            "State" to gson.toJson(status),
+            // progressGson, not the injected one — see the note on progressGson.
+            "State" to progressGson.toJson(status),
         )
     }
 
