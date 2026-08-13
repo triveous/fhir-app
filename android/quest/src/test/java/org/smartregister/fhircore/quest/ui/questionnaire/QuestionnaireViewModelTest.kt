@@ -43,6 +43,7 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.hl7.fhir.r4.model.Address
 import org.hl7.fhir.r4.model.Attachment
@@ -198,6 +199,7 @@ class QuestionnaireViewModelTest : RobolectricTest() {
           configurationRegistry = configurationRegistry,
           syncBroadcaster = syncBroadcaster,
           fhirEngine = fhirEngine,
+          uploadedDocumentReferenceLedger = mockk(relaxed = true),
         ),
       )
 
@@ -404,6 +406,189 @@ class QuestionnaireViewModelTest : RobolectricTest() {
 
     unmockkObject(ResourceMapper)
   }
+
+  @Test
+  fun testTryStartSubmissionOnlyGrantsTheSubmissionSlotOnce() {
+    Assert.assertTrue(questionnaireViewModel.tryStartSubmission())
+    // Second submit (double-tap or re-submitting an already-saved form) must be rejected
+    Assert.assertFalse(questionnaireViewModel.tryStartSubmission())
+    Assert.assertFalse(questionnaireViewModel.tryStartSubmission())
+  }
+
+  /**
+   * The back button must not be able to save a draft of a case that is already being submitted —
+   * that pair (submitted case + draft of the same data) is what let QA re-submit the draft and
+   * register the case twice, with its screening images dropped.
+   */
+  @Test
+  fun testDraftSaveIsRefusedWhileASubmissionIsInFlight() {
+    Assert.assertFalse(questionnaireViewModel.isSubmissionInFlight())
+
+    Assert.assertTrue(questionnaireViewModel.tryStartSubmission())
+
+    Assert.assertTrue(questionnaireViewModel.isSubmissionInFlight())
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+    // Repeated fast back presses keep being refused.
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+  }
+
+  /** The reverse race: a draft save already under way must block a late submit. */
+  @Test
+  fun testSubmissionIsRefusedOnceADraftSaveHasStarted() {
+    Assert.assertTrue(questionnaireViewModel.tryStartDraftSave())
+
+    // A draft save is not a submission, so back must not be mistaken for one.
+    Assert.assertFalse(questionnaireViewModel.isSubmissionInFlight())
+    Assert.assertFalse(questionnaireViewModel.tryStartSubmission())
+  }
+
+  @Test
+  fun testOnlyOneDraftSaveSlotIsGrantedPerSession() {
+    Assert.assertTrue(questionnaireViewModel.tryStartDraftSave())
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+    Assert.assertFalse(questionnaireViewModel.tryStartDraftSave())
+  }
+
+  /**
+   * The caller holds a modal progress dialog open until this reports back, so a failed save has to
+   * settle too — otherwise the user is stranded on a spinner with no way forward.
+   */
+  @Test
+  fun testSaveDraftQuestionnaireReportsBackWhenTheSaveFails() = runTest {
+    coEvery { defaultRepository.addOrUpdate(any(), any()) } throws RuntimeException("disk full")
+    val questionnaireResponse =
+      QuestionnaireResponse().apply {
+        addItem(
+          QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+            addAnswer(
+              QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                .setValue(StringType("Sky is the limit")),
+            )
+          },
+        )
+      }
+
+    var settled = 0
+    questionnaireViewModel.saveDraftQuestionnaire(questionnaireResponse) { settled++ }
+    advanceUntilIdle()
+
+    Assert.assertEquals(1, settled)
+  }
+
+  /**
+   * A registration form opens with answers already in place — the age-unit radio's initialSelected
+   * and the FLW's district/state pre-filled from their Practitioner record — so "has any answer" was
+   * true before the user touched anything, and every Add-New-Case-then-back left another empty guest
+   * draft behind.
+   */
+  @Test
+  fun testUntouchedRegistrationFormDoesNotCreateADraft() = runTest {
+    var saved: Boolean? = null
+    questionnaireViewModel.saveDraftQuestionnaire(registrationResponse(givenName = null)) {
+      saved = it
+    }
+    advanceUntilIdle()
+
+    Assert.assertEquals(false, saved)
+    coVerify(exactly = 0) { defaultRepository.addOrUpdate(any(), any()) }
+  }
+
+  @Test
+  fun testBlankFirstNameDoesNotCreateADraft() = runTest {
+    var saved: Boolean? = null
+    questionnaireViewModel.saveDraftQuestionnaire(registrationResponse(givenName = "   ")) {
+      saved = it
+    }
+    advanceUntilIdle()
+
+    Assert.assertEquals(false, saved)
+  }
+
+  @Test
+  fun testFirstNameEnteredMakesTheFormDraftWorthy() {
+    Assert.assertTrue(
+      questionnaireViewModel.hasDraftWorthyData(registrationResponse(givenName = "Asha")),
+    )
+  }
+
+  @Test
+  fun testPrefilledDefaultsAloneAreNotDraftWorthy() {
+    // Only the age-unit radio and the FLW's state — nothing the user typed.
+    Assert.assertFalse(
+      questionnaireViewModel.hasDraftWorthyData(registrationResponse(givenName = null)),
+    )
+    Assert.assertFalse(
+      questionnaireViewModel.hasDraftWorthyData(registrationResponse(givenName = "  ")),
+    )
+  }
+
+  /**
+   * Other draft-enabled questionnaires have no first-name item, so they keep the previous
+   * any-answer behaviour rather than losing drafts entirely.
+   */
+  @Test
+  fun testFormWithoutAFirstNameItemFallsBackToAnyAnswer() {
+    val noNameForm =
+      QuestionnaireResponse().apply {
+        addItem(
+          QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+            linkId = "some-other-question"
+            addAnswer(
+              QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                .setValue(StringType("an answer")),
+            )
+          },
+        )
+      }
+
+    Assert.assertTrue(questionnaireViewModel.hasDraftWorthyData(noNameForm))
+    Assert.assertFalse(questionnaireViewModel.hasDraftWorthyData(QuestionnaireResponse()))
+  }
+
+  /**
+   * A registration response shaped like the real form: pre-filled defaults the user never touched,
+   * plus an optional first name.
+   */
+  private fun registrationResponse(givenName: String?) =
+    QuestionnaireResponse().apply {
+      addItem(
+        QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+          linkId = "basic-info-group"
+          addItem(
+            QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+              // Pre-selected by the questionnaire itself, not by the user.
+              linkId = "patient-age"
+              addAnswer(
+                QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                  .setValue(StringType("By years")),
+              )
+            },
+          )
+          addItem(
+            QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+              // Pre-filled from the FLW's Practitioner address.
+              linkId = "patient-address-state"
+              addAnswer(
+                QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                  .setValue(StringType("Karnataka")),
+              )
+            },
+          )
+          addItem(
+            QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+              linkId = QuestionnaireViewModel.PATIENT_GIVEN_NAME_LINK_ID
+              givenName?.let {
+                addAnswer(
+                  QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
+                    .setValue(StringType(it)),
+                )
+              }
+            },
+          )
+        },
+      )
+    }
 
   @Test
   fun testPerformExtractionWithStructureMap() = runTest {

@@ -52,6 +52,10 @@ constructor(
 ) : CoroutineWorker(context, workerParams) {
   override suspend fun doWork(): Result {
     return withContext(dispatcherProvider.io()) {
+      // A worker can run in a fresh process where the AppSettingActivity bootstrap never ran,
+      // leaving the config map empty. Reload configs first so retrieveConfiguration() below does
+      // not fail with "Key application is missing in the map".
+      configurationRegistry.loadConfigurationsIfNotLoaded(applicationContext)
       val applicationConfiguration =
         configurationRegistry.retrieveConfiguration<ApplicationConfiguration>(
           ConfigType.Application,

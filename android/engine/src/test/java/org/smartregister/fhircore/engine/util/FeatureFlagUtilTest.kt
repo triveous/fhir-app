@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.smartregister.fhircore.quest.util
+package org.smartregister.fhircore.engine.util
 
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.db.ResourceNotFoundException
@@ -23,16 +23,15 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.BooleanType
-import org.hl7.fhir.r4.model.Bundle
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceDataSource
-import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 
 class FeatureFlagUtilTest {
 
@@ -63,8 +62,9 @@ class FeatureFlagUtilTest {
     Assert.assertTrue(featureFlagUtil.isAiInferenceEnabled())
 
     coVerify(exactly = 2) { fhirEngine.get<Basic>(featureFlagsResourceId) }
-    coVerify(exactly = 0) { fhirResourceDataSource.getResource(any()) }
+    coVerify(exactly = 0) { fhirResourceDataSource.getBasic(any()) }
   }
+
 
   @Test
   fun testReadsUseTenantPrefixedResourceIdFromPreferences() = runTest {
@@ -72,30 +72,81 @@ class FeatureFlagUtilTest {
     every { sharedPreferencesHelper.getFeatureFlagsResourceId() } returns tenantResourceId
     coEvery { fhirEngine.get<Basic>(tenantResourceId) } throws
       ResourceNotFoundException("Basic", tenantResourceId)
-    coEvery {
-      fhirResourceDataSource.getResource("Basic?_id=$tenantResourceId&_count=1")
-    } returns Bundle().apply { addEntry().resource = featureFlagsBasic(true) }
+    coEvery { fhirResourceDataSource.getBasic(tenantResourceId) } returns
+      featureFlagsBasic(true)
+    coEvery { fhirEngine.create(any<Basic>(), isLocalOnly = true) } returns
+      listOf(tenantResourceId)
 
     Assert.assertTrue(featureFlagUtil.isAiInferenceEnabled())
 
     coVerify { fhirEngine.get<Basic>(tenantResourceId) }
-    coVerify { fhirResourceDataSource.getResource("Basic?_id=$tenantResourceId&_count=1") }
+    coVerify { fhirResourceDataSource.getBasic(tenantResourceId) }
     verify { sharedPreferencesHelper.saveLastKnownFeatureFlags(tenantResourceId, any()) }
   }
 
   @Test
-  fun testEmptyNetworkResultFallsBackToLastKnownFeatureFlags() = runTest {
+  fun testFailedNetworkReadFallsBackToLastKnownFeatureFlags() = runTest {
     coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } throws
       ResourceNotFoundException("Basic", featureFlagsResourceId)
-    coEvery {
-      fhirResourceDataSource.getResource("Basic?_id=feature-flags&_count=1")
-    } returns Bundle()
+    coEvery { fhirResourceDataSource.getBasic(featureFlagsResourceId) } throws
+      RuntimeException("HTTP 404")
     every { sharedPreferencesHelper.getLastKnownFeatureFlags(featureFlagsResourceId) } returns
       mapOf(FeatureFlagUtil.AI_INFERENCE_ENABLED_URL to true)
 
     Assert.assertTrue(featureFlagUtil.isAiInferenceEnabled())
 
     verify { sharedPreferencesHelper.getLastKnownFeatureFlags(featureFlagsResourceId) }
+  }
+
+  @Test
+  fun testNetworkFallbackWritesThroughToEngine() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } throws
+      ResourceNotFoundException("Basic", featureFlagsResourceId)
+    coEvery { fhirResourceDataSource.getBasic(featureFlagsResourceId) } returns
+      featureFlagsBasic(true)
+    val created = slot<Basic>()
+    coEvery { fhirEngine.create(capture(created), isLocalOnly = true) } returns
+      listOf(featureFlagsResourceId)
+
+    Assert.assertTrue(featureFlagUtil.isAiInferenceEnabled())
+
+    Assert.assertEquals(featureFlagsResourceId, created.captured.idElement.idPart)
+    verify {
+      sharedPreferencesHelper.saveLastKnownFeatureFlags(
+        featureFlagsResourceId,
+        mapOf(FeatureFlagUtil.AI_INFERENCE_ENABLED_URL to true),
+      )
+    }
+  }
+
+  @Test
+  fun testRefreshFromServerFetchesDirectlyAndStoresLocally() = runTest {
+    coEvery { fhirResourceDataSource.getBasic(featureFlagsResourceId) } returns
+      featureFlagsBasic(true)
+    coEvery { fhirEngine.create(any<Basic>(), isLocalOnly = true) } returns
+      listOf(featureFlagsResourceId)
+
+    featureFlagUtil.refreshFromServer()
+
+    coVerify { fhirResourceDataSource.getBasic(featureFlagsResourceId) }
+    coVerify { fhirEngine.create(any<Basic>(), isLocalOnly = true) }
+    verify {
+      sharedPreferencesHelper.saveLastKnownFeatureFlags(
+        featureFlagsResourceId,
+        mapOf(FeatureFlagUtil.AI_INFERENCE_ENABLED_URL to true),
+      )
+    }
+  }
+
+  @Test
+  fun testRefreshFromServerKeepsLastKnownValuesOnNetworkFailure() = runTest {
+    coEvery { fhirResourceDataSource.getBasic(featureFlagsResourceId) } throws
+      RuntimeException("timeout")
+
+    featureFlagUtil.refreshFromServer()
+
+    coVerify(exactly = 0) { fhirEngine.create(any<Basic>(), isLocalOnly = any()) }
+    verify(exactly = 0) { sharedPreferencesHelper.saveLastKnownFeatureFlags(any(), any()) }
   }
 
   private fun featureFlagsBasic(aiInferenceEnabled: Boolean): Basic =

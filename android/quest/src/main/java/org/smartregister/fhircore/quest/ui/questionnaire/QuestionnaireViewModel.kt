@@ -18,6 +18,7 @@ package org.smartregister.fhircore.quest.ui.questionnaire
 
 import android.content.Context
 import android.widget.Toast
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -35,6 +36,7 @@ import com.google.android.fhir.search.filter.TokenParamFilterCriterion
 import com.google.android.fhir.search.search
 import com.google.android.fhir.workflow.FhirOperator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,12 +45,16 @@ import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.Base
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.Bundle
+import org.hl7.fhir.r4.model.Coding
+import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Group
 import org.hl7.fhir.r4.model.IdType
+import org.hl7.fhir.r4.model.Identifier
 import org.hl7.fhir.r4.model.Library
 import org.hl7.fhir.r4.model.ListResource
 import org.hl7.fhir.r4.model.ListResource.ListEntryComponent
 import org.hl7.fhir.r4.model.Parameters
+import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.Reference
@@ -109,11 +115,15 @@ import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import org.smartregister.fhircore.quest.util.languageExtensionToActionParameters
+import org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
+import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.hl7.fhir.r4.model.BooleanType
 import timber.log.Timber
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 
 @HiltViewModel
@@ -131,7 +141,8 @@ constructor(
   val fhirPathDataExtractor: FhirPathDataExtractor,
   val configurationRegistry: ConfigurationRegistry,
   val syncBroadcaster: SyncBroadcaster,
-  val fhirEngine: FhirEngine
+  val fhirEngine: FhirEngine,
+  val uploadedDocumentReferenceLedger: UploadedDocumentReferenceLedger,
 ) : ViewModel() {
   private val parser = FhirContext.forR4Cached().newJsonParser()
 
@@ -162,6 +173,55 @@ constructor(
   val isDraftSaved: LiveData<Boolean>
     get() = _isDraftSaved
 
+  /** The mutually exclusive ways a questionnaire session can end. */
+  enum class SessionOutcome {
+    NONE,
+    SUBMITTING,
+    SAVING_DRAFT,
+  }
+
+  /**
+   * A questionnaire session must end in exactly one way — the case is submitted, or a draft is
+   * saved. This single CAS-guarded latch is shared by both terminal paths so they can never both
+   * run, which guards two races seen in the field:
+   * - double-tapping submit, where each tap re-ran extraction and saved a brand new Patient, or
+   *   re-submitting an already-saved form, e.g. after navigating back from the AI result screen;
+   * - pressing back while a submission is in flight, which saved a draft *alongside* the submitted
+   *   case. Reopening that draft and submitting it registered the case a second time with its
+   *   screening images missing, because the first submission had already flipped those
+   *   DocumentReferences to SUBMITTED and the sync worker had since purged them locally — so
+   *   [reconcileDocumentReferencesForSubmission] dropped the now-dangling answers.
+   *
+   * Only reset when a submission fails before any resource is saved, so the user can retry.
+   */
+  private val sessionOutcome = AtomicReference(SessionOutcome.NONE)
+
+  /** Returns true if the caller acquired the (single) submission slot for this session. */
+  fun tryStartSubmission(): Boolean =
+    sessionOutcome.compareAndSet(SessionOutcome.NONE, SessionOutcome.SUBMITTING)
+
+  /** Returns true if the caller acquired the (single) draft-save slot for this session. */
+  fun tryStartDraftSave(): Boolean =
+    sessionOutcome.compareAndSet(SessionOutcome.NONE, SessionOutcome.SAVING_DRAFT)
+
+  /**
+   * True while a submission owns this session. The back button must refuse to save a draft for as
+   * long as this holds, otherwise the case and a draft of the same data both end up on the device.
+   */
+  fun isSubmissionInFlight(): Boolean = sessionOutcome.get() == SessionOutcome.SUBMITTING
+
+  private fun allowSubmissionRetry() {
+    sessionOutcome.set(SessionOutcome.NONE)
+  }
+
+  /**
+   * User-facing aa-reference-id for the case registered in this questionnaire session. Generated
+   * once per session so a retried or accidentally repeated submission reuses the same id instead
+   * of minting a new one for every attempt.
+   */
+  private val sessionReferenceId: String by lazy {
+    (10_000_000..99_999_999).random().toString()
+  }
 
   fun getUserName(): String {
     return secureSharedPreference.getPractitionerUserId()
@@ -237,6 +297,139 @@ constructor(
   }
 
   /**
+   * Reconciles the DocumentReferences referenced by the screening-image answers of
+   * [questionnaireResponse] against the local [FhirEngine], mutating the response in place
+   * immediately before submission. Extracted from `QuestionnaireActivity.registerFragmentResultListener`
+   * so this logic — the guard against the DocumentReference 404 — is unit testable.
+   *
+   * For every screening image answer that carries an attachment URL:
+   * - a DRAFT DocumentReference is flipped to SUBMITTED (so the sync worker uploads it), or
+   * - if the DocumentReference is missing locally (the precondition for the server-side 404) the
+   *   dangling answer is dropped, so the uploaded QuestionnaireResponse never references a resource
+   *   the server never received.
+   *
+   * Items whose linkId ends with [AI_RESULT_SUFFIX] and answers without an attachment are ignored.
+   * Any non-[ResourceNotFoundException] failure while fetching leaves the answer untouched (matching
+   * the previous behaviour). Missing-reference analytics are intentionally left to the caller — via
+   * the returned [DocumentReferenceReconciliationResult] — so this function has no UI/analytics side
+   * effects and stays testable.
+   */
+  suspend fun reconcileDocumentReferencesForSubmission(
+    questionnaireResponse: QuestionnaireResponse,
+  ): DocumentReferenceReconciliationResult {
+    val submittedDraftIds = mutableListOf<String>()
+    val missingReferences = mutableListOf<MissingDocumentReference>()
+    val unparseableUrls = mutableListOf<String>()
+    val uploadedButPurgedIds = mutableListOf<String>()
+    val failedFlips = mutableListOf<MissingDocumentReference>()
+
+    Timber.d("=== Starting DocumentReference update processing ===")
+    questionnaireResponse.item
+      .filter { it.linkId == SCREENING_GROUP_LINK_ID }
+      .forEach { screeningGroup ->
+        screeningGroup.item
+          .filter { it.linkId == PATIENT_SCREENING_IMAGE_GROUP_LINK_ID }
+          .forEach { imageGroup ->
+            imageGroup.item.forEach { image ->
+              // AI-result items carry no attachment; never reconcile them.
+              if (image.linkId.endsWith(AI_RESULT_SUFFIX)) return@forEach
+              // Iterate over a copy so a dangling answer can be removed in-loop.
+              image.answer.toList().forEach answerLoop@{ answer ->
+                // Screening-image answers always carry an Attachment; guard so a non-attachment
+                // answer is skipped rather than throwing from HAPI's getValueAttachment().
+                if (!answer.hasValueAttachment()) return@answerLoop
+                val attachment = answer.valueAttachment
+                val documentReferenceId = extractDocumentReferenceIdFromUrl(attachment.url)
+                if (documentReferenceId == null) {
+                  Timber.w("Could not extract DocumentReference ID from URL: ${attachment.url}")
+                  attachment.url?.let { unparseableUrls.add(it) }
+                  return@answerLoop
+                }
+                val fetched =
+                  try {
+                    fhirEngine.get(ResourceType.DocumentReference, documentReferenceId)
+                      as DocumentReference
+                  } catch (notFound: ResourceNotFoundException) {
+                    // Absent from the engine has two very different meanings, and the sync worker
+                    // produces the harmless one far more often: once an image is uploaded and
+                    // verified, the worker purges the row while the id stays valid on the server.
+                    // The ledger records exactly those ids. Dropping such an answer would delete a
+                    // perfectly good image from the submission, so only answers whose id was never
+                    // confirmed uploaded are treated as dangling.
+                    if (uploadedDocumentReferenceLedger.wasUploaded(documentReferenceId)) {
+                      Timber.i(
+                        "DocumentReference %s referenced by %s was already uploaded and purged locally; keeping the attachment.",
+                        documentReferenceId,
+                        image.linkId,
+                      )
+                      uploadedButPurgedIds.add(documentReferenceId)
+                    } else {
+                      Timber.e(
+                        "DocumentReference %s referenced by %s is missing locally and was never confirmed on the server; dropping the dangling attachment so the submitted QuestionnaireResponse does not reference a resource the server never received (root cause of the DocumentReference 404).",
+                        documentReferenceId,
+                        image.linkId,
+                      )
+                      image.answer.remove(answer)
+                      missingReferences.add(
+                        MissingDocumentReference(image.linkId, documentReferenceId),
+                      )
+                    }
+                    return@answerLoop
+                  } catch (cancellation: CancellationException) {
+                    // The submit coroutine is going away (user backed out, activity finishing).
+                    // Do not keep looping on a dead scope — and do not report the remaining
+                    // documents as reconciled when they were never looked at.
+                    throw cancellation
+                  } catch (e: Exception) {
+                    Timber.e(e, "Error fetching DocumentReference status for ID: $documentReferenceId")
+                    failedFlips.add(MissingDocumentReference(image.linkId, documentReferenceId))
+                    return@answerLoop
+                  }
+                if (fetched.description == DocumentReferenceCaseType.DRAFT.name) {
+                  fetched.description = DocumentReferenceCaseType.SUBMITTED.name
+                  try {
+                    fhirEngine.update(fetched)
+                  } catch (cancellation: CancellationException) {
+                    throw cancellation
+                  } catch (e: Exception) {
+                    // A DocumentReference left at DRAFT is invisible to AppSyncWorker, so its image
+                    // is never uploaded — the response ends up referencing a resource that exists
+                    // (the metadata sync PUTs it regardless) but has no binary. Silent until now;
+                    // the caller turns this into an analytics event.
+                    Timber.e(e, "Failed to flip DocumentReference $documentReferenceId to SUBMITTED; its image will not be uploaded")
+                    failedFlips.add(MissingDocumentReference(image.linkId, documentReferenceId))
+                    return@answerLoop
+                  }
+                  submittedDraftIds.add(documentReferenceId)
+                  Timber.i("DocumentReference $documentReferenceId description updated to SUBMITTED")
+                }
+              }
+            }
+          }
+      }
+    Timber.d("=== Finished DocumentReference update processing ===")
+
+    return DocumentReferenceReconciliationResult(
+      submittedDraftIds = submittedDraftIds,
+      missingReferences = missingReferences,
+      unparseableUrls = unparseableUrls,
+      uploadedButPurgedIds = uploadedButPurgedIds,
+      failedFlips = failedFlips,
+    )
+  }
+
+  /**
+   * Extracts the DocumentReference logical id from a binary-access-read URL of the form
+   * `.../DocumentReference/{id}/$binary-access-read?...`. Returns null when [url] is null or the id
+   * cannot be located.
+   */
+  @VisibleForTesting
+  internal fun extractDocumentReferenceIdFromUrl(url: String?): String? {
+    if (url == null) return null
+    return Regex("DocumentReference/([^/]+)/").find(url)?.groupValues?.get(1)
+  }
+
+  /**
    * This function performs data extraction against the [QuestionnaireResponse]. All the resources
    * generated from a successful extraction by StructureMap or definition are stored in the
    * database. The [QuestionnaireResponse] is also stored in the database regardless of the outcome
@@ -251,21 +444,40 @@ constructor(
     questionnaireConfig: QuestionnaireConfig,
     actionParameters: List<ActionParameter>,
     context: Context,
+    /**
+     * Invoked when the submission is abandoned with nothing saved and the user is left on the
+     * questionnaire. The submit button locks itself when it hands over a response and stays locked
+     * for the whole extract-and-save window, so it has to be told it can reopen — otherwise a failed
+     * submission leaves the user unable to retry. Deliberately not invoked from the catch below:
+     * resources may be partially saved there, and retrying could register the case twice.
+     *
+     * Declared before [onSuccessfulSubmission] so that stays the trailing lambda at every call site.
+     */
+    onSubmissionAbandoned: () -> Unit = {},
+    /**
+     * Invoked with the required questions the response leaves unanswered, so the caller can name
+     * them for the user. Always followed by [onSubmissionAbandoned]; nothing has been saved.
+     */
+    onIncompleteSubmission: (List<UnansweredRequiredQuestion>) -> Unit = {},
     onSuccessfulSubmission: (List<IdType>, QuestionnaireResponse) -> Unit,
   ) {
     viewModelScope.launch(SupervisorJob()) {
+     try {
 
-      val patientId = (10_000_000..99_999_999).random().toString()
-
-      val idItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
-        linkId = "aa-reference-id"
-        addAnswer(
-          QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
-            value = StringType(patientId)
-          }
-        )
+      // Attach the user-facing reference id at most once: an edited response already carries the
+      // id the case was registered with, and adding a second aa-reference-id item would let the
+      // StructureMap overwrite the permanent id with a fresh random one.
+      if (currentQuestionnaireResponse.item.none { it.linkId == AA_REFERENCE_ID_LINK_ID }) {
+        val idItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+          linkId = AA_REFERENCE_ID_LINK_ID
+          addAnswer(
+            QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+              value = StringType(sessionReferenceId)
+            }
+          )
+        }
+        currentQuestionnaireResponse.addItem(idItem)
       }
-      currentQuestionnaireResponse.addItem(idItem)
 
       val questionnaireResponseValid =
         validateQuestionnaireResponse(
@@ -278,6 +490,9 @@ constructor(
         Timber.e("Invalid questionnaire response")
         context.showToast(context.getString(R.string.questionnaire_response_invalid))
         setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+        // Nothing was saved; let the user fix the response and submit again.
+        allowSubmissionRetry()
+        onSubmissionAbandoned()
         return@launch
       }
 
@@ -290,6 +505,52 @@ constructor(
           questionnaireResponse = currentQuestionnaireResponse,
           context = context,
         )
+
+      // Last gate before anything is written or synced. Extraction is pure — it only builds the
+      // Bundle in memory — so every abort below leaves the device exactly as it was and releases the
+      // submission latch, letting the user fix the form and submit again.
+
+      // A required question with no answer must never reach the server. The library checks this on
+      // its own submit button, but the response has been through the app's hands since then; see
+      // [findUnansweredRequiredQuestions].
+      val unansweredRequiredQuestions =
+        findUnansweredRequiredQuestions(questionnaire, currentQuestionnaireResponse)
+      if (unansweredRequiredQuestions.isNotEmpty()) {
+        Timber.e(
+          "Blocking submission of ${questionnaireConfig.id}: required question(s) unanswered: %s",
+          unansweredRequiredQuestions.joinToString { it.linkId },
+        )
+        setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+        allowSubmissionRetry()
+        onIncompleteSubmission(unansweredRequiredQuestions)
+        onSubmissionAbandoned()
+        return@launch
+      }
+
+      // performExtraction swallows failures and returns an empty Bundle. For a fresh registration
+      // (no subject yet) that means nothing would be saved — not even the QuestionnaireResponse —
+      // yet the flow used to continue and report success, silently losing the case. Fail loudly
+      // and release the submission latch: nothing was saved, so retrying cannot duplicate.
+      if (
+        extractionProducedNothingUsable(
+          bundle = bundle,
+          questionnaire = questionnaire,
+          questionnaireConfig = questionnaireConfig,
+          questionnaireResponse = currentQuestionnaireResponse,
+        )
+      ) {
+        Timber.e(
+          "Extraction produced no usable resources for ${questionnaireConfig.id}; aborting submission",
+        )
+        setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+        context.showToast(
+          context.getString(R.string.questionnaire_submission_failed),
+          Toast.LENGTH_LONG,
+        )
+        allowSubmissionRetry()
+        onSubmissionAbandoned()
+        return@launch
+      }
 
       saveExtractedResources(
         bundle = bundle,
@@ -346,10 +607,61 @@ constructor(
           ?: emptyList()
       onSuccessfulSubmission(idTypes, currentQuestionnaireResponse)
 
-      // Trigger one time sync after question submission
+      // Push the case up now if there is a network. The case is already saved locally as a pending
+      // local change, so on an offline device this is a no-op by design: SyncBroadcaster skips the
+      // request rather than running a sync that can only fail, and the connectivity-constrained
+      // periodic worker uploads it once the device is back online.
       syncBroadcaster.runOneTimeSync()
+     } catch (exception: Exception) {
+       // Resources may have been partially saved at this point, so the submission latch stays
+       // set: retrying could register the case twice. Surface the failure instead of leaving
+       // the progress dialog stuck forever.
+       Timber.e(exception, "Questionnaire submission failed for ${questionnaireConfig.id}")
+       setProgressState(QuestionnaireProgressState.ExtractionInProgress(false))
+       context.showToast(
+         context.getString(R.string.questionnaire_submission_failed),
+         Toast.LENGTH_LONG,
+       )
+     }
     }
   }
+
+  /**
+   * Whether the extraction left nothing worth saving.
+   *
+   * Two shapes of failure, both of which used to register a case that opens blank:
+   * - an empty Bundle for a fresh registration — [performExtraction] swallows StructureMap failures
+   *   and returns one, so nothing at all would be written, not even the QuestionnaireResponse;
+   * - a Bundle with no subject resource, or a subject resource carrying nothing but bookkeeping
+   *   (id/meta/text/identifier). That is what a StructureMap that runs but maps nothing produces:
+   *   a Patient husk with no name, gender or address behind a valid-looking reference id.
+   *
+   * Only fresh registrations are judged on the subject resource. An edit or follow-up already has
+   * its subject, and legitimately extracts Observations and Encounters instead.
+   */
+  @VisibleForTesting
+  internal fun extractionProducedNothingUsable(
+    bundle: Bundle,
+    questionnaire: Questionnaire,
+    questionnaireConfig: QuestionnaireConfig,
+    questionnaireResponse: QuestionnaireResponse,
+  ): Boolean {
+    val isFreshRegistration = questionnaireResponse.subject.reference.isNullOrEmpty()
+    if (bundle.entry.isNullOrEmpty()) return isFreshRegistration
+    if (!isFreshRegistration) return false
+
+    val subjectType = questionnaireSubjectType(questionnaire, questionnaireConfig) ?: return false
+    val subject =
+      bundle.entry.mapNotNull { it.resource }.firstOrNull { it.resourceType == subjectType }
+        ?: return true
+    return subject.carriesOnlyBookkeeping()
+  }
+
+  /** True when every populated element of this resource is metadata rather than entered data. */
+  private fun Resource.carriesOnlyBookkeeping(): Boolean =
+    children().none { property ->
+      property.name !in BOOKKEEPING_ELEMENTS && property.hasValues()
+    }
 
   suspend fun saveExtractedResources(
     bundle: Bundle,
@@ -437,6 +749,14 @@ constructor(
           }
         }
 
+        // The register/profile screens surface the aa-reference-id from Patient.identifier; a
+        // stale server StructureMap (or a failed identifier rule) leaves it blank and the app
+        // shows "Not Available". Guarantee it here: new patients get the id generated for this
+        // session, edited patients keep the id they were registered with.
+        if (this is Patient && resourceType == subjectType) {
+          ensureReferenceIdIdentifier(this, questionnaireConfig, questionnaireResponse)
+        }
+
         // Set the Group's Related Entity Location metadata tag on Resource before saving.
         this.applyRelatedEntityLocationMetaTag(questionnaireConfig, context, subjectType)
 
@@ -480,6 +800,57 @@ constructor(
       defaultRepository.addOrUpdate(resource = questionnaireResponse)
     }
   }
+
+  /**
+   * Guarantees the subject [Patient] carries the user-facing reference-id identifier (system
+   * [PATIENT_REFERENCE_ID_SYSTEM]) with a non-blank value before it is saved:
+   * - Editing an existing case: the reference id is permanent, so the identifier already stored
+   *   on the patient wins over whatever this extraction produced.
+   * - New registration: when the StructureMap did not populate the identifier (stale map on the
+   *   server, failed rule) it is filled from the aa-reference-id answer of the
+   *   [QuestionnaireResponse].
+   */
+  private suspend fun ensureReferenceIdIdentifier(
+    patient: Patient,
+    questionnaireConfig: QuestionnaireConfig,
+    questionnaireResponse: QuestionnaireResponse,
+  ) {
+    val storedValue =
+      if (questionnaireConfig.isEditable()) {
+        runCatching { loadResource(ResourceType.Patient, patient.logicalId) as? Patient }
+          .getOrNull()
+          ?.referenceIdIdentifier()
+          ?.value
+          ?.takeUnless { it.isBlank() }
+      } else {
+        null
+      }
+
+    val referenceId =
+      storedValue
+        ?: patient.referenceIdIdentifier()?.value?.takeUnless { it.isBlank() }
+        ?: questionnaireResponse.item
+          .firstOrNull { it.linkId == AA_REFERENCE_ID_LINK_ID }
+          ?.answerFirstRep
+          ?.value
+          ?.primitiveValue()
+        ?: return
+
+    val identifier =
+      patient.referenceIdIdentifier()
+        ?: Identifier()
+          .apply {
+            use = Identifier.IdentifierUse.SECONDARY
+            system = PATIENT_REFERENCE_ID_SYSTEM
+          }
+          // First position so identifierFirstRep (what the UI shows) is the reference id even
+          // when other identifiers (e.g. ABHA) exist.
+          .also { patient.identifier.add(0, it) }
+    identifier.value = referenceId
+  }
+
+  private fun Patient.referenceIdIdentifier(): Identifier? =
+    identifier.firstOrNull { it.system == PATIENT_REFERENCE_ID_SYSTEM }
 
   private suspend fun Resource.applyRelatedEntityLocationMetaTag(
     questionnaireConfig: QuestionnaireConfig,
@@ -649,14 +1020,192 @@ constructor(
       .getOrDefault(Bundle())
 
   /**
-   * This function saves [QuestionnaireResponse] as draft if any of the [QuestionnaireResponse.item]
-   * has an answer.
+   * The required questions of [questionnaire] that [questionnaireResponse] does not actually answer.
+   *
+   * The data capture library already blocks its own submit button on required fields, but that check
+   * happens *before* the app gets the response, and the app then keeps working on it — most notably
+   * [reconcileDocumentReferencesForSubmission], which deletes screening-image answers whose
+   * DocumentReference has gone missing locally, and `patient-screening-image-1` is required. This is
+   * the last look at the data before anything is written or synced.
+   *
+   * It is deliberately stricter than the library's `RequiredValidator`, which is satisfied by
+   * `answer.any { it.hasValue() }`: a whitespace-only name, a Coding with neither code nor display
+   * and an Attachment with neither url nor data all count as answers there and as missing here.
+   *
+   * Never reports a question the user was not asked:
+   * - hidden items (and everything nested under them) are skipped, exactly as the library does;
+   * - an item absent from the response is only reported when its parent group *is* present and the
+   *   item has no `enableWhen` of its own — a disabled item is legitimately absent, because
+   *   `QuestionnaireFragment.getQuestionnaireResponse()` strips disabled items on the way out.
    */
-  fun saveDraftQuestionnaire(questionnaireResponse: QuestionnaireResponse) {
+  fun findUnansweredRequiredQuestions(
+    questionnaire: Questionnaire,
+    questionnaireResponse: QuestionnaireResponse,
+  ): List<UnansweredRequiredQuestion> {
+    val responseItems =
+      mutableMapOf<String, MutableList<QuestionnaireResponse.QuestionnaireResponseItemComponent>>()
+    indexResponseItems(questionnaireResponse.item, responseItems)
+
+    val unanswered = mutableListOf<UnansweredRequiredQuestion>()
+    collectUnansweredRequiredQuestions(
+      items = questionnaire.item,
+      parentPresentInResponse = true,
+      responseItems = responseItems,
+      unanswered = unanswered,
+    )
+    return unanswered
+  }
+
+  /** Indexes every response item by linkId, including those nested under an answer. */
+  private fun indexResponseItems(
+    items: List<QuestionnaireResponse.QuestionnaireResponseItemComponent>,
+    into: MutableMap<String, MutableList<QuestionnaireResponse.QuestionnaireResponseItemComponent>>,
+  ) {
+    items.forEach { item ->
+      item.linkId?.let { into.getOrPut(it) { mutableListOf() }.add(item) }
+      indexResponseItems(item.item, into)
+      item.answer.forEach { indexResponseItems(it.item, into) }
+    }
+  }
+
+  private fun collectUnansweredRequiredQuestions(
+    items: List<Questionnaire.QuestionnaireItemComponent>,
+    parentPresentInResponse: Boolean,
+    responseItems:
+      Map<String, List<QuestionnaireResponse.QuestionnaireResponseItemComponent>>,
+    unanswered: MutableList<UnansweredRequiredQuestion>,
+  ) {
+    items.forEach { item ->
+      if (item.isHiddenQuestionnaireItem()) return@forEach
+
+      val presentInResponse = responseItems.containsKey(item.linkId)
+      val answerable =
+        item.type != Questionnaire.QuestionnaireItemType.GROUP &&
+          item.type != Questionnaire.QuestionnaireItemType.DISPLAY &&
+          item.type != Questionnaire.QuestionnaireItemType.NULL
+
+      if (item.required && answerable) {
+        val missing =
+          if (presentInResponse) {
+            responseItems.getValue(item.linkId).none { responseItem ->
+              responseItem.answer.any { it.hasRealValue() }
+            }
+          } else {
+            parentPresentInResponse && !item.hasEnableWhen()
+          }
+        if (missing) {
+          unanswered.add(
+            UnansweredRequiredQuestion(
+              linkId = item.linkId,
+              label = item.text?.takeIf { it.isNotBlank() } ?: item.linkId,
+            ),
+          )
+        }
+      }
+
+      collectUnansweredRequiredQuestions(
+        items = item.item,
+        parentPresentInResponse = presentInResponse,
+        responseItems = responseItems,
+        unanswered = unanswered,
+      )
+    }
+  }
+
+  private fun Questionnaire.QuestionnaireItemComponent.isHiddenQuestionnaireItem(): Boolean =
+    (getExtensionByUrl(EXTENSION_HIDDEN_URL)?.value as? BooleanType)?.booleanValue() == true
+
+  /**
+   * Whether this answer holds something a human actually entered. `hasValue()` is not enough: it is
+   * true for a blank string and for an empty Coding or Attachment shell.
+   */
+  private fun QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent.hasRealValue():
+    Boolean {
+    val answerValue = value ?: return false
+    return when (answerValue) {
+      is Attachment -> !answerValue.url.isNullOrBlank() || answerValue.hasData()
+      is Coding -> !answerValue.code.isNullOrBlank() || !answerValue.display.isNullOrBlank()
+      is Reference -> !answerValue.reference.isNullOrBlank()
+      else -> answerValue.primitiveValue()?.isNotBlank() ?: !answerValue.isEmpty
+    }
+  }
+
+  /** True when this item, or anything nested under it, carries an answer value. */
+  private fun QuestionnaireResponse.QuestionnaireResponseItemComponent.hasAnyAnswer(): Boolean =
+    answer.any { it.hasValue() || it.item.any(::hasAnyAnswerIn) } || item.any(::hasAnyAnswerIn)
+
+  private fun hasAnyAnswerIn(
+    item: QuestionnaireResponse.QuestionnaireResponseItemComponent,
+  ): Boolean = item.hasAnyAnswer()
+
+  /** Depth-first lookup of the first item carrying [linkId], or null when the form has no such item. */
+  private fun findItemByLinkId(
+    items: List<QuestionnaireResponse.QuestionnaireResponseItemComponent>,
+    linkId: String,
+  ): QuestionnaireResponse.QuestionnaireResponseItemComponent? {
+    items.forEach { item ->
+      if (item.linkId == linkId) return item
+      findItemByLinkId(item.item, linkId)?.let { return it }
+    }
+    return null
+  }
+
+  /**
+   * Whether this response holds anything worth keeping as a draft.
+   *
+   * "Has any answer" is not enough on its own: a registration form opens with answers already in
+   * place — the age-unit radio's `initialSelected`, and the FLW's district/state pre-filled from
+   * their Practitioner record — so an untouched form looks answered, and every Add-New-Case followed
+   * by back saved another empty guest draft.
+   *
+   * The patient's given name is the agreed minimum: no name, no draft. Forms with no such item (any
+   * other draft-enabled questionnaire) keep the previous any-answer behaviour, so this stays correct
+   * beyond the registration flow.
+   */
+  fun hasDraftWorthyData(questionnaireResponse: QuestionnaireResponse): Boolean {
+    val givenName = findItemByLinkId(questionnaireResponse.item, PATIENT_GIVEN_NAME_LINK_ID)
+    return if (givenName != null) {
+      givenName.answer.any { !it.value?.primitiveValue().isNullOrBlank() }
+    } else {
+      questionnaireResponse.item.any { it.hasAnyAnswer() }
+    }
+  }
+
+  /**
+   * Saves [questionnaireResponse] as a draft, provided the user actually entered something — see
+   * [hasDraftWorthyData].
+   */
+  fun saveDraftQuestionnaire(
+    questionnaireResponse: QuestionnaireResponse,
+    /**
+     * Invoked exactly once, on the main thread, when the save has settled, with true only when a
+     * draft was really written. The caller shows a blocking progress dialog while this is running,
+     * so a path that never reports back leaves the user stuck on a spinner; that is what the old
+     * `catch` branch did, because only the success paths posted [_isDraftSaved].
+     */
+    onSaved: (saved: Boolean) -> Unit = {},
+  ) {
     viewModelScope.launch {
-      val questionnaireHasAnswer = questionnaireResponse.item.any { it?.item?.get(1)?.hasAnswer() == true }
-      if (questionnaireHasAnswer) {
-        try {
+      var saved = false
+      try {
+        saved = persistDraft(questionnaireResponse)
+      } finally {
+        // Settled either way: the caller is holding a modal progress dialog open until it hears
+        // back, so this has to run on every path — including a failure inside persistDraft.
+        _isDraftSaved.postValue(true)
+        onSaved(saved)
+      }
+    }
+  }
+
+  /** Returns true when a draft was actually written. */
+  private suspend fun persistDraft(questionnaireResponse: QuestionnaireResponse): Boolean {
+      val questionnaireHasAnswer = hasDraftWorthyData(questionnaireResponse)
+      if (!questionnaireHasAnswer) {
+        Timber.i("Nothing entered on the questionnaire; not saving an empty draft")
+        return false
+      }
+      return try {
           val ref = Reference().apply { reference =  "Practitioner/${getUserName()}"}
           // set author
           questionnaireResponse.author = ref
@@ -675,8 +1224,7 @@ constructor(
 
           if (responses.find { it.id == questionnaireResponse.id } != null){
             defaultRepository.addOrUpdate(addMandatoryTags = true, resource = questionnaireResponse)
-            _isDraftSaved.postValue(true)
-            return@launch
+            return true
           }
           val draftResponsesJson = getAllDraftsJsonFromSharedPreferences(sharedPreferencesHelper)
           var draftResBundle = parseDraftResponses(parser, draftResponsesJson)
@@ -704,15 +1252,11 @@ constructor(
             val bundleJson = parser.encodeResourceToString(draftResBundle)
             sharedPreferencesHelper.write<String>(SharedPreferenceKey.DRAFTS.name, bundleJson)
           }
-
-          _isDraftSaved.postValue(true)
+          true
         }catch (exception: Exception){
           Timber.e(exception, "An error occurred while saveDraftQuestionnaire")
+          false
         }
-      } else {
-        _isDraftSaved.postValue(true)
-      }
-    }
   }
 
   /**
@@ -742,7 +1286,7 @@ constructor(
           }
         }
       } catch (resourceNotFoundException: ResourceNotFoundException) {
-        Timber.e("Unable to update resource's _lastUpdated", resourceNotFoundException)
+        Timber.e(resourceNotFoundException, "Unable to update resource's _lastUpdated")
       } catch (illegalArgumentException: IllegalArgumentException) {
         Timber.e(
           "No enum constant org.hl7.fhir.r4.model.ResourceType.${param.value.substringBefore("/")}",
@@ -1253,6 +1797,7 @@ constructor(
         val qr = fhirEngine.get(ResourceType.QuestionnaireResponse, qrId) as QuestionnaireResponse
         qr.addExtension(REFER_CASE_URL, BooleanType(true))
         fhirEngine.update(qr)
+        // Skipped when offline; the referral is queued as a local change and rides the next sync.
         syncBroadcaster.runOneTimeSync()
       } catch (e: Exception) {
         Timber.e(e, "Error updating QuestionnaireResponse with refer case")
@@ -1262,10 +1807,49 @@ constructor(
 
   companion object {
     const val CONTAINED_LIST_TITLE = "GeneratedResourcesList"
+    const val AA_REFERENCE_ID_LINK_ID = "aa-reference-id"
+    const val SCREENING_GROUP_LINK_ID = "screening-group"
+    const val PATIENT_SCREENING_IMAGE_GROUP_LINK_ID = "patient-screening-image-group"
+
+    /** The patient's first name — the minimum the user must enter for a draft to be worth keeping. */
+    const val PATIENT_GIVEN_NAME_LINK_ID = "patient-name-given"
+    const val PATIENT_REFERENCE_ID_SYSTEM = "https://midas.iisc.ac.in/fhir/identifier/patient-id"
     const val OUTPUT_PARAMETER_KEY = "OUTPUT"
     private const val LOW_CONFIDENCE_THRESHOLD = 65f
+
+    /** https://hl7.org/fhir/R4/extension-questionnaire-hidden.html */
+    private const val EXTENSION_HIDDEN_URL =
+      "http://hl7.org/fhir/StructureDefinition/questionnaire-hidden"
+
+    /**
+     * Elements every extracted resource carries whether or not the user entered anything, so their
+     * presence says nothing about whether the extraction worked — see [carriesOnlyBookkeeping].
+     */
+    private val BOOKKEEPING_ELEMENTS =
+      setOf(
+        "id",
+        "meta",
+        "implicitRules",
+        "language",
+        "text",
+        "contained",
+        "extension",
+        "modifierExtension",
+        "identifier",
+      )
   }
 }
+
+/**
+ * A required question of the [Questionnaire] that the [QuestionnaireResponse] does not answer.
+ *
+ * @property linkId the questionnaire item's linkId, for logs and analytics.
+ * @property label the question as the user saw it, for the message that names what is missing.
+ */
+data class UnansweredRequiredQuestion(
+  val linkId: String,
+  val label: String,
+)
 
 data class AiInferenceSummary(
   val isSuspicious: Boolean,
@@ -1275,4 +1859,31 @@ data class AiInferenceSummary(
   val nonSuspiciousImageCount: Int = 0,
   val lowConfidenceImageCount: Int = 0,
   val meanConfidence: Float = 0f,
+)
+
+/**
+ * Outcome of [QuestionnaireViewModel.reconcileDocumentReferencesForSubmission].
+ *
+ * @property submittedDraftIds ids of DocumentReferences flipped DRAFT -> SUBMITTED.
+ * @property missingReferences answers dropped because their DocumentReference is absent locally
+ *   *and* was never confirmed on the server — the ids that would have produced a 404.
+ * @property unparseableUrls attachment URLs from which no DocumentReference id could be extracted.
+ * @property uploadedButPurgedIds ids absent locally but recorded as uploaded, whose answers were
+ *   deliberately kept because the server holds the resource.
+ * @property failedFlips documents that could not be read or could not be flipped to SUBMITTED.
+ *   These stay invisible to `AppSyncWorker` (which skips DRAFT), so their images are never
+ *   uploaded — the response ends up referencing a resource with no binary.
+ */
+data class DocumentReferenceReconciliationResult(
+  val submittedDraftIds: List<String> = emptyList(),
+  val missingReferences: List<MissingDocumentReference> = emptyList(),
+  val unparseableUrls: List<String> = emptyList(),
+  val uploadedButPurgedIds: List<String> = emptyList(),
+  val failedFlips: List<MissingDocumentReference> = emptyList(),
+)
+
+/** A screening-image answer whose DocumentReference is absent from the local FhirEngine. */
+data class MissingDocumentReference(
+  val linkId: String,
+  val documentReferenceId: String,
 )

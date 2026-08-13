@@ -21,6 +21,7 @@
     <string name="select_language">Select Language</string>
     <string name="logout_user">Log out as %1$s</string>
     <string name="sync_completed">Sync Successful</string>
+    <string name="sync_up_to_date">All changes synced</string>
     <string name="syncing">Syncing</string>
     <string name="syncing_up" >Syncing up</string>
     <string name="sync_pending">Sync pending</string>

@@ -22,6 +22,8 @@ import android.content.Intent
 import android.location.LocationManager
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.test.core.app.ApplicationProvider
 import com.google.android.fhir.FhirEngine
@@ -215,6 +217,54 @@ class QuestionnaireActivityTest : RobolectricTest() {
 
       Assert.assertEquals(sortedQuestionnaireItemLinkIds, sortedFragmentQuestionnaireItemLinkIds)
     }
+
+  /**
+   * Turning on battery saver switches the system into dark mode, which is a `uiMode` configuration
+   * change that destroys and recreates the activity with a non-null savedInstanceState. Because
+   * onSaveInstanceState() clears the bundle there is no fragment to restore, so the form has to be
+   * rebuilt — otherwise the user is left on an empty white screen under a toolbar still showing the
+   * layout's design-time placeholder title.
+   */
+  @Test
+  fun testThatQuestionnaireIsRebuiltWhenActivityIsRecreated() = runTest {
+    coEvery { defaultRepository.fhirEngine.get(any<ResourceType>(), any<String>()) } answers
+      {
+        throw ResourceNotFoundException(firstArg<ResourceType>().name, secondArg())
+      }
+    mockkStatic(Toast::class)
+    every { Toast.makeText(any(), any<String>(), Toast.LENGTH_LONG) } returns
+      mockk<Toast>() { every { show() } just runs }
+
+    val bundle =
+      QuestionnaireActivity.intentBundle(
+        questionnaireConfig.copy(showClearAll = true),
+        emptyList(),
+      )
+    questionnaireActivityController =
+      Robolectric.buildActivity(
+        QuestionnaireActivity::class.java,
+        Intent().apply { putExtras(bundle) },
+      )
+    // A recreated activity is handed the (cleared) saved-state bundle instead of null.
+    questionnaireActivity = questionnaireActivityController.create(Bundle()).resume().get()
+    advanceUntilIdle()
+
+    // The toolbar is configured even though this is a recreation, so the screen never shows the
+    // layout's design-time defaults.
+    assertEquals(
+      context.getString(R.string.add_case),
+      questionnaireActivity.findViewById<TextView>(R.id.questionnaireTitle).text.toString(),
+    )
+    assertEquals(
+      View.VISIBLE,
+      questionnaireActivity.findViewById<TextView>(R.id.clearAll).visibility,
+    )
+    // renderQuestionnaire() ran on the recreated activity: it looked the questionnaire up and
+    // reported it missing. Before the fix nothing happened at all and the user was left on a blank
+    // white container under a stale toolbar.
+    verify { Toast.makeText(any(), eq(context.getString(R.string.questionnaire_not_found)), any()) }
+    unmockkStatic(Toast::class)
+  }
 
   @Test
   fun `renderQuestionnaire should prepopulate FLW district and state from shared preferences`() =

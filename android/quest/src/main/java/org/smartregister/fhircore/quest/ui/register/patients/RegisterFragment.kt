@@ -193,7 +193,10 @@ class RegisterFragment : Fragment(), OnSyncListener {
     hasShownSyncing = false
 
     registerViewModel.getAllPatients()
-    registerViewModel.getAllSyncedPatients()
+    // getAllSyncedPatients() is intentionally not called here: the home register does not display
+    // allSyncedPatientsStateFlow (only ViewAllPatientsScreen does, via its own fragment-scoped
+    // ViewModel instance). It is a heavy loader (getUnsyncedLocalChanges() + full patient parse),
+    // so skipping it cuts DB/IO contention and lets getAllPatients() finish sooner.
     registerViewModel.getAllDraftResponses()
     registerViewModel.getAllUnSyncedPatients()
     registerViewModel.getAllUnSyncedPatientsImages()
@@ -236,7 +239,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
           if (progressSyncJob.syncOperation == SyncOperation.UPLOAD) {
             lifecycleScope.launch {
               registerViewModel.emitSnackBarState(
-                SnackBarMessageConfig(message = getString(R.string.uploading_images_title)),
+                SnackBarMessageConfig(message = getString(R.string.syncing)),
               )
             }
           }
@@ -261,7 +264,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
             )
             delay(200)
             registerViewModel.getAllPatients()
-            registerViewModel.getAllSyncedPatients()
+            // getAllSyncedPatients() skipped: not displayed on the home register (see onResume).
             registerViewModel.getAllDraftResponses()
             registerViewModel.getAllUnSyncedPatients()
             registerViewModel.getAllUnSyncedPatientsImages()
@@ -280,7 +283,7 @@ class RegisterFragment : Fragment(), OnSyncListener {
             )
             delay(200)
             registerViewModel.getAllPatients()
-            registerViewModel.getAllSyncedPatients()
+            // getAllSyncedPatients() skipped: not displayed on the home register (see onResume).
             registerViewModel.getAllDraftResponses()
             registerViewModel.getAllUnSyncedPatients()
             registerViewModel.getAllUnSyncedPatientsImages()
@@ -345,6 +348,11 @@ class RegisterFragment : Fragment(), OnSyncListener {
   }
 
   suspend fun handleQuestionnaireSubmission(questionnaireSubmission: QuestionnaireSubmission) {
+    // The case is registered, so the draft it came from must disappear before the user can get back
+    // to this screen — a reopened draft submits the same case again, and that second submission
+    // arrives with its screening images stripped.
+    registerViewModel.purgeSubmittedDraft()
+
     if (questionnaireSubmission.questionnaireConfig.saveQuestionnaireResponse) {
       appMainViewModel.run {
         onQuestionnaireSubmission(questionnaireSubmission)

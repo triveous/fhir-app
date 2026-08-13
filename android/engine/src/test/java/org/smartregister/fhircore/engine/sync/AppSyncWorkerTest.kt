@@ -25,12 +25,14 @@ import com.google.gson.Gson
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.hl7.fhir.r4.model.ResourceType
 import org.junit.Assert
 import org.junit.Test
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceService
 import org.smartregister.fhircore.engine.robolectric.RobolectricTest
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 
@@ -46,6 +48,7 @@ class AppSyncWorkerTest : RobolectricTest() {
     val fhirResourceService = mockk<FhirResourceService>()
     val secureSharedPreference = mockk<SecureSharedPreference>()
     val sharedPreferencesHelper = mockk<SharedPreferencesHelper>()
+    val featureFlagUtil = mockk<FeatureFlagUtil>(relaxed = true)
 
     every { taskExecutor.serialTaskExecutor } returns mockk()
     every { workerParams.taskExecutor } returns taskExecutor
@@ -62,6 +65,8 @@ class AppSyncWorkerTest : RobolectricTest() {
         secureSharedPreference,
         sharedPreferencesHelper,
         Gson(),
+        featureFlagUtil,
+        mockk(relaxed = true),
       )
 
     appSyncWorker.getDownloadWorkManager()
@@ -72,7 +77,7 @@ class AppSyncWorkerTest : RobolectricTest() {
   }
 
   @Test
-  fun `doWork should skip duplicate sync worker when another sync is running`() = runTest {
+  fun `doWork should skip duplicate sync worker when another sync is running`() = runBlocking {
     val workerParams = mockk<WorkerParameters>()
     val syncListenerManager = mockk<SyncListenerManager>()
     val fhirEngine = mockk<FhirEngine>()
@@ -81,6 +86,7 @@ class AppSyncWorkerTest : RobolectricTest() {
     val fhirResourceService = mockk<FhirResourceService>()
     val secureSharedPreference = mockk<SecureSharedPreference>()
     val sharedPreferencesHelper = mockk<SharedPreferencesHelper>()
+    val featureFlagUtil = mockk<FeatureFlagUtil>(relaxed = true)
 
     every { taskExecutor.serialTaskExecutor } returns mockk()
     every { workerParams.taskExecutor } returns taskExecutor
@@ -96,6 +102,8 @@ class AppSyncWorkerTest : RobolectricTest() {
         secureSharedPreference,
         sharedPreferencesHelper,
         Gson(),
+        featureFlagUtil,
+        mockk(relaxed = true),
       )
 
     Assert.assertTrue(AppSyncWorker.mutex.tryLock())
