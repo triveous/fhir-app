@@ -48,7 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.smartregister.fhircore.quest.util.FeatureFlagUtil
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,7 +94,9 @@ fun ProfileSectionScreen(
     onClickChangeLanguage:() -> Unit
 ) {
 
-    val userNameText = viewModel.getUserName()
+    // The login username, not getUserName(): that returns the Practitioner logical id, which is a
+    // UUID on newer accounts and is not something to show an FLW as their own name.
+    val userNameText = viewModel.getDisplayUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var showChangePinDialog by remember { mutableStateOf(false) }
     var aiInferenceEnabled by remember { mutableStateOf(false) }

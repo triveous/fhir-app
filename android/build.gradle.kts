@@ -70,7 +70,8 @@ allprojects {
     configurations.all {
       resolutionStrategy.cacheChangingModulesFor(0, "seconds")
       resolutionStrategy.dependencySubstitution {
-        substitute(module("org.smartregister:p2p-lib")).using(module("com.github.onaio:android-p2p:main-SNAPSHOT"))
+        // p2p-lib is no longer substituted onto JitPack: org.smartregister:p2p-lib:0.6.11 is a real
+        // Maven Central release, so transitive requests for it resolve on their own.
         substitute(module("org.smartregister:fhir-common-utils")).using(module("com.github.opensrp:fhir-common-utils:v1.0.3-SNAPSHOT"))
       }
     }

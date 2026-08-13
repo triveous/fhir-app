@@ -18,6 +18,7 @@ package org.smartregister.fhircore.engine.data.remote.fhir.resource
 
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
+import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.OperationOutcome
@@ -101,4 +102,11 @@ interface FhirResourceService {
     @Query("_elements") elements: String =
       "docStatus,content.attachment.contentType,content.attachment.size"
   ): DocumentReference
+
+  /**
+   * Direct instance read. Unlike a `Basic?_id=<id>` search, an instance read is never served
+   * from HAPI's search-results cache, so the response always reflects the current server state.
+   */
+  @GET("Basic/{id}")
+  suspend fun getBasicResource(@Path("id") id: String): Basic
 }

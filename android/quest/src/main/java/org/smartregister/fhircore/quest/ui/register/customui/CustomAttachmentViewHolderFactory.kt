@@ -29,6 +29,7 @@ import androidx.core.content.FileProvider
 import androidx.core.os.bundleOf
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.Target
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.FhirEngineProvider
 import com.google.android.fhir.datacapture.extensions.MimeType
@@ -49,6 +50,7 @@ import com.google.android.material.divider.MaterialDivider
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.DecimalType
@@ -56,16 +58,18 @@ import org.hl7.fhir.r4.model.DocumentReference
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
-import org.smartregister.fhircore.quest.util.FeatureFlagUtil
-import org.smartregister.fhircore.quest.util.FeatureFlagUtilEntryPoint
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
+import org.smartregister.fhircore.engine.util.FeatureFlagUtilEntryPoint
 import kotlinx.coroutines.runBlocking
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
+import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import timber.log.Timber
@@ -495,10 +499,16 @@ internal object CustomAttachmentViewHolderFactory :
                                             }
                                         }
 
+                                        // IMPORTANT: the DocumentReference id (carried in the URL)
+                                        // is deliberately NOT baked in here. It is attached below,
+                                        // only AFTER create(doc) durably persists the resource (see
+                                        // the coroutine). Writing the URL before the resource exists
+                                        // is the root cause of "QR references a DocumentReference
+                                        // that 404s": the id can outlive a resource that was never
+                                        // persisted or synced.
                                         value =
                                             Attachment().apply {
                                                 contentType = attachmentMimeTypeWithSubType
-                                                url = doc.getUrl(sharedPreferencesHelper)
                                                 title = capturedFile.name
                                                 creation = Date()
                                             }
@@ -552,10 +562,42 @@ internal object CustomAttachmentViewHolderFactory :
                                 }
                             }
 
+                            // `questionnaireViewItem` is an `override lateinit var` that bind()
+                            // reassigns as RecyclerView recycles this delegate across all image
+                            // slots. Pin it to a local now: the coroutine below suspends twice, and
+                            // reading the field again afterwards can yield a *different* slot — we
+                            // would then purge one slot's DocumentReference and delete its JPEG
+                            // while writing the answer to another, destroying an image and leaving
+                            // the first slot pointing at a resource that no longer exists.
+                            val boundViewItem = questionnaireViewItem
+
+                            // The slot may already hold a previous capture (retake / re-shoot).
+                            // Capture its URL now so the orphaned DRAFT DocumentReference + its JPEG
+                            // can be purged once the new answer is in place.
+                            val previousAttachmentUrl =
+                                boundViewItem.answers.firstOrNull()?.valueAttachment?.url
+
                             context.lifecycleScope.launch {
-                                FhirEngineProvider.getInstance(context.applicationContext)
-                                    .create(doc)
-                                questionnaireViewItem.setAnswer(answer)
+                                // Persist the DocumentReference FIRST. Only once it is durably in the
+                                // engine do we bake its id into the QR answer. If create fails we
+                                // surface an error and leave the QR untouched, so the response can
+                                // never point at a resource that does not exist.
+                                try {
+                                    fhirEngine.create(doc)
+                                } catch (e: Exception) {
+                                    Timber.e(e, "Failed to persist DocumentReference ${doc.logicalId}; not attaching to the response")
+                                    displaySnackbar(view, R.string.upload_failed)
+                                    return@launch
+                                }
+                                val persistedAttachment = answer.value as? Attachment
+                                persistedAttachment?.url = doc.getUrl(sharedPreferencesHelper)
+
+                                // Replace flow: the new capture supersedes the previous one; purge
+                                // the now-orphaned DRAFT DocumentReference + file it left behind.
+                                // Same slot as `previousAttachmentUrl` came from — see boundViewItem.
+                                purgeDraftDocumentReference(previousAttachmentUrl)
+
+                                boundViewItem.setAnswer(answer)
                                 divider.visibility = View.VISIBLE
                                 displayPreview(
                                     attachmentType = attachmentMimeType,
@@ -623,19 +665,35 @@ internal object CustomAttachmentViewHolderFactory :
                     val doc = createDocumentReference(attachmentUri, attachmentMimeTypeWithSubType)
                     val answer =
                         QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+                            // URL (DocumentReference id) intentionally omitted here; it is attached
+                            // below only after create(doc) succeeds. See the take-photo flow.
                             value =
                                 Attachment().apply {
                                     contentType = attachmentMimeTypeWithSubType
-                                    url = doc.getUrl(sharedPreferencesHelper)
                                     title = attachmentTitle
                                     creation = Date()
                                     language = ""
                                 }
                         }
 
+                    // Pinned for the same reason as the take-photo path: the field is reassigned on
+                    // every bind(), and purging one slot while answering another deletes an image.
+                    val boundViewItem = questionnaireViewItem
+                    val previousAttachmentUrl =
+                        boundViewItem.answers.firstOrNull()?.valueAttachment?.url
+
                     context.lifecycleScope.launch {
-                        FhirEngineProvider.getInstance(context.applicationContext).create(doc)
-                        questionnaireViewItem.setAnswer(answer)
+                        try {
+                            fhirEngine.create(doc)
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to persist DocumentReference ${doc.logicalId}; not attaching to the response")
+                            displaySnackbar(view, R.string.upload_failed)
+                            return@launch
+                        }
+                        val persistedAttachment = answer.value as? Attachment
+                        persistedAttachment?.url = doc.getUrl(sharedPreferencesHelper)
+                        purgeDraftDocumentReference(previousAttachmentUrl)
+                        boundViewItem.setAnswer(answer)
                         divider.visibility = View.VISIBLE
                         displayPreview(
                             attachmentType = attachmentMimeType,
@@ -854,8 +912,14 @@ internal object CustomAttachmentViewHolderFactory :
 
                 dialog.setContentView(rootLayout)
 
+                // Full-screen viewer is zoomable, so load the original full-resolution image
+                // (no downsample, no crop) to keep it sharp when zoomed. Falls back to a
+                // downsampled load if the full decode runs out of memory, so it never crashes.
                 Glide.with(context)
                     .load(imageUri)
+                    .dontTransform()
+                    .override(Target.SIZE_ORIGINAL)
+                    .error(Glide.with(context).load(imageUri))
                     .into(imageView)
 
                 closeButton.setOnClickListener {
@@ -866,13 +930,40 @@ internal object CustomAttachmentViewHolderFactory :
             }
 
 
-            private fun onDeleteClicked(view: View) {
-                context.lifecycleScope.launch {
-                    val attachmentType =
-                        getMimeType(questionnaireViewItem.answers.first().valueAttachment.contentType)
-                    questionnaireViewItem.clearAnswer()
+            /**
+             * Purges a not-yet-submitted (DRAFT) DocumentReference and deletes its backing JPEG.
+             *
+             * Called when a captured photo is deleted or superseded by a retake. Only DRAFT
+             * documents (never submitted/synced) are removed, so editing a case that already has a
+             * submitted image can never delete server-bound data. A missing id, an already-purged
+             * row and any non-DRAFT document are all no-ops.
+             */
+            private suspend fun purgeDraftDocumentReference(attachmentUrl: String?) {
+                purgeDraftDocumentReferenceIfSafe(
+                    fhirEngine = fhirEngine,
+                    attachmentUrl = attachmentUrl,
+                    deleteFile = { fileLocation ->
+                        context.contentResolver.delete(Uri.parse(fileLocation), null, null)
+                    },
+                )
+            }
 
-                    val questionnaireItem = questionnaireViewItem.questionnaireItem
+            private fun onDeleteClicked(view: View) {
+                // Pinned before the coroutine: purgeDraftDocumentReference suspends, and clearing
+                // the answer on a slot other than the one whose file we just deleted would leave a
+                // live answer pointing at a deleted image.
+                val boundViewItem = questionnaireViewItem
+                context.lifecycleScope.launch {
+                    val deletedAttachment =
+                        boundViewItem.answers.firstOrNull()?.valueAttachment ?: return@launch
+                    val attachmentType = getMimeType(deletedAttachment.contentType)
+                    // Clear the answer FIRST, then purge. If the purge throws, the worst case is an
+                    // orphaned DRAFT row and its JPEG (a storage leak); the reverse order risks a
+                    // deleted image still referenced by a live answer.
+                    boundViewItem.clearAnswer()
+                    purgeDraftDocumentReference(deletedAttachment.url)
+
+                    val questionnaireItem = boundViewItem.questionnaireItem
                     questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
                     questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
                     questionnaireItem.removeExtension(MODEL6_PREDICTION_URL)
@@ -1074,7 +1165,7 @@ internal object CustomAttachmentViewHolderFactory :
         }
 
 
-    private fun createDocumentReference(attachmentUri: Uri, mimeType: String): DocumentReference {
+    internal fun createDocumentReference(attachmentUri: Uri, mimeType: String): DocumentReference {
 
         val doc = DocumentReference().apply {
 
@@ -1194,6 +1285,76 @@ fun DocumentReference.getUrl(sharedPreferencesHelper: SharedPreferencesHelper?):
 
     return "${sharedPreferencesHelper?.getFhirBaseUrl()}DocumentReference/${logicalId}/\$binary-access-read?path=DocumentReference.content.attachment"
 
+}
+
+/**
+ * Extracts the DocumentReference logical id from a binary-access-read URL of the form
+ * `.../DocumentReference/{id}/$binary-access-read?...`. Returns null when [url] is null or the id
+ * cannot be located.
+ */
+internal fun extractDocumentReferenceId(url: String?): String? {
+    if (url == null) return null
+    return Regex("DocumentReference/([^/]+)/").find(url)?.groupValues?.get(1)
+}
+
+/** Why [purgeDraftDocumentReferenceIfSafe] did or did not remove anything. */
+internal enum class PurgeDraftOutcome {
+    /** No DocumentReference id could be read from the URL. */
+    NO_ID,
+
+    /** The row is already gone, or the lookup failed. */
+    NOT_FOUND,
+
+    /** The document is not a DRAFT — it may be referenced by a submitted response. Left alone. */
+    NOT_DRAFT,
+
+    /** The DRAFT row was purged and its JPEG deleted. */
+    PURGED,
+}
+
+/**
+ * Purges a not-yet-submitted (DRAFT) DocumentReference and deletes its backing JPEG.
+ *
+ * Called when a captured photo is deleted or superseded by a retake. **Only DRAFT documents are
+ * removed**, so editing a case whose image was already submitted can never delete server-bound
+ * data — that guard is the reason this is destructive-but-safe, and it is the single most important
+ * thing to preserve here.
+ *
+ * A missing id, an already-purged row and any non-DRAFT document are all no-ops. A failure to
+ * delete the file is not fatal: an orphan JPEG is a storage leak, whereas skipping the purge would
+ * leave a stale row behind.
+ *
+ * Extracted from the view-holder delegate — which is an anonymous object inside a singleton and
+ * cannot be constructed in a test — so this behaviour is verifiable.
+ */
+internal suspend fun purgeDraftDocumentReferenceIfSafe(
+    fhirEngine: FhirEngine,
+    attachmentUrl: String?,
+    deleteFile: (String) -> Unit,
+): PurgeDraftOutcome {
+    val documentReferenceId = extractDocumentReferenceId(attachmentUrl) ?: return PurgeDraftOutcome.NO_ID
+    return try {
+        val doc =
+            fhirEngine.get(ResourceType.DocumentReference, documentReferenceId) as? DocumentReference
+                ?: return PurgeDraftOutcome.NOT_FOUND
+        if (doc.description != DocumentReferenceCaseType.DRAFT.name) return PurgeDraftOutcome.NOT_DRAFT
+
+        // Delete the JPEG the DocumentReference points at (file-location extension).
+        (doc.getExtensionByUrl(EXTENSION_FILE_LOCATION)?.value as? StringType)?.value?.let { fileLocation ->
+            runCatching { deleteFile(fileLocation) }
+                .onFailure { Timber.w(it, "Could not delete file for $documentReferenceId") }
+        }
+
+        fhirEngine.purge(ResourceType.DocumentReference, documentReferenceId, true)
+        Timber.i("Purged orphaned DRAFT DocumentReference $documentReferenceId and its file")
+        PurgeDraftOutcome.PURGED
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (e: Exception) {
+        // ResourceNotFoundException (already gone) or any purge failure — nothing to do.
+        Timber.w(e, "No DRAFT DocumentReference to purge for id $documentReferenceId")
+        PurgeDraftOutcome.NOT_FOUND
+    }
 }
 
 internal const val MODEL6_PREDICTION_URL =

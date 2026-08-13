@@ -109,6 +109,16 @@ constructor(
     configurationRegistry.retrieveConfiguration(ConfigType.Application)
   }
 
+  /**
+   * Whether the in-memory application configuration is available. It is populated by the
+   * AppSettingActivity bootstrap and lives only in memory ([ConfigurationRegistry.configsJsonMap]).
+   * After process death the OS can recreate [LoginActivity] directly, bypassing that bootstrap, so
+   * reading [applicationConfiguration] would throw [NoSuchElementException] ("Key application is
+   * missing in the map"). The activity uses this to detect that state and restart the bootstrap.
+   */
+  fun isApplicationConfigurationLoaded(): Boolean =
+    configurationRegistry.configsJsonMap.containsKey(ConfigType.Application.name)
+
   fun onUsernameUpdated(username: String) {
     _loginErrorState.postValue(null)
     _username.value = username

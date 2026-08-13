@@ -3,6 +3,7 @@
 
     <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@color/white"
@@ -25,10 +26,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_alignParentStart="true"
-                   android:layout_toStartOf="@+id/clearAll"
+                    android:layout_toStartOf="@+id/clearAll"
                     android:paddingStart="@dimen/item_margin_horizontal"
                     android:paddingEnd="@dimen/item_margin_horizontal"
-                    android:text="Register so many many patients until elpsis is displayed"
+                    android:text="@string/add_case"
+                    tools:text="Register so many many patients until ellipsis is displayed"
                     android:maxLines="1"
                     android:ellipsize="middle"
                     android:textColor="@color/white"
@@ -42,8 +44,9 @@
                     android:paddingStart="@dimen/item_margin_horizontal"
                     android:paddingEnd="@dimen/item_margin_horizontal"
                     android:text="@string/clear_all"
-                    android:visibility="visible"
-                    android:textColor="@color/white" />
+                    android:visibility="gone"
+                    android:textColor="@color/white"
+                    tools:visibility="visible" />
             </RelativeLayout>
         </androidx.appcompat.widget.Toolbar>
 
