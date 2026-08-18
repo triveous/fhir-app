@@ -10,7 +10,7 @@
         android:id="@+id/nav_host_fragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginBottom="@dimen/spacing_36"
+        android:layout_above="@id/bottom_navigation"
         app:navGraph="@navigation/application_nav_graph"
         app:defaultNavHost="true" />
 

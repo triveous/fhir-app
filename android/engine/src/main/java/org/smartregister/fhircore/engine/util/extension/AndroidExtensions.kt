@@ -26,10 +26,12 @@ import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build.VERSION.SDK_INT
+import android.os.Build.VERSION_CODES
 import android.os.Bundle
 import android.os.LocaleList
 import android.os.Parcelable
 import android.view.View
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.graphics.Color as ComposeColor
@@ -156,18 +158,32 @@ fun Context.getActivity(): AppCompatActivity? =
 fun Activity.applyWindowInsetListener() {
   val content = findViewById<View>(android.R.id.content)
   content.setBackgroundColor(ContextCompat.getColor(this, R.color.colorPrimaryDark))
+  // Android 16 (targetSdk 36) enforces edge-to-edge. On devices with a display cutout or a
+  // curved/waterfall edge the window is otherwise letterboxed along that edge, exposing the white
+  // windowBackground as a band (typically down the right side in portrait). Letting the window
+  // extend into the cutout means the content background fills that band instead, and the
+  // displayCutout insets below keep real content clear of the notch/curve.
+  if (SDK_INT >= VERSION_CODES.R) {
+    val params = window.attributes
+    params.layoutInDisplayCutoutMode =
+      WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+    window.attributes = params
+  }
   WindowCompat.getInsetsController(window, window.decorView).apply {
     isAppearanceLightStatusBars = false
     isAppearanceLightNavigationBars = false
   }
   ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
-    val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+    val bars =
+      insets.getInsets(
+        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+      )
     val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
     view.setPadding(
-      systemBars.left,
-      systemBars.top,
-      systemBars.right,
-      maxOf(systemBars.bottom, imeBottom),
+      bars.left,
+      bars.top,
+      bars.right,
+      maxOf(bars.bottom, imeBottom),
     )
     insets
   }
