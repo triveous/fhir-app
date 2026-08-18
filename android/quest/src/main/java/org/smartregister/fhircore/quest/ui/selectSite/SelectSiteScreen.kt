@@ -64,7 +64,7 @@ import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
 import org.smartregister.fhircore.engine.util.extension.appVersion
-import org.smartregister.fhircore.quest.theme.Theme.getBackground
+import org.smartregister.fhircore.quest.theme.Theme.getWhiteBackground
 import org.smartregister.fhircore.quest.theme.bodyBold
 import org.smartregister.fhircore.quest.theme.bodyMedium
 import org.smartregister.fhircore.quest.ui.components.PoweredByLogos
@@ -92,7 +92,7 @@ fun SelectSiteScreen(
         modifier
             .fillMaxSize()
             .scrollable(orientation = Orientation.Vertical, state = rememberScrollState()),
-        color = getBackground(),
+        color = getWhiteBackground(),
         contentColor = contentColorFor(backgroundColor = Color.DarkGray),
     ) {
         Box {

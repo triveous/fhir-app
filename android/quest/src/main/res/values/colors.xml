@@ -14,6 +14,10 @@
     <color name="simple_dark_grey">#2F363D</color>
     <color name="simple_light_grey">#F0F2F5</color>
 
+    <!-- Matches SearchHeaderColor (#F2F4F7), the register/tasks/dashboard content background, so the
+         bottom navigation bar merges with the screen instead of showing a white ribbon above it. -->
+    <color name="bottom_nav_background">#F2F4F7</color>
+
     <color name="simple_teal">#2FA7AE</color>
 
     <color name="simple_red_600">#B81631</color>
