@@ -111,7 +111,7 @@ import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginDarkColor
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
 import org.smartregister.fhircore.engine.util.extension.appVersion
-import org.smartregister.fhircore.quest.BuildConfig
+import org.smartregister.fhircore.quest.ui.components.PoweredByLogos
 
 const val APP_NAME_TEXT_TAG = "aapNameTextTag"
 const val USERNAME_FIELD_TAG = "usernameFieldTag"
@@ -432,23 +432,12 @@ fun LoginPage(
           }
         }
       }
-      Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
+      PoweredByLogos(
         modifier = modifier
           .fillMaxWidth()
-          .padding(vertical = 20.dp),
-        verticalAlignment = Alignment.Bottom,
-      ) {
-        Text(
-          fontSize = 16.sp,
-          text = stringResource(id = R.string.app_version, BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME),
-          modifier = modifier
-            .wrapContentWidth()
-            .padding(bottom = 8.dp)
-            .testTag(LOGIN_FOOTER),
-          fontWeight = FontWeight.Light,
-        )
-      }
+          .padding(vertical = 20.dp)
+          .testTag(LOGIN_FOOTER),
+      )
     }
   }
 }

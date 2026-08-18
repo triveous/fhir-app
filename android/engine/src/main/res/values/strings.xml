@@ -197,6 +197,9 @@
     <string name="btn_continue">CONTINUE</string>
     <string name="btn_back">BACK</string>
     <string name="iisc">IISc</string>
+    <string name="partner_tanuh">TANUH</string>
+    <string name="partner_moe">Ministry of Education</string>
+    <string name="partner_artpark">ARTPARK</string>
     <string name="uploading_images_title">Uploading Images</string>
     <string name="images_pending_text">%1$d images pending</string>
     <string name="upload_success">Images uploaded successfully</string>
