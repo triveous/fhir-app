@@ -52,6 +52,7 @@ import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.util.DefaultDispatcherProvider
+import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.launchActivityWithNoBackStackHistory
 import org.smartregister.fhircore.engine.util.extension.parcelable
@@ -132,6 +133,10 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
     }
 
     setContentView(R.layout.activity_main)
+    // Preserve the pre-edge-to-edge look now that Android 16 (targetSdk 36) enforces edge-to-edge
+    // and no longer honors windowOptOutEdgeToEdgeEnforcement. Keeps the bottom navigation above the
+    // gesture bar and content below the status bar.
+    applyWindowInsetListener()
     _isOnline.value = isDeviceOnline()
 
     val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager

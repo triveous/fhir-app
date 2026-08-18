@@ -58,6 +58,7 @@ import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.analytics.AnalyticsLogger
+import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
 import org.smartregister.fhircore.engine.util.extension.clearText
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.engine.util.extension.logicalId
@@ -184,6 +185,9 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     setTheme(org.smartregister.fhircore.engine.R.style.AppTheme_Questionnaire)
     viewBinding = QuestionnaireActivityBinding.inflate(layoutInflater)
     setContentView(viewBinding.root)
+    // Preserve the pre-edge-to-edge look now that Android 16 (targetSdk 36) enforces edge-to-edge
+    // and no longer honors windowOptOutEdgeToEdgeEnforcement.
+    applyWindowInsetListener()
 
     with(intent) {
       parcelable<QuestionnaireConfig>(QUESTIONNAIRE_CONFIG)?.also { questionnaireConfig = it }

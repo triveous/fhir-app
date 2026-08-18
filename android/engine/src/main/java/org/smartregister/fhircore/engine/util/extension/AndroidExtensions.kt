@@ -29,15 +29,18 @@ import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.LocaleList
 import android.os.Parcelable
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import java.io.Serializable
 import java.util.Locale
+import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.ui.theme.DangerColor
 import org.smartregister.fhircore.engine.ui.theme.DefaultColor
 import org.smartregister.fhircore.engine.ui.theme.InfoColor
@@ -133,14 +136,39 @@ fun Context.getActivity(): AppCompatActivity? =
   }
 
 /**
- * This is required to fix keyboard overlapping content in a Composable screen. This functionality
- * is applied after the setContent function of the activity is called.
+ * Insets the activity content so the app keeps its pre-edge-to-edge appearance.
+ *
+ * Starting with Android 16 (targetSdk 36) edge-to-edge is enforced and can no longer be opted out
+ * of via `windowOptOutEdgeToEdgeEnforcement` (that opt-out only still works on Android 15 devices).
+ * With enforcement on, the system bars become transparent and content is drawn behind them. To
+ * preserve the previous look we:
+ * - tint the strips behind the (now transparent) status/navigation bars with [R.color.colorPrimaryDark]
+ *   (the same color the pre-36 themes used for `statusBarColor`), keeping the bars visually solid, and
+ * - pad the content by the system-bar insets so nothing is drawn under the bars.
+ *
+ * The listener also keeps the original behaviour of lifting the content above the IME (keyboard) so
+ * that text fields are not overlapped.
+ *
+ * On Android 15 and below the system still insets the content itself, so the system-bar insets
+ * arrive here as 0 and the padding is a no-op — only the IME padding is applied, exactly as before.
+ * Call this after `setContentView` / `setContent`.
  */
 fun Activity.applyWindowInsetListener() {
-  ViewCompat.setOnApplyWindowInsetsListener(this.findViewById(android.R.id.content)) { view, insets,
-    ->
-    val bottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-    view.updatePadding(bottom = bottom)
+  val content = findViewById<View>(android.R.id.content)
+  content.setBackgroundColor(ContextCompat.getColor(this, R.color.colorPrimaryDark))
+  WindowCompat.getInsetsController(window, window.decorView).apply {
+    isAppearanceLightStatusBars = false
+    isAppearanceLightNavigationBars = false
+  }
+  ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
+    val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+    val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+    view.setPadding(
+      systemBars.left,
+      systemBars.top,
+      systemBars.right,
+      maxOf(systemBars.bottom, imeBottom),
+    )
     insets
   }
 }

@@ -22,6 +22,11 @@
         android:windowSoftInputMode="adjustResize"
         tools:ignore="UnusedAttribute,LockedOrientationActivity"
         tools:replace="android:theme">
+
+        <property
+            android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+            android:value="true" />
+
         <activity
             android:screenOrientation="portrait"
             android:name=".ui.questionnaire.AIResultActivity"
