@@ -19,6 +19,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
+        android:background="@color/bottom_nav_background"
+        app:elevation="0dp"
         app:menu="@menu/bottom_nav_menu" />
 
     <androidx.compose.ui.platform.ComposeView
