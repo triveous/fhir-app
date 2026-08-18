@@ -165,6 +165,11 @@ fun LoginPage(
   var showForgotPasswordDialog by remember { mutableStateOf(false) }
   var privacyPolicyAccepted by remember { mutableStateOf(false) }
   var showPrivacyPolicy by remember { mutableStateOf(false) }
+  // Single source of truth for whether login may proceed. The keyboard "Done" action must honour
+  // the exact same gating as the Login button, otherwise pressing Done submits even while the
+  // privacy-policy checkbox is unchecked (bypassing the consent requirement).
+  val loginEnabled =
+    !showProgressBar && username.isNotEmpty() && password.isNotEmpty() && privacyPolicyAccepted
   val context = LocalContext.current
   val (versionCode, versionName) = remember { appVersionPair ?: context.appVersion() }
   val coroutineScope = rememberCoroutineScope()
@@ -303,7 +308,7 @@ fun LoginPage(
           KeyboardActions(
             onDone = {
               focusManager.clearFocus()
-              onLoginButtonClicked()
+              if (loginEnabled) onLoginButtonClicked()
             },
           ),
         )
@@ -396,7 +401,7 @@ fun LoginPage(
         Spacer(modifier = modifier.height(0.dp))
         Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxWidth()) {
           Button(
-            enabled = !showProgressBar && username.isNotEmpty() && password.isNotEmpty() && privacyPolicyAccepted,
+            enabled = loginEnabled,
             colors =
             ButtonDefaults.buttonColors(
               backgroundColor = MaterialTheme.colors.primaryVariant,
