@@ -17,6 +17,7 @@
 package org.smartregister.fhircore.engine.util
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -25,6 +26,8 @@ import org.jetbrains.annotations.VisibleForTesting
 import org.smartregister.fhircore.engine.auth.AuthCredentials
 import org.smartregister.fhircore.engine.util.extension.decodeJson
 import org.smartregister.fhircore.engine.util.extension.encodeJson
+import timber.log.Timber
+import java.security.KeyStore
 import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,7 +35,12 @@ import javax.inject.Singleton
 @Singleton
 class SecureSharedPreference @Inject constructor(@ApplicationContext val context: Context) {
 
-  private val secureSharedPreferences =
+  private val secureSharedPreferences: SharedPreferences = openSecureStorage()
+
+  private fun getMasterKey() =
+    MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
+
+  private fun buildEncryptedPreferences(): SharedPreferences =
     EncryptedSharedPreferences.create(
       context,
       SECURE_STORAGE_FILE_NAME,
@@ -41,8 +49,55 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
       EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 
-  private fun getMasterKey() =
-    MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
+  /**
+   * Opens the encrypted store, recovering from an unreadable keyset instead of crashing on launch.
+   *
+   * The keyset that protects this file is wrapped by a key held in the Android Keystore. If the
+   * keyset and that key fall out of sync — most commonly when Auto Backup restores this file onto a
+   * device whose Keystore does not hold the matching key — Tink throws `AEADBadTagException`
+   * ("Signature/MAC verification failed") while decrypting the keyset. This class is created during
+   * `QuestApplication.onCreate`, so an unhandled failure here kills the process on every launch and
+   * the only recovery a user has is clearing app data.
+   *
+   * On failure we drop the unreadable keyset and encrypted values (they cannot be decrypted anyway)
+   * and rebuild. The keyset lives inside this same prefs file, so deleting it lets a fresh keyset be
+   * generated and wrapped by the device's current Keystore key. The user loses their saved session
+   * and logs in again — the same outcome as clearing data, but the app opens instead of crash-looping.
+   */
+  private fun openSecureStorage(): SharedPreferences =
+    try {
+      buildEncryptedPreferences()
+    } catch (firstFailure: Exception) {
+      Timber.e(firstFailure, "Secure storage unreadable; resetting keyset and rebuilding")
+      resetSecureStorageFile()
+      try {
+        buildEncryptedPreferences()
+      } catch (secondFailure: Exception) {
+        // The Keystore master key itself may be unusable, not just mismatched. Drop it and the
+        // keyset so a brand-new key + keyset pair is generated. SecureSharedPreference is the only
+        // consumer of this master key alias, so removing it affects nothing else.
+        Timber.e(secondFailure, "Secure storage still unreadable; clearing Keystore master key")
+        deleteMasterKeyEntry()
+        resetSecureStorageFile()
+        buildEncryptedPreferences()
+      }
+    }
+
+  private fun resetSecureStorageFile() {
+    runCatching { context.deleteSharedPreferences(SECURE_STORAGE_FILE_NAME) }
+      .onFailure { Timber.e(it, "Could not delete corrupted secure prefs file") }
+  }
+
+  private fun deleteMasterKeyEntry() {
+    runCatching {
+      KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }.run {
+        if (containsAlias(MasterKey.DEFAULT_MASTER_KEY_ALIAS)) {
+          deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+        }
+      }
+    }
+      .onFailure { Timber.e(it, "Could not delete Keystore master key entry") }
+  }
 
   fun saveCredentials(username: String, password: CharArray) {
     val randomSaltBytes = get256RandomBytes()
@@ -159,5 +214,6 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
 
   companion object {
     const val SECURE_STORAGE_FILE_NAME = "fhircore_secure_preferences"
+    private const val ANDROID_KEYSTORE = "AndroidKeyStore"
   }
 }

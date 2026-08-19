@@ -109,6 +109,11 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
     }
   }
 
+  // onCreate can return early (before registering the callback) when the app configuration is not
+  // loaded, so onDestroy must only unregister when we actually registered — otherwise
+  // unregisterNetworkCallback throws IllegalArgumentException and masks the real first failure.
+  private var networkCallbackRegistered = false
+
   override val startForResult =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
       if (activityResult.resultCode == RESULT_OK) {
@@ -141,6 +146,7 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
 
     val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     connectivityManager.registerDefaultNetworkCallback(networkCallback)
+    networkCallbackRegistered = true
 
     val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.firstOrNull()
     val topMenuConfigId =
@@ -279,9 +285,14 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
 
   override fun onDestroy() {
     super.onDestroy()
-    // Unregister the network callback when activity is destroyed
-    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    connectivityManager.unregisterNetworkCallback(networkCallback)
+    // Unregister the network callback when the activity is destroyed, but only if it was registered
+    // (onCreate can return early before registering). Guarded so teardown never throws.
+    if (networkCallbackRegistered) {
+      val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+      runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
+        .onFailure { Timber.w(it, "Network callback was already unregistered") }
+      networkCallbackRegistered = false
+    }
   }
 
   override suspend fun onSubmitQuestionnaire(activityResult: ActivityResult) {

@@ -8,7 +8,9 @@
     <application
         android:name=".QuestApplication"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
+        android:fullBackupContent="@xml/backup_rules"
         android:hardwareAccelerated="true"
         android:icon="@drawable/ic_launcher"
         android:installLocation="internalOnly"
