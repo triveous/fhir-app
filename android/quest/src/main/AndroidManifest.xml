@@ -7,7 +7,7 @@
 
     <application
         android:name=".QuestApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/backup_rules"
@@ -23,7 +23,7 @@
         android:usesCleartextTraffic="false"
         android:windowSoftInputMode="adjustResize"
         tools:ignore="UnusedAttribute,LockedOrientationActivity"
-        tools:replace="android:theme">
+        tools:replace="android:theme,android:allowBackup">
 
         <property
             android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
