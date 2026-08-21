@@ -65,6 +65,8 @@ import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.appsetting.AppSettingActivity
+import org.smartregister.fhircore.quest.ui.main.appupdate.AppUpdatePrompt
+import org.smartregister.fhircore.quest.ui.main.appupdate.launchAppStore
 import org.smartregister.fhircore.quest.ui.main.components.SyncProgressBar
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
@@ -167,6 +169,8 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
     navController = navHostFragment.navController
     setupBottomNavigation()
     setupSyncProgressBar()
+    setupAppUpdatePrompt()
+    appMainViewModel.checkForAppUpdate()
     geoWidgetViewModel.geoWidgetEventLiveData.observe(this) { geoWidgetEvent ->
       when (geoWidgetEvent) {
         is GeoWidgetEvent.OpenProfile ->
@@ -213,6 +217,25 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
         AppTheme {
           val syncProgressUiState by appMainViewModel.syncProgressStateFlow.collectAsState()
           SyncProgressBar(syncProgressUiState = syncProgressUiState)
+        }
+      }
+    }
+  }
+
+  /**
+   * Hosts the **forced** (blocking) update dialog only. The soft update is a non-blocking nudge
+   * rendered on the register screen (see `SoftUpdateBanner`), so it does not belong in this overlay.
+   */
+  private fun setupAppUpdatePrompt() {
+    findViewById<ComposeView>(R.id.app_update_overlay).apply {
+      setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+      setContent {
+        AppTheme {
+          val appUpdateUiState by appMainViewModel.appUpdateUiState.collectAsState()
+          AppUpdatePrompt(
+            uiState = appUpdateUiState,
+            onUpdate = { launchAppStore(this@AppMainActivity) },
+          )
         }
       }
     }
@@ -335,6 +358,9 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
               lastSyncTime = formatLastSyncTimestamp(syncJobStatus.timestamp),
             ),
           )
+          // A sync may have pulled a new app-update flag (e.g. a release flipped to forced);
+          // re-resolve so the prompt appears without waiting for the next app launch.
+          checkForAppUpdate()
         }
       }
       is CurrentSyncJobStatus.Failed -> {

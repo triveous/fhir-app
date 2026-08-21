@@ -219,4 +219,27 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
 
     private fun featureFlagsPrefKey(resourceId: String) = "FEATURE_FLAGS_$resourceId"
 
+    /**
+     * Persists the last-known app-update config so a forced update stays enforced across app
+     * restarts and while offline (the config is read back on cold start before the network is
+     * reachable).
+     */
+    fun saveLastKnownAppUpdateConfig(resourceId: String, config: AppUpdateConfig) {
+        prefs.edit {
+            putString(appUpdateConfigPrefKey(resourceId), gson.toJson(config))
+        }
+    }
+
+    fun getLastKnownAppUpdateConfig(resourceId: String): AppUpdateConfig {
+        val json = prefs.getString(appUpdateConfigPrefKey(resourceId), null) ?: return AppUpdateConfig.NONE
+        return try {
+            gson.fromJson(json, AppUpdateConfig::class.java) ?: AppUpdateConfig.NONE
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse persisted app update config for %s", resourceId)
+            AppUpdateConfig.NONE
+        }
+    }
+
+    private fun appUpdateConfigPrefKey(resourceId: String) = "APP_UPDATE_CONFIG_$resourceId"
+
 }

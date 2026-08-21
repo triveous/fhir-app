@@ -28,4 +28,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_above="@id/bottom_navigation" />
+
+    <!-- Hosts the soft/forced app-update prompt. The prompt is a Compose Dialog rendered in its own
+         window, so this host stays 0x0 (wrap_content, empty) while idle and never intercepts touches
+         to the content or bottom navigation beneath it. A forced prompt is a non-dismissible modal
+         that blocks the app behind it. -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/app_update_overlay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
 </RelativeLayout>

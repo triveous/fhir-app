@@ -324,4 +324,13 @@
     <string name="no_lesions_found">No lesions found.</string>
     <string name="refer_case">STILL REFER?</string>
     <string name="done_upper">COMPLETE</string>
+
+    <!-- App update prompt -->
+    <string name="app_update_available_title">Update available</string>
+    <string name="app_update_required_title">Update required</string>
+    <string name="app_update_soft_message">A new version of the app is available with the latest improvements and fixes.</string>
+    <string name="app_update_forced_message">A newer version of the app is required to continue. Please update to keep using the app.</string>
+    <string name="app_update_version_label">Version %1$s</string>
+    <string name="app_update_action">Update</string>
+    <string name="app_update_action_now">Update now</string>
 </resources>

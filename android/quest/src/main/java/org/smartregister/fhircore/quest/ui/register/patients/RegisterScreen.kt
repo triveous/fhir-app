@@ -74,6 +74,7 @@ import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.ui.theme.LightColors
+import org.smartregister.fhircore.engine.util.AppUpdateRequirement
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
@@ -82,6 +83,9 @@ import org.smartregister.fhircore.quest.theme.body14Medium
 import org.smartregister.fhircore.quest.theme.bodyNormal
 import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
+import org.smartregister.fhircore.quest.ui.main.appupdate.AppUpdateUiState
+import org.smartregister.fhircore.quest.ui.main.appupdate.SoftUpdateBanner
+import org.smartregister.fhircore.quest.ui.main.appupdate.launchAppStore
 import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity.Companion.QUESTIONNAIRE_RESPONSE_PREFILL
@@ -117,6 +121,7 @@ fun RegisterScreen(
     val foregroundSyncDialogState by viewModel.foregroundSyncDialogState.collectAsState()
     val isShowPendingSyncBanner by viewModel.isShowPendingSyncBanner.collectAsState()
     val isSyncing by viewModel.isSyncRunning.collectAsState()
+    val appUpdateUiState by appMainViewModel.appUpdateUiState.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -156,6 +161,8 @@ fun RegisterScreen(
                     navController = navController,
                     registerUiState = registerUiState,
                     isSyncing = isSyncing,
+                    softUpdateUiState = appUpdateUiState,
+                    onSoftUpdate = { launchAppStore(context) },
                 )
             }
 
@@ -279,6 +286,8 @@ private fun RegisterContent(
     navController: NavController,
     registerUiState: RegisterUiState,
     isSyncing: Boolean,
+    softUpdateUiState: AppUpdateUiState,
+    onSoftUpdate: () -> Unit,
 ) {
     val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
     val savedRes by viewModel.allSavedDraftResponse.collectAsState()
@@ -297,6 +306,8 @@ private fun RegisterContent(
             noResultConfig = noResultConfig,
             navController = navController,
             isFetching = isLoadingCases,
+            softUpdateUiState = softUpdateUiState,
+            onSoftUpdate = onSoftUpdate,
         )
     } else {
         PopulatedRegisterView(
@@ -308,6 +319,8 @@ private fun RegisterContent(
             allSyncedPatients = allSyncedPatients,
             savedRes = savedRes,
             isLoadingCases = isLoadingCases,
+            softUpdateUiState = softUpdateUiState,
+            onSoftUpdate = onSoftUpdate,
             showDeleteDialog = showDeleteDialog,
             onDeleteDraft = { id, show ->
                 deleteDraftId = id
@@ -333,6 +346,8 @@ private fun EmptyRegisterView(
     noResultConfig: NoResultsConfig,
     navController: NavController,
     isFetching: Boolean,
+    softUpdateUiState: AppUpdateUiState,
+    onSoftUpdate: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -391,6 +406,8 @@ private fun EmptyRegisterView(
                 outerColumnModifier = Modifier.padding(horizontal = 40.dp),
                 modifier = modifier,
                 noResults = noResultConfig,
+                softUpdateUiState = softUpdateUiState,
+                onSoftUpdate = onSoftUpdate,
             ) {
                 noResultConfig.actionButton?.actions?.handleClickEvent(navController)
             }
@@ -408,6 +425,8 @@ private fun PopulatedRegisterView(
     allSyncedPatients: List<RegisterViewModel.AllPatientsResourceData>,
     savedRes: List<QuestionnaireResponse>,
     isLoadingCases: Boolean,
+    softUpdateUiState: AppUpdateUiState,
+    onSoftUpdate: () -> Unit,
     showDeleteDialog: Boolean,
     onDeleteDraft: (String, Boolean) -> Unit,
     onConfirmDelete: () -> Unit,
@@ -424,7 +443,12 @@ private fun PopulatedRegisterView(
                 .background(ANTI_FLASH_WHITE)
                 .fillMaxWidth(),
         ) {
-            NoRegisterDataView(modifier = modifier, noResults = noResultConfig) {
+            NoRegisterDataView(
+                modifier = modifier,
+                noResults = noResultConfig,
+                softUpdateUiState = softUpdateUiState,
+                onSoftUpdate = onSoftUpdate,
+            ) {
                 noResultConfig.actionButton?.actions?.handleClickEvent(navController)
             }
         }
@@ -703,10 +727,19 @@ fun NoRegisterDataView(
     outerColumnModifier: Modifier = Modifier.padding(16.dp),
     modifier: Modifier = Modifier,
     noResults: NoResultsConfig,
+    softUpdateUiState: AppUpdateUiState = AppUpdateUiState(),
+    onSoftUpdate: () -> Unit = {},
     onClick: () -> Unit,
 ) {
     if (noResults.actionButton != null) {
         Column(modifier = outerColumnModifier) {
+            SoftUpdateBanner(
+                uiState = softUpdateUiState,
+                onUpdate = onSoftUpdate,
+            )
+            if (softUpdateUiState.requirement == AppUpdateRequirement.SOFT) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             Card(
                 shape = RoundedCornerShape(2.dp),
                 colors = CardDefaults.cardColors(containerColor = LightColors.primary),

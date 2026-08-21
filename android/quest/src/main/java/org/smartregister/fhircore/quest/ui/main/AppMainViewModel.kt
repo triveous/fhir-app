@@ -64,7 +64,10 @@ import org.smartregister.fhircore.engine.task.FhirCompleteCarePlanWorker
 import org.smartregister.fhircore.engine.task.FhirResourceExpireWorker
 import org.smartregister.fhircore.engine.task.FhirTaskStatusUpdateWorker
 import org.smartregister.fhircore.engine.ui.bottomsheet.RegisterBottomSheetFragment
+import org.smartregister.fhircore.engine.util.AppUpdateConfig
+import org.smartregister.fhircore.engine.util.AppUpdateRequirement
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
@@ -78,6 +81,7 @@ import org.smartregister.fhircore.engine.util.extension.tryParse
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.navigation.NavigationArg
+import org.smartregister.fhircore.quest.ui.main.appupdate.AppUpdateUiState
 import org.smartregister.fhircore.quest.ui.report.measure.worker.MeasureReportMonthPeriodWorker
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
@@ -105,6 +109,7 @@ constructor(
   val workManager: WorkManager,
   val fhirCarePlanGenerator: FhirCarePlanGenerator,
   val fhirEngine: FhirEngine,
+  val featureFlagUtil: FeatureFlagUtil,
 ) : ViewModel() {
 
   private val simpleDateFormat = SimpleDateFormat(SYNC_TIMESTAMP_OUTPUT_FORMAT, Locale.getDefault())
@@ -124,6 +129,14 @@ constructor(
    */
   private val _syncProgressStateFlow = MutableStateFlow(SyncProgressUiState())
   val syncProgressStateFlow: StateFlow<SyncProgressUiState> = _syncProgressStateFlow.asStateFlow()
+
+  /**
+   * Drives the soft/forced app-update prompt (see AppUpdatePrompt). Resolved from the feature-flag
+   * [AppUpdateConfig] against this build's [BuildConfig.VERSION_CODE]. Activity-scoped so the prompt
+   * survives fragment recreation and is shared across every tab.
+   */
+  private val _appUpdateUiState = MutableStateFlow(AppUpdateUiState())
+  val appUpdateUiState: StateFlow<AppUpdateUiState> = _appUpdateUiState.asStateFlow()
 
   val applicationConfiguration: ApplicationConfiguration by lazy {
     configurationRegistry.retrieveConfiguration(ConfigType.Application, paramsMap = emptyMap())
@@ -174,6 +187,29 @@ constructor(
         )
       } catch (e: Exception) {
         Timber.e(e)
+      }
+    }
+  }
+
+  /**
+   * Reads the app-update feature flag and, comparing the configured version thresholds against this
+   * build's [currentVersionCode], publishes the resolved requirement to [appUpdateUiState]. The
+   * *soft* nudge is persistent and non-dismissible — it is shown on every launch for as long as a
+   * soft update is available (until the user updates), and the *forced* prompt blocks the app. Safe
+   * to call repeatedly (on launch and after each successful sync) — it never throws.
+   */
+  fun checkForAppUpdate(currentVersionCode: Int = BuildConfig.VERSION_CODE) {
+    viewModelScope.launch(dispatcherProvider.io()) {
+      try {
+        val config = featureFlagUtil.getAppUpdateConfig()
+        _appUpdateUiState.value =
+          AppUpdateUiState(
+            requirement = config.requirementFor(currentVersionCode),
+            latestVersionName = config.latestVersionName,
+            message = config.message,
+          )
+      } catch (e: Exception) {
+        Timber.e(e, "Failed to check for app update")
       }
     }
   }
