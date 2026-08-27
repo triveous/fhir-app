@@ -22,13 +22,22 @@ import org.smartregister.fhircore.engine.util.AppUpdateRequirement
  * UI-facing state for the app-update prompt, derived from the feature-flag [AppUpdateConfig] and the
  * installed build's version code. [requirement] drives whether — and how — the prompt is shown:
  * [AppUpdateRequirement.FORCED] renders the blocking dialog (see `AppUpdatePrompt`) and
- * [AppUpdateRequirement.SOFT] renders the dismissible register-screen nudge (see `SoftUpdateBanner`).
- * [latestVersionName] feeds the prompt content; [message] is the server-configurable soft-banner
- * copy (falls back to built-in text when null). The "Update" action always opens this app's Play
- * Store listing (derived from the package name), so no store URL is carried here.
+ * [AppUpdateRequirement.SOFT] renders the dismissible register-screen card (see `SoftUpdateBanner`).
+ * [message] is server-configurable highlighted copy — the soft card's description when present
+ * (falls back to built-in text when null), and an extra highlighted line on the forced dialog (e.g.
+ * "App is 6 months out of date") when present there. [latestVersionName] is carried through from the
+ * config for callers that need it but is not rendered by either prompt. The "Update" action always
+ * opens this app's Play Store listing (derived from the package name), so no store URL is carried
+ * here.
+ *
+ * [softUpdateDismissed] tracks whether the user has closed the soft card during the current app
+ * session (see [org.smartregister.fhircore.quest.ui.main.AppMainViewModel.dismissSoftUpdateBanner]).
+ * It is session-scoped, not persisted: a fresh process start (a real app close-and-reopen, as opposed
+ * to merely backgrounding) always begins with it `false` again.
  */
 data class AppUpdateUiState(
   val requirement: AppUpdateRequirement = AppUpdateRequirement.NONE,
   val latestVersionName: String? = null,
   val message: String? = null,
+  val softUpdateDismissed: Boolean = false,
 )

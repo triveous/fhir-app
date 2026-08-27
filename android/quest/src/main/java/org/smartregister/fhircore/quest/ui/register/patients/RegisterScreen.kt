@@ -162,7 +162,9 @@ fun RegisterScreen(
                     registerUiState = registerUiState,
                     isSyncing = isSyncing,
                     softUpdateUiState = appUpdateUiState,
+                    isOnline = isOnline,
                     onSoftUpdate = { launchAppStore(context) },
+                    onDismissSoftUpdate = appMainViewModel::dismissSoftUpdateBanner,
                 )
             }
 
@@ -287,7 +289,9 @@ private fun RegisterContent(
     registerUiState: RegisterUiState,
     isSyncing: Boolean,
     softUpdateUiState: AppUpdateUiState,
+    isOnline: Boolean,
     onSoftUpdate: () -> Unit,
+    onDismissSoftUpdate: () -> Unit,
 ) {
     val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
     val savedRes by viewModel.allSavedDraftResponse.collectAsState()
@@ -307,7 +311,9 @@ private fun RegisterContent(
             navController = navController,
             isFetching = isLoadingCases,
             softUpdateUiState = softUpdateUiState,
+            isOnline = isOnline,
             onSoftUpdate = onSoftUpdate,
+            onDismissSoftUpdate = onDismissSoftUpdate,
         )
     } else {
         PopulatedRegisterView(
@@ -320,7 +326,9 @@ private fun RegisterContent(
             savedRes = savedRes,
             isLoadingCases = isLoadingCases,
             softUpdateUiState = softUpdateUiState,
+            isOnline = isOnline,
             onSoftUpdate = onSoftUpdate,
+            onDismissSoftUpdate = onDismissSoftUpdate,
             showDeleteDialog = showDeleteDialog,
             onDeleteDraft = { id, show ->
                 deleteDraftId = id
@@ -347,7 +355,9 @@ private fun EmptyRegisterView(
     navController: NavController,
     isFetching: Boolean,
     softUpdateUiState: AppUpdateUiState,
+    isOnline: Boolean,
     onSoftUpdate: () -> Unit,
+    onDismissSoftUpdate: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -407,7 +417,9 @@ private fun EmptyRegisterView(
                 modifier = modifier,
                 noResults = noResultConfig,
                 softUpdateUiState = softUpdateUiState,
+                isOnline = isOnline,
                 onSoftUpdate = onSoftUpdate,
+                onDismissSoftUpdate = onDismissSoftUpdate,
             ) {
                 noResultConfig.actionButton?.actions?.handleClickEvent(navController)
             }
@@ -426,7 +438,9 @@ private fun PopulatedRegisterView(
     savedRes: List<QuestionnaireResponse>,
     isLoadingCases: Boolean,
     softUpdateUiState: AppUpdateUiState,
+    isOnline: Boolean,
     onSoftUpdate: () -> Unit,
+    onDismissSoftUpdate: () -> Unit,
     showDeleteDialog: Boolean,
     onDeleteDraft: (String, Boolean) -> Unit,
     onConfirmDelete: () -> Unit,
@@ -447,7 +461,9 @@ private fun PopulatedRegisterView(
                 modifier = modifier,
                 noResults = noResultConfig,
                 softUpdateUiState = softUpdateUiState,
+                isOnline = isOnline,
                 onSoftUpdate = onSoftUpdate,
+                onDismissSoftUpdate = onDismissSoftUpdate,
             ) {
                 noResultConfig.actionButton?.actions?.handleClickEvent(navController)
             }
@@ -728,16 +744,24 @@ fun NoRegisterDataView(
     modifier: Modifier = Modifier,
     noResults: NoResultsConfig,
     softUpdateUiState: AppUpdateUiState = AppUpdateUiState(),
+    isOnline: Boolean = true,
     onSoftUpdate: () -> Unit = {},
+    onDismissSoftUpdate: () -> Unit = {},
     onClick: () -> Unit,
 ) {
     if (noResults.actionButton != null) {
         Column(modifier = outerColumnModifier) {
+            val showSoftUpdate =
+                softUpdateUiState.requirement == AppUpdateRequirement.SOFT &&
+                    !softUpdateUiState.softUpdateDismissed &&
+                    isOnline
             SoftUpdateBanner(
                 uiState = softUpdateUiState,
                 onUpdate = onSoftUpdate,
+                onDismiss = onDismissSoftUpdate,
+                isOnline = isOnline,
             )
-            if (softUpdateUiState.requirement == AppUpdateRequirement.SOFT) {
+            if (showSoftUpdate) {
                 Spacer(modifier = Modifier.height(12.dp))
             }
             Card(
