@@ -16,12 +16,11 @@
 
 package org.smartregister.fhircore.quest.ui.main.appupdate
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,14 +28,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.SystemUpdate
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.InstallMobile
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -45,104 +42,113 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
+import org.smartregister.fhircore.engine.ui.theme.LightGreyBackground
 import org.smartregister.fhircore.engine.ui.theme.PrimaryColor
-import org.smartregister.fhircore.engine.ui.theme.SubtitleTextColor
 import org.smartregister.fhircore.engine.util.AppUpdateRequirement
 import org.smartregister.fhircore.quest.R
-import org.smartregister.fhircore.quest.theme.bodyBold
+import org.smartregister.fhircore.quest.theme.bodyMedium
 import org.smartregister.fhircore.quest.theme.bodyNormal
 
 const val SOFT_UPDATE_BANNER_TAG = "softUpdateBannerTag"
-const val SOFT_UPDATE_ACTION_TAG = "softUpdateActionTag"
+const val SOFT_UPDATE_DISMISS_TAG = "softUpdateDismissTag"
 
-private val AccentColor = PrimaryColor
-private val TitleColor = Color(0xFF1D2733)
+private val TitleColor = LightGreyBackground
+private val BodyColor = LightGreyBackground.copy(alpha = 0.67f)
 
 /**
- * Non-blocking soft-update nudge shown as a horizontal badge directly above the register's
- * "Add New Case" button (see `NoRegisterDataView`). Renders nothing unless [uiState]'s requirement
- * is [AppUpdateRequirement.SOFT].
+ * Non-blocking soft-update card shown above the "Add New Case" button on the register's empty/home
+ * state (see `NoRegisterDataView`). Renders nothing unless [uiState]'s requirement is
+ * [AppUpdateRequirement.SOFT], [uiState.softUpdateDismissed] is false, and [isOnline] is true — the
+ * card is deliberately hidden offline since its only action (opening the Play Store) cannot succeed
+ * without a connection.
  *
- * The nudge is **persistent**: it is not dismissible and stays visible on every launch for as long
- * as a soft update is available, until the user updates (which raises the installed version code at
- * or above the configured latest, resolving the requirement to `NONE`). It never blocks the app —
- * tapping **Update** opens the store. [AppUpdateUiState.message] supplies the server-configured copy;
- * when absent the built-in [R.string.app_update_soft_message] is used.
+ * Tapping anywhere on the card — other than the close (X) button — opens the Play Store via
+ * [onUpdate]. The close button calls [onDismiss] (wired to
+ * [org.smartregister.fhircore.quest.ui.main.AppMainViewModel.dismissSoftUpdateBanner]) instead of
+ * updating, so the card stays hidden for the rest of this app session; it reappears the next time the
+ * app is opened fresh. [AppUpdateUiState.message] supplies server-configured copy that replaces the
+ * whole description; when absent, the built-in copy is shown with its trailing call-to-action styled
+ * as a link for visual affordance (the whole card is still the tap target either way).
  */
 @Composable
 fun SoftUpdateBanner(
   uiState: AppUpdateUiState,
   onUpdate: () -> Unit,
+  onDismiss: () -> Unit,
+  isOnline: Boolean,
   modifier: Modifier = Modifier,
 ) {
   if (uiState.requirement != AppUpdateRequirement.SOFT) return
+  if (uiState.softUpdateDismissed) return
+  if (!isOnline) return
 
-  val message = uiState.message?.takeIf { it.isNotBlank() }
-    ?: stringResource(R.string.app_update_soft_message)
+  val customMessage = uiState.message?.takeIf { it.isNotBlank() }
 
-  Surface(
-    modifier = modifier.fillMaxWidth().testTag(SOFT_UPDATE_BANNER_TAG),
-    shape = RoundedCornerShape(14.dp),
-    color = AccentColor.copy(alpha = 0.06f),
-    border = BorderStroke(1.dp, AccentColor.copy(alpha = 0.20f)),
+  Box(
+    modifier = modifier
+      .fillMaxWidth()
+      .clip(RoundedCornerShape(4.dp))
+      .background(Color.White)
+      .border(1.dp, PrimaryColor, RoundedCornerShape(4.dp))
+      .clickable(onClick = onUpdate)
+      .testTag(SOFT_UPDATE_BANNER_TAG),
   ) {
     Row(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(start = 12.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
-      verticalAlignment = Alignment.CenterVertically,
+        .padding(12.dp),
+      verticalAlignment = Alignment.Top,
     ) {
-      Box(
-        modifier = Modifier.size(40.dp).clip(CircleShape).background(AccentColor.copy(alpha = 0.14f)),
-        contentAlignment = Alignment.Center,
-      ) {
-        Icon(
-          imageVector = Icons.Rounded.SystemUpdate,
-          contentDescription = null,
-          tint = AccentColor,
-          modifier = Modifier.size(22.dp),
-        )
-      }
+      Icon(
+        imageVector = Icons.Outlined.InstallMobile,
+        contentDescription = null,
+        tint = TitleColor,
+        modifier = Modifier.size(24.dp),
+      )
 
-      Spacer(modifier = Modifier.width(12.dp))
+      Spacer(modifier = Modifier.width(8.dp))
 
-      Column(modifier = Modifier.weight(1f)) {
+      Column(modifier = Modifier.weight(1f).padding(end = 24.dp)) {
         Text(
           text = stringResource(R.string.app_update_available_title),
-          style = bodyBold(14.sp),
+          style = bodyMedium(16.sp),
           color = TitleColor,
         )
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
-          text = message,
-          style = bodyNormal(12.sp),
-          color = SubtitleTextColor,
-          maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
+          text = customMessage?.let { buildAnnotatedString { append(it) } }
+            ?: buildAnnotatedString {
+              append(stringResource(R.string.app_update_soft_message_lead))
+              withStyle(SpanStyle(color = PrimaryColor)) {
+                append(stringResource(R.string.app_update_soft_message_cta))
+              }
+            },
+          style = bodyNormal(14.sp),
+          color = BodyColor,
         )
       }
+    }
 
-      Spacer(modifier = Modifier.width(12.dp))
-
-      Button(
-        onClick = onUpdate,
-        modifier = Modifier.height(38.dp).testTag(SOFT_UPDATE_ACTION_TAG),
-        shape = RoundedCornerShape(10.dp),
-        contentPadding = PaddingValues(horizontal = 18.dp),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = AccentColor, contentColor = Color.White),
-      ) {
-        Text(
-          text = stringResource(R.string.app_update_action),
-          style = bodyBold(13.sp),
-          color = Color.White,
-        )
-      }
+    IconButton(
+      onClick = onDismiss,
+      modifier = Modifier
+        .align(Alignment.TopEnd)
+        .size(28.dp)
+        .testTag(SOFT_UPDATE_DISMISS_TAG),
+    ) {
+      Icon(
+        imageVector = Icons.Filled.Close,
+        contentDescription = stringResource(R.string.app_update_dismiss),
+        tint = BodyColor,
+        modifier = Modifier.size(20.dp),
+      )
     }
   }
 }
@@ -151,14 +157,14 @@ fun SoftUpdateBanner(
 @Composable
 private fun SoftUpdateBannerPreview() {
   AppTheme {
-    Column(
-      modifier = Modifier.fillMaxWidth().padding(16.dp),
-      verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
       SoftUpdateBanner(
-        uiState = AppUpdateUiState(requirement = AppUpdateRequirement.SOFT, latestVersionName = "AA_v1.7.8"),
+        uiState = AppUpdateUiState(requirement = AppUpdateRequirement.SOFT),
         onUpdate = {},
+        onDismiss = {},
+        isOnline = true,
       )
+      Spacer(modifier = Modifier.height(12.dp))
       SoftUpdateBanner(
         uiState =
           AppUpdateUiState(
@@ -166,6 +172,8 @@ private fun SoftUpdateBannerPreview() {
             message = "New in this release: faster case sync and a fix for lost photos. Please update.",
           ),
         onUpdate = {},
+        onDismiss = {},
+        isOnline = true,
       )
     }
   }

@@ -138,6 +138,14 @@ constructor(
   private val _appUpdateUiState = MutableStateFlow(AppUpdateUiState())
   val appUpdateUiState: StateFlow<AppUpdateUiState> = _appUpdateUiState.asStateFlow()
 
+  /**
+   * Whether the user has closed the soft-update card during this app session. Lives only in this
+   * (activity-scoped) view model, so it resets on a real app close-and-reopen (a new process/
+   * ViewModel) but survives navigating between tabs and re-resolving [checkForAppUpdate] (e.g. after
+   * a sync) for as long as this session lasts.
+   */
+  private var softUpdateDismissedThisSession = false
+
   val applicationConfiguration: ApplicationConfiguration by lazy {
     configurationRegistry.retrieveConfiguration(ConfigType.Application, paramsMap = emptyMap())
   }
@@ -194,9 +202,10 @@ constructor(
   /**
    * Reads the app-update feature flag and, comparing the configured version thresholds against this
    * build's [currentVersionCode], publishes the resolved requirement to [appUpdateUiState]. The
-   * *soft* nudge is persistent and non-dismissible — it is shown on every launch for as long as a
-   * soft update is available (until the user updates), and the *forced* prompt blocks the app. Safe
-   * to call repeatedly (on launch and after each successful sync) — it never throws.
+   * *soft* card is shown once per session (see [softUpdateDismissedThisSession]) for as long as a
+   * soft update is available, and the *forced* prompt blocks the app. Safe to call repeatedly (on
+   * launch and after each successful sync) — it never throws, and it never un-dismisses the soft
+   * card mid-session even if a later sync re-resolves this state.
    */
   fun checkForAppUpdate(currentVersionCode: Int = BuildConfig.VERSION_CODE) {
     viewModelScope.launch(dispatcherProvider.io()) {
@@ -207,11 +216,22 @@ constructor(
             requirement = config.requirementFor(currentVersionCode),
             latestVersionName = config.latestVersionName,
             message = config.message,
+            softUpdateDismissed = softUpdateDismissedThisSession,
           )
       } catch (e: Exception) {
         Timber.e(e, "Failed to check for app update")
       }
     }
+  }
+
+  /**
+   * Closes the soft-update card for the rest of this app session. The card will not reappear until
+   * the app is fully closed and reopened (a new [AppMainViewModel] instance) — see
+   * [softUpdateDismissedThisSession].
+   */
+  fun dismissSoftUpdateBanner() {
+    softUpdateDismissedThisSession = true
+    _appUpdateUiState.update { it.copy(softUpdateDismissed = true) }
   }
 
   fun onEvent(event: AppMainEvent, isForeground: Boolean = false) {
