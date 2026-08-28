@@ -42,16 +42,26 @@ enum class AppUpdateRequirement {
  * 50–54 are softly nudged, 55+ are left alone. Either threshold may be omitted (0) to get a
  * pure forced-floor or pure soft-nudge policy.
  *
- * [latestVersionName] and [message] are display-only. [message] is the server-configurable text
- * shown on the **soft**-update nudge banner (see `SoftUpdateBanner`); the forced prompt uses fixed
- * in-app copy and ignores it. The "Update" action always opens this app's Play Store listing
- * (derived from the package name), so no store URL is configured here.
+ * [latestVersionName], [softMessage] and [forcedMessage] are display-only. The two messages are
+ * configured independently because the prompts say different things: [softMessage] replaces the soft
+ * card's lead sentence (see `SoftUpdateBanner`) and reads like a release note — "Faster case sync
+ * and a fix for lost photos" — while [forcedMessage] is the highlighted reason line on the blocking
+ * dialog (see `AppUpdatePrompt`) and reads like a justification — "App is 6 months out of date".
+ *
+ * Both fall back to the older single `message` sub-extension when their own is absent, so configs
+ * written before the split keep working and show the same text on either prompt. (That fallback is
+ * applied when parsing — see `FeatureFlagUtil` for the server shape and `SharedPreferencesHelper`
+ * for the persisted one. It deliberately is *not* a Gson `alternate`: two fields cannot share one
+ * JSON name, and Gson fails to build the adapter at all if they try.) The "Update" action
+ * always opens this app's Play Store listing (derived from the package name), so no store URL is
+ * configured here.
  */
 data class AppUpdateConfig(
   val minSupportedVersionCode: Int = 0,
   val latestVersionCode: Int = 0,
   val latestVersionName: String? = null,
-  val message: String? = null,
+  val softMessage: String? = null,
+  val forcedMessage: String? = null,
 ) {
 
   /**

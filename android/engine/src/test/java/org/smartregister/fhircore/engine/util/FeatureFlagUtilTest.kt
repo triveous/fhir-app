@@ -168,28 +168,66 @@ class FeatureFlagUtilTest {
   }
 
   @Test
-  fun testGetAppUpdateConfigParsesConfigurableSoftMessage() = runTest {
+  fun testGetAppUpdateConfigParsesSoftAndForcedMessagesIndependently() = runTest {
     coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
       appUpdateBasic(
         minSupported = 50,
         latest = 55,
         versionName = "AA_v1.7.8",
-        message = "New in this release: faster case sync. Please update.",
+        softMessage = "New in this release: faster case sync.",
+        forcedMessage = "App is 6 months out of date",
       )
 
     val config = featureFlagUtil.getAppUpdateConfig()
 
-    Assert.assertEquals("New in this release: faster case sync. Please update.", config.message)
+    Assert.assertEquals("New in this release: faster case sync.", config.softMessage)
+    Assert.assertEquals("App is 6 months out of date", config.forcedMessage)
+  }
+
+  /** Servers configured before the split carry one shared `message`; it must back both prompts. */
+  @Test
+  fun testGetAppUpdateConfigFallsBackToLegacySharedMessageForBothPrompts() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
+      appUpdateBasic(
+        minSupported = 50,
+        latest = 55,
+        versionName = "AA_v1.7.8",
+        message = "A new version is available. Please update.",
+      )
+
+    val config = featureFlagUtil.getAppUpdateConfig()
+
+    Assert.assertEquals("A new version is available. Please update.", config.softMessage)
+    Assert.assertEquals("A new version is available. Please update.", config.forcedMessage)
+  }
+
+  /** A prompt-specific message wins over the legacy shared one for that prompt only. */
+  @Test
+  fun testGetAppUpdateConfigPrefersPromptSpecificMessageOverLegacyShared() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
+      appUpdateBasic(
+        minSupported = 50,
+        latest = 55,
+        versionName = "AA_v1.7.8",
+        message = "Shared legacy copy",
+        forcedMessage = "App is 6 months out of date",
+      )
+
+    val config = featureFlagUtil.getAppUpdateConfig()
+
+    Assert.assertEquals("Shared legacy copy", config.softMessage)
+    Assert.assertEquals("App is 6 months out of date", config.forcedMessage)
   }
 
   @Test
-  fun testGetAppUpdateConfigMessageDefaultsToNullWhenAbsent() = runTest {
+  fun testGetAppUpdateConfigMessagesDefaultToNullWhenAbsent() = runTest {
     coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
       appUpdateBasic(minSupported = 50, latest = 55, versionName = "AA_v1.7.8")
 
     val config = featureFlagUtil.getAppUpdateConfig()
 
-    Assert.assertNull(config.message)
+    Assert.assertNull(config.softMessage)
+    Assert.assertNull(config.forcedMessage)
   }
 
   @Test
@@ -203,7 +241,8 @@ class FeatureFlagUtilTest {
 
   @Test
   fun testGetAppUpdateConfigFallsBackToLastKnownWhenUnavailable() = runTest {
-    val lastKnown = AppUpdateConfig(50, 55, "AA_v1.8.0", "Please update to the latest version.")
+    val lastKnown =
+      AppUpdateConfig(50, 55, "AA_v1.8.0", "Please update to the latest version.", "Unsupported build")
     coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } throws
       ResourceNotFoundException("Basic", featureFlagsResourceId)
     coEvery { fhirResourceDataSource.getBasic(featureFlagsResourceId) } throws
@@ -230,6 +269,8 @@ class FeatureFlagUtilTest {
     latest: Int,
     versionName: String,
     message: String? = null,
+    softMessage: String? = null,
+    forcedMessage: String? = null,
   ): Basic =
     Basic().apply {
       id = featureFlagsResourceId
@@ -250,6 +291,18 @@ class FeatureFlagUtilTest {
         message?.let {
           addExtension().apply {
             url = FeatureFlagUtil.APP_UPDATE_MESSAGE
+            setValue(StringType(it))
+          }
+        }
+        softMessage?.let {
+          addExtension().apply {
+            url = FeatureFlagUtil.APP_UPDATE_SOFT_MESSAGE
+            setValue(StringType(it))
+          }
+        }
+        forcedMessage?.let {
+          addExtension().apply {
+            url = FeatureFlagUtil.APP_UPDATE_FORCED_MESSAGE
             setValue(StringType(it))
           }
         }

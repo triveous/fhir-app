@@ -147,11 +147,15 @@ class FeatureFlagUtil @Inject constructor(
     private fun Basic.toAppUpdateConfig(): AppUpdateConfig {
         val parent = getExtensionByUrl(APP_UPDATE_URL) ?: return AppUpdateConfig.NONE
         fun sub(url: String): String? = parent.getExtensionByUrl(url)?.value?.primitiveValue()
+        // Configs written before the soft/forced split carry one shared `message`; it backs both
+        // fields so those servers keep showing copy until they are migrated.
+        val legacyMessage = sub(APP_UPDATE_MESSAGE)?.takeIf { it.isNotBlank() }
         return AppUpdateConfig(
             minSupportedVersionCode = sub(APP_UPDATE_MIN_SUPPORTED_VERSION_CODE)?.toIntOrNull() ?: 0,
             latestVersionCode = sub(APP_UPDATE_LATEST_VERSION_CODE)?.toIntOrNull() ?: 0,
             latestVersionName = sub(APP_UPDATE_LATEST_VERSION_NAME)?.takeIf { it.isNotBlank() },
-            message = sub(APP_UPDATE_MESSAGE)?.takeIf { it.isNotBlank() },
+            softMessage = sub(APP_UPDATE_SOFT_MESSAGE)?.takeIf { it.isNotBlank() } ?: legacyMessage,
+            forcedMessage = sub(APP_UPDATE_FORCED_MESSAGE)?.takeIf { it.isNotBlank() } ?: legacyMessage,
         )
     }
 
@@ -173,8 +177,23 @@ class FeatureFlagUtil @Inject constructor(
         const val APP_UPDATE_LATEST_VERSION_NAME = "latestVersionName"
 
         /**
-         * Sub-extension: optional, server-configurable text shown on the **soft**-update nudge banner.
-         * Blank/absent falls back to the built-in `app_update_soft_message` copy. Forced updates ignore it.
+         * Sub-extension: optional copy for the **soft** nudge card. Replaces the card's built-in lead
+         * sentence; the blue "Click to update." call-to-action is always kept. Blank/absent falls back
+         * to [APP_UPDATE_MESSAGE], then to the built-in copy.
+         */
+        const val APP_UPDATE_SOFT_MESSAGE = "softMessage"
+
+        /**
+         * Sub-extension: optional copy for the **forced** blocking dialog — the reason the update is
+         * being forced, shown in colorError beneath the fixed explanation (e.g. "App is 6 months out
+         * of date"). Blank/absent falls back to [APP_UPDATE_MESSAGE], then the line is omitted.
+         */
+        const val APP_UPDATE_FORCED_MESSAGE = "forcedMessage"
+
+        /**
+         * Sub-extension: the single shared message used before soft and forced copy were split. Still
+         * read as the fallback for both [APP_UPDATE_SOFT_MESSAGE] and [APP_UPDATE_FORCED_MESSAGE] so
+         * servers configured against the old shape keep working.
          */
         const val APP_UPDATE_MESSAGE = "message"
     }

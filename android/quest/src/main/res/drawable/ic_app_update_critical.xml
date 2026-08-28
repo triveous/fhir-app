@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Critical-update mark from the forced app-update Figma frame (711:2609): a red1 (#FF3355) disc
+     with a white exclamation, offset by a translucent dark-red copy that reads as an inner shadow.
+     Colours are baked in (not tinted) because the mark is three-toned by design. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="60dp"
+    android:height="60dp"
+    android:viewportWidth="60"
+    android:viewportHeight="60">
+  <path
+      android:pathData="M0,30a30,30 0 1,0 60,0a30,30 0 1,0 -60,0z"
+      android:fillColor="#FF3355"/>
+  <path
+      android:pathData="M27.1151,15.5790a4.6154,4.6154 0 0,1 9.2308,0L36.3459,34.0405a4.6154,4.6154 0 0,1 -9.2308,0z"
+      android:fillColor="#B81631"
+      android:fillAlpha="0.5"/>
+  <path
+      android:pathData="M27.1150,47.3075a4.6154,4.6154 0 1,0 9.2308,0a4.6154,4.6154 0 1,0 -9.2308,0z"
+      android:fillColor="#B81631"
+      android:fillAlpha="0.5"/>
+  <path
+      android:pathData="M25.9615,13.5570a4.3269,4.3269 0 0,1 8.6539,0L34.6154,32.5955a4.3269,4.3269 0 0,1 -8.6539,0z"
+      android:fillColor="#FFFFFF"/>
+  <path
+      android:pathData="M25.9615,45.8644a4.3269,4.3269 0 1,0 8.6538,0a4.3269,4.3269 0 1,0 -8.6538,0z"
+      android:fillColor="#FFFFFF"/>
+</vector>

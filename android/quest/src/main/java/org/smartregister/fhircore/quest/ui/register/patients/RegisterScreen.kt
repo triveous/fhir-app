@@ -74,7 +74,6 @@ import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.ui.theme.LightColors
-import org.smartregister.fhircore.engine.util.AppUpdateRequirement
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
@@ -304,47 +303,60 @@ private fun RegisterContent(
     // the resumed sync is the thing that will fill it.
     val isLoadingCases = isFetching || isSyncing
 
-    if (allSyncedPatients.isEmpty() && savedRes.isEmpty()) {
-        EmptyRegisterView(
-            modifier = modifier,
-            noResultConfig = noResultConfig,
-            navController = navController,
-            isFetching = isLoadingCases,
-            softUpdateUiState = softUpdateUiState,
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .background(ANTI_FLASH_WHITE),
+    ) {
+        // Pinned above the register, per Figma 711:2370. SoftUpdateBanner renders nothing (and so
+        // takes no space) unless a soft update is pending, undismissed and the device is online.
+        SoftUpdateBanner(
+            uiState = softUpdateUiState,
+            onUpdate = onSoftUpdate,
+            onDismiss = onDismissSoftUpdate,
             isOnline = isOnline,
-            onSoftUpdate = onSoftUpdate,
-            onDismissSoftUpdate = onDismissSoftUpdate,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp),
         )
-    } else {
-        PopulatedRegisterView(
-            modifier = modifier,
-            viewModel = viewModel,
-            noResultConfig = noResultConfig,
-            navController = navController,
-            registerUiState = registerUiState,
-            allSyncedPatients = allSyncedPatients,
-            savedRes = savedRes,
-            isLoadingCases = isLoadingCases,
-            softUpdateUiState = softUpdateUiState,
-            isOnline = isOnline,
-            onSoftUpdate = onSoftUpdate,
-            onDismissSoftUpdate = onDismissSoftUpdate,
-            showDeleteDialog = showDeleteDialog,
-            onDeleteDraft = { id, show ->
-                deleteDraftId = id
-                showDeleteDialog = show
-            },
-            onConfirmDelete = {
-                viewModel.softDeleteDraft(deleteDraftId)
-                PostHogAnalytics.capture(PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_DELETED)
-                deleteDraftId = ""
-                showDeleteDialog = false
-            },
-            onDismissDelete = {
-                deleteDraftId = ""
-                showDeleteDialog = false
-            },
-        )
+
+        // weight(1f) keeps the register's height bounded now that the card sits above it — the
+        // populated view hosts a LazyColumn, which cannot measure against an infinite main axis.
+        Box(modifier = Modifier.weight(1f)) {
+            if (allSyncedPatients.isEmpty() && savedRes.isEmpty()) {
+                EmptyRegisterView(
+                    modifier = modifier,
+                    noResultConfig = noResultConfig,
+                    navController = navController,
+                    isFetching = isLoadingCases,
+                )
+            } else {
+                PopulatedRegisterView(
+                    modifier = modifier,
+                    viewModel = viewModel,
+                    noResultConfig = noResultConfig,
+                    navController = navController,
+                    registerUiState = registerUiState,
+                    allSyncedPatients = allSyncedPatients,
+                    savedRes = savedRes,
+                    isLoadingCases = isLoadingCases,
+                    showDeleteDialog = showDeleteDialog,
+                    onDeleteDraft = { id, show ->
+                        deleteDraftId = id
+                        showDeleteDialog = show
+                    },
+                    onConfirmDelete = {
+                        viewModel.softDeleteDraft(deleteDraftId)
+                        PostHogAnalytics.capture(PostHogAnalytics.Events.QUESTIONNAIRE_DRAFT_DELETED)
+                        deleteDraftId = ""
+                        showDeleteDialog = false
+                    },
+                    onDismissDelete = {
+                        deleteDraftId = ""
+                        showDeleteDialog = false
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -354,16 +366,11 @@ private fun EmptyRegisterView(
     noResultConfig: NoResultsConfig,
     navController: NavController,
     isFetching: Boolean,
-    softUpdateUiState: AppUpdateUiState,
-    isOnline: Boolean,
-    onSoftUpdate: () -> Unit,
-    onDismissSoftUpdate: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight()
-            .background(ANTI_FLASH_WHITE),
+            .fillMaxHeight(),
         verticalArrangement = Arrangement.Center,
     ) {
         Image(
@@ -416,10 +423,6 @@ private fun EmptyRegisterView(
                 outerColumnModifier = Modifier.padding(horizontal = 40.dp),
                 modifier = modifier,
                 noResults = noResultConfig,
-                softUpdateUiState = softUpdateUiState,
-                isOnline = isOnline,
-                onSoftUpdate = onSoftUpdate,
-                onDismissSoftUpdate = onDismissSoftUpdate,
             ) {
                 noResultConfig.actionButton?.actions?.handleClickEvent(navController)
             }
@@ -437,10 +440,6 @@ private fun PopulatedRegisterView(
     allSyncedPatients: List<RegisterViewModel.AllPatientsResourceData>,
     savedRes: List<QuestionnaireResponse>,
     isLoadingCases: Boolean,
-    softUpdateUiState: AppUpdateUiState,
-    isOnline: Boolean,
-    onSoftUpdate: () -> Unit,
-    onDismissSoftUpdate: () -> Unit,
     showDeleteDialog: Boolean,
     onDeleteDraft: (String, Boolean) -> Unit,
     onConfirmDelete: () -> Unit,
@@ -460,10 +459,6 @@ private fun PopulatedRegisterView(
             NoRegisterDataView(
                 modifier = modifier,
                 noResults = noResultConfig,
-                softUpdateUiState = softUpdateUiState,
-                isOnline = isOnline,
-                onSoftUpdate = onSoftUpdate,
-                onDismissSoftUpdate = onDismissSoftUpdate,
             ) {
                 noResultConfig.actionButton?.actions?.handleClickEvent(navController)
             }
@@ -743,27 +738,10 @@ fun NoRegisterDataView(
     outerColumnModifier: Modifier = Modifier.padding(16.dp),
     modifier: Modifier = Modifier,
     noResults: NoResultsConfig,
-    softUpdateUiState: AppUpdateUiState = AppUpdateUiState(),
-    isOnline: Boolean = true,
-    onSoftUpdate: () -> Unit = {},
-    onDismissSoftUpdate: () -> Unit = {},
     onClick: () -> Unit,
 ) {
     if (noResults.actionButton != null) {
         Column(modifier = outerColumnModifier) {
-            val showSoftUpdate =
-                softUpdateUiState.requirement == AppUpdateRequirement.SOFT &&
-                    !softUpdateUiState.softUpdateDismissed &&
-                    isOnline
-            SoftUpdateBanner(
-                uiState = softUpdateUiState,
-                onUpdate = onSoftUpdate,
-                onDismiss = onDismissSoftUpdate,
-                isOnline = isOnline,
-            )
-            if (showSoftUpdate) {
-                Spacer(modifier = Modifier.height(12.dp))
-            }
             Card(
                 shape = RoundedCornerShape(2.dp),
                 colors = CardDefaults.cardColors(containerColor = LightColors.primary),

@@ -46,6 +46,51 @@ internal class SharedPreferencesHelperTest : RobolectricTest() {
     sharedPreferencesHelper = SharedPreferencesHelper(application, gson)
   }
 
+  /**
+   * Exercises the real Gson adapter for [AppUpdateConfig]. Mocking [SharedPreferencesHelper]
+   * elsewhere meant `toJson` was never called, which is how a `@SerializedName(alternate = …)`
+   * mapping that Gson refuses to build reached a device: it threw inside the flag refresh, the
+   * caller swallowed it, and neither update prompt ever rendered.
+   */
+  @Test
+  fun testAppUpdateConfigSurvivesAPersistenceRoundTrip() {
+    val config =
+      AppUpdateConfig(
+        minSupportedVersionCode = 50,
+        latestVersionCode = 55,
+        latestVersionName = "AA_v1.7.8",
+        softMessage = "Faster case sync and a fix for lost photos.",
+        forcedMessage = "App is 6 months out of date",
+      )
+
+    sharedPreferencesHelper.saveLastKnownAppUpdateConfig("feature-flags", config)
+
+    Assert.assertEquals(config, sharedPreferencesHelper.getLastKnownAppUpdateConfig("feature-flags"))
+  }
+
+  /** A config persisted before the split has one shared `message`; it must back both prompts. */
+  @Test
+  fun testPersistedLegacyMessageBackFillsBothPrompts() {
+    val legacyJson =
+      """{"minSupportedVersionCode":50,"latestVersionCode":55,"latestVersionName":"AA_v1.7.8",""" +
+        """"message":"A new version is available. Please update."}"""
+    sharedPreferencesHelper.write("APP_UPDATE_CONFIG_feature-flags", legacyJson)
+
+    val config = sharedPreferencesHelper.getLastKnownAppUpdateConfig("feature-flags")
+
+    Assert.assertEquals("A new version is available. Please update.", config.softMessage)
+    Assert.assertEquals("A new version is available. Please update.", config.forcedMessage)
+    Assert.assertEquals(50, config.minSupportedVersionCode)
+  }
+
+  @Test
+  fun testUnsetAppUpdateConfigReadsBackAsNone() {
+    Assert.assertEquals(
+      AppUpdateConfig.NONE,
+      sharedPreferencesHelper.getLastKnownAppUpdateConfig("never-written"),
+    )
+  }
+
   @Test
   fun testReadString() {
     Assert.assertNotNull(sharedPreferencesHelper.read("anyStringKey", ""))
