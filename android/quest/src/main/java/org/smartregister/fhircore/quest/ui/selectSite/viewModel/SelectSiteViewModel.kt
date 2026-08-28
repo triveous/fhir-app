@@ -15,6 +15,7 @@ import org.smartregister.fhircore.engine.domain.networkUtils.HttpConstants.SELEC
 import org.smartregister.fhircore.engine.domain.repository.SelectYourSiteRepository
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.mutableLiveData
 import javax.inject.Inject
 
@@ -86,5 +87,12 @@ class SelectSiteViewModel @Inject constructor(
         secureSharedPreference.saveSiteName(selectSite.name)
         sharedPreferencesHelper.saveSiteName(selectSite.name)
         sharedPreferencesHelper.saveTenant(selectSite.code, multiTenant)
+
+        // Tag every subsequent event with the site so PostHog can filter activity and errors by it.
+        PostHogAnalytics.setSiteContext(
+            siteUrl = fhirBaseUrl,
+            siteName = selectSite.name,
+            tenantCode = selectSite.code,
+        )
     }
 }

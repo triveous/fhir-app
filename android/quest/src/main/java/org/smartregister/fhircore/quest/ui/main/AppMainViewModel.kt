@@ -206,16 +206,26 @@ constructor(
    * soft update is available, and the *forced* prompt blocks the app. Safe to call repeatedly (on
    * launch and after each successful sync) — it never throws, and it never un-dismisses the soft
    * card mid-session even if a later sync re-resolves this state.
+   *
+   * The server is re-read first. [FeatureFlagUtil.getAppUpdateConfig] alone is engine-first, which
+   * would resolve the prompt from whatever config the device last cached — and no sync runs on app
+   * open, so a device that has cached a *forced* config would keep showing the blocking dialog even
+   * after the server relaxed the floor, with no way out because the dialog hides the sync button.
+   * [FeatureFlagUtil.refreshFromServer] is network-guarded and never throws, so this stays
+   * offline-safe: with no connection the cached config still applies and a forced update stays
+   * enforced.
    */
   fun checkForAppUpdate(currentVersionCode: Int = BuildConfig.VERSION_CODE) {
     viewModelScope.launch(dispatcherProvider.io()) {
       try {
+        featureFlagUtil.refreshFromServer()
         val config = featureFlagUtil.getAppUpdateConfig()
         _appUpdateUiState.value =
           AppUpdateUiState(
             requirement = config.requirementFor(currentVersionCode),
             latestVersionName = config.latestVersionName,
-            message = config.message,
+            softMessage = config.softMessage,
+            forcedMessage = config.forcedMessage,
             softUpdateDismissed = softUpdateDismissedThisSession,
           )
       } catch (e: Exception) {

@@ -22,6 +22,7 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.JsonIOException
+import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.SerializationException
@@ -233,7 +234,19 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
     fun getLastKnownAppUpdateConfig(resourceId: String): AppUpdateConfig {
         val json = prefs.getString(appUpdateConfigPrefKey(resourceId), null) ?: return AppUpdateConfig.NONE
         return try {
-            gson.fromJson(json, AppUpdateConfig::class.java) ?: AppUpdateConfig.NONE
+            val config = gson.fromJson(json, AppUpdateConfig::class.java) ?: return AppUpdateConfig.NONE
+            // Configs written before soft and forced copy were split carry one shared `message`.
+            // Gson cannot map a single JSON name onto two fields — declaring it as an `alternate` on
+            // both makes it refuse to build the adapter at all — so back-fill them here instead.
+            val legacyMessage = gson.fromJson(json, JsonObject::class.java)
+                ?.get("message")
+                ?.takeIf { it.isJsonPrimitive }
+                ?.asString
+                ?.takeIf { it.isNotBlank() }
+            config.copy(
+                softMessage = config.softMessage ?: legacyMessage,
+                forcedMessage = config.forcedMessage ?: legacyMessage,
+            )
         } catch (e: Exception) {
             Timber.w(e, "Failed to parse persisted app update config for %s", resourceId)
             AppUpdateConfig.NONE

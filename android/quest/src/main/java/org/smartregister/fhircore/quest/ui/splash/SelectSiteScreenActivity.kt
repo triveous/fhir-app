@@ -33,6 +33,7 @@ import org.smartregister.fhircore.quest.theme.Theme.getWhiteBackground
 import org.smartregister.fhircore.quest.theme.typography
 import org.smartregister.fhircore.quest.ui.appsetting.AppSettingActivity
 import org.smartregister.fhircore.quest.ui.selectSite.SelectSiteScreenActivity
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -62,6 +63,7 @@ class SplashActivity : BaseMultiLanguageActivity() {
                         secureSharedPreference.saveUrls(null, null)
                         sharedPreferencesHelper.saveUrls(null, null)
                         sharedPreferencesHelper.saveTenant(null, false)
+                        PostHogAnalytics.clearSiteContext()
                         SelectSiteScreenActivity::class.java
                     }
                     else -> AppSettingActivity::class.java
