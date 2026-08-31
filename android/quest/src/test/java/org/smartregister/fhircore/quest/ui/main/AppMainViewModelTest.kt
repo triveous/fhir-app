@@ -70,6 +70,7 @@ import org.smartregister.fhircore.engine.sync.SyncBroadcaster
 import org.smartregister.fhircore.engine.task.FhirCarePlanGenerator
 import org.smartregister.fhircore.engine.ui.bottomsheet.RegisterBottomSheetFragment
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
@@ -104,6 +105,7 @@ class AppMainViewModelTest : RobolectricTest() {
   private val application: Context = ApplicationProvider.getApplicationContext()
   private val syncBroadcaster: SyncBroadcaster = mockk(relaxed = true)
   private val fhirEngine: FhirEngine = mockk(relaxed = true)
+  private val featureFlagUtil: FeatureFlagUtil = mockk(relaxed = true)
   private lateinit var sharedPreferencesHelper: SharedPreferencesHelper
   private lateinit var appMainViewModel: AppMainViewModel
 
@@ -128,6 +130,7 @@ class AppMainViewModelTest : RobolectricTest() {
           workManager = workManager,
           fhirCarePlanGenerator = fhirCarePlanGenerator,
           fhirEngine = fhirEngine,
+          featureFlagUtil = featureFlagUtil,
         ),
       )
     runBlocking { configurationRegistry.loadConfigurations("app/debug", application) }

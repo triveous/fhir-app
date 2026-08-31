@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Data transfer rules for Android 12+ (android:dataExtractionRules).
+
+  See backup_rules.xml for the rationale: the encrypted credential store is protected by a
+  device-bound Android Keystore key that never leaves the device, so its encrypted file must not be
+  carried to another device by cloud backup or device-to-device transfer — otherwise the app hits
+  AEADBadTagException on launch when the matching key is missing.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="fhircore_secure_preferences.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="fhircore_secure_preferences.xml" />
+    </device-transfer>
+</data-extraction-rules>

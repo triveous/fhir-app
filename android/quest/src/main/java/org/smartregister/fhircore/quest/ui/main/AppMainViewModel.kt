@@ -64,7 +64,10 @@ import org.smartregister.fhircore.engine.task.FhirCompleteCarePlanWorker
 import org.smartregister.fhircore.engine.task.FhirResourceExpireWorker
 import org.smartregister.fhircore.engine.task.FhirTaskStatusUpdateWorker
 import org.smartregister.fhircore.engine.ui.bottomsheet.RegisterBottomSheetFragment
+import org.smartregister.fhircore.engine.util.AppUpdateConfig
+import org.smartregister.fhircore.engine.util.AppUpdateRequirement
 import org.smartregister.fhircore.engine.util.DispatcherProvider
+import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferenceKey
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
@@ -78,6 +81,7 @@ import org.smartregister.fhircore.engine.util.extension.tryParse
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.navigation.NavigationArg
+import org.smartregister.fhircore.quest.ui.main.appupdate.AppUpdateUiState
 import org.smartregister.fhircore.quest.ui.report.measure.worker.MeasureReportMonthPeriodWorker
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
 import org.smartregister.fhircore.quest.ui.shared.models.QuestionnaireSubmission
@@ -105,6 +109,7 @@ constructor(
   val workManager: WorkManager,
   val fhirCarePlanGenerator: FhirCarePlanGenerator,
   val fhirEngine: FhirEngine,
+  val featureFlagUtil: FeatureFlagUtil,
 ) : ViewModel() {
 
   private val simpleDateFormat = SimpleDateFormat(SYNC_TIMESTAMP_OUTPUT_FORMAT, Locale.getDefault())
@@ -124,6 +129,22 @@ constructor(
    */
   private val _syncProgressStateFlow = MutableStateFlow(SyncProgressUiState())
   val syncProgressStateFlow: StateFlow<SyncProgressUiState> = _syncProgressStateFlow.asStateFlow()
+
+  /**
+   * Drives the soft/forced app-update prompt (see AppUpdatePrompt). Resolved from the feature-flag
+   * [AppUpdateConfig] against this build's [BuildConfig.VERSION_CODE]. Activity-scoped so the prompt
+   * survives fragment recreation and is shared across every tab.
+   */
+  private val _appUpdateUiState = MutableStateFlow(AppUpdateUiState())
+  val appUpdateUiState: StateFlow<AppUpdateUiState> = _appUpdateUiState.asStateFlow()
+
+  /**
+   * Whether the user has closed the soft-update card during this app session. Lives only in this
+   * (activity-scoped) view model, so it resets on a real app close-and-reopen (a new process/
+   * ViewModel) but survives navigating between tabs and re-resolving [checkForAppUpdate] (e.g. after
+   * a sync) for as long as this session lasts.
+   */
+  private var softUpdateDismissedThisSession = false
 
   val applicationConfiguration: ApplicationConfiguration by lazy {
     configurationRegistry.retrieveConfiguration(ConfigType.Application, paramsMap = emptyMap())
@@ -176,6 +197,51 @@ constructor(
         Timber.e(e)
       }
     }
+  }
+
+  /**
+   * Reads the app-update feature flag and, comparing the configured version thresholds against this
+   * build's [currentVersionCode], publishes the resolved requirement to [appUpdateUiState]. The
+   * *soft* card is shown once per session (see [softUpdateDismissedThisSession]) for as long as a
+   * soft update is available, and the *forced* prompt blocks the app. Safe to call repeatedly (on
+   * launch and after each successful sync) — it never throws, and it never un-dismisses the soft
+   * card mid-session even if a later sync re-resolves this state.
+   *
+   * The server is re-read first. [FeatureFlagUtil.getAppUpdateConfig] alone is engine-first, which
+   * would resolve the prompt from whatever config the device last cached — and no sync runs on app
+   * open, so a device that has cached a *forced* config would keep showing the blocking dialog even
+   * after the server relaxed the floor, with no way out because the dialog hides the sync button.
+   * [FeatureFlagUtil.refreshFromServer] is network-guarded and never throws, so this stays
+   * offline-safe: with no connection the cached config still applies and a forced update stays
+   * enforced.
+   */
+  fun checkForAppUpdate(currentVersionCode: Int = BuildConfig.VERSION_CODE) {
+    viewModelScope.launch(dispatcherProvider.io()) {
+      try {
+        featureFlagUtil.refreshFromServer()
+        val config = featureFlagUtil.getAppUpdateConfig()
+        _appUpdateUiState.value =
+          AppUpdateUiState(
+            requirement = config.requirementFor(currentVersionCode),
+            latestVersionName = config.latestVersionName,
+            softMessage = config.softMessage,
+            forcedMessage = config.forcedMessage,
+            softUpdateDismissed = softUpdateDismissedThisSession,
+          )
+      } catch (e: Exception) {
+        Timber.e(e, "Failed to check for app update")
+      }
+    }
+  }
+
+  /**
+   * Closes the soft-update card for the rest of this app session. The card will not reappear until
+   * the app is fully closed and reopened (a new [AppMainViewModel] instance) — see
+   * [softUpdateDismissedThisSession].
+   */
+  fun dismissSoftUpdateBanner() {
+    softUpdateDismissedThisSession = true
+    _appUpdateUiState.update { it.copy(softUpdateDismissed = true) }
   }
 
   fun onEvent(event: AppMainEvent, isForeground: Boolean = false) {

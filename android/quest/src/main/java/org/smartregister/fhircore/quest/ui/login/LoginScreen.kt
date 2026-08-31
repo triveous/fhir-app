@@ -111,7 +111,7 @@ import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginDarkColor
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
 import org.smartregister.fhircore.engine.util.extension.appVersion
-import org.smartregister.fhircore.quest.BuildConfig
+import org.smartregister.fhircore.quest.ui.components.PoweredByLogos
 
 const val APP_NAME_TEXT_TAG = "aapNameTextTag"
 const val USERNAME_FIELD_TAG = "usernameFieldTag"
@@ -165,6 +165,11 @@ fun LoginPage(
   var showForgotPasswordDialog by remember { mutableStateOf(false) }
   var privacyPolicyAccepted by remember { mutableStateOf(false) }
   var showPrivacyPolicy by remember { mutableStateOf(false) }
+  // Single source of truth for whether login may proceed. The keyboard "Done" action must honour
+  // the exact same gating as the Login button, otherwise pressing Done submits even while the
+  // privacy-policy checkbox is unchecked (bypassing the consent requirement).
+  val loginEnabled =
+    !showProgressBar && username.isNotEmpty() && password.isNotEmpty() && privacyPolicyAccepted
   val context = LocalContext.current
   val (versionCode, versionName) = remember { appVersionPair ?: context.appVersion() }
   val coroutineScope = rememberCoroutineScope()
@@ -303,7 +308,7 @@ fun LoginPage(
           KeyboardActions(
             onDone = {
               focusManager.clearFocus()
-              onLoginButtonClicked()
+              if (loginEnabled) onLoginButtonClicked()
             },
           ),
         )
@@ -396,7 +401,7 @@ fun LoginPage(
         Spacer(modifier = modifier.height(0.dp))
         Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxWidth()) {
           Button(
-            enabled = !showProgressBar && username.isNotEmpty() && password.isNotEmpty() && privacyPolicyAccepted,
+            enabled = loginEnabled,
             colors =
             ButtonDefaults.buttonColors(
               backgroundColor = MaterialTheme.colors.primaryVariant,
@@ -432,23 +437,12 @@ fun LoginPage(
           }
         }
       }
-      Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
+      PoweredByLogos(
         modifier = modifier
           .fillMaxWidth()
-          .padding(vertical = 20.dp),
-        verticalAlignment = Alignment.Bottom,
-      ) {
-        Text(
-          fontSize = 16.sp,
-          text = stringResource(id = R.string.app_version, BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME),
-          modifier = modifier
-            .wrapContentWidth()
-            .padding(bottom = 8.dp)
-            .testTag(LOGIN_FOOTER),
-          fontWeight = FontWeight.Light,
-        )
-      }
+          .padding(vertical = 20.dp)
+          .testTag(LOGIN_FOOTER),
+      )
     }
   }
 }

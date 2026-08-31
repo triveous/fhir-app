@@ -19,18 +19,31 @@ class SelectYourSiteRepository @Inject constructor(
     }
 
     /**
-     * Returns true if [storedFhirBaseUrl] matches any tenant in the catalog at [catalogUrl].
+     * Returns true only when [storedFhirBaseUrl] matches a tenant in the catalog at [catalogUrl]
+     * AND that same tenant's current authBaseUrl matches [storedOauthBaseUrl]. A tenant whose
+     * identity provider migrated (fhirBaseUrl unchanged, authBaseUrl updated) needs the same
+     * re-prompt as a decommissioned tenant — otherwise the device keeps authenticating against
+     * an issuer the FHIR resource server no longer trusts, and every request 401s while the
+     * device's own connectivity and fhirBaseUrl look perfectly healthy.
+     *
      * Comparison ignores trailing slashes and case. Throws if the catalog can't be fetched —
      * callers should treat exceptions as "unknown" (e.g. offline) and not migrate.
      */
-    suspend fun isFhirBaseUrlInCatalog(catalogUrl: String, storedFhirBaseUrl: String): Boolean {
-        val normalizedStored = storedFhirBaseUrl.trimEnd('/').lowercase()
-        if (normalizedStored.isEmpty()) return false
+    suspend fun isStoredSiteCurrent(
+        catalogUrl: String,
+        storedFhirBaseUrl: String,
+        storedOauthBaseUrl: String?,
+    ): Boolean {
+        val normalizedFhir = storedFhirBaseUrl.trimEnd('/').lowercase()
+        if (normalizedFhir.isEmpty()) return false
+        val normalizedOauth = storedOauthBaseUrl?.trimEnd('/')?.lowercase().orEmpty()
         val catalog = getSelectYourSites(catalogUrl)
-        return catalog.values.any { server ->
-            server.tenants.orEmpty().any { tenant ->
-                tenant.fhirBaseUrl?.trimEnd('/')?.lowercase() == normalizedStored
-            }
-        }
+        val matchingTenant =
+            catalog.values
+                .asSequence()
+                .flatMap { it.tenants.orEmpty() }
+                .find { it.fhirBaseUrl?.trimEnd('/')?.lowercase() == normalizedFhir }
+                ?: return false
+        return matchingTenant.authBaseUrl?.trimEnd('/')?.lowercase() == normalizedOauth
     }
 }

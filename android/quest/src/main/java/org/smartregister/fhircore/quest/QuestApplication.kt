@@ -36,6 +36,7 @@ import org.smartregister.fhircore.engine.di.BaseUrlsHolder
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.data.QuestXFhirQueryResolver
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireItemViewHolderFactoryMatchersProviderFactoryImpl
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import timber.log.Timber
 import java.net.URL
 import javax.inject.Inject
@@ -93,6 +94,18 @@ class QuestApplication : OpenSrpApplication(), DataCaptureConfig.Provider, Confi
 
       // Disable GeoIP processing to prevent lat/long inference from IP addresses
       PostHog.register("\$geoip_disable", true)
+
+      // Re-attach the selected site on every cold start so events captured before login — and
+      // crashes auto-captured with no user identified — are still attributable to a site.
+      try {
+        PostHogAnalytics.setSiteContext(
+          siteUrl = sharedPreferencesHelper.getFhirBaseUrlWithoutDefaultValue(),
+          siteName = sharedPreferencesHelper.getSiteName(),
+          tenantCode = sharedPreferencesHelper.getTenantCode(),
+        )
+      } catch (e: Exception) {
+        Timber.e(e, "Failed to register PostHog site context")
+      }
     }
   }
 

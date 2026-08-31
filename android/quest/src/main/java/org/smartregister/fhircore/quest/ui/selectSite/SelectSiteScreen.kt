@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -54,7 +53,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,14 +64,10 @@ import org.smartregister.fhircore.engine.ui.components.register.LoaderDialog
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.LoginFieldBackgroundColor
 import org.smartregister.fhircore.engine.util.extension.appVersion
-import org.smartregister.fhircore.quest.BuildConfig
-import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
-import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
-import org.smartregister.fhircore.quest.theme.Theme.getBackground
-import org.smartregister.fhircore.quest.theme.body14Medium
-import org.smartregister.fhircore.quest.theme.body18Medium
+import org.smartregister.fhircore.quest.theme.Theme.getWhiteBackground
 import org.smartregister.fhircore.quest.theme.bodyBold
 import org.smartregister.fhircore.quest.theme.bodyMedium
+import org.smartregister.fhircore.quest.ui.components.PoweredByLogos
 import org.smartregister.fhircore.quest.ui.login.APP_LOGO_TAG
 import org.smartregister.fhircore.quest.ui.login.APP_NAME_TEXT_TAG
 import org.smartregister.fhircore.quest.ui.login.LOGIN_BUTTON_TAG
@@ -98,7 +92,7 @@ fun SelectSiteScreen(
         modifier
             .fillMaxSize()
             .scrollable(orientation = Orientation.Vertical, state = rememberScrollState()),
-        color = getBackground(),
+        color = getWhiteBackground(),
         contentColor = contentColorFor(backgroundColor = Color.DarkGray),
     ) {
         Box {
@@ -182,54 +176,11 @@ fun SelectSiteScreen(
                         }
                     }
                 }
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                PoweredByLogos(
                     modifier = modifier
                         .fillMaxWidth()
                         .padding(vertical = 20.dp),
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Column {
-                        Text(
-                            text = stringResource(id = R.string.powered_by),
-                            style = body14Medium(),
-                            color = CRAYOLA_LIGHT,
-                            modifier = modifier
-                                .wrapContentWidth()
-                                .padding(bottom = 8.dp),
-                        )
-                        Row {
-                            Image(
-                                painter = painterResource(id = org.smartregister.fhircore.quest.R.drawable.ic_iisc),
-                                contentDescription = stringResource(id = R.string.powered_by),
-                                modifier = Modifier
-                                    .width(43.dp)
-                                    .height(35.dp)
-                            )
-                            Text(
-                                text = stringResource(id = R.string.iisc),
-                                style = body18Medium(),
-                                color = BRANDEIS_BLUE,
-                                modifier = modifier
-                                    .wrapContentWidth()
-                                    .fillMaxHeight()
-                                    .align(Alignment.Bottom),
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = stringResource(id = R.string.app_version, BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME),
-                        style = body14Medium(),
-                        color = CRAYOLA_LIGHT,
-                        fontWeight = FontWeight(400),
-                        modifier = modifier
-                            .wrapContentWidth()
-                            .padding(bottom = 8.dp)
-                            .fillMaxHeight()
-                            .align(Alignment.Bottom),
-                    )
-                }
+                )
             }
             // Show loader
             val observeAsState = siteViewModel?.isLoading?.observeAsState(initial = false)

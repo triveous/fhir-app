@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto Backup rules for Android 11 and below (android:fullBackupContent).
+
+  The encrypted credential store (SecureSharedPreference / EncryptedSharedPreferences) is wrapped by
+  a key that lives only in this device's Android Keystore and is never backed up. Backing up the
+  encrypted file alone means a restore onto another device — or a fresh install — carries an
+  encrypted blob whose key is absent, and Tink then throws AEADBadTagException on launch. Exclude it
+  so backup/restore can never resurrect an unreadable keyset.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="fhircore_secure_preferences.xml" />
+</full-backup-content>

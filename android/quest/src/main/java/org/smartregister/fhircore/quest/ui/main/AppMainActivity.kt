@@ -52,6 +52,7 @@ import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.util.DefaultDispatcherProvider
+import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.launchActivityWithNoBackStackHistory
 import org.smartregister.fhircore.engine.util.extension.parcelable
@@ -64,6 +65,8 @@ import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.appsetting.AppSettingActivity
+import org.smartregister.fhircore.quest.ui.main.appupdate.AppUpdatePrompt
+import org.smartregister.fhircore.quest.ui.main.appupdate.launchAppStore
 import org.smartregister.fhircore.quest.ui.main.components.SyncProgressBar
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
@@ -108,6 +111,11 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
     }
   }
 
+  // onCreate can return early (before registering the callback) when the app configuration is not
+  // loaded, so onDestroy must only unregister when we actually registered — otherwise
+  // unregisterNetworkCallback throws IllegalArgumentException and masks the real first failure.
+  private var networkCallbackRegistered = false
+
   override val startForResult =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
       if (activityResult.resultCode == RESULT_OK) {
@@ -132,10 +140,15 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
     }
 
     setContentView(R.layout.activity_main)
+    // Preserve the pre-edge-to-edge look now that Android 16 (targetSdk 36) enforces edge-to-edge
+    // and no longer honors windowOptOutEdgeToEdgeEnforcement. Keeps the bottom navigation above the
+    // gesture bar and content below the status bar.
+    applyWindowInsetListener()
     _isOnline.value = isDeviceOnline()
 
     val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     connectivityManager.registerDefaultNetworkCallback(networkCallback)
+    networkCallbackRegistered = true
 
     val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.firstOrNull()
     val topMenuConfigId =
@@ -156,6 +169,8 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
     navController = navHostFragment.navController
     setupBottomNavigation()
     setupSyncProgressBar()
+    setupAppUpdatePrompt()
+    appMainViewModel.checkForAppUpdate()
     geoWidgetViewModel.geoWidgetEventLiveData.observe(this) { geoWidgetEvent ->
       when (geoWidgetEvent) {
         is GeoWidgetEvent.OpenProfile ->
@@ -202,6 +217,25 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
         AppTheme {
           val syncProgressUiState by appMainViewModel.syncProgressStateFlow.collectAsState()
           SyncProgressBar(syncProgressUiState = syncProgressUiState)
+        }
+      }
+    }
+  }
+
+  /**
+   * Hosts the **forced** (blocking) update dialog only. The soft update is a non-blocking nudge
+   * rendered on the register screen (see `SoftUpdateBanner`), so it does not belong in this overlay.
+   */
+  private fun setupAppUpdatePrompt() {
+    findViewById<ComposeView>(R.id.app_update_overlay).apply {
+      setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+      setContent {
+        AppTheme {
+          val appUpdateUiState by appMainViewModel.appUpdateUiState.collectAsState()
+          AppUpdatePrompt(
+            uiState = appUpdateUiState,
+            onUpdate = { launchAppStore(this@AppMainActivity) },
+          )
         }
       }
     }
@@ -274,9 +308,14 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
 
   override fun onDestroy() {
     super.onDestroy()
-    // Unregister the network callback when activity is destroyed
-    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    connectivityManager.unregisterNetworkCallback(networkCallback)
+    // Unregister the network callback when the activity is destroyed, but only if it was registered
+    // (onCreate can return early before registering). Guarded so teardown never throws.
+    if (networkCallbackRegistered) {
+      val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+      runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
+        .onFailure { Timber.w(it, "Network callback was already unregistered") }
+      networkCallbackRegistered = false
+    }
   }
 
   override suspend fun onSubmitQuestionnaire(activityResult: ActivityResult) {
@@ -319,6 +358,9 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
               lastSyncTime = formatLastSyncTimestamp(syncJobStatus.timestamp),
             ),
           )
+          // A sync may have pulled a new app-update flag (e.g. a release flipped to forced);
+          // re-resolve so the prompt appears without waiting for the next app launch.
+          checkForAppUpdate()
         }
       }
       is CurrentSyncJobStatus.Failed -> {
