@@ -28,6 +28,8 @@ import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.BooleanType
+import org.hl7.fhir.r4.model.IntegerType
+import org.hl7.fhir.r4.model.StringType
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -45,6 +47,7 @@ class FeatureFlagUtilTest {
   fun setUp() {
     every { sharedPreferencesHelper.getFeatureFlagsResourceId() } returns featureFlagsResourceId
     every { sharedPreferencesHelper.getLastKnownFeatureFlags(any()) } returns emptyMap()
+    every { sharedPreferencesHelper.getLastKnownAppUpdateConfig(any()) } returns AppUpdateConfig.NONE
     featureFlagUtil =
       FeatureFlagUtil(
         fhirEngine = fhirEngine,
@@ -149,12 +152,160 @@ class FeatureFlagUtilTest {
     verify(exactly = 0) { sharedPreferencesHelper.saveLastKnownFeatureFlags(any(), any()) }
   }
 
+  @Test
+  fun testGetAppUpdateConfigParsesNestedExtensionFromEngineBasic() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
+      appUpdateBasic(minSupported = 50, latest = 55, versionName = "AA_v1.7.8")
+
+    val config = featureFlagUtil.getAppUpdateConfig()
+
+    Assert.assertEquals(50, config.minSupportedVersionCode)
+    Assert.assertEquals(55, config.latestVersionCode)
+    Assert.assertEquals("AA_v1.7.8", config.latestVersionName)
+    verify {
+      sharedPreferencesHelper.saveLastKnownAppUpdateConfig(featureFlagsResourceId, config)
+    }
+  }
+
+  @Test
+  fun testGetAppUpdateConfigParsesSoftAndForcedMessagesIndependently() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
+      appUpdateBasic(
+        minSupported = 50,
+        latest = 55,
+        versionName = "AA_v1.7.8",
+        softMessage = "New in this release: faster case sync.",
+        forcedMessage = "App is 6 months out of date",
+      )
+
+    val config = featureFlagUtil.getAppUpdateConfig()
+
+    Assert.assertEquals("New in this release: faster case sync.", config.softMessage)
+    Assert.assertEquals("App is 6 months out of date", config.forcedMessage)
+  }
+
+  /** Servers configured before the split carry one shared `message`; it must back both prompts. */
+  @Test
+  fun testGetAppUpdateConfigFallsBackToLegacySharedMessageForBothPrompts() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
+      appUpdateBasic(
+        minSupported = 50,
+        latest = 55,
+        versionName = "AA_v1.7.8",
+        message = "A new version is available. Please update.",
+      )
+
+    val config = featureFlagUtil.getAppUpdateConfig()
+
+    Assert.assertEquals("A new version is available. Please update.", config.softMessage)
+    Assert.assertEquals("A new version is available. Please update.", config.forcedMessage)
+  }
+
+  /** A prompt-specific message wins over the legacy shared one for that prompt only. */
+  @Test
+  fun testGetAppUpdateConfigPrefersPromptSpecificMessageOverLegacyShared() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
+      appUpdateBasic(
+        minSupported = 50,
+        latest = 55,
+        versionName = "AA_v1.7.8",
+        message = "Shared legacy copy",
+        forcedMessage = "App is 6 months out of date",
+      )
+
+    val config = featureFlagUtil.getAppUpdateConfig()
+
+    Assert.assertEquals("Shared legacy copy", config.softMessage)
+    Assert.assertEquals("App is 6 months out of date", config.forcedMessage)
+  }
+
+  @Test
+  fun testGetAppUpdateConfigMessagesDefaultToNullWhenAbsent() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
+      appUpdateBasic(minSupported = 50, latest = 55, versionName = "AA_v1.7.8")
+
+    val config = featureFlagUtil.getAppUpdateConfig()
+
+    Assert.assertNull(config.softMessage)
+    Assert.assertNull(config.forcedMessage)
+  }
+
+  @Test
+  fun testGetAppUpdateConfigDefaultsToNoneWhenNoUpdateExtension() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns featureFlagsBasic(true)
+
+    val config = featureFlagUtil.getAppUpdateConfig()
+
+    Assert.assertEquals(AppUpdateConfig.NONE, config)
+  }
+
+  @Test
+  fun testGetAppUpdateConfigFallsBackToLastKnownWhenUnavailable() = runTest {
+    val lastKnown =
+      AppUpdateConfig(50, 55, "AA_v1.8.0", "Please update to the latest version.", "Unsupported build")
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } throws
+      ResourceNotFoundException("Basic", featureFlagsResourceId)
+    coEvery { fhirResourceDataSource.getBasic(featureFlagsResourceId) } throws
+      RuntimeException("offline")
+    every { sharedPreferencesHelper.getLastKnownAppUpdateConfig(featureFlagsResourceId) } returns
+      lastKnown
+
+    val config = featureFlagUtil.getAppUpdateConfig()
+
+    Assert.assertEquals(lastKnown, config)
+  }
+
   private fun featureFlagsBasic(aiInferenceEnabled: Boolean): Basic =
     Basic().apply {
       id = featureFlagsResourceId
       addExtension().apply {
         url = FeatureFlagUtil.AI_INFERENCE_ENABLED_URL
         setValue(BooleanType(aiInferenceEnabled))
+      }
+    }
+
+  private fun appUpdateBasic(
+    minSupported: Int,
+    latest: Int,
+    versionName: String,
+    message: String? = null,
+    softMessage: String? = null,
+    forcedMessage: String? = null,
+  ): Basic =
+    Basic().apply {
+      id = featureFlagsResourceId
+      addExtension().apply {
+        url = FeatureFlagUtil.APP_UPDATE_URL
+        addExtension().apply {
+          url = FeatureFlagUtil.APP_UPDATE_MIN_SUPPORTED_VERSION_CODE
+          setValue(IntegerType(minSupported))
+        }
+        addExtension().apply {
+          url = FeatureFlagUtil.APP_UPDATE_LATEST_VERSION_CODE
+          setValue(IntegerType(latest))
+        }
+        addExtension().apply {
+          url = FeatureFlagUtil.APP_UPDATE_LATEST_VERSION_NAME
+          setValue(StringType(versionName))
+        }
+        message?.let {
+          addExtension().apply {
+            url = FeatureFlagUtil.APP_UPDATE_MESSAGE
+            setValue(StringType(it))
+          }
+        }
+        softMessage?.let {
+          addExtension().apply {
+            url = FeatureFlagUtil.APP_UPDATE_SOFT_MESSAGE
+            setValue(StringType(it))
+          }
+        }
+        forcedMessage?.let {
+          addExtension().apply {
+            url = FeatureFlagUtil.APP_UPDATE_FORCED_MESSAGE
+            setValue(StringType(it))
+          }
+        }
       }
     }
 }

@@ -33,6 +33,7 @@ import org.smartregister.fhircore.quest.theme.Theme.getWhiteBackground
 import org.smartregister.fhircore.quest.theme.typography
 import org.smartregister.fhircore.quest.ui.appsetting.AppSettingActivity
 import org.smartregister.fhircore.quest.ui.selectSite.SelectSiteScreenActivity
+import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -58,10 +59,11 @@ class SplashActivity : BaseMultiLanguageActivity() {
                 val target = when {
                     fhirBaseUrl.isNullOrEmpty() -> SelectSiteScreenActivity::class.java
                     isStoredSiteStale(fhirBaseUrl) -> {
-                        Timber.w("Stored fhirBaseUrl %s not in catalog; clearing and re-prompting site selection", fhirBaseUrl)
+                        Timber.w("Stored site config for %s is stale (removed from catalog, or its auth issuer changed); clearing and re-prompting site selection", fhirBaseUrl)
                         secureSharedPreference.saveUrls(null, null)
                         sharedPreferencesHelper.saveUrls(null, null)
                         sharedPreferencesHelper.saveTenant(null, false)
+                        PostHogAnalytics.clearSiteContext()
                         SelectSiteScreenActivity::class.java
                     }
                     else -> AppSettingActivity::class.java
@@ -73,14 +75,22 @@ class SplashActivity : BaseMultiLanguageActivity() {
     }
 
     /**
-     * Returns true only when we successfully fetched the catalog AND the stored URL is absent
-     * from it. Network failures (offline) return false so we don't punish offline users.
+     * Returns true only when we successfully fetched the catalog AND either the stored
+     * fhirBaseUrl is absent from it, or it's present but the tenant's authBaseUrl has since
+     * changed (e.g. an identity-provider migration) while this device's cached oauthBaseUrl
+     * didn't follow. setSelectSite() always writes both URLs together, so that split can only
+     * come from a device carrying pre-migration state forward — never from a fresh selection.
+     * Network failures (offline) return false so we don't punish offline users.
      */
     private suspend fun isStoredSiteStale(storedFhirBaseUrl: String): Boolean =
         try {
-            !selectYourSiteRepository.isFhirBaseUrlInCatalog(SELECT_YOUR_SITE_URL, storedFhirBaseUrl)
+            !selectYourSiteRepository.isStoredSiteCurrent(
+                SELECT_YOUR_SITE_URL,
+                storedFhirBaseUrl,
+                sharedPreferencesHelper.getOauthBaseUrl(),
+            )
         } catch (e: Exception) {
-            Timber.w(e, "Could not validate stored fhirBaseUrl against catalog; assuming valid")
+            Timber.w(e, "Could not validate stored site config against catalog; assuming valid")
             false
         }
 }

@@ -51,5 +51,5 @@ enum class SharedPreferenceKey {
    *
    * @see org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
    */
-  UPLOADED_DOCUMENT_REFERENCES
+  UPLOADED_DOCUMENT_REFERENCES,
 }

@@ -40,6 +40,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.bumptech.glide.Glide
 import org.smartregister.fhircore.engine.ui.theme.LighterBlue
 import org.smartregister.fhircore.engine.ui.theme.PrimaryColor
+import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
@@ -106,6 +107,10 @@ class AIResultActivity : ComponentActivity() {
                 )
             }
         }
+
+        // Preserve the pre-edge-to-edge look now that Android 16 (targetSdk 36) enforces
+        // edge-to-edge and no longer honors windowOptOutEdgeToEdgeEnforcement.
+        applyWindowInsetListener()
     }
 
     override fun onDestroy() {

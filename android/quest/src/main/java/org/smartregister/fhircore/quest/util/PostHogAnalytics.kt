@@ -13,6 +13,9 @@ object PostHogAnalytics {
 
     // ── User Property Keys ──
     private const val PROP_FLWID = "flwid"
+    private const val PROP_SITE_URL = "site_url"
+    private const val PROP_SITE_NAME = "site_name"
+    private const val PROP_TENANT_CODE = "tenant_code"
     private const val PROP_VERSION_CODE = "app_version_code"
     private const val PROP_VERSION_NAME = "app_version_name"
     private const val PROP_PENDING_SYNC_IMAGES = "pending_sync_images"
@@ -131,6 +134,70 @@ object PostHogAnalytics {
     }
 
     /**
+     * The site the device is pointed at, kept in memory so [identifyUser] can attach it to the
+     * person without every call site having to read shared preferences. Repopulated on every cold
+     * start from [setSiteContext].
+     */
+    @Volatile private var siteProperties: Map<String, Any> = emptyMap()
+
+    private val SITE_PROPERTY_KEYS = listOf(PROP_SITE_URL, PROP_SITE_NAME, PROP_TENANT_CODE)
+
+    /**
+     * Record the selected site (FHIR base URL, human readable name and tenant code) as PostHog
+     * super properties, so they are attached to *every* event and auto-captured crash — including
+     * the ones that happen before a user is identified. PostHog persists registered properties,
+     * so they survive process death and only change when the user picks another site.
+     *
+     * Passing a blank/null URL clears the site context.
+     */
+    fun setSiteContext(
+        siteUrl: String?,
+        siteName: String? = null,
+        tenantCode: String? = null,
+    ) {
+        try {
+            val normalizedUrl = normalizeSiteUrl(siteUrl)
+            if (normalizedUrl.isNullOrBlank()) {
+                clearSiteContext()
+                return
+            }
+
+            val properties = buildMap<String, Any> {
+                put(PROP_SITE_URL, normalizedUrl)
+                siteName?.trim()?.takeIf { it.isNotEmpty() }?.let { put(PROP_SITE_NAME, it) }
+                tenantCode?.trim()?.takeIf { it.isNotEmpty() }?.let { put(PROP_TENANT_CODE, it) }
+            }
+            siteProperties = properties
+            SITE_PROPERTY_KEYS.forEach { key ->
+                val value = properties[key]
+                // Drop anything the previous site had set but this one doesn't, so a switch never
+                // leaves the old site's name/tenant riding along with the new URL.
+                if (value == null) PostHog.unregister(key) else PostHog.register(key, value)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "PostHog setSiteContext failed")
+        }
+    }
+
+    /** Drop the site from future events, e.g. when the stored site config is cleared. */
+    fun clearSiteContext() {
+        try {
+            siteProperties = emptyMap()
+            SITE_PROPERTY_KEYS.forEach(PostHog::unregister)
+        } catch (e: Exception) {
+            Timber.e(e, "PostHog clearSiteContext failed")
+        }
+    }
+
+    /**
+     * Trailing slashes differ between catalog entries for the same server, and PostHog treats
+     * every spelling as a separate value in its filter dropdown. Trimming here keeps one row per
+     * site. Case is left alone because tenant path segments are case sensitive.
+     */
+    private fun normalizeSiteUrl(siteUrl: String?): String? =
+        siteUrl?.trim()?.trimEnd('/')?.takeIf { it.isNotEmpty() }
+
+    /**
      * SHA-256 hash a string to anonymize PII before sending to PostHog.
      */
     fun hashId(id: String): String {
@@ -140,10 +207,11 @@ object PostHogAnalytics {
 
     /**
      * Identify the user and set persistent user properties including
-     * hashed flwid and pending sync counts so all future events
+     * hashed flwid, the selected site and pending sync counts so all future events
      * can be filtered by these in PostHog.
      * Note: flwId is hashed using SHA-256 to avoid sending PII.
-     * Site name is intentionally excluded to protect location privacy.
+     * The site is taken from [setSiteContext] rather than being passed in, so every call site
+     * reports the same value.
      */
     fun identifyUser(
         flwId: String,
@@ -162,6 +230,7 @@ object PostHogAnalytics {
                 PROP_PENDING_SYNC_IMAGES to pendingSyncImages,
                 PROP_PENDING_SYNC_CASES to pendingSyncCases,
             )
+            userProperties.putAll(siteProperties)
 
             PostHog.identify(hashedFlwId, userProperties = userProperties)
         } catch (e: Exception) {
@@ -171,7 +240,8 @@ object PostHogAnalytics {
 
     /**
      * Capture a generic event with optional properties.
-     * Site and flwid are automatically associated via identify().
+     * The site is attached automatically as a super property (see [setSiteContext]) and flwid via
+     * identify().
      */
     fun capture(event: String, properties: Map<String, Any?>? = null) {
         try {
