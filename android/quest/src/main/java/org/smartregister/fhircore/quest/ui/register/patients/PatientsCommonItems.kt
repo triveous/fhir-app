@@ -22,16 +22,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.fhir.datacapture.extensions.asStringValue
+import org.hl7.fhir.r4.model.ContactPoint
+import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
+import org.smartregister.fhircore.engine.util.extension.yearsPassed
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
+import org.smartregister.fhircore.quest.theme.Colors.FEMALE_ICON_PINK
 import org.smartregister.fhircore.quest.theme.body18Medium
 import org.smartregister.fhircore.quest.theme.bodyExtraBold
 import org.smartregister.fhircore.quest.theme.bodyNormal
@@ -150,19 +155,54 @@ fun SyncedPatientCardItem(
                     modifier = Modifier.padding(vertical = 4.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
+                    val isFemale = patientData.hasGender() &&
+                        patientData.gender == Enumerations.AdministrativeGender.FEMALE
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_patient_male),
+                        painter = painterResource(
+                            id = if (isFemale) R.drawable.ic_patient_female else R.drawable.ic_patient_male,
+                        ),
                         contentDescription = FILTER,
-                        tint = BRANDEIS_BLUE,
+                        tint = if (isFemale) FEMALE_ICON_PINK else BRANDEIS_BLUE,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        val patientName = patientData.name?.firstOrNull()?.given?.firstOrNull()?.value.orEmpty()
-                        Text(
-                            text = patientName,
-                            style = body18Medium(),
-                            color = BRANDEIS_BLUE,
-                        )
+                        val fullName = patientData.nameFirstRep.nameAsSingleString
+                        val genderLetter = if (patientData.hasGender() &&
+                            patientData.gender != Enumerations.AdministrativeGender.NULL
+                        ) {
+                            patientData.gender.name.first().toString()
+                        } else {
+                            null
+                        }
+                        val ageYears = if (patientData.hasBirthDate()) {
+                            patientData.birthDate.yearsPassed().toString()
+                        } else {
+                            null
+                        }
+                        val nameSuffixParts = listOfNotNull(genderLetter, ageYears)
+                        val nameSuffix = if (nameSuffixParts.isNotEmpty()) {
+                            ", " + nameSuffixParts.joinToString(", ")
+                        } else {
+                            ""
+                        }
+                        Row {
+                            Text(
+                                text = fullName,
+                                style = body18Medium(),
+                                color = BRANDEIS_BLUE,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            if (nameSuffix.isNotEmpty()) {
+                                Text(
+                                    text = nameSuffix,
+                                    style = body18Medium(),
+                                    color = BRANDEIS_BLUE,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         PatientDetailRow(
                             label = stringResource(id = R.string.unique_id_label),
@@ -173,6 +213,15 @@ fun SyncedPatientCardItem(
                         PatientDetailRow(
                             label = stringResource(id = R.string.visited),
                             value = getRegistrationDateFromExtension(patient.patient),
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PatientDetailRow(
+                            label = stringResource(id = R.string.phone_label),
+                            value = patientData.telecom
+                                ?.firstOrNull { it.system == ContactPoint.ContactPointSystem.PHONE }
+                                ?.value
+                                .takeUnless { it.isNullOrEmpty() }
+                                ?: stringResource(id = R.string.not_available),
                         )
                     }
                 }
