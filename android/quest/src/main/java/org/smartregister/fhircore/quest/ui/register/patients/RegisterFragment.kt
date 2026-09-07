@@ -250,45 +250,33 @@ class RegisterFragment : Fragment(), OnSyncListener {
           )
         }
       is CurrentSyncJobStatus.Succeeded -> {
-        // Check if we were waiting for image upload completion
-        if (isWaitingForImageUpload && !hasShownSyncCompleted) {
-          // This success means image upload is also complete
-          hasShownSyncCompleted = true
-          lifecycleScope.launch {
-            refreshRegisterData()
+        // Succeeded can fire more than once for a single overall sync: once when the metadata
+        // phase (Patient/QuestionnaireResponse/etc.) finishes, and again later when the image
+        // upload phase that follows it (see AppSyncWorker.performDocumentReferenceUpload) finishes.
+        // A screening image still uploading when the first Succeeded arrives is genuinely pending,
+        // so gating the data refresh behind hasShownSyncCompleted - as the snackbar correctly is,
+        // to avoid showing it twice - left cases stuck showing "pending" after the images finished,
+        // until the user left the tab and came back and got an unconditional reload. The refresh
+        // below runs on every Succeeded; only the snackbar is shown once.
+        lifecycleScope.launch {
+          refreshRegisterData()
+          if (!hasShownSyncCompleted) {
+            hasShownSyncCompleted = true
             registerViewModel.emitSnackBarState(
               SnackBarMessageConfig(
                 message = getString(R.string.sync_completed),
                 duration = SnackbarDuration.Short,
               ),
             )
-            delay(200)
-            registerViewModel.getAllPatients()
-            // getAllSyncedPatients() skipped: not displayed on the home register (see onResume).
-            registerViewModel.getAllDraftResponses()
-            registerViewModel.getAllUnSyncedPatients()
-            registerViewModel.getAllUnSyncedPatientsImages()
           }
-          isWaitingForImageUpload = false
-        } else if (!isWaitingForImageUpload && !hasShownSyncCompleted) {
-          // Regular sync completion without image uploads
-          hasShownSyncCompleted = true
-          lifecycleScope.launch {
-            refreshRegisterData()
-            registerViewModel.emitSnackBarState(
-              SnackBarMessageConfig(
-                message = getString(R.string.sync_completed),
-                duration = SnackbarDuration.Short,
-              ),
-            )
-            delay(200)
-            registerViewModel.getAllPatients()
-            // getAllSyncedPatients() skipped: not displayed on the home register (see onResume).
-            registerViewModel.getAllDraftResponses()
-            registerViewModel.getAllUnSyncedPatients()
-            registerViewModel.getAllUnSyncedPatientsImages()
-          }
+          delay(200)
+          registerViewModel.getAllPatients()
+          // getAllSyncedPatients() skipped: not displayed on the home register (see onResume).
+          registerViewModel.getAllDraftResponses()
+          registerViewModel.getAllUnSyncedPatients()
+          registerViewModel.getAllUnSyncedPatientsImages()
         }
+        isWaitingForImageUpload = false
       }
       is CurrentSyncJobStatus.Failed -> {
         // Reset state on failure

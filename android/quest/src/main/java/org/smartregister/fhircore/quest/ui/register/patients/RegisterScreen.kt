@@ -75,6 +75,7 @@ import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
@@ -293,6 +294,7 @@ private fun RegisterContent(
     onDismissSoftUpdate: () -> Unit,
 ) {
     val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
+    val caseSyncStatus by viewModel.caseSyncStatusStateFlow.collectAsState()
     val savedRes by viewModel.allSavedDraftResponse.collectAsState()
     val isFetching by viewModel.isFetchingPatients.collectAsState()
     var deleteDraftId by remember { mutableStateOf("") }
@@ -337,6 +339,7 @@ private fun RegisterContent(
                     navController = navController,
                     registerUiState = registerUiState,
                     allSyncedPatients = allSyncedPatients,
+                    caseSyncStatus = caseSyncStatus,
                     savedRes = savedRes,
                     isLoadingCases = isLoadingCases,
                     showDeleteDialog = showDeleteDialog,
@@ -438,6 +441,7 @@ private fun PopulatedRegisterView(
     navController: NavController,
     registerUiState: RegisterUiState,
     allSyncedPatients: List<RegisterViewModel.AllPatientsResourceData>,
+    caseSyncStatus: Map<String, Boolean>,
     savedRes: List<QuestionnaireResponse>,
     isLoadingCases: Boolean,
     showDeleteDialog: Boolean,
@@ -495,6 +499,7 @@ private fun PopulatedRegisterView(
                                 patients = allSyncedPatients.take(MAX_VISIBLE_ITEMS),
                                 allPatientsSize = allSyncedPatients.size,
                                 isLoadingCases = isLoadingCases,
+                                caseSyncStatus = caseSyncStatus,
                             )
                         }
                         Spacer(
@@ -633,6 +638,7 @@ private fun ShowAllPatients(
     patients: List<RegisterViewModel.AllPatientsResourceData>,
     allPatientsSize: Int,
     isLoadingCases: Boolean,
+    caseSyncStatus: Map<String, Boolean>,
 ) {
     Box(
         modifier = modifier
@@ -655,6 +661,7 @@ private fun ShowAllPatients(
                 modifier = modifier,
                 patients = patients,
                 allPatientsSize = allPatientsSize,
+                caseSyncStatus = caseSyncStatus,
             )
         }
     }
@@ -666,6 +673,7 @@ private fun PatientsListSection(
     modifier: Modifier,
     patients: List<RegisterViewModel.AllPatientsResourceData>,
     allPatientsSize: Int,
+    caseSyncStatus: Map<String, Boolean>,
 ) {
     val context = LocalContext.current
 
@@ -683,7 +691,11 @@ private fun PatientsListSection(
             items(patients) { patient ->
                 if (patient.resourceType == RegisterViewModel.AllPatientsResourceType.Patient) {
                     patient.patient?.let { patientData ->
-                        SyncedPatientCardItem(patientData, patient)
+                        SyncedPatientCardItem(
+                            patientData = patientData,
+                            patient = patient,
+                            isSynced = caseSyncStatus[patientData.logicalId],
+                        )
                     }
                 }
             }
