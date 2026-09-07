@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.fhir.datacapture.extensions.asStringValue
@@ -136,6 +138,8 @@ internal fun DraftsItem(
 fun SyncedPatientCardItem(
     patientData: Patient,
     patient: RegisterViewModel.AllPatientsResourceData,
+    // null = sync status not yet checked - show no icon rather than defaulting to "pending".
+    isSynced: Boolean? = null,
 ) {
     Card(
         modifier = Modifier
@@ -208,6 +212,7 @@ fun SyncedPatientCardItem(
                             label = stringResource(id = R.string.unique_id_label),
                             value = patientData.identifierFirstRep?.value.takeUnless { it.isNullOrEmpty() }
                                 ?: stringResource(id = R.string.not_available),
+                            valueLetterSpacing = 1.5.sp,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         PatientDetailRow(
@@ -222,6 +227,21 @@ fun SyncedPatientCardItem(
                                 ?.value
                                 .takeUnless { it.isNullOrEmpty() }
                                 ?: stringResource(id = R.string.not_available),
+                            valueLetterSpacing = 1.5.sp,
+                            trailingIcon = isSynced?.let { synced ->
+                                {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (synced) R.drawable.ic_done_all else R.drawable.ic_schedule,
+                                        ),
+                                        contentDescription = stringResource(
+                                            id = if (synced) R.string.case_synced else R.string.case_sync_pending,
+                                        ),
+                                        tint = CRAYOLA_LIGHT,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            },
                         )
                     }
                 }
@@ -231,17 +251,34 @@ fun SyncedPatientCardItem(
 }
 
 @Composable
-private fun PatientDetailRow(label: String, value: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun PatientDetailRow(
+    label: String,
+    value: String,
+    // Figma: labels use Body2Bold (0.2sp tracking); values use Body2 (0.2sp) except Ref ID/Phone,
+    // which use Body2Numeric (1.5sp) for the digit strings.
+    valueLetterSpacing: TextUnit = 0.2.sp,
+    trailingIcon: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Text(
             text = label,
-            style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT),
+            style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT, letterSpacing = 0.2.sp),
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = value,
-            style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT),
+            style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT, letterSpacing = valueLetterSpacing),
+            // Matches the Figma row's flex-[1_0_0] value: fills the remaining row width so a
+            // trailing icon (sync status) lands flush at the card's end, not hugging the text.
+            modifier = Modifier.weight(1f),
         )
+        if (trailingIcon != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            trailingIcon()
+        }
     }
 }
 

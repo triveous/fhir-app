@@ -240,6 +240,8 @@
     <string name="retake_photo">RETAKE PHOTO</string>
     <string name="image_saved">Image Saved</string>
     <string name="sync_status">Sync Status</string>
+    <string name="case_synced">Case synced</string>
+    <string name="case_sync_pending">Case sync pending</string>
     <string name="loading_sync_status">Checking sync status…</string>
     <string name="sync_status_load_failed">Couldn\'t check the current sync status. Try again.</string>
     <string name="sync_now">Sync now</string>
