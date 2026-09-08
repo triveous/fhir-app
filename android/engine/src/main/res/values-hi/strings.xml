@@ -12,6 +12,8 @@
     <string name="app_logo">एप्लिकेशन लोगो</string>
     <string name="powered_by">द्वारा संचालित</string>
     <string name="app_version">ऐप संस्करण %1$d(%2$s)</string>
+    <string name="ai_enabled">AI चालू है</string>
+    <string name="ai_disabled">AI बंद है</string>
     <string name="last_sync">अंतिम सिंक %1$s</string>
     <string name="login_text">लॉगिन</string>
     <string name="login_call_fail_error_message">सर्वर से प्रमाणीकरण की पुष्टि करने में विफल। अपने इंटरनेट कनेक्शन की जाँच करें</string>
@@ -19,8 +21,11 @@
     <string name="select_language">भाषा चुनें</string>
     <string name="logout_user">लॉग आउट के रूप में %1$s</string>
     <string name="sync_completed">सिंक सफल</string>
+    <string name="sync_up_to_date">सभी बदलाव सिंक हो गए</string>
     <string name="syncing">सिंक हो रहा है</string>
     <string name="syncing_up">सिंक अप</string>
+    <string name="sync_pending">सिंक बाकी है</string>
+    <string name="sync_now">अभी सिंक करें</string>
     <string name="syncing_down">सिंक डाउन</string>
     <string name="syncing_initiated">सिंक आरंभ हुआ&#8230;</string>
     <string name="sync_failed">सिंक विफल। इंटरनेट कनेक्शन जांचें या बाद में पुनः प्रयास करें</string>
@@ -75,6 +80,10 @@
     <string name="password">पासवर्ड</string>
     <string name="forgot_password">पासवर्ड भूल गए</string>
     <string name="forgot_password_title">पासवर्ड भूल गए!</string>
+
+    <string name="change_pin_title">पिन बदलें</string>
+    <string name="change_pin_desc">अपना पिन बदलने के लिए, आपको लॉग आउट करना होगा। क्या आप जारी रखना चाहते हैं?</string>
+
     <string name="more">अधिक</string>
     <string name="call_supervisor">अपने साइट समन्वयक से संपर्क करें।</string>
     <string name="cancel" tools:ignore="ButtonCase">रद्द करें</string>
@@ -184,8 +193,13 @@
     <string name="data_migration_started">संस्करण %1$d से डेटा माइग्रेशन शुरू हुआ</string>
     <string name="data_migration_completed">एप्लिकेशन डेटा संस्करण %1$d में माइग्रेट हो गया</string>
     <string name="select_your_site">अपने साइट का चयन करें</string>
+    <string name="select_site_placeholder">साइट चुनें</string>
     <string name="btn_continue">जारी रखें</string>
+    <string name="btn_back">वापस</string>
     <string name="iisc">IISc</string>
+    <string name="partner_tanuh">TANUH</string>
+    <string name="partner_moe">शिक्षा मंत्रालय</string>
+    <string name="partner_artpark">ARTPARK</string>
     <string name="uploading_images_title">छवियाँ अपलोड हो रही हैं</string>
     <string name="images_pending_text">%1$d छवियाँ लंबित</string>
     <string name="upload_success">छवियाँ सफलतापूर्वक अपलोड हो गईं</string>
@@ -196,7 +210,7 @@
     <string name="failed_to_complete_request_successfully">अनुरोध को सफलतापूर्वक पूरा करने में विफल</string>
     <string name="no_internet_connection">कोई इंटरनेट कनेक्शन नहीं</string>
     <string name="notification_title_document_upload">दस्तावेज़ अपलोड</string>
-    <string name="agree_privacy_policy">"I agree to Aarogya Aarohan’s "</string>
-    <string name="privacy_policy">Privacy Policy</string>
+    <string name="agree_privacy_policy">मैं आरोग्य आरोहन से सहमत हूँ</string>
+    <string name="privacy_policy">गोपनीयता नीति</string>
 
 </resources>
