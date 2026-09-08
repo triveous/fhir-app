@@ -22,6 +22,7 @@
     <string name="upload_document">दस्तावेज़ अपलोड करें</string>
     <string name="upload_failed">अपलोड विफल</string>
     <string name="image_capture_failed">छवि कैप्चर विफल</string>
+    <string name="processing_image">छवि प्रोसेस हो रही है…</string>
     <string name="upload_file">फ़ाइल अपलोड करें</string>
     <string name="upload_photo">फोटो अपलोड करें</string>
     <string name="upload_video">वीडियो अपलोड करें</string>
@@ -126,6 +127,10 @@
     <string name="questionnaire_not_found">यह फ़ॉर्म अभी डाउनलोड हो रहा है। कृपया सिंक पूरा होने तक प्रतीक्षा करें और फिर से प्रयास करें।</string>
     <string name="no_visits">कोई यात्रा नहीं</string>
     <string name="questionnaire_response_invalid">प्रश्नावली प्रतिक्रिया अमान्य</string>
+    <string name="submission_blocked_title">केस जमा नहीं हुआ</string>
+    <string name="submission_blocked_message">इन आवश्यक सवालों के जवाब अभी बाकी हैं:\n\n%1$s\n\nकृपया इन्हें भरें और दोबारा जमा करें।</string>
+    <string name="questionnaire_submission_failed">केस सेव करते समय कुछ गड़बड़ हो गई। दोबारा कोशिश करने से पहले फॉर्म बंद करें और रजिस्टर जांचें।</string>
+    <string name="submission_in_progress">केस सेव हो रहा है… कृपया प्रतीक्षा करें।</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>  // This string is marked as non-translatable, so it remains the same.
 
     <string name="application_version" translatable="false">Application Version</string>  // This string is marked as non-translatable, so it remains the same.
@@ -140,6 +145,7 @@
     <string name="no">नहीं</string>
 
     <string name="location_permissions_denied">स्थान एक्सेस निषेध: जीपीएस निर्देशांक कैप्चर करने के लिए, कृपया अपने डिवाइस सेटिंग्स में स्थान अनुमतियाँ सक्षम करें.</string>
+    <string name="camera_permissions_denied">अनुमति अस्वीकृत: फ़ोटो लेने के लिए, डिवाइस सेटिंग्स में कैमरा अनुमति चालू करें।</string>
     <string name="location_services_disabled">स्थान सेवाएं अक्षम हैं. क्या आप उन्हें सक्षम करना चाहते हैं?</string>
     <string name="copy_text_success_message">%1$s लिंक सफलतापूर्वक कॉपी किया गया</string>
 
@@ -169,7 +175,7 @@
     <string name="pending_not_agreed">फॉलोअप के लिए सहमत नहीं</string>
     <string name="recenty_submitted_label">हाल ही में जमा किए गए</string>
     <string name="draft">ड्राफ्ट</string>
-    <string name="add_case">मामला जोड़ें</string>
+    <string name="add_case">केस जोड़ें</string>
     <string name="not_agrred_empty_label">फॉलोअप के लिए सहमत नहीं में कुछ नहीं</string>
     <string name="not_responded_empty_label">प्रतिक्रिया नहीं दी में कुछ नहीं</string>
     <string name="not_contacted_empty_label">सभी मरीजों से संपर्क हो गया है</string>
@@ -215,6 +221,8 @@
     <!-- Cases-->
     <string name="visited">अस्पताल आने की तारीख</string>
     <string name="unique_id_label">रेफरेंस आईडी</string>
+    <string name="not_available">उपलब्ध नहीं है</string>
+    <string name="phone_label">फ़ोन</string>
     <string name="cases_sync">सिंक: %s</string>
     <string name="dynamic_see_more">और %s देखें</string>
     <string name="created">निर्मित</string>
@@ -226,15 +234,27 @@
 
     <!-- Recommendation-->
     <string name="phone">फ़ोन:</string>
+    <string name="reason">कारण:</string>
     <string name="add_investigation">जांच जोड़ें</string>
     <string name="urgent_referral">आवश्यक रेफरल</string>
     <string name="retake_photo">फ़ोटो फिर से लें</string>
     <string name="image_saved">छवि सुरक्षित</string>
     <string name="sync_status">सिंक स्थिति</string>
+    <string name="case_synced">केस सिंक हो गया</string>
+    <string name="case_sync_pending">केस सिंक बाकी है</string>
+    <string name="loading_sync_status">सिंक स्थिति जांची जा रही है…</string>
+    <string name="sync_status_load_failed">मौजूदा सिंक स्थिति जांच नहीं सके। दोबारा कोशिश करें।</string>
     <string name="sync_now">अब सिंक करें</string>
+    <string name="syncing">सिंक हो रहा है…</string>
+    <string name="sync_in_progress">कृपया प्रतीक्षा करें, सिंक जारी है</string>
+    <string name="sync_bar_first_time">आपका डेटा तैयार किया जा रहा है…</string>
+    <string name="sync_bar_downloading">डेटा सिंक हो रहा है…</string>
+    <string name="sync_bar_uploading">छवियाँ अपलोड हो रही हैं…</string>
+    <string name="sync_bar_in_background">यह पूरा होने तक आप ऐप का उपयोग जारी रख सकते हैं</string>
     <string name="notification_sync_failed">सिंक विफल</string>
     <string name="notification_sync">सिंक हो रहा है…</string>
     <string name="image_left">छवि बाकी: %s</string>
+    <string name="patients_left">बाकी मरीज: %s</string>
     <string name="okay">ठीक है</string>
     <string name="notification_permission_title">सूचना अनुमति</string>
     <string name="notification_permission_description">नवीनतम डेटा सिंक के बारे में सूचित रहने के लिए सूचनाएं सक्षम करें। अपने ऐप को हमेशा सबसे वर्तमान जानकारी प्राप्त करने के लिए समय पर सिंक अलर्ट की अनुमति दें।</string>
@@ -298,7 +318,7 @@
     <string name="dynamic_visited">देखा %s</string>
     <string name="agree_privacy_policy">मैं आरोग्य आरोहन से सहमत हूँ</string>
     <string name="privacy_policy">गोपनीयता नीति</string>
-    <string name="location_permission_reason">App needs location permission to capture the site location.</string>
+    <string name="location_permission_reason">साइट का लोकेशन दर्ज करने के लिए ऐप को लोकेशन अनुमति चाहिए।</string>
 
     <string name="ai_result_title">AI का परिणाम</string>
     <string name="suspicious_result">दंत चिकित्सक के पास रेफर करें</string>
@@ -306,8 +326,17 @@
     <string name="nonsuspicious_result">रेफर करने की जरूरत नहीं है</string>
     <string name="nonsuspicious_result_desc">AI के अनुसार रेफर करने की जरूरत नहीं है। अगर घाव दिखाई दे, तो केस को रेफर करें।</string>
     <string name="ai_detected_lesions">AI द्वारा पहचाने गए घाव</string>
+    <string name="none">कोई नहीं</string>
     <string name="no_lesions_found">कोई घाव नहीं मिला</string>
     <string name="refer_case">फिर भी रेफर करें</string>
     <string name="done_upper">आगे बढ़ें</string>
 
+    <!-- App update prompt -->
+    <string name="app_update_available_title">ऐप अपडेट करें</string>
+    <string name="app_update_required_title">अनिवार्य अपडेट आवश्यक है</string>
+    <string name="app_update_soft_message_lead">"नया वर्शन नई सुविधाओं के साथ उपलब्ध है। "</string>
+    <string name="app_update_soft_message_cta">अपडेट करने के लिए क्लिक करें।</string>
+    <string name="app_update_forced_message">जारी रखने के लिए ऐप का नया वर्शन ज़रूरी है। कृपया अपडेट करें।</string>
+    <string name="app_update_action_now">अभी अपडेट करें</string>
+    <string name="app_update_dismiss">खारिज करें</string>
 </resources>
