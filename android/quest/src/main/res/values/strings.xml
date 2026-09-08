@@ -318,6 +318,7 @@
     <string name="button_pagination_previous">Previous</string>
     <string name="location_permission_reason">App needs location permission to capture the site location.</string>
 
+    <string name="ai_result_title">AI Result</string>
     <string name="suspicious_result">Refer to a dentist</string>
     <string name="suspicious_result_desc">AI recommends referral. In case \nof doubt, talk to your supervisor.</string>
     <string name="nonsuspicious_result">No referral required</string>

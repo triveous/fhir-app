@@ -96,7 +96,7 @@
     <string name="done">हो गया</string>
     <string name="replace_photo">फोटो बदलें</string>
     <string name="take_photo">फोटो लें</string>
-    <string name="edit">संपादित करें</string>
+    <string name="edit">संशोधन करें</string>
     <string name="application_not_supported">एप्लिकेशन %1$s कॉन्फ़िगरेशन लोड करने में त्रुटि</string>
     <string name="eCBIS_app_name" translatable="false">eCBIS</string>
     <string name="invalid_login_credentials">मोबाइल या पासवर्ड अमान्य है</string>
