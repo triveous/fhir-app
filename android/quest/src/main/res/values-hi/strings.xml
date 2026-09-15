@@ -8,6 +8,10 @@
     <string name="menu_settings">सेटिंग्स</string>
 
     <string name="cannot_find_parent_questionnaire">मूल प्रश्नावली नहीं मिल सकती!</string>
+    <!-- Overrides for org.smartregister:data-capture library string resources -->
+    <string name="button_review">समीक्षा करें</string>
+    <string name="note">सूचना</string>
+    <string name="validation_dialogue_note">जारी रखने के लिए कृपया सभी आवश्यक फ़ील्ड भरें।</string>
     <string name="max_size_file_above_limit_validation_error_msg">त्रुटि: फ़ाइल का आकार %1$s एमबी से अधिक है</string>
     <string name="max_size_image_above_limit_validation_error_msg">त्रुटि: छवि का आकार %1$s एमबी से अधिक है</string>
     <string name="max_value_validation_error_msg">अधिकतम अनुमत मूल्य है: <ns1:g id="max_value">%1$s</ns1:g></string>
@@ -127,10 +131,10 @@
     <string name="questionnaire_not_found">यह फ़ॉर्म अभी डाउनलोड हो रहा है। कृपया सिंक पूरा होने तक प्रतीक्षा करें और फिर से प्रयास करें।</string>
     <string name="no_visits">कोई यात्रा नहीं</string>
     <string name="questionnaire_response_invalid">प्रश्नावली प्रतिक्रिया अमान्य</string>
-    <string name="submission_blocked_title">केस जमा नहीं हुआ</string>
+    <string name="submission_blocked_title">मामला जमा नहीं हुआ</string>
     <string name="submission_blocked_message">इन आवश्यक सवालों के जवाब अभी बाकी हैं:\n\n%1$s\n\nकृपया इन्हें भरें और दोबारा जमा करें।</string>
-    <string name="questionnaire_submission_failed">केस सेव करते समय कुछ गड़बड़ हो गई। दोबारा कोशिश करने से पहले फॉर्म बंद करें और रजिस्टर जांचें।</string>
-    <string name="submission_in_progress">केस सेव हो रहा है… कृपया प्रतीक्षा करें।</string>
+    <string name="questionnaire_submission_failed">मामला सेव करते समय कुछ गड़बड़ हो गई। दोबारा कोशिश करने से पहले फॉर्म बंद करें और रजिस्टर जांचें।</string>
+    <string name="submission_in_progress">मामला सेव हो रहा है… कृपया प्रतीक्षा करें।</string>
     <string name="app_version_tag_url" translatable="false">https://smartregister.org/app-version</string>  // This string is marked as non-translatable, so it remains the same.
 
     <string name="application_version" translatable="false">Application Version</string>  // This string is marked as non-translatable, so it remains the same.
@@ -154,7 +158,7 @@
     <string name="required_text_and_new_line">कृपया आवश्यक फ़ील्ड भरें</string>
     <string name="retake">पुनः लें</string>
     <string name="done">किया</string>
-    <string name="no_unsync_patients">कोई असिंक केस नहीं हैं</string>
+    <string name="no_unsync_patients">कोई असिंक मामला नहीं हैं</string>
     <string name="no_draft_patients">आपके पास कोई सेव ड्राफ्ट नहीं हैं</string>
     <string name="no_patients_added">अब तक कोई मामला जमा नहीं किया गया</string>
     <string name="delete_draft_desc">क्या आप रिकॉर्ड हटाना सुनिश्चित हैं?</string>
@@ -169,13 +173,13 @@
     <string name="no_cases">कोई मिलान सिफारिशें नहीं मिलीं!</string>
     <string name="not_contacted">संपर्क नहीं हुआ</string>
     <string name="not_responded">प्रतिक्रिया नहीं दी</string>
-    <string name="add_patient">नया केस जोड़ें</string>
+    <string name="add_patient">नया मामला जोड़ें</string>
 
     <string name="pending_agreed_not_done">सहमत, फॉलोअप नहीं किया</string>
     <string name="pending_not_agreed">फॉलोअप के लिए सहमत नहीं</string>
     <string name="recenty_submitted_label">हाल ही में जमा किए गए</string>
     <string name="draft">ड्राफ्ट</string>
-    <string name="add_case">केस जोड़ें</string>
+    <string name="add_case">मामला जोड़ें</string>
     <string name="not_agrred_empty_label">फॉलोअप के लिए सहमत नहीं में कुछ नहीं</string>
     <string name="not_responded_empty_label">प्रतिक्रिया नहीं दी में कुछ नहीं</string>
     <string name="not_contacted_empty_label">सभी मरीजों से संपर्क हो गया है</string>
@@ -240,8 +244,8 @@
     <string name="retake_photo">फ़ोटो फिर से लें</string>
     <string name="image_saved">छवि सुरक्षित</string>
     <string name="sync_status">सिंक स्थिति</string>
-    <string name="case_synced">केस सिंक हो गया</string>
-    <string name="case_sync_pending">केस सिंक बाकी है</string>
+    <string name="case_synced">मामला सिंक हो गया</string>
+    <string name="case_sync_pending">मामला सिंक बाकी है</string>
     <string name="loading_sync_status">सिंक स्थिति जांची जा रही है…</string>
     <string name="sync_status_load_failed">मौजूदा सिंक स्थिति जांच नहीं सके। दोबारा कोशिश करें।</string>
     <string name="sync_now">अब सिंक करें</string>
@@ -260,7 +264,7 @@
     <string name="notification_permission_description">नवीनतम डेटा सिंक के बारे में सूचित रहने के लिए सूचनाएं सक्षम करें। अपने ऐप को हमेशा सबसे वर्तमान जानकारी प्राप्त करने के लिए समय पर सिंक अलर्ट की अनुमति दें।</string>
 
     <!-- Menu-->
-    <string name="menu_cases">केस</string>
+    <string name="menu_cases">मामला</string>
     <string name="menu_recommendations">आगे की सलाह</string>
     <string name="menu_dashboard">डैशबोर्ड</string>
 
@@ -272,11 +276,11 @@
 
     <!-- Dashboard -->
     <string name="health_center">स्वास्थ्य केंद्र</string>
-    <string name="total_screened_cases">कुल परीक्षण किए गए केस</string>
+    <string name="total_screened_cases">कुल परीक्षण किए गए मामला</string>
     <string name="today">आज</string>
     <string name="this_week">इस सप्ताह</string>
     <string name="this_month">इस महीने</string>
-    <string name="dashboard_add_patient">नया केस जोड़ें</string>
+    <string name="dashboard_add_patient">नया मामला जोड़ें</string>
 
     <!-- See All-->
     <string name="view_all_draft">ड्राफ्ट</string>
@@ -284,7 +288,7 @@
 
     <!-- View All-->
     <string name="view_all">सभी देखें</string>
-    <string name="view_all_urgent_referral">तत्काल रेफरल</string>
+    <string name="view_all_urgent_referral">तुरंत अस्पताल में जांच की सलाह</string>
     <string name="view_all_add_investigation">अतिरिक्त जांच</string>
     <string name="view_all_retake_photo">फोटो फिर से लें</string>
     <string name="view_all_advice_to_quit">छोड़ने की सलाह</string>
@@ -304,8 +308,14 @@
     <string name="not_agreed_for_followup">फॉलो अप के लिए सहमत नहीं</string>
     <string name="agreed_followup_not_done">सहमत, फॉलो अप नहीं किया गया</string>
     <string name="followup_done">फॉलो अप किया गया</string>
+    <string name="followup_not_done">फॉलो अप नहीं किया गया</string>
+    <string name="task_desc_refer_hospital_investigation">फॉलो-अप: अतिरिक्त जांच के लिए अस्पताल रेफर करें</string>
+    <string name="task_desc_retake_photo">फॉलो-अप: फ़ोटो फिर से लें</string>
+    <string name="task_desc_advice_quit_habit">फॉलो-अप: आदत छोड़ने की सलाह</string>
+    <string name="task_desc_specialist_review">विशेषज्ञ के लिए मरीज के निदान की समीक्षा हेतु कार्य</string>
+    <string name="task_desc_specialist_screen">विशेषज्ञ के लिए मरीज की जांच हेतु कार्य</string>
     <string name="agreed_for_followup">फॉलो-अप के लिए सहमत</string>
-    <string name="remove_case">सहमत नहीं, केस हटाएं</string>
+    <string name="remove_case">सहमत नहीं, मामला हटाएं</string>
     <string name="null_status">null</string>
     <string name="none_status">none</string>
     <string name="default_status">डिफ़ॉल्ट</string>
@@ -324,7 +334,7 @@
     <string name="suspicious_result">दंत चिकित्सक के पास रेफर करें</string>
     <string name="suspicious_result_desc">AI के अनुसार रेफर करने की सलाह है। \nकोई संदेह हो तो अपने सुपरवाइजर से बात करें।</string>
     <string name="nonsuspicious_result">रेफर करने की जरूरत नहीं है</string>
-    <string name="nonsuspicious_result_desc">AI के अनुसार रेफर करने की जरूरत नहीं है। अगर घाव दिखाई दे, तो केस को रेफर करें।</string>
+    <string name="nonsuspicious_result_desc">AI के अनुसार रेफर करने की जरूरत नहीं है। अगर घाव दिखाई दे, तो मामला को रेफर करें।</string>
     <string name="ai_detected_lesions">AI द्वारा पहचाने गए घाव</string>
     <string name="none">कोई नहीं</string>
     <string name="no_lesions_found">कोई घाव नहीं मिला</string>
