@@ -18,6 +18,7 @@ package org.smartregister.fhircore.quest
 
 import android.util.Log
 import com.posthog.PostHog
+import org.smartregister.fhircore.engine.domain.networkUtils.isExpectedNetworkError
 import timber.log.Timber
 
 class ReleaseTree : Timber.Tree() {
@@ -27,6 +28,10 @@ class ReleaseTree : Timber.Tree() {
   }
 
   override fun log(priority: Int, tag: String?, message: String, throwable: Throwable?) {
+    // Lost uplinks and cancelled coroutines are field conditions, not defects. Reporting them as
+    // exceptions exhausted the error-tracking allowance and hid real crashes behind retry noise.
+    if (throwable?.isExpectedNetworkError() == true) return
+
     val properties =
       mutableMapOf<String, Any>().apply {
         tag?.let { put("tag", it) }

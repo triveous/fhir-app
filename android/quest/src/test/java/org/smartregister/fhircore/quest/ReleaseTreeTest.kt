@@ -29,6 +29,7 @@ import org.junit.Before
 import org.junit.Test
 import org.smartregister.fhircore.quest.robolectric.RobolectricTest
 import timber.log.Timber
+import java.net.UnknownHostException
 
 class ReleaseTreeTest : RobolectricTest() {
 
@@ -89,6 +90,52 @@ class ReleaseTreeTest : RobolectricTest() {
         timestamp = null,
       )
     }
+  }
+
+  @Test
+  fun infoLogShouldBeCapturedForSyncAnalytics() {
+    val message = "Download summary (Questionnaire, 0), (StructureMap, 0), (Patient, 0)"
+
+    Timber.i(message)
+
+    verify(exactly = 0) { postHog.captureException(any(), any()) }
+    verify(exactly = 1) {
+      postHog.capture(
+        event = "info_log",
+        distinctId = null,
+        properties = match { it["message"] == message && it["priority"] == Log.INFO },
+        userProperties = null,
+        userPropertiesSetOnce = null,
+        groups = null,
+        timestamp = null,
+      )
+    }
+  }
+
+  @Test
+  fun expectedNetworkErrorShouldNotCaptureException() {
+    Timber.e(
+      UnknownHostException(
+        "Unable to resolve host \"mt.aarogya-aarohan.tanuh.ai\": No address associated with hostname",
+      ),
+    )
+
+    verify(exactly = 0) { postHog.captureException(any(), any()) }
+    verify(exactly = 0) {
+      postHog.capture(any(), any(), any(), any(), any(), any(), any())
+    }
+  }
+
+  @Test
+  fun placeholderHostErrorShouldStillCaptureException() {
+    val throwable =
+      UnknownHostException(
+        "Unable to resolve host \"placeholder.invalid\": No address associated with hostname",
+      )
+
+    Timber.e(throwable)
+
+    verify(exactly = 1) { postHog.captureException(throwable = throwable, properties = any()) }
   }
 
   @Test
