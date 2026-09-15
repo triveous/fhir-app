@@ -518,7 +518,7 @@ fun PrivacyPolicyDialog(onDismiss: () -> Unit, onAgree: () -> Unit) {
           verticalAlignment = Alignment.CenterVertically
         ) {
           Text(
-            "Privacy Policy",
+            stringResource(R.string.privacy_policy),
             fontWeight = FontWeight.Bold,
             fontSize = 18.sp
           )

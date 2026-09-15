@@ -9,6 +9,10 @@
 
 
     <string name="cannot_find_parent_questionnaire">Cannot find the parent Questionnaire!</string>
+    <!-- Overrides for org.smartregister:data-capture library string resources -->
+    <string name="button_review">Review</string>
+    <string name="note">Note</string>
+    <string name="validation_dialogue_note">Please fill in all the required fields to continue.</string>
     <string name="max_size_file_above_limit_validation_error_msg">Error: File size is larger than %1$s MB</string>
     <string name="max_size_image_above_limit_validation_error_msg">Error: Image size is larger than %1$s MB</string>
     <string name="max_value_validation_error_msg">Maximum value allowed is:<ns1:g id="max_value">%1$s</ns1:g> </string>
@@ -308,6 +312,13 @@
     <string name="agreed_followup_not_done">Agreed, follow up not done</string>
     <string name="agreed_for_followup">AGREED FOR FOLLOW UP</string>
     <string name="followup_done">Follow up done</string>
+    <string name="followup_not_done">Follow up not done</string>
+    <!-- Recommendations tab task-card title; mirrors known Task.description server values -->
+    <string name="task_desc_refer_hospital_investigation">Follow up: Refer to hospital for additional investigation</string>
+    <string name="task_desc_retake_photo">Follow up: Retake photo</string>
+    <string name="task_desc_advice_quit_habit">Follow up: Advice to quit the habit</string>
+    <string name="task_desc_specialist_review">Task for specialist to review patient diagnosis</string>
+    <string name="task_desc_specialist_screen">Task for specialist to screen patient</string>
     <string name="remove_case">Not agreed, remove case</string>
     <string name="null_status">null</string>
     <string name="none_status">none</string>

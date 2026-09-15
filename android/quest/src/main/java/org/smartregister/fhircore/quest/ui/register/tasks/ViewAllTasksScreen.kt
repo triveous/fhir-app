@@ -91,6 +91,7 @@ import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDate
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
+import org.smartregister.fhircore.quest.util.localizedText
 
 
 enum class FilterType(val label: String) {
@@ -106,12 +107,26 @@ enum class TaskCode(val code: String) {
   QUIT_HABIT("quit-habit"),
   RETAKE_IMAGE("retake-image");
 
+  @Composable
+  fun localizedLabel(): String = when (this) {
+    URGENT_REFER_TO_HOSPITAL -> stringResource(R.string.view_all_urgent_referral)
+    ADDITIONAL_INVESTIGATION_NEEDED -> stringResource(R.string.view_all_add_investigation)
+    RETAKE_IMAGE -> stringResource(R.string.view_all_retake_photo)
+    QUIT_HABIT -> stringResource(R.string.view_all_advice_to_quit_habit)
+  }
+
   companion object {
-//    fun fromCode(code: String): TaskCode? = values().find { it.code == code }
     fun fromCode(code: String): TaskCode? {
       // Normalize the code by replacing underscores with hyphens
-      val normalizedCode = code.replace("_", "-")
+      val normalizedCode = code.trim().replace("_", "-").lowercase()
       return values().find { it.code == normalizedCode }
+        ?: when {
+          normalizedCode.contains("urgent") -> URGENT_REFER_TO_HOSPITAL
+          normalizedCode.contains("investigation") -> ADDITIONAL_INVESTIGATION_NEEDED
+          normalizedCode.contains("retake") || normalizedCode.contains("photo") || normalizedCode.contains("image") -> RETAKE_IMAGE
+          normalizedCode.contains("quit") || normalizedCode.contains("habit") || normalizedCode.contains("advice") -> QUIT_HABIT
+          else -> null
+        }
     }
   }
 }
@@ -174,8 +189,11 @@ fun FilterRow(
         .clickable {
           onFilterSelected(filter)
         }) {
+        val label = TaskCode.fromCode(filter.first)?.localizedLabel()?.uppercase()
+          ?: TaskCode.fromCode(filter.second)?.localizedLabel()?.uppercase()
+          ?: filter.second.uppercase()
         Text(
-          text = filter.second.uppercase(),
+          text = label,
           style = TextStyle(
             fontWeight = FontWeight(600),
             fontSize = 16.sp
@@ -645,7 +663,7 @@ fun TasksBottomSheetContent(
               disabledUnselectedColor = Color.Gray)
           )
           Text(
-            text = label.text,
+            text = label.localizedText(),
             modifier = Modifier
               .padding(horizontal = 8.dp)
               .clickable {
