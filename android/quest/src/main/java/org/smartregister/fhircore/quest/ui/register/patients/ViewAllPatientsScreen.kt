@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.ui.theme.LightColors
+import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
@@ -186,9 +187,19 @@ fun ViewAllPatientsScreen(
                 val allLatestTasksStateFlow by viewModel.allLatestTasksStateFlow.collectAsState()
                 val allSyncedAndUnsyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
                 val allSyncedPatients by viewModel.allSyncedPatientsStateFlow.collectAsState()
+                val caseSyncStatus by viewModel.caseSyncStatusStateFlow.collectAsState()
                 val savedRes by viewModel.allSavedDraftResponse.collectAsState()
                 val unSynced by viewModel.allUnSyncedStateFlow.collectAsState()
                 val isFetching by viewModel.isFetching.collectAsState()
+
+                // Unlike the compact home register (which only ever checks a handful of visible
+                // cards), this screen lists every case, so every row needs an accurate badge.
+                LaunchedEffect(allSyncedAndUnsyncedPatients) {
+                    viewModel.refreshCaseSyncStatus(
+                        patients = allSyncedAndUnsyncedPatients,
+                        limit = allSyncedAndUnsyncedPatients.size,
+                    )
+                }
 
                 Column(
                     modifier = modifier
@@ -278,7 +289,11 @@ fun ViewAllPatientsScreen(
                                             if (patient.resourceType == RegisterViewModel.AllPatientsResourceType.Patient) {
                                                 val patientData = patient.patient
                                                 patientData?.let {
-                                                    SyncedPatientCardItem(patientData, patient)
+                                                    SyncedPatientCardItem(
+                                                        patientData = patientData,
+                                                        patient = patient,
+                                                        isSynced = caseSyncStatus[patientData.logicalId],
+                                                    )
                                                 }
                                             }
                                         }

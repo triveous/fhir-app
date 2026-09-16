@@ -156,7 +156,7 @@ fun AIResultScreen(
     // already-submitted form, where submitting again would register a duplicate case.
     BackHandler(onBack = onClose)
     val backgroundColor = if (isSuspicious) Colors.CORNSILK else LighterBlue
-    val title = if (isSuspicious) stringResource(R.string.add_patient) else "AI Result"
+    val title = if (isSuspicious) stringResource(R.string.add_patient) else stringResource(R.string.ai_result_title)
     var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
     val displayableSuspiciousImages = remember(context, suspiciousImages) {
         suspiciousImages

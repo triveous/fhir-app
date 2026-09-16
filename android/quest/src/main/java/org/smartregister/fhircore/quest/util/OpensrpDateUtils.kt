@@ -11,7 +11,7 @@ import java.util.TimeZone
 object OpensrpDateUtils {
 
     fun convertToDate(input: Date): String {
-        val outputFormat = SimpleDateFormat("dd MMMM yyyy hh:mm a", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("dd-MMM-yyyy hh:mm a", Locale.getDefault())
         outputFormat.timeZone = TimeZone.getDefault()
         // Format the date to the desired output format
         return outputFormat.format(input)

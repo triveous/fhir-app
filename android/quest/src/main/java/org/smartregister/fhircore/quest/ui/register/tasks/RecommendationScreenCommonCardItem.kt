@@ -166,14 +166,14 @@ fun SingleHighestPriorityRecommendationStatus(taskStatusList: List<Pair<String, 
     // Find the highest priority item
     val prioritizedItem = taskStatusList
         ?.mapNotNull { data ->
-            val code = TaskCode.fromCode(data.first)
+            val code = TaskCode.fromCode(data.first) ?: TaskCode.fromCode(data.second)
             if (code != null) code to data else null
         }?.minByOrNull {
             priorityOrder.indexOf(it.first).takeIf { idx -> idx >= 0 } ?: Int.MAX_VALUE
         }
 
     prioritizedItem?.let { (taskCode, data) ->
-        val label = data.second.uppercase()
+        val label = taskCode.localizedLabel().uppercase()
         var textColor = Color.Black
         var color = Color.Black
 
@@ -224,10 +224,10 @@ fun MultiRecommendationStatus(taskStatusList: List<Pair<String, String>>?) {
         items(count = taskStatusList?.size ?: 0) { position ->
             val data = taskStatusList?.get(position)
             Row(modifier = Modifier.padding(end = 8.dp)) {
-                val label = data?.second?.uppercase() ?: ""
+                val taskCode = TaskCode.fromCode(data?.first ?: "") ?: TaskCode.fromCode(data?.second ?: "")
+                val label = taskCode?.localizedLabel()?.uppercase() ?: (data?.second?.uppercase() ?: "")
                 var textColor = Color.Black
                 var color = Color.Black
-                val taskCode = TaskCode.fromCode(data?.first ?: "") ?: ""
 
                 when (taskCode) {
                     TaskCode.ADDITIONAL_INVESTIGATION_NEEDED -> {
@@ -283,7 +283,7 @@ fun SingleRecommendationStatusColumn(taskStatusList: List<Pair<String, String>>?
 
     val prioritizedItem = taskStatusList
         ?.mapNotNull { data ->
-            val code = TaskCode.fromCode(data.first)
+            val code = TaskCode.fromCode(data.first) ?: TaskCode.fromCode(data.second)
             if (code != null) code to data
             else null
         }?.minByOrNull {
@@ -297,7 +297,7 @@ fun SingleRecommendationStatusColumn(taskStatusList: List<Pair<String, String>>?
         ) {
             item {
                 Row(modifier = Modifier.padding(bottom = 16.dp)) {
-                    val label = data.second.uppercase()
+                    val label = taskCode.localizedLabel().uppercase()
                     var textColor = Color.Black
                     var color = Color.Black
 
@@ -351,10 +351,10 @@ fun MultiRecommendationStatusColumn(taskStatusList: List<Pair<String, String>>?)
             items(count = taskStatusList?.size ?: 0) { position ->
                 val data = taskStatusList?.get(position)
                 Row(modifier = Modifier.padding(bottom = 16.dp)) {
-                    val label = data?.second?.uppercase() ?: ""
+                    val taskCode = TaskCode.fromCode(data?.first ?: "") ?: TaskCode.fromCode(data?.second ?: "")
+                    val label = taskCode?.localizedLabel()?.uppercase() ?: (data?.second?.uppercase() ?: "")
                     var textColor = Color.Black
                     var color = Color.Black
-                    val taskCode = TaskCode.fromCode(data?.first ?: "") ?: ""
 
                     when (taskCode) {
                         TaskCode.ADDITIONAL_INVESTIGATION_NEEDED -> {

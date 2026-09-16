@@ -25,4 +25,5 @@ object Colors {
     val LAVENDER_WEB = Color(0xFFF3E1FC)
     val PHILIPPINE_YELLOW = Color(0xFFFFC800)
     val LIGHT_RED = Color(0xFFFFCDD2)
+    val FEMALE_ICON_PINK = Color(0xFFEB5EBC)
 }

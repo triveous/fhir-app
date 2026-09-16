@@ -17,8 +17,6 @@
 package org.smartregister.fhircore.engine.di
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import ca.uhn.fhir.context.FhirContext
 import ca.uhn.fhir.parser.IParser
 import com.google.gson.Gson
@@ -51,7 +49,8 @@ import org.smartregister.fhircore.engine.data.remote.shared.TokenAuthenticator
 import org.smartregister.fhircore.engine.domain.networkUtils.ErrorCodes.FAILED_TO_COMPLETE_REQUEST_ERROR_CODE
 import org.smartregister.fhircore.engine.domain.networkUtils.ErrorCodes.FAILED_TO_OVERWRITE_URL_ERROR_CODE
 import org.smartregister.fhircore.engine.domain.networkUtils.ErrorCodes.NO_INTERNET_CONNECTION_ERROR_CODE
-import org.smartregister.fhircore.engine.domain.networkUtils.ErrorCodes.UNKNOWN_ERROR_CODE
+import org.smartregister.fhircore.engine.domain.networkUtils.ConnectivityState
+import org.smartregister.fhircore.engine.domain.networkUtils.NetworkConnectivity
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.TimeZoneTypeAdapter
@@ -77,7 +76,7 @@ class NetworkModule {
 
   @Provides
   @NoAuthorizationOkHttpClientQualifier
-  fun provideAuthOkHttpClient() =
+  fun provideAuthOkHttpClient(@ApplicationContext context: Context) =
     OkHttpClient.Builder()
       .addInterceptor(
         HttpLoggingInterceptor().apply {
@@ -89,6 +88,7 @@ class NetworkModule {
           redactHeader(COOKIE)
         },
       )
+      .addInterceptor(createConnectionCheckInterceptor(context))
       .connectTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
       .readTimeout(TIMEOUT_DURATION, TimeUnit.SECONDS)
       .protocols(listOf(Protocol.HTTP_1_1))
@@ -208,29 +208,19 @@ class NetworkModule {
 
   private fun createUrlInterceptor(openSrpApplication: OpenSrpApplication?, context: Context): Interceptor {
     return Interceptor { chain ->
-      var attempt = 0
-      var request = chain.request()
-      var response: Response? = null
-      val maxRetries = 2
-
-      while (attempt <= maxRetries) {
-        try {
-          request = modifyUrlIfNeeded(request, openSrpApplication)
-          response = chain.proceed(request)
-          break
-        } catch (e: UnknownHostException) {
-          Timber.e("Hostname resolution failed on attempt $attempt: ${e.message}")
-          if (attempt >= maxRetries) {
-            Timber.e("Max retries reached for hostname resolution.")
-            throw e
-          }
-          attempt++
-        } catch (e: Exception) {
-          Timber.e(e, "Failed to overwrite URL request successfully")
-          return@Interceptor buildErrorResponse(chain, FAILED_TO_OVERWRITE_URL_ERROR_CODE, e.message ?: context.getString(R.string.failed_to_overwrite_url_request_successfully), e)
-        }
+      try {
+        chain.proceed(modifyUrlIfNeeded(chain.request(), openSrpApplication))
+      } catch (e: UnknownHostException) {
+        // Deliberately not retried here. Android caches the negative DNS answer, so an immediate
+        // second and third attempt fail identically and only triple the reported failures. Retries
+        // belong to WorkManager's exponential backoff, which waits long enough to matter. Caught
+        // and rethrown so it does not fall into the generic branch below and get swallowed into an
+        // error response.
+        throw e
+      } catch (e: Exception) {
+        Timber.e(e, "Failed to overwrite URL request successfully")
+        buildErrorResponse(chain, FAILED_TO_OVERWRITE_URL_ERROR_CODE, e.message ?: context.getString(R.string.failed_to_overwrite_url_request_successfully), e)
       }
-      response ?: buildErrorResponse(chain, UNKNOWN_ERROR_CODE, context.getString(R.string.unknown_error), null)
     }
   }
 
@@ -289,7 +279,11 @@ class NetworkModule {
 
   private fun createConnectionCheckInterceptor(context: Context): Interceptor {
     return Interceptor { chain ->
-      if (!isInternetAvailable(context)) {
+      // Only a genuinely absent network short-circuits the request. ConnectivityState.UNVALIDATED
+      // is let through on purpose: Android's probe also fails on networks that simply block it
+      // (campus and corporate firewalls), and refusing to sync on those would be worse than the
+      // occasional failed attempt.
+      if (NetworkConnectivity.currentState(context) == ConnectivityState.OFFLINE) {
         return@Interceptor buildErrorResponse(
           chain,
           NO_INTERNET_CONNECTION_ERROR_CODE,
@@ -299,22 +293,6 @@ class NetworkModule {
       }
       chain.proceed(chain.request())
     }
-  }
-
-  private fun isInternetAvailable(context: Context): Boolean {
-    var result = false
-    val connectivityManager =
-      context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
-    connectivityManager?.let {
-      it.getNetworkCapabilities(connectivityManager.activeNetwork)?.apply {
-        result = when {
-          hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-          hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-          else -> false
-        }
-      }
-    }
-    return result
   }
 
   private fun buildErrorResponse(

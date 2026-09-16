@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -22,16 +23,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.fhir.datacapture.extensions.asStringValue
+import org.hl7.fhir.r4.model.ContactPoint
+import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
+import org.smartregister.fhircore.engine.util.extension.yearsPassed
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA
 import org.smartregister.fhircore.quest.theme.Colors.CRAYOLA_LIGHT
+import org.smartregister.fhircore.quest.theme.Colors.FEMALE_ICON_PINK
 import org.smartregister.fhircore.quest.theme.body18Medium
 import org.smartregister.fhircore.quest.theme.bodyExtraBold
 import org.smartregister.fhircore.quest.theme.bodyNormal
@@ -131,6 +138,8 @@ internal fun DraftsItem(
 fun SyncedPatientCardItem(
     patientData: Patient,
     patient: RegisterViewModel.AllPatientsResourceData,
+    // null = sync status not yet checked - show no icon rather than defaulting to "pending".
+    isSynced: Boolean? = null,
 ) {
     Card(
         modifier = Modifier
@@ -150,29 +159,89 @@ fun SyncedPatientCardItem(
                     modifier = Modifier.padding(vertical = 4.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
+                    val isFemale = patientData.hasGender() &&
+                        patientData.gender == Enumerations.AdministrativeGender.FEMALE
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_patient_male),
+                        painter = painterResource(
+                            id = if (isFemale) R.drawable.ic_patient_female else R.drawable.ic_patient_male,
+                        ),
                         contentDescription = FILTER,
-                        tint = BRANDEIS_BLUE,
+                        tint = if (isFemale) FEMALE_ICON_PINK else BRANDEIS_BLUE,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        val patientName = patientData.name?.firstOrNull()?.given?.firstOrNull()?.value.orEmpty()
-                        Text(
-                            text = patientName,
-                            style = body18Medium(),
-                            color = BRANDEIS_BLUE,
-                        )
+                        val fullName = patientData.nameFirstRep.nameAsSingleString
+                        val genderLetter = if (patientData.hasGender() &&
+                            patientData.gender != Enumerations.AdministrativeGender.NULL
+                        ) {
+                            patientData.gender.name.first().toString()
+                        } else {
+                            null
+                        }
+                        val ageYears = if (patientData.hasBirthDate()) {
+                            patientData.birthDate.yearsPassed().toString()
+                        } else {
+                            null
+                        }
+                        val nameSuffixParts = listOfNotNull(genderLetter, ageYears)
+                        val nameSuffix = if (nameSuffixParts.isNotEmpty()) {
+                            ", " + nameSuffixParts.joinToString(", ")
+                        } else {
+                            ""
+                        }
+                        Row {
+                            Text(
+                                text = fullName,
+                                style = body18Medium(),
+                                color = BRANDEIS_BLUE,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            if (nameSuffix.isNotEmpty()) {
+                                Text(
+                                    text = nameSuffix,
+                                    style = body18Medium(),
+                                    color = BRANDEIS_BLUE,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                         PatientDetailRow(
                             label = stringResource(id = R.string.unique_id_label),
                             value = patientData.identifierFirstRep?.value.takeUnless { it.isNullOrEmpty() }
                                 ?: stringResource(id = R.string.not_available),
+                            valueLetterSpacing = 1.5.sp,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         PatientDetailRow(
                             label = stringResource(id = R.string.visited),
                             value = getRegistrationDateFromExtension(patient.patient),
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PatientDetailRow(
+                            label = stringResource(id = R.string.phone_label),
+                            value = patientData.telecom
+                                ?.firstOrNull { it.system == ContactPoint.ContactPointSystem.PHONE }
+                                ?.value
+                                .takeUnless { it.isNullOrEmpty() }
+                                ?: stringResource(id = R.string.not_available),
+                            valueLetterSpacing = 1.5.sp,
+                            trailingIcon = isSynced?.let { synced ->
+                                {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (synced) R.drawable.ic_done_all else R.drawable.ic_schedule,
+                                        ),
+                                        contentDescription = stringResource(
+                                            id = if (synced) R.string.case_synced else R.string.case_sync_pending,
+                                        ),
+                                        tint = CRAYOLA_LIGHT,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            },
                         )
                     }
                 }
@@ -182,17 +251,34 @@ fun SyncedPatientCardItem(
 }
 
 @Composable
-private fun PatientDetailRow(label: String, value: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun PatientDetailRow(
+    label: String,
+    value: String,
+    // Figma: labels use Body2Bold (0.2sp tracking); values use Body2 (0.2sp) except Ref ID/Phone,
+    // which use Body2Numeric (1.5sp) for the digit strings.
+    valueLetterSpacing: TextUnit = 0.2.sp,
+    trailingIcon: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Text(
             text = label,
-            style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT),
+            style = bodyExtraBold(fontSize = 14.sp).copy(color = CRAYOLA_LIGHT, letterSpacing = 0.2.sp),
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = value,
-            style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT),
+            style = bodyNormal(14.sp).copy(color = CRAYOLA_LIGHT, letterSpacing = valueLetterSpacing),
+            // Matches the Figma row's flex-[1_0_0] value: fills the remaining row width so a
+            // trailing icon (sync status) lands flush at the card's end, not hugging the text.
+            modifier = Modifier.weight(1f),
         )
+        if (trailingIcon != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            trailingIcon()
+        }
     }
 }
 

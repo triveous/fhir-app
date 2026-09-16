@@ -9,6 +9,10 @@
 
 
     <string name="cannot_find_parent_questionnaire">Cannot find the parent Questionnaire!</string>
+    <!-- Overrides for org.smartregister:data-capture library string resources -->
+    <string name="button_review">Review</string>
+    <string name="note">Note</string>
+    <string name="validation_dialogue_note">Please fill in all the required fields to continue.</string>
     <string name="max_size_file_above_limit_validation_error_msg">Error: File size is larger than %1$s MB</string>
     <string name="max_size_image_above_limit_validation_error_msg">Error: Image size is larger than %1$s MB</string>
     <string name="max_value_validation_error_msg">Maximum value allowed is:<ns1:g id="max_value">%1$s</ns1:g> </string>
@@ -220,6 +224,7 @@
     <string name="visited">Visited</string>
     <string name="unique_id_label">Reference ID</string>
     <string name="not_available">Not Available</string>
+    <string name="phone_label">Phone</string>
     <string name="cases_sync">Sync: %s</string>
     <string name="dynamic_see_more">SEE %s MORE</string>
     <string name="dynamic_total_drafts">TOTAL DRAFTS: %s</string>
@@ -239,6 +244,8 @@
     <string name="retake_photo">RETAKE PHOTO</string>
     <string name="image_saved">Image Saved</string>
     <string name="sync_status">Sync Status</string>
+    <string name="case_synced">Case synced</string>
+    <string name="case_sync_pending">Case sync pending</string>
     <string name="loading_sync_status">Checking sync status…</string>
     <string name="sync_status_load_failed">Couldn\'t check the current sync status. Try again.</string>
     <string name="sync_now">Sync now</string>
@@ -305,6 +312,13 @@
     <string name="agreed_followup_not_done">Agreed, follow up not done</string>
     <string name="agreed_for_followup">AGREED FOR FOLLOW UP</string>
     <string name="followup_done">Follow up done</string>
+    <string name="followup_not_done">Follow up not done</string>
+    <!-- Recommendations tab task-card title; mirrors known Task.description server values -->
+    <string name="task_desc_refer_hospital_investigation">Follow up: Refer to hospital for additional investigation</string>
+    <string name="task_desc_retake_photo">Follow up: Retake photo</string>
+    <string name="task_desc_advice_quit_habit">Follow up: Advice to quit the habit</string>
+    <string name="task_desc_specialist_review">Task for specialist to review patient diagnosis</string>
+    <string name="task_desc_specialist_screen">Task for specialist to screen patient</string>
     <string name="remove_case">Not agreed, remove case</string>
     <string name="null_status">null</string>
     <string name="none_status">none</string>
@@ -315,6 +329,7 @@
     <string name="button_pagination_previous">Previous</string>
     <string name="location_permission_reason">App needs location permission to capture the site location.</string>
 
+    <string name="ai_result_title">AI Result</string>
     <string name="suspicious_result">Refer to a dentist</string>
     <string name="suspicious_result_desc">AI recommends referral. In case \nof doubt, talk to your supervisor.</string>
     <string name="nonsuspicious_result">No referral required</string>
