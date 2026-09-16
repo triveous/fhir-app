@@ -220,6 +220,19 @@
     <string name="change_language">भाषा बदलें</string>
     <string name="logout">लॉग आउट</string>
     <string name="change_pin">पिन बदलें</string>
+    <string name="export_unsynced_data">असिंक डेटा निर्यात करें</string>
+    <string name="export_unsynced_share">साझा करें</string>
+    <string name="export_unsynced_done_title">निर्यात पूरा हुआ</string>
+    <string name="export_unsynced_done_desc">%1$d लंबित बदलाव, %2$d फ़ोटो और %3$d दर्ज सिंक विफलताएँ निर्यात की गईं।\n\nयहाँ सहेजा गया:\n%4$s\n\nइस फ़ाइल में मरीज़ का डेटा है। इसे केवल अपने सुपरवाइज़र के साथ साझा करें और बाद में फ़ोन से हटा दें।</string>
+    <string name="export_unsynced_failed_title">निर्यात विफल</string>
+    <string name="export_unsynced_progress_title">असिंक डेटा निर्यात हो रहा है…</string>
+    <string name="export_unsynced_percent">%1$d%% पूरा</string>
+    <string name="export_unsynced_keep_open">कृपया ऐप खुला रखें। बहुत सी फ़ोटो होने पर इसमें कुछ मिनट लग सकते हैं।</string>
+    <string name="export_phase_reading">लंबित बदलाव पढ़े जा रहे हैं…</string>
+    <string name="export_phase_resources">रिसोर्स लिखे जा रहे हैं (%2$d में से %1$d)</string>
+    <string name="export_phase_images">फ़ोटो कॉपी हो रही हैं (%2$d में से %1$d)</string>
+    <string name="export_phase_zipping">ज़िप बनाई जा रही है (%2$d में से %1$d फ़ाइलें)</string>
+    <string name="export_phase_downloads">Downloads में कॉपी हो रहा है (%2$d में से %1$d फ़ाइलें)</string>
     <string name="profile_username">उपयोगकर्ता नाम: %s</string>
 
     <!-- Cases-->

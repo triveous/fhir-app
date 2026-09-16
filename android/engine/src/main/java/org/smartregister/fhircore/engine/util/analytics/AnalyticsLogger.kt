@@ -96,6 +96,17 @@ interface AnalyticsLogger {
      * described manually triggered runs.
      */
     const val SYNC_COMPLETED = "sync_completed"
+
+    /**
+     * The SDK's metadata sync (upload of local changes + download) reported a failure. One event
+     * per `ResourceSyncException`, carrying the HTTP status, request URL and the server's
+     * `OperationOutcome` body — the detail that [SYNC_COMPLETED]'s single error string cannot hold
+     * and that was previously never captured at all on the retry path.
+     */
+    const val SYNC_METADATA_FAILED = "sync_metadata_failed"
+
+    /** A user exported the device's unsynced data from the Profile screen. */
+    const val UNSYNCED_DATA_EXPORTED = "unsynced_data_exported"
   }
 
   object Props {
@@ -186,5 +197,20 @@ interface AnalyticsLogger {
      * per-document events.
      */
     const val STUCK_DOCUMENT_IDS = "stuck_document_ids"
+
+    /** FHIR resource type the failing sync request was for. */
+    const val RESOURCE_TYPE = "resource_type"
+
+    /** Method and URL of the failing HTTP request, without query credentials. */
+    const val REQUEST_URL = "request_url"
+
+    /** Server response body of a failed request, truncated; usually an `OperationOutcome`. */
+    const val SERVER_RESPONSE = "server_response"
+
+    // Counts reported by UNSYNCED_DATA_EXPORTED.
+    const val EXPORTED_LOCAL_CHANGES = "exported_local_changes"
+    const val EXPORTED_RESOURCES = "exported_resources"
+    const val EXPORTED_IMAGES = "exported_images"
+    const val EXPORT_SIZE_BYTES = "export_size_bytes"
   }
 }

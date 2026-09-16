@@ -219,6 +219,19 @@
     <string name="logout">LOGOUT</string>
     <string name="change_pin">Change PIN</string>
     <string name="profile_username">Username: %s</string>
+    <string name="export_unsynced_data">Export unsynced data</string>
+    <string name="export_unsynced_share">Share</string>
+    <string name="export_unsynced_done_title">Export complete</string>
+    <string name="export_unsynced_done_desc">Exported %1$d pending changes, %2$d photos and %3$d recorded sync failures.\n\nSaved to:\n%4$s\n\nThis file contains patient data. Share it only with your supervisor and delete it from the phone afterwards.</string>
+    <string name="export_unsynced_failed_title">Export failed</string>
+    <string name="export_unsynced_progress_title">Exporting unsynced data…</string>
+    <string name="export_unsynced_percent">%1$d%% complete</string>
+    <string name="export_unsynced_keep_open">Please keep the app open. This can take a few minutes if there are many photos.</string>
+    <string name="export_phase_reading">Reading pending changes…</string>
+    <string name="export_phase_resources">Writing resources (%1$d of %2$d)</string>
+    <string name="export_phase_images">Copying photos (%1$d of %2$d)</string>
+    <string name="export_phase_zipping">Packing zip (%1$d of %2$d files)</string>
+    <string name="export_phase_downloads">Copying to Downloads (%1$d of %2$d files)</string>
 
     <!-- Cases-->
     <string name="visited">Visited</string>

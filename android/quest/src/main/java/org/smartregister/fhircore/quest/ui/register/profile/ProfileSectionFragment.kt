@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.platform.testTag
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -42,16 +43,19 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.AndroidEntryPoint
 import org.hl7.fhir.r4.model.Task.TaskPriority
 import org.hl7.fhir.r4.model.Task.TaskStatus
+import org.smartregister.fhircore.engine.data.export.UnsyncedExportResult
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
+import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.login.LoginActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.addReplaceFragment
+import timber.log.Timber
 import javax.inject.Inject
 
 @ExperimentalMaterialApi
@@ -64,6 +68,7 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
     private val appMainViewModel by activityViewModels<AppMainViewModel>()
     //private val profileFragmentArgs by navArgs<ProfileSectionFragmentArgs>()
     private val registerViewModel by viewModels<RegisterViewModel>()
+    private val unsyncedExportViewModel by viewModels<UnsyncedExportViewModel>()
     var taskPriority : TaskPriority = TaskPriority.URGENT
     var taskStatus : TaskStatus = TaskStatus.REQUESTED
     var userNameText = ""
@@ -97,6 +102,7 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
                     ) { innerPadding ->
 
                         val isLogout by registerViewModel.isLogout.collectAsState()
+                        val exportState by unsyncedExportViewModel.state.collectAsState()
 
                         LaunchedEffect(isLogout) {
                             if (isLogout){
@@ -125,8 +131,13 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
                                 },
                                 onClickChangeLanguage = {
                                     requireActivity().addReplaceFragment(R.id.fragment_container, ChangeLanguageFragment(), addFragment = true, addToBackStack = true)
-                                }
-                            )                        }
+                                },
+                                exportState = exportState,
+                                onClickExportUnsynced = unsyncedExportViewModel::export,
+                                onShareExport = ::shareExport,
+                                onDismissExport = unsyncedExportViewModel::dismiss,
+                            )
+                        }
                     }
                 }
             }
@@ -146,6 +157,32 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
 
     override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
 
+    }
+
+    /**
+     * Opens the system share sheet for the export zip. The private copy under `files/` is shared
+     * through the app's FileProvider so any target app (Drive, WhatsApp, Bluetooth, ...) can read it.
+     */
+    private fun shareExport(result: UnsyncedExportResult) {
+        val context = context ?: return
+        val uri =
+            runCatching {
+                FileProvider.getUriForFile(
+                    context,
+                    "${BuildConfig.APPLICATION_ID}.fileprovider",
+                    result.privateZip,
+                )
+            }
+                .onFailure { Timber.e(it, "Could not build share URI for export") }
+                .getOrNull() ?: return
+        val intent =
+            Intent(Intent.ACTION_SEND).apply {
+                type = "application/zip"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, result.privateZip.name)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        startActivity(Intent.createChooser(intent, getString(R.string.export_unsynced_share)))
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
