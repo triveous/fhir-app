@@ -36,6 +36,8 @@ import androidx.compose.material.AlertDialog
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.LinearProgressIndicator
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.PermDeviceInformation
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -60,6 +62,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.smartregister.fhircore.engine.data.export.ExportProgress
+import org.smartregister.fhircore.engine.data.export.UnsyncedExportResult
 import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
@@ -91,7 +95,11 @@ fun ProfileSectionScreen(
     searchText: MutableState<String>,
     userName: String = "",
     onBackPressed: () -> Unit,
-    onClickChangeLanguage:() -> Unit
+    onClickChangeLanguage:() -> Unit,
+    exportState: UnsyncedExportState = UnsyncedExportState.Idle,
+    onClickExportUnsynced: () -> Unit = {},
+    onShareExport: (UnsyncedExportResult) -> Unit = {},
+    onDismissExport: () -> Unit = {},
 ) {
 
     // The login username, not getUserName(): that returns the Practitioner logical id, which is a
@@ -141,6 +149,22 @@ fun ProfileSectionScreen(
                 showChangePinDialog = false
                 viewModel.logout()
             }
+        }
+
+        when (exportState) {
+            is UnsyncedExportState.Running -> ExportUnsyncedProgressDialog(progress = exportState.progress)
+            is UnsyncedExportState.Done ->
+                ExportUnsyncedResultDialog(
+                    result = exportState.result,
+                    onShare = { onShareExport(exportState.result) },
+                    onDismissDialog = onDismissExport,
+                )
+            is UnsyncedExportState.Failed ->
+                ExportUnsyncedFailedDialog(
+                    message = exportState.message,
+                    onDismissDialog = onDismissExport,
+                )
+            else -> Unit
         }
 
         Box {
@@ -286,6 +310,44 @@ fun ProfileSectionScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(id = R.string.change_password),
+                                    style = bodyMedium(fontSize = 18.sp)
+                                )
+                            }
+                        }
+
+                        // Support tool: packs every unsynced resource, pending photo and recorded
+                        // sync failure into a zip in Downloads/ so a stuck device's data can be
+                        // recovered and the failing request diagnosed off the phone.
+                        val exportRunning = exportState is UnsyncedExportState.Running
+                        Card(
+                            shape = RoundedCornerShape(4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = 16.dp,
+                                    vertical = 4.dp
+                                ),
+                            elevation = CardDefaults.cardElevation(2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = !exportRunning) {
+                                        onClickExportUnsynced()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                                    .background(Color.White)
+                                    .testTag(EXPORT_UNSYNCED_CARD_TEST_TAG)) {
+                                Icon(
+                                    Icons.Filled.FileDownload,
+                                    contentDescription = DRAWER_MENU,
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(id = R.string.export_unsynced_data),
                                     style = bodyMedium(fontSize = 18.sp)
                                 )
                             }
@@ -455,5 +517,160 @@ fun ChangePinDialog(
             }
         },
         modifier = Modifier.testTag(CHANGE_PIN__DIALOG),
+    )
+}
+const val EXPORT_UNSYNCED_CARD_TEST_TAG = "exportUnsyncedCardTestTag"
+const val EXPORT_UNSYNCED_RESULT_DIALOG = "exportUnsyncedResultDialog"
+
+@Composable
+fun ExportUnsyncedResultDialog(
+    result: UnsyncedExportResult,
+    onShare: () -> Unit,
+    onDismissDialog: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val location = result.downloadsDisplayPath ?: result.privateDirectory.absolutePath
+    AlertDialog(
+        onDismissRequest = onDismissDialog,
+        title = {
+            androidx.compose.material.Text(
+                text = stringResource(R.string.export_unsynced_done_title),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+            )
+        },
+        text = {
+            androidx.compose.material.Text(
+                text = stringResource(
+                    R.string.export_unsynced_done_desc,
+                    result.localChangeCount,
+                    result.imageCount,
+                    result.syncFailureCount,
+                    location,
+                ),
+                fontSize = 14.sp,
+            )
+        },
+        buttons = {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                androidx.compose.material.Text(
+                    text = stringResource(org.smartregister.fhircore.engine.R.string.ok),
+                    modifier = modifier
+                        .padding(horizontal = 10.dp)
+                        .clickable { onDismissDialog() },
+                )
+                androidx.compose.material.Text(
+                    color = MaterialTheme.colors.primary,
+                    text = stringResource(R.string.export_unsynced_share),
+                    modifier = modifier
+                        .padding(horizontal = 10.dp)
+                        .clickable { onShare() },
+                )
+            }
+        },
+        modifier = Modifier.testTag(EXPORT_UNSYNCED_RESULT_DIALOG),
+    )
+}
+
+@Composable
+fun ExportUnsyncedFailedDialog(
+    message: String,
+    onDismissDialog: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissDialog,
+        title = {
+            androidx.compose.material.Text(
+                text = stringResource(R.string.export_unsynced_failed_title),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+            )
+        },
+        text = { androidx.compose.material.Text(text = message, fontSize = 14.sp) },
+        buttons = {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                androidx.compose.material.Text(
+                    color = MaterialTheme.colors.primary,
+                    text = stringResource(org.smartregister.fhircore.engine.R.string.ok),
+                    modifier = modifier
+                        .padding(horizontal = 10.dp)
+                        .clickable { onDismissDialog() },
+                )
+            }
+        },
+    )
+}
+
+const val EXPORT_UNSYNCED_PROGRESS_DIALOG = "exportUnsyncedProgressDialog"
+
+/**
+ * Blocking progress dialog for the export. A device with hundreds of pending photos takes a while,
+ * and a bare spinner reads as "stuck"; this names the phase and counts items so the user can see it
+ * moving. Not dismissable: the export runs to completion (or failure) on its own.
+ */
+@Composable
+fun ExportUnsyncedProgressDialog(progress: ExportProgress?, modifier: Modifier = Modifier) {
+    val phaseText =
+        when (progress?.phase) {
+            null, ExportProgress.Phase.READING_CHANGES ->
+                stringResource(R.string.export_phase_reading)
+            ExportProgress.Phase.WRITING_RESOURCES ->
+                stringResource(R.string.export_phase_resources, progress.completed, progress.total)
+            ExportProgress.Phase.COPYING_IMAGES ->
+                stringResource(R.string.export_phase_images, progress.completed, progress.total)
+            ExportProgress.Phase.ZIPPING ->
+                stringResource(R.string.export_phase_zipping, progress.completed, progress.total)
+            ExportProgress.Phase.COPYING_TO_DOWNLOADS ->
+                stringResource(R.string.export_phase_downloads, progress.completed, progress.total)
+        }
+    val fraction = progress?.overallFraction()
+    AlertDialog(
+        onDismissRequest = {},
+        title = {
+            androidx.compose.material.Text(
+                text = stringResource(R.string.export_unsynced_progress_title),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                androidx.compose.material.Text(text = phaseText, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+                if (fraction != null && progress.total > 0) {
+                    LinearProgressIndicator(
+                        progress = fraction,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                androidx.compose.material.Text(
+                    text = stringResource(R.string.export_unsynced_percent, ((fraction ?: 0f) * 100).toInt()),
+                    fontSize = 12.sp,
+                    color = CRAYOLA_LIGHT,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                androidx.compose.material.Text(
+                    text = stringResource(R.string.export_unsynced_keep_open),
+                    fontSize = 12.sp,
+                    color = CRAYOLA_LIGHT,
+                )
+            }
+        },
+        buttons = {},
+        modifier = modifier.testTag(EXPORT_UNSYNCED_PROGRESS_DIALOG),
     )
 }

@@ -67,6 +67,7 @@ class AppSyncWorkerTest : RobolectricTest() {
         Gson(),
         featureFlagUtil,
         mockk(relaxed = true),
+        mockk(relaxed = true),
       )
 
     appSyncWorker.getDownloadWorkManager()
@@ -103,6 +104,7 @@ class AppSyncWorkerTest : RobolectricTest() {
         sharedPreferencesHelper,
         Gson(),
         featureFlagUtil,
+        mockk(relaxed = true),
         mockk(relaxed = true),
       )
 

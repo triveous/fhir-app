@@ -127,6 +127,7 @@ constructor(
     private val gson: Gson,
     private val featureFlagUtil: FeatureFlagUtil,
     private val uploadedDocumentReferenceLedger: UploadedDocumentReferenceLedger,
+    private val syncFailureLog: SyncFailureLog,
 ) : FhirSyncWorker(appContext, workerParams) {
     /**
      * Serializes worker progress exactly the way the FHIR SDK reads it back.
@@ -164,6 +165,78 @@ constructor(
         ).analyticsLogger()
     }
 
+    /**
+     * Why the metadata sync inside [FhirSyncWorker.doWork] failed, captured by
+     * [onFailedSyncJobResult] during that call so [doWork] can report it. Null when it succeeded.
+     */
+    @Volatile
+    private var metadataSyncFailure: String? = null
+
+    /**
+     * The SDK's hook for a failed metadata sync. This is the only point where the real reason is
+     * still reachable: [SyncJobStatus.Failed] carries the `ResourceSyncException`s, but the SDK's own
+     * implementation filters that list with `filterIsInstance<HttpException>()` — which can never
+     * match a `ResourceSyncException` — so nothing was ever logged, and on the retry path the SDK
+     * returns `Result.retry()` with no output data at all. Until now a stuck device only ever
+     * reported "Metadata sync did not succeed".
+     *
+     * Each exception is flattened into a [SyncFailureEntry] (HTTP status, request URL and the
+     * server's `OperationOutcome` body included), appended to the on-device [SyncFailureLog] so it
+     * can be pulled off the phone with the unsynced-data export, and sent to analytics.
+     *
+     * `super` is deliberately not called: it would consume the one-shot error body before this
+     * override could read it, and it logs nothing useful anyway.
+     */
+    override fun onFailedSyncJobResult(failedSyncJobStatus: SyncJobStatus.Failed) {
+        val runId = id.toString()
+        val entries =
+            failedSyncJobStatus.exceptions.map { resourceSyncException ->
+                SyncFailureEntry.from(
+                    runId = runId,
+                    phase = METADATA_SYNC_PHASE,
+                    resourceType = resourceSyncException.resourceType.name,
+                    throwable = resourceSyncException.exception,
+                )
+            }
+        if (entries.isEmpty()) {
+            metadataSyncFailure = "Metadata sync failed without any ResourceSyncException"
+            syncFailureLog.record(
+                SyncFailureEntry(
+                    recordedAt = SyncFailureLog.isoNow(),
+                    runId = runId,
+                    phase = METADATA_SYNC_PHASE,
+                    resourceType = null,
+                    exceptionType = "Unknown",
+                    message = metadataSyncFailure,
+                ),
+            )
+            return
+        }
+        entries.forEach { entry ->
+            syncFailureLog.record(entry)
+            Timber.e(
+                "Metadata sync failed: ${entry.summary()}" +
+                    entry.requestUrl?.let { " (${entry.requestMethod} $it)" }.orEmpty(),
+            )
+            runCatching {
+                analyticsLogger.capture(
+                    AnalyticsLogger.Events.SYNC_METADATA_FAILED,
+                    mapOf(
+                        AnalyticsLogger.Props.SYNC_RUN_ID to runId,
+                        AnalyticsLogger.Props.RESOURCE_TYPE to entry.resourceType,
+                        AnalyticsLogger.Props.ERROR_TYPE to entry.exceptionType.substringAfterLast('.'),
+                        AnalyticsLogger.Props.ERROR_MESSAGE to entry.message,
+                        AnalyticsLogger.Props.RESPONSE_CODE to entry.httpStatus,
+                        AnalyticsLogger.Props.REQUEST_URL to entry.requestUrl,
+                        AnalyticsLogger.Props.SERVER_RESPONSE to
+                            entry.responseBody?.take(ANALYTICS_BODY_CHARS),
+                    ),
+                )
+            }.onFailure { Timber.d(it, "Could not report metadata sync failure") }
+        }
+        metadataSyncFailure = entries.joinToString(" || ") { it.summary() }
+    }
+
     companion object {
         val mutex = Mutex()
         val uploadImageMutex = Mutex()
@@ -185,6 +258,15 @@ constructor(
         }
         /** Depth cap when walking a cause chain, so a cyclic chain cannot spin. */
         private const val MAX_CAUSE_DEPTH = 10
+
+        /** [SyncFailureEntry.phase] for failures reported by the SDK's metadata sync. */
+        const val METADATA_SYNC_PHASE = "metadata_sync"
+
+        /** [SyncFailureEntry.phase] for failures that escaped the worker as an exception. */
+        const val WORKER_PHASE = "worker"
+
+        /** Cap on the server response body sent as an analytics property. */
+        private const val ANALYTICS_BODY_CHARS = 4_000
 
         const val SYNC_METADATA_SYSTEM = "http://hl7.org/fhir/codes"
         const val SYNC_METADATA_CODE = "sync-metadata"
@@ -239,6 +321,8 @@ constructor(
         var syncStatus = "failed"
         var syncError: String? = null
 
+        metadataSyncFailure = null
+
         return try {
             Timber.d("AppSyncWorker Running within lock sync worker")
             // A worker can start in a fresh process where the AppSettingActivity bootstrap never
@@ -275,7 +359,9 @@ constructor(
                     }
                 }
             } else {
-                syncError = "Metadata sync did not succeed"
+                // The detail was captured by onFailedSyncJobResult during super.doWork(); the
+                // Result itself carries nothing on the retry path.
+                syncError = "Metadata sync did not succeed: ${metadataSyncFailure ?: "no failure detail captured"}"
                 metaSyncResult
             }
         } catch (e: CancellationException) {
@@ -288,6 +374,9 @@ constructor(
             // pass, so name the exception type — otherwise the report says a sync failed without
             // saying which part of it.
             Timber.e(e, "AppSyncWorker run failed before completing: ${e::class.java.simpleName}")
+            syncFailureLog.record(
+                SyncFailureEntry.from(runId = runId, phase = WORKER_PHASE, resourceType = null, throwable = e),
+            )
             Result.failure(
                 workDataOf(
                     "error" to e::class.java.name,
