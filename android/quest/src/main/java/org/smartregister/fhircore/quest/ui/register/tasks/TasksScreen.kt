@@ -128,6 +128,8 @@ import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStrin
 import org.smartregister.fhircore.quest.util.SectionTitles
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.TaskProgressStatusDisplay
+import org.smartregister.fhircore.quest.util.localizedText
+import org.smartregister.fhircore.quest.util.localizedTaskDescription
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 import kotlin.collections.find
@@ -775,7 +777,7 @@ private fun ShowAllPatients(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .padding(vertical = 4.dp, horizontal = 4.dp),
-                                                text = task.description,
+                                                text = localizedTaskDescription(task.description),
                                                 style = MaterialTheme.typography.h6,
                                                 color = LightColors.primary
                                             )
@@ -1107,7 +1109,7 @@ fun BottomSheetContent(
                         )
                     )
                     Text(
-                        text = label.text,
+                        text = label.localizedText(),
                         modifier = Modifier
                             .padding(horizontal = 8.dp)
                             .clickable {

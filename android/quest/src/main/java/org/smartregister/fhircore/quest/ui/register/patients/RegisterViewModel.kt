@@ -109,6 +109,7 @@ import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
 import org.smartregister.fhircore.quest.ui.main.AppMainEvent
+import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireViewModel
 import org.smartregister.fhircore.quest.ui.register.tasks.TaskCodes
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
@@ -129,6 +130,9 @@ import javax.inject.Inject
 
 /** Number of patients fetched for the register's quick first-paint preview (matches the home UI). */
 private const val PATIENT_PREVIEW_COUNT = 3
+
+/** Number of cases checked for sync status at a time - roughly what's visible on screen at once. */
+private const val VISIBLE_SYNC_STATUS_CHECK_COUNT = 5
 
 @HiltViewModel
 class RegisterViewModel
@@ -187,6 +191,12 @@ constructor(
 
     private val _homeScreenPatientsStateFlow = MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
     val homeScreenPatientsStateFlow: StateFlow<List<AllPatientsResourceData>> = _homeScreenPatientsStateFlow
+
+    // Per-case sync status (Patient metadata + its screening images), keyed by Patient logical id.
+    // Absent from the map == not yet checked, which the card renders as "pending" until proven
+    // synced. Only computed for a handful of visible cards at a time (see [refreshCaseSyncStatus]).
+    private val _caseSyncStatusStateFlow = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val caseSyncStatusStateFlow: StateFlow<Map<String, Boolean>> = _caseSyncStatusStateFlow
 
     private val _allTaskCodeWithValues = MutableStateFlow<List<Pair<String, String>>>(emptyList())
     val allTaskCodeWithValues: StateFlow<List<Pair<String, String>>> = _allTaskCodeWithValues
@@ -1057,6 +1067,7 @@ constructor(
                                 // Cases are on screen now; drop the spinner without waiting for the
                                 // full list. The total count ("See N more") fills in once it lands.
                                 _isFetchingPatients.value = false
+                                refreshCaseSyncStatus(preview)
                             }
                         }
                         .onFailure { Timber.e(it, "Quick patient preview failed") }
@@ -1076,11 +1087,90 @@ constructor(
 
                 // Updating the state flow
                 _allPatientsStateFlow.value = patients
+                refreshCaseSyncStatus(patients)
             } finally {
                 _isFetching.value = false
                 _isFetchingPatients.value = false
             }
         }
+    }
+
+    /**
+     * Checks whether each of the first [limit] patients in [patients] has its metadata and
+     * screening images fully synced to the server, and merges the results into
+     * [caseSyncStatusStateFlow]. [limit] defaults to [VISIBLE_SYNC_STATUS_CHECK_COUNT] - roughly
+     * what's on screen at once on the compact register - since every check is a handful of local DB
+     * reads; callers showing the full list (e.g. the "see all" screen) pass a larger [limit] so every
+     * row gets an accurate badge instead of only the first few.
+     */
+    fun refreshCaseSyncStatus(
+        patients: List<AllPatientsResourceData> = _allPatientsStateFlow.value,
+        limit: Int = VISIBLE_SYNC_STATUS_CHECK_COUNT,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val toCheck = patients
+                .asSequence()
+                .filter { it.resourceType == AllPatientsResourceType.Patient }
+                .mapNotNull { it.patient }
+                .take(limit)
+                .toList()
+            val statuses = toCheck.associate { it.logicalId to isCaseFullySynced(it) }
+            _caseSyncStatusStateFlow.value = _caseSyncStatusStateFlow.value + statuses
+        }
+    }
+
+    /**
+     * A case is fully synced when the Patient resource itself has no pending local change and none
+     * of its QuestionnaireResponses (or the screening images they reference) have one either. All
+     * checks are local DB reads/queries against [fhirEngine] - no network round trip.
+     */
+    private suspend fun isCaseFullySynced(patient: Patient): Boolean {
+        val patientId = patient.logicalId
+        if (fhirEngine.getLocalChanges(ResourceType.Patient, patientId).isNotEmpty()) return false
+
+        val relatedResponses = runCatching {
+            fhirEngine.search<QuestionnaireResponse> {
+                filter(ReferenceClientParam("subject"), { value = "Patient/$patientId" })
+            }.fastMap { it.resource }
+        }.getOrDefault(emptyList())
+
+        relatedResponses.forEach { response ->
+            if (fhirEngine.getLocalChanges(ResourceType.QuestionnaireResponse, response.logicalId).isNotEmpty()) {
+                return false
+            }
+            if (hasUnsyncedScreeningImages(response)) return false
+        }
+        return true
+    }
+
+    /**
+     * A screening image is still pending upload as long as its DocumentReference is present in the
+     * local FhirEngine: [AppSyncWorker] only purges a DocumentReference once its image has been
+     * uploaded and verified on the server, so absence locally means the image is synced.
+     */
+    private suspend fun hasUnsyncedScreeningImages(response: QuestionnaireResponse): Boolean {
+        val documentReferenceIds = response.item
+            .filter { it.linkId == QuestionnaireViewModel.SCREENING_GROUP_LINK_ID }
+            .flatMap { it.item }
+            .filter { it.linkId == QuestionnaireViewModel.PATIENT_SCREENING_IMAGE_GROUP_LINK_ID }
+            .flatMap { it.item }
+            .flatMap { it.answer }
+            .filter { it.hasValueAttachment() }
+            .mapNotNull { extractDocumentReferenceIdFromUrl(it.valueAttachment.url) }
+
+        return documentReferenceIds.any { id ->
+            runCatching { fhirEngine.get(ResourceType.DocumentReference, id) }.isSuccess
+        }
+    }
+
+    /**
+     * Extracts the DocumentReference logical id from a binary-access-read URL of the form
+     * `.../DocumentReference/{id}/$binary-access-read?...`. Mirrors
+     * [QuestionnaireViewModel.extractDocumentReferenceIdFromUrl].
+     */
+    private fun extractDocumentReferenceIdFromUrl(url: String?): String? {
+        if (url == null) return null
+        return Regex("DocumentReference/([^/]+)/").find(url)?.groupValues?.get(1)
     }
 
     /**
