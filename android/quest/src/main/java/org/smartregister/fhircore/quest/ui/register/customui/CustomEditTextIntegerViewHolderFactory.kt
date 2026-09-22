@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.icu.number.NumberFormatter
 import android.icu.text.DecimalFormat
 import android.os.Build
+import android.os.LocaleList
 import android.text.Editable
 import android.text.InputType
 import android.view.View
@@ -37,6 +38,8 @@ object CustomTextIntegerItemViewHolderFactory : QuestionnaireItemViewHolderFacto
             header = itemView.findViewById(R.id.header)
             header.visibility = View.GONE
             textInputEditText = itemView.findViewById(R.id.text_input_edit_text)
+            // Keep the IME in English regardless of the app language (see the string factory).
+            textInputEditText.imeHintLocales = LocaleList(Locale.ENGLISH)
         }
 
         override fun updateInputTextUI(
