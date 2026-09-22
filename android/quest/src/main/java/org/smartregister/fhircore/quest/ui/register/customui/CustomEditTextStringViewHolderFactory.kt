@@ -1,6 +1,7 @@
 package org.smartregister.fhircore.quest.ui.register.customui
 
 import android.text.Editable
+import android.os.LocaleList
 import android.text.InputType
 import android.view.View
 import com.google.android.fhir.datacapture.views.HeaderView
@@ -16,6 +17,7 @@ import org.smartregister.fhircore.quest.QuestApplication
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.util.KEYBOARD_NUMERIC
 import timber.log.Timber
+import java.util.Locale
 
 object CustomEditTextStringViewHolderFactory : QuestionnaireItemViewHolderFactory(R.layout.custom_text_question_item) {
 
@@ -43,6 +45,11 @@ class EditTextStringViewHolderDelegate :
     header = itemView.findViewById(R.id.header)
     header.visibility = View.GONE
     textInputEditText = itemView.findViewById(R.id.text_input_edit_text)
+    // Form entry is English-only (see the Latin-only regex on name fields). When the app language
+    // is Hindi, AppCompatDelegate.setApplicationLocales() makes Android 13+ hand the IME the app
+    // locale as the default hint, so Gboard auto-switches to its Hindi layout on focus. An explicit
+    // English hint overrides that default and keeps the English keyboard.
+    textInputEditText.imeHintLocales = LocaleList(Locale.ENGLISH)
   }
 
   override fun updateInputTextUI(
