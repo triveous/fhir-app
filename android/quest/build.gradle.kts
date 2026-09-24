@@ -125,8 +125,9 @@ android {
   // observed to break PyTorch Mobile's `Module.load` (loaded module silently produces
   // wrong outputs → every image classified as Non-Suspicious). Debug APKs are usually
   // unaffected because they're often built without the same packaging path.
+  // ONNX models (.onnx / .ort) are kept uncompressed for the same reason.
   androidResources {
-    noCompress += listOf("pt", "ptl", "bin", "tflite")
+    noCompress += listOf("pt", "ptl", "bin", "tflite", "onnx", "ort")
   }
 
   packaging {
@@ -286,12 +287,21 @@ tasks.withType<Test> {
 
 configurations {
   all { exclude(group = "xpp3") }
+  // JVM unit tests run the desktop ONNX Runtime (testImplementation below). The Android AAR's
+  // copy of the same classes would win on the classpath and try to load its Android .so files.
+  matching { it.name.endsWith("UnitTestRuntimeClasspath") }
+    .configureEach { exclude(group = "com.microsoft.onnxruntime", module = "onnxruntime-android") }
 }
+
+val onnxRuntimeVersion = "1.30.0"
 
 dependencies {
   implementation(files("libs/opencv-411-android.aar"))
   implementation ("org.pytorch:pytorch_android:1.10.0")
   implementation ("org.pytorch:pytorch_android_torchvision:1.10.0")
+  // ONNX Runtime replaces PyTorch Mobile once the .onnx model is bundled (see
+  // docs/onnx_implementation_plan.md). Both ship until then; drop PyTorch with the .pt assets.
+  implementation("com.microsoft.onnxruntime:onnxruntime-android:$onnxRuntimeVersion")
 
   implementation(libs.activity)
   implementation(libs.constraintlayout)
@@ -340,6 +350,8 @@ dependencies {
   testImplementation(libs.navigation.testing)
   testImplementation(libs.kotlin.test)
   testImplementation(libs.work.testing)
+  // Desktop build of the same ONNX Runtime, so OnnxModelRunnerTest runs real models on the JVM.
+  testImplementation("com.microsoft.onnxruntime:onnxruntime:$onnxRuntimeVersion")
   listOf(
     Dependencies.HapiFhir.fhirCoreDstu2,
     Dependencies.HapiFhir.fhirCoreDstu2016,

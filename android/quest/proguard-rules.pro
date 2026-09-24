@@ -131,6 +131,12 @@
 -keepclassmembers class com.facebook.jni.** { *; }
 -dontwarn com.facebook.jni.**
 
+# ONNX Runtime (com.microsoft.onnxruntime:onnxruntime-android) — the JNI bridge
+# constructs these classes from native code, so they must not be shrunk or renamed.
+-keep class ai.onnxruntime.** { *; }
+-keepclassmembers class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+
 # OpenCV (org.opencv) — also uses JNI heavily and is loaded reflectively
 -keep class org.opencv.** { *; }
 -keepclassmembers class org.opencv.** { *; }

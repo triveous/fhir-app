@@ -104,6 +104,8 @@ object PostHogAnalytics {
         const val MEAN_CONFIDENCE = "mean_confidence"
         const val INFERENCE_TIME_MS = "inference_time_ms"
         const val COMBINED_INFERENCE_TIME_MS = "combined_inference_time_ms"
+        const val EXECUTION_PROVIDER = "execution_provider"
+        const val MODEL_OUTPUT_COUNT = "model_output_count"
         const val CAPTURE_TO_RESULT_MS = "capture_to_result_ms"
         const val BATTERY_PCT = "battery_pct"
         const val BATTERY_CHARGING = "battery_charging"

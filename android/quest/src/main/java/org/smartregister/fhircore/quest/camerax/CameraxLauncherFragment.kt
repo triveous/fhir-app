@@ -82,6 +82,7 @@ import org.opencv.core.Mat
 import org.opencv.imgproc.Imgproc
 import org.smartregister.fhircore.quest.util.DeviceMetrics
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
+import org.smartregister.fhircore.quest.ml.OnnxScreeningPipeline
 import org.smartregister.fhircore.quest.util.ImageQualityAnalyzer
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
@@ -96,6 +97,10 @@ class CameraxLauncherFragment : DialogFragment() {
 
     @Inject
     lateinit var featureFlagUtil: FeatureFlagUtil
+
+    // Takes over from the PyTorch pipeline below as soon as the .onnx model is bundled.
+    @Inject
+    lateinit var onnxScreeningPipeline: OnnxScreeningPipeline
 
     private val cameraxViewModel: CameraxLauncherViewModel by viewModels()
 
@@ -301,7 +306,7 @@ class CameraxLauncherFragment : DialogFragment() {
 
         initModelJob = lifecycleScope.launch {
             if (isAiInferenceEnabled()) {
-                initModel()
+                if (onnxScreeningPipeline.isModelBundled) onnxScreeningPipeline.warmUp() else initModel()
             }
         }
     }
@@ -765,6 +770,14 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
+    /** ONNX pipeline when its model is bundled, otherwise the PyTorch [processImage] below. */
+    private fun processCapturedImage(absolutePath: String, runAiInference: Boolean): ImageProcessingResult? {
+        if (!onnxScreeningPipeline.isModelBundled) return processImage(absolutePath, runAiInference)
+        return onnxScreeningPipeline.process(absolutePath, screeningId, runAiInference)?.let {
+            ImageProcessingResult(it.resultMap, it.qualityProps, it.inferenceTimeMs)
+        }
+    }
+
     private fun processImage(absolutePath: String, runAiInference: Boolean): ImageProcessingResult? {
         val sourceMat = OpenCVUtils.scaleImageMat(absolutePath)
         if (sourceMat == null) {
@@ -917,11 +930,11 @@ class CameraxLauncherFragment : DialogFragment() {
                 // case-level combine then reads as Non-Suspicious (false negative).
                 initModelJob?.join()
                 withContext(Dispatchers.IO) {
-                    processImage(absolutePath, runAiInference = true)
+                    processCapturedImage(absolutePath, runAiInference = true)
                 }
             } else {
                 withContext(Dispatchers.IO) {
-                    processImage(absolutePath, runAiInference = false)
+                    processCapturedImage(absolutePath, runAiInference = false)
                 }
             }
             val resultMap = processingResult?.resultMap?.takeIf { it.isNotEmpty() }
