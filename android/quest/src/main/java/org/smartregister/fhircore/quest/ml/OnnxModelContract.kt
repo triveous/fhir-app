@@ -25,8 +25,10 @@ package org.smartregister.fhircore.quest.ml
  *   applies no grey-world, clipping, rounding, /255 or mean/std normalisation.
  * - Sigmoid runs inside the graph, so every output value is already a probability in [0, 1].
  *
- * Still open until the model is delivered: [ASSET_NAMES], [MODEL_VERSION] and the output ordering
- * behind [COMPONENTS].
+ * Verified on delivery (2026-09-29, `scripts/run_onnx_inference.py --inspect --compare-legacy`):
+ * three MobileViTv2 files, each `image_bgr_uint8 [batch, 256, 256, 3]` → `probability [batch]`,
+ * with grey-world normalisation inside the graph. On docs/test-images every component matches the
+ * v38 PyTorch probabilities to 6 decimals, which also pins the file → v6/v8/v82 order.
  */
 object OnnxModelContract {
 
@@ -34,10 +36,17 @@ object OnnxModelContract {
    * Model files under `quest/src/main/assets/`, in output order. The ONNX path switches on only
    * when every file listed here is bundled; until then the app keeps using the PyTorch models.
    *
-   * One file covers the "1 model → 3 values" and "1 model → 1 value" layouts of slide 3; listing
-   * three files covers "3 models → 3 values" (their outputs are concatenated in list order).
+   * This is the "3 models → 3 values" layout of slide 3: the outputs are concatenated in list
+   * order, so the order here must match [COMPONENTS]. Each file must be self-contained — the engine
+   * loads from asset bytes and cannot resolve a `.onnx.data` sidecar, so run
+   * `scripts/embed_onnx_weights.py` on any model exported with external weights.
    */
-  val ASSET_NAMES = listOf("screening_model.onnx")
+  val ASSET_NAMES =
+    listOf(
+      "mvit2_fold1_6_latest.onnx",
+      "mvit2_fold1_8.onnx",
+      "mvit2_fold2_8_latest.onnx",
+    )
 
   /**
    * Reported as `model_version` on `model_inference_completed`. Must differ from the PyTorch
