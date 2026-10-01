@@ -71,7 +71,9 @@ import org.smartregister.fhircore.engine.ui.theme.GreyTextColor
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.ui.theme.ThinGreyBackground
+import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
@@ -79,6 +81,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
 import org.smartregister.fhircore.quest.ui.register.tasks.BottomSheetContent
+import org.smartregister.fhircore.quest.ui.shared.components.AiEnableFailedDialog
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 
@@ -119,8 +122,34 @@ fun DashboardScreen(
     ActivityResultContracts.RequestPermission()
   ) { isGranted: Boolean ->
     viewModel.setPermissionGranted(isGranted)
-    if (isGranted){
-      viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+    // The permission only covers the sync progress notification; a denial must not cancel the sync
+    // the user asked for (once denied for good, Android answers every later request with a denial,
+    // so gating on it left the sync and "Failed to enable AI" Retry buttons doing nothing)
+    viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+  }
+
+  // Starts the user-initiated sync for viewModel.appMainEvent; false when one is already running.
+  val startForegroundSync: () -> Boolean = {
+    if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
+      android.widget.Toast.makeText(
+        context,
+        context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
+        android.widget.Toast.LENGTH_SHORT
+      ).show()
+      false
+    } else {
+      PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
+      if (!viewModel.permissionGranted.value) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+          viewModel.setPermissionGranted(true)
+          viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+        }
+      }else{
+        viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
+      }
+      true
     }
   }
 
@@ -492,29 +521,27 @@ fun DashboardScreen(
             viewModel.setShowDialog(false)
           },
           onConfirm = {
-            if (org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
-              android.widget.Toast.makeText(
-                context,
-                context.getString(org.smartregister.fhircore.quest.R.string.sync_in_progress),
-                android.widget.Toast.LENGTH_SHORT
-              ).show()
-            } else {
-              viewModel.setShowDialog(false)
-              PostHogAnalytics.capture(PostHogAnalytics.Events.SYNC_INITIATED)
-              if (!viewModel.permissionGranted.value) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                  launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else {
-                  viewModel.setPermissionGranted(true)
-                  viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
-                }
-              }else{
-                viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent,true) }
-              }
-            }
+            if (startForegroundSync()) viewModel.setShowDialog(false)
           },
           onRetry = viewModel::refreshForegroundSyncStatus,
         )
+
+        if (viewModel.showAiEnableFailedDialog.value) {
+          AiEnableFailedDialog(
+            isOnline = isOnline,
+            onRetry = {
+              // isOnline can trail a connection that just dropped; ask the system at tap time
+              if (viewModel.onAiEnableRetry(isOnline = context.isDeviceOnline())) {
+                // A sync already running will bring the update too; the retry waits for it
+                if (!org.smartregister.fhircore.engine.sync.AppSyncWorker.mutex.isLocked) {
+                  viewModel.appMainEvent = AppMainEvent.SyncData(context)
+                  startForegroundSync()
+                }
+              }
+            },
+            onDismiss = viewModel::dismissAiEnableFailedDialog,
+          )
+        }
       }
     }
   }

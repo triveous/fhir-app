@@ -69,6 +69,7 @@ import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
+import org.smartregister.fhircore.quest.R as QuestR
 import org.smartregister.fhircore.quest.event.AppEvent
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
@@ -202,7 +203,15 @@ class RegisterFragment : Fragment(), OnSyncListener {
     registerViewModel.getAllUnSyncedPatientsImages()
 
     syncListenerManager.registerSyncListener(this, lifecycle)
+
+    // Remember whether AI is on before any sync, so the sync that turns it on can say so
+    registrationQuestionnaireId()?.let { questionnaireId ->
+      viewLifecycleOwner.lifecycleScope.launch { registerViewModel.refreshAiEnabledState(questionnaireId) }
+    }
   }
+
+  private fun registrationQuestionnaireId(): String? =
+    registerViewModel.registrationQuestionnaireId(registerFragmentArgs.registerId)
 
   override fun onStop() {
     super.onStop()
@@ -260,7 +269,17 @@ class RegisterFragment : Fragment(), OnSyncListener {
         // below runs on every Succeeded; only the snackbar is shown once.
         lifecycleScope.launch {
           refreshRegisterData()
-          if (!hasShownSyncCompleted) {
+          // A sync that turned AI on says so instead of the generic "Sync completed". This reports
+          // true only once, so the second Succeeded of the same sync falls through as before.
+          if (registerViewModel.reconcileAiAfterSync(registrationQuestionnaireId())) {
+            hasShownSyncCompleted = true
+            registerViewModel.emitSnackBarState(
+              SnackBarMessageConfig(
+                message = getString(QuestR.string.ai_enabled_successfully),
+                duration = SnackbarDuration.Short,
+              ),
+            )
+          } else if (!hasShownSyncCompleted) {
             hasShownSyncCompleted = true
             registerViewModel.emitSnackBarState(
               SnackBarMessageConfig(
@@ -286,9 +305,14 @@ class RegisterFragment : Fragment(), OnSyncListener {
         syncJobStatus.toString()
         // Show error message in snackBar message
         lifecycleScope.launch {
+          // The StructureMap downloads first, so a sync that fails later can still have turned AI
+          // on; that is the more useful news for someone who just tapped Retry
+          val aiJustEnabled = registerViewModel.reconcileAiAfterSync(registrationQuestionnaireId())
           registerViewModel.emitSnackBarState(
             SnackBarMessageConfig(
-              message = getString(R.string.sync_completed_with_errors),
+              message =
+                if (aiJustEnabled) getString(QuestR.string.ai_enabled_successfully)
+                else getString(R.string.sync_completed_with_errors),
               duration = SnackbarDuration.Short,
             ),
           )

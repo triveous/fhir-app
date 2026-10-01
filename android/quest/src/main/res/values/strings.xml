@@ -348,4 +348,12 @@
     <string name="app_update_forced_message">A newer version of the app is required to continue. Please update.</string>
     <string name="app_update_action_now">Update now</string>
     <string name="app_update_dismiss">Dismiss</string>
+    <string name="ai_enable_failed_title">Failed to enable AI</string>
+    <string name="ai_enable_failed_message">AI could not be enabled due to a technical issue. Please try again.</string>
+    <string name="ai_enable_failed_offline">Enabling AI requires internet. Check your connection and try again.</string>
+    <string name="ai_enable_retry">Retry</string>
+    <string name="ai_enabled_successfully">AI is enabled successfully.</string>
+    <string name="extraction_enabled">Extraction Enabled</string>
+    <string name="extraction_disabled">Extraction Disabled</string>
+    <string name="ai_extraction_status">%1$s + %2$s</string>
 </resources>

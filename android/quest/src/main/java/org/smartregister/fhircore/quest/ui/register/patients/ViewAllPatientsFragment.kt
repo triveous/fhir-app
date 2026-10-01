@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Scaffold
 import androidx.compose.material.rememberScaffoldState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -37,18 +39,27 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
 import org.smartregister.fhircore.engine.configuration.workflow.ApplicationWorkflow
+import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
+import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
+import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.isIn
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.event.EventBus
+import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
+import org.smartregister.fhircore.quest.ui.shared.components.AiEnableFailedDialog
+import org.smartregister.fhircore.quest.ui.shared.components.SnackBarMessage
+import org.smartregister.fhircore.quest.ui.shared.components.rememberIsDeviceOnline
 import org.smartregister.fhircore.quest.util.extensions.interpolateActionParamsValue
 import javax.inject.Inject
 
@@ -64,6 +75,12 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
   private val registerViewModel by viewModels<RegisterViewModel>()
   var from = ""
 
+  /** The register whose "Add new case" action names the registration form drafts reopen. */
+  private val registerId: String by lazy {
+    val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.first()
+    topMenuConfig.actions?.find { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig.id
+  }
+
   override fun onCreateView(
     inflater: LayoutInflater,
     container: ViewGroup?,
@@ -71,13 +88,10 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
   ): View {
 
     from = arguments?.getString(GenericActivityArg.ARG_FROM).toString()
-    val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.first()
-    val topMenuConfigId =
-      topMenuConfig.actions?.find { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig.id
 
     lifecycleScope.launchWhenCreated {
       registerViewModel.retrieveRegisterUiState(
-        registerId = topMenuConfigId,
+        registerId = registerId,
         screenTitle = "screenTitle",
         clearCache = false,
       )
@@ -87,6 +101,17 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
       setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
       setContent {
         val scaffoldState = rememberScaffoldState()
+        LaunchedEffect(Unit) {
+          registerViewModel.snackBarStateFlow.collectLatest { snackBar ->
+            if (snackBar.message.isNotEmpty()) {
+              scaffoldState.snackbarHostState.showSnackbar(
+                message = snackBar.message,
+                actionLabel = snackBar.actionLabel,
+                duration = snackBar.duration,
+              )
+            }
+          }
+        }
         AppTheme {
 
           // Register screen provides access to the side navigation
@@ -101,12 +126,13 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
 
             },
             snackbarHost = { snackBarHostState ->
-              /*SnackBarMessage(
+              val appConfig = appMainViewModel.applicationConfiguration
+              SnackBarMessage(
                 snackBarHostState = snackBarHostState,
                 backgroundColorHex = appConfig.snackBarTheme.backgroundColor,
                 actionColorHex = appConfig.snackBarTheme.actionTextColor,
                 contentColorHex = appConfig.snackBarTheme.messageTextColor,
-              )*/
+              )
             },
           ) { innerPadding ->
             Box(modifier = Modifier
@@ -128,10 +154,30 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
                   activity?.finish()
                 }
               )
+
+              if (registerViewModel.showAiEnableFailedDialog.value) {
+                val isOnline by rememberIsDeviceOnline()
+                AiEnableFailedDialog(
+                  isOnline = isOnline,
+                  onRetry = {
+                    if (registerViewModel.onAiEnableRetry(isOnline = requireContext().isDeviceOnline())) {
+                      startSync()
+                    }
+                  },
+                  onDismiss = registerViewModel::dismissAiEnableFailedDialog,
+                )
+              }
             }
           }
         }
       }
+    }
+  }
+
+  /** A sync that is already running will bring the update too, so the retry just waits for it. */
+  private fun startSync() {
+    if (!AppSyncWorker.mutex.isLocked) {
+      appMainViewModel.onEvent(AppMainEvent.SyncData(requireContext()), isForeground = true)
     }
   }
 
@@ -152,12 +198,17 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
                 val bundle = Bundle()
                 bundle.putString(QuestionnaireActivity.QUESTIONNAIRE_RESPONSE_PREFILL, payloadJson)
 
-                (activity as QuestionnaireHandler).launchQuestionnaire(
-                  context = requireActivity(),
-                  questionnaireConfig = questionnaireConfigInterpolated,
-                  actionParams = interpolatedParams,
-                  extraIntentBundle = bundle
-                )
+                // Submitting a draft registers a case too, so it goes through the same gate
+                viewLifecycleOwner.lifecycleScope.launch {
+                  registerViewModel.launchIfAiUpToDate(questionnaireConfigInterpolated.id) {
+                    (activity as QuestionnaireHandler).launchQuestionnaire(
+                      context = requireActivity(),
+                      questionnaireConfig = questionnaireConfigInterpolated,
+                      actionParams = interpolatedParams,
+                      extraIntentBundle = bundle
+                    )
+                  }
+                }
               }
             }
             else -> {
@@ -176,6 +227,7 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
     registerViewModel.getAllDraftResponses()
     registerViewModel.getAllUnSyncedPatients()
     //registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL, taskStatus, taskPriority)
+    syncListenerManager.registerSyncListener(this, lifecycle)
   }
 
   override fun onStop() {
@@ -184,7 +236,17 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
   }
 
   override fun onSync(syncJobStatus: CurrentSyncJobStatus) {
-
+    if (syncJobStatus !is CurrentSyncJobStatus.Succeeded && syncJobStatus !is CurrentSyncJobStatus.Failed) {
+      return
+    }
+    lifecycleScope.launch {
+      val questionnaireId = registerViewModel.registrationQuestionnaireId(registerId)
+      if (registerViewModel.reconcileAiAfterSync(questionnaireId)) {
+        registerViewModel.emitSnackBarState(
+          SnackBarMessageConfig(message = getString(R.string.ai_enabled_successfully)),
+        )
+      }
+    }
   }
 
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
