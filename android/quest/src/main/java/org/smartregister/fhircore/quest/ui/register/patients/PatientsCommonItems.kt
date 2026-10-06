@@ -32,7 +32,6 @@ import org.hl7.fhir.r4.model.ContactPoint
 import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.Patient
 import org.hl7.fhir.r4.model.QuestionnaireResponse
-import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.engine.util.extension.yearsPassed
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
@@ -51,7 +50,7 @@ internal fun DraftsItem(
     response: QuestionnaireResponse,
     modifier: Modifier,
     viewModel: RegisterViewModel,
-    onEditResponse: (String) -> Unit?,
+    onEditResponse: (QuestionnaireResponse) -> Unit,
     onDeleteResponse: (String, Boolean) -> Unit,
 ) {
     val result = response.item?.firstOrNull()?.item.takeIf { (it?.size ?: 0) >= 1 }
@@ -89,11 +88,7 @@ internal fun DraftsItem(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Box(
-                                modifier = Modifier.clickable {
-                                    val json = response.encodeResourceToString()
-                                    onEditResponse(json)
-                                    viewModel.deleteIfNotOldDraft(response.id)
-                                },
+                                modifier = Modifier.clickable { onEditResponse(response) },
                             ) {
                                 Image(
                                     modifier = Modifier.padding(8.dp),

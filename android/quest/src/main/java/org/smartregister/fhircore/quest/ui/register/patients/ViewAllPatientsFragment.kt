@@ -41,6 +41,7 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
 import org.smartregister.fhircore.engine.configuration.workflow.ApplicationWorkflow
 import org.smartregister.fhircore.engine.domain.model.SnackBarMessageConfig
@@ -49,6 +50,7 @@ import org.smartregister.fhircore.engine.sync.OnSyncListener
 import org.smartregister.fhircore.engine.sync.SyncListenerManager
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
+import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.isIn
 import org.smartregister.fhircore.quest.R
@@ -181,7 +183,7 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
     }
   }
 
-  private fun showQuestionnaire(registerUiState: RegisterUiState, payloadJson: String) {
+  private fun showQuestionnaire(registerUiState: RegisterUiState, draft: QuestionnaireResponse) {
     registerUiState.registerConfiguration?.noResults?.let { noResultConfig ->
 
       noResultConfig.actionButton?.actions?.let {
@@ -196,11 +198,17 @@ class ViewAllPatientsFragment : Fragment(), OnSyncListener {
               actionConfig.questionnaire?.let { questionnaireConfig ->
                 val questionnaireConfigInterpolated = questionnaireConfig.interpolate(emptyMap())
                 val bundle = Bundle()
-                bundle.putString(QuestionnaireActivity.QUESTIONNAIRE_RESPONSE_PREFILL, payloadJson)
+                bundle.putString(
+                  QuestionnaireActivity.QUESTIONNAIRE_RESPONSE_PREFILL,
+                  draft.encodeResourceToString(),
+                )
 
                 // Submitting a draft registers a case too, so it goes through the same gate
                 viewLifecycleOwner.lifecycleScope.launch {
                   registerViewModel.launchIfAiUpToDate(questionnaireConfigInterpolated.id) {
+                    // Only once the form really opens: backing out of it is what saves the draft
+                    // again, so a blocked or debounced launch must leave the stored draft alone
+                    registerViewModel.deleteIfNotOldDraft(draft.id)
                     (activity as QuestionnaireHandler).launchQuestionnaire(
                       context = requireActivity(),
                       questionnaireConfig = questionnaireConfigInterpolated,

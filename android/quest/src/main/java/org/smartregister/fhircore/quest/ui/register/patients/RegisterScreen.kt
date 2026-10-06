@@ -77,6 +77,7 @@ import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
+import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
 import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
@@ -131,12 +132,21 @@ fun RegisterScreen(
 
     // Every way into the registration form (Add New Case, either layout, and editing a draft) goes
     // through the AI gate: with AI on but no extraction the case would lose its AI result
-    val openRegistrationForm: (Bundle?) -> Unit = { bundle ->
+    val openRegistrationForm: (QuestionnaireResponse?) -> Unit = { draft ->
         val actions = registerUiState.registerConfiguration?.noResults?.actionButton?.actions
         val questionnaireId = viewModel.registrationQuestionnaireId(registerUiState.registerConfiguration)
         if (actions != null && questionnaireId != null) {
             scope.launch {
                 viewModel.launchIfAiUpToDate(questionnaireId) {
+                    val bundle =
+                        draft?.let {
+                            Bundle().apply {
+                                putString(QUESTIONNAIRE_RESPONSE_PREFILL, it.encodeResourceToString())
+                            }
+                        }
+                    // Only once the form really opens: backing out of it is what saves the draft
+                    // again, so a blocked or debounced launch must leave the stored draft alone
+                    draft?.let { viewModel.deleteIfNotOldDraft(it.id) }
                     actions.handleClickEvent(navController, bundle = bundle)
                 }
             }
@@ -330,7 +340,7 @@ private fun RegisterContent(
     isOnline: Boolean,
     onSoftUpdate: () -> Unit,
     onDismissSoftUpdate: () -> Unit,
-    onOpenRegistrationForm: (Bundle?) -> Unit,
+    onOpenRegistrationForm: (QuestionnaireResponse?) -> Unit,
 ) {
     val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
     val caseSyncStatus by viewModel.caseSyncStatusStateFlow.collectAsState()
@@ -408,7 +418,7 @@ private fun EmptyRegisterView(
     modifier: Modifier,
     noResultConfig: NoResultsConfig,
     isFetching: Boolean,
-    onOpenRegistrationForm: (Bundle?) -> Unit,
+    onOpenRegistrationForm: (QuestionnaireResponse?) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -484,7 +494,7 @@ private fun PopulatedRegisterView(
     caseSyncStatus: Map<String, Boolean>,
     savedRes: List<QuestionnaireResponse>,
     isLoadingCases: Boolean,
-    onOpenRegistrationForm: (Bundle?) -> Unit,
+    onOpenRegistrationForm: (QuestionnaireResponse?) -> Unit,
     showDeleteDialog: Boolean,
     onDeleteDraft: (String, Boolean) -> Unit,
     onConfirmDelete: () -> Unit,
@@ -510,10 +520,8 @@ private fun PopulatedRegisterView(
         }
 
         Box(modifier = modifier.fillMaxWidth()) {
-            val onEditDraftResponse: (String) -> Unit = { json ->
-                // Submitting a draft registers a case too, so it goes through the same gate
-                onOpenRegistrationForm(Bundle().apply { putString(QUESTIONNAIRE_RESPONSE_PREFILL, json) })
-            }
+            // Submitting a draft registers a case too, so it goes through the same gate
+            val onEditDraftResponse: (QuestionnaireResponse) -> Unit = onOpenRegistrationForm
 
             Box(
                 modifier = Modifier
@@ -583,7 +591,7 @@ fun ShowDrafts(
     drafts: List<QuestionnaireResponse>,
     viewModel: RegisterViewModel,
     onDeleteResponse: (String, Boolean) -> Unit,
-    onEditResponse: (String) -> Unit?,
+    onEditResponse: (QuestionnaireResponse) -> Unit,
     allDraftsSize: Int,
 ) {
     Box(
@@ -627,7 +635,7 @@ private fun DraftsListSection(
     modifier: Modifier,
     drafts: List<QuestionnaireResponse>,
     viewModel: RegisterViewModel,
-    onEditResponse: (String) -> Unit?,
+    onEditResponse: (QuestionnaireResponse) -> Unit,
     onDeleteResponse: (String, Boolean) -> Unit,
     allDraftsSize: Int,
 ) {
