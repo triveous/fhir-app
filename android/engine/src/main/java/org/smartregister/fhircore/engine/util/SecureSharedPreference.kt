@@ -209,6 +209,27 @@ class SecureSharedPreference @Inject constructor(@ApplicationContext val context
   fun deleteSessionPin() =
     secureSharedPreferences.edit { remove(SharedPreferenceKey.LOGIN_PIN_KEY.name) }
 
+  fun setUserSwitchAllowed(allowed: Boolean) =
+    secureSharedPreferences.edit {
+      putBoolean(SharedPreferenceKey.USER_SWITCH_ALLOWED.name, allowed)
+    }
+
+  fun isUserSwitchAllowed(): Boolean =
+    secureSharedPreferences.getBoolean(SharedPreferenceKey.USER_SWITCH_ALLOWED.name, false)
+
+  /**
+   * Drops what belongs to the previous user's session: PIN, practitioner id and last-sync time.
+   * The login credentials stay, because by the time this runs they are already the new user's.
+   */
+  fun clearPreviousUserSession() =
+    secureSharedPreferences.edit {
+      remove(SharedPreferenceKey.LOGIN_PIN_KEY.name)
+      remove(SharedPreferenceKey.LOGIN_PIN_SALT.name)
+      remove(SharedPreferenceKey.PRACTITIONER_USER_ID.name)
+      remove(SharedPreferenceKey.LAST_SYNC_DATE_TIME.name)
+      remove(SharedPreferenceKey.USER_SWITCH_ALLOWED.name)
+    }
+
   /** This method resets/clears all existing values in the shared preferences synchronously */
   fun resetSharedPrefs() = secureSharedPreferences.edit { clear() }
 

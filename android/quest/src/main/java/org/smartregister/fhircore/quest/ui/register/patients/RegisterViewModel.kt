@@ -112,6 +112,7 @@ import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
+import org.smartregister.fhircore.quest.ui.login.UserSwitchManager
 import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireViewModel
 import org.smartregister.fhircore.quest.ui.register.tasks.TaskCodes
@@ -160,6 +161,7 @@ constructor(
     val resourceDataRulesExecutor: ResourceDataRulesExecutor,
     val fhirEngine: FhirEngine,
     val featureFlagUtil: FeatureFlagUtil,
+    private val userSwitchManager: UserSwitchManager,
 ) : ViewModel() {
 
     private val _snackBarStateFlow = MutableSharedFlow<SnackBarMessageConfig>()
@@ -234,6 +236,14 @@ constructor(
 
     private val _isLogout = MutableStateFlow<Boolean>(false)
     val isLogout: StateFlow<Boolean> = _isLogout
+
+    /**
+     * Cases still to sync, for the "pending to sync" logout dialog; null while it is hidden. 0 means
+     * something other than a case (e.g. only photos) is pending.
+     */
+    private val _logoutPendingSyncCaseCount = MutableStateFlow<Int?>(null)
+    val logoutPendingSyncCaseCount: StateFlow<Int?> = _logoutPendingSyncCaseCount
+    private var logoutCheckJob: Job? = null
 
     private val _allSyncedPatientsStateFlow =
         MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
@@ -573,8 +583,43 @@ constructor(
         return practitionerId.isEmpty() || practitionerId != practitionerId.lowercase()
     }
 
-    fun logout() {
-        secureSharedPreference.deleteSessionPin()
+    /**
+     * Logout from the profile. With everything synced the user is logged out straight away and a
+     * different user may log in next; otherwise the pending-sync dialog asks them to sync first.
+     */
+    fun onLogoutClicked() {
+        if (logoutCheckJob?.isActive == true) return
+        logoutCheckJob =
+            viewModelScope.launch {
+                val pending =
+                    try {
+                        userSwitchManager.pendingSyncSummary()
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (exception: Exception) {
+                        // Cannot tell what is unsynced, so treat it as pending rather than risk it.
+                        Timber.e(exception, "Could not check pending sync before logout")
+                        null
+                    }
+                if (pending != null && !pending.hasPendingData) {
+                    logout(fullySynced = true)
+                } else {
+                    _logoutPendingSyncCaseCount.value = pending?.caseCount ?: 0
+                }
+            }
+    }
+
+    fun dismissLogoutPendingSync() {
+        _logoutPendingSyncCaseCount.value = null
+    }
+
+    /**
+     * Ends the session. Only a [fullySynced] logout lets a different user log in next; any other
+     * logout keeps the device to the same user so their unsynced data is not lost.
+     */
+    fun logout(fullySynced: Boolean = false) {
+        _logoutPendingSyncCaseCount.value = null
+        userSwitchManager.onLogout(fullySynced)
         _isLogout.value = true
     }
 

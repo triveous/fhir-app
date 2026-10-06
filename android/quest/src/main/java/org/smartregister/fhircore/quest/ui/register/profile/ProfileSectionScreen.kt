@@ -81,6 +81,7 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
+import org.smartregister.fhircore.quest.ui.shared.components.LogoutPendingSyncDialog
 import org.smartregister.fhircore.quest.util.AiStatus
 
 
@@ -94,7 +95,8 @@ fun ProfileSectionScreen(
     searchText: MutableState<String>,
     userName: String = "",
     onBackPressed: () -> Unit,
-    onClickChangeLanguage:() -> Unit
+    onClickChangeLanguage:() -> Unit,
+    onSyncNow: () -> Unit,
 ) {
 
     // The login username, not getUserName(): that returns the Practitioner logical id, which is a
@@ -141,6 +143,19 @@ fun ProfileSectionScreen(
         if (showForgotPasswordDialog) {
             ForgotPasswordDialog(
                 onDismissDialog = { showForgotPasswordDialog = false },
+            )
+        }
+
+        val logoutPendingSyncCaseCount by viewModel.logoutPendingSyncCaseCount.collectAsState()
+        logoutPendingSyncCaseCount?.let { caseCount ->
+            LogoutPendingSyncDialog(
+                caseCount = caseCount,
+                onLogout = { viewModel.logout() },
+                onSyncNow = {
+                    viewModel.dismissLogoutPendingSync()
+                    onSyncNow()
+                },
+                onDismiss = viewModel::dismissLogoutPendingSync,
             )
         }
 
@@ -316,7 +331,7 @@ fun ProfileSectionScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        viewModel.logout()
+                                        viewModel.onLogoutClicked()
                                     }
                                     .padding(horizontal = 16.dp, vertical = 16.dp)
                                     .background(Color.White)) {

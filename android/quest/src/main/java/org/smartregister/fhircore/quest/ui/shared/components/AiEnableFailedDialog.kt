@@ -188,7 +188,7 @@ internal fun AiEnableFailedCard(isOnline: Boolean, onRetry: () -> Unit) {
  * Figma lays text out in full line boxes; Compose's default line-height style trims the leading above
  * the first line and below the last, which made the title 21dp instead of 24 and pulled Retry 8dp up.
  */
-private fun TextStyle.withFullLineHeight(lineHeight: TextUnit) =
+internal fun TextStyle.withFullLineHeight(lineHeight: TextUnit) =
   copy(
     lineHeight = lineHeight,
     lineHeightStyle =

@@ -18,6 +18,7 @@ package org.smartregister.fhircore.quest.ui.main
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Bundle
@@ -208,6 +209,23 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
       lifecycleScope.launch { resumeIncompleteFirstTimeSync(this@AppMainActivity) }
       schedulePeriodicJobs()
     }
+    startSyncIfRequested(intent)
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    startSyncIfRequested(intent)
+  }
+
+  /**
+   * "Sync now" from another screen (the logout pending-sync dialog) returns here with
+   * [EXTRA_START_SYNC]. The sync is started from this activity's view model so it outlives the
+   * screen that asked for it and drives this screen's sync indicator and progress bar.
+   */
+  private fun startSyncIfRequested(intent: Intent?) {
+    if (intent?.getBooleanExtra(EXTRA_START_SYNC, false) != true) return
+    intent.removeExtra(EXTRA_START_SYNC)
+    appMainViewModel.onEvent(AppMainEvent.SyncData(this), isForeground = true)
   }
 
   private fun setupSyncProgressBar() {
@@ -377,5 +395,10 @@ open class AppMainActivity() : BaseMultiLanguageActivity(), QuestionnaireHandler
         // Do nothing
       }
     }
+  }
+
+  companion object {
+    /** Starts a foreground sync when this activity is opened or brought back with it. */
+    const val EXTRA_START_SYNC = "extraStartSync"
   }
 }

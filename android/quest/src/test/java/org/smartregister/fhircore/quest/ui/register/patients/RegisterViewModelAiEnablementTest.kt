@@ -34,6 +34,7 @@ import org.smartregister.fhircore.engine.util.DispatcherProvider
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
+import org.smartregister.fhircore.quest.ui.login.UserSwitchManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -258,6 +259,7 @@ class RegisterViewModelAiEnablementTest {
         resourceDataRulesExecutor = mockk<ResourceDataRulesExecutor>(relaxed = true),
         fhirEngine = fhirEngine,
         featureFlagUtil = featureFlagUtil,
+        userSwitchManager = mockk<UserSwitchManager>(relaxed = true),
       )
       .also {
         it.elapsedRealtime = { now }

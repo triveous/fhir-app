@@ -134,7 +134,7 @@
     <string name="service_card">सेवा कार्ड</string>
     <string name="other_patients">अन्य रोगी</string>
     <string name="responses">उत्तर (%1$s)</string>
-    <string name="multi_user_login_attempt">एक अलग प्रदाता के साथ लॉगिन करने का प्रयास किया</string>
+    <string name="multi_user_login_attempt">इस डिवाइस पर किसी अन्य उपयोगकर्ता का डेटा है। किसी दूसरे उपयोगकर्ता के लॉगिन करने से पहले उन्हें लॉगिन करके सभी केस सिंक करने और लॉग आउट करना होगा</string>
     <string name="please_wait">कृपया प्रतीक्षा करें…</string>
     <string name="clear_database">डेटा रीसेट करें</string>
     <string name="transfer_data">डेटा ट्रांसफर करें</string>

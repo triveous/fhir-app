@@ -356,4 +356,11 @@
     <string name="extraction_enabled">Extraction Enabled</string>
     <string name="extraction_disabled">Extraction Disabled</string>
     <string name="ai_extraction_status">%1$s + %2$s</string>
+    <plurals name="logout_pending_sync_title">
+        <item quantity="one">%d case pending to sync</item>
+        <item quantity="other">%d cases pending to sync</item>
+    </plurals>
+    <string name="logout_pending_sync_data_title">Data pending to sync</string>
+    <string name="logout_pending_sync_message">Sync your device before logging out to prevent data loss</string>
+    <string name="logout_pending_sync_logout">Log out</string>
 </resources>

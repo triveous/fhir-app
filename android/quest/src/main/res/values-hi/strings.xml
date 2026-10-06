@@ -357,4 +357,11 @@
     <string name="extraction_enabled">एक्सट्रैक्शन चालू है</string>
     <string name="extraction_disabled">एक्सट्रैक्शन बंद है</string>
     <string name="ai_extraction_status">%1$s + %2$s</string>
+    <plurals name="logout_pending_sync_title">
+        <item quantity="one">%d केस सिंक होना बाकी है</item>
+        <item quantity="other">%d केस सिंक होने बाकी हैं</item>
+    </plurals>
+    <string name="logout_pending_sync_data_title">डेटा सिंक होना बाकी है</string>
+    <string name="logout_pending_sync_message">डेटा खोने से बचाने के लिए लॉग आउट करने से पहले अपना डिवाइस सिंक करें</string>
+    <string name="logout_pending_sync_logout">लॉग आउट</string>
 </resources>

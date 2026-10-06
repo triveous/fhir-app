@@ -49,6 +49,7 @@ import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.login.LoginActivity
+import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.util.addReplaceFragment
@@ -125,12 +126,26 @@ class ProfileSectionFragment : Fragment(), OnSyncListener {
                                 },
                                 onClickChangeLanguage = {
                                     requireActivity().addReplaceFragment(R.id.fragment_container, ChangeLanguageFragment(), addFragment = true, addToBackStack = true)
-                                }
+                                },
+                                onSyncNow = ::returnHomeAndSync,
                             )                        }
                     }
                 }
             }
         }
+    }
+
+    /**
+     * "Sync now" in the logout pending-sync dialog: back to the home screen, which starts the sync
+     * and shows it in progress. Home sits below this screen, so CLEAR_TOP closes this one.
+     */
+    private fun returnHomeAndSync() {
+        startActivity(
+            Intent(requireContext(), AppMainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(AppMainActivity.EXTRA_START_SYNC, true),
+        )
+        requireActivity().finish()
     }
 
     override fun onResume() {

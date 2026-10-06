@@ -54,6 +54,7 @@ import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialogState
+import org.smartregister.fhircore.quest.ui.login.UserSwitchManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -202,6 +203,7 @@ class RegisterViewModelForegroundSyncStatusTest {
             resourceDataRulesExecutor = mockk<ResourceDataRulesExecutor>(relaxed = true),
             fhirEngine = fhirEngine,
             featureFlagUtil = mockk<FeatureFlagUtil>(relaxed = true),
+            userSwitchManager = mockk<UserSwitchManager>(relaxed = true),
         )
 
     private fun patientLocalChange(id: String) =

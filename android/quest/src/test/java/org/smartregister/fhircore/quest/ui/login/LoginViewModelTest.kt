@@ -23,6 +23,7 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import io.mockk.CapturingSlot
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -105,6 +106,7 @@ internal class LoginViewModelTest : RobolectricTest() {
   private val thisUsername = "demo"
   private val thisPassword = "paswd"
   private val workManager = mockk<WorkManager>()
+  private val userSwitchManager = mockk<UserSwitchManager>(relaxed = true)
 
   @Before
   fun setUp() {
@@ -127,6 +129,7 @@ internal class LoginViewModelTest : RobolectricTest() {
           secureSharedPreference = secureSharedPreference,
           dispatcherProvider = dispatcherProvider,
           workManager = workManager,
+          userSwitchManager = userSwitchManager,
         ),
       )
   }
@@ -228,6 +231,55 @@ internal class LoginViewModelTest : RobolectricTest() {
       LoginErrorState.MULTI_USER_LOGIN_ATTEMPT,
       loginViewModel.loginErrorState.value!!,
     )
+  }
+
+  @Test
+  fun testDifferentUsernameIsRejectedEvenWhenPreviousUsersSessionIsActive() {
+    updateCredentials()
+    secureSharedPreference.saveCredentials("nativeUser", "n4t1veP5wd".toCharArray())
+    sharedPreferencesHelper.write(SharedPreferenceKey.PRACTITIONER_DETAILS.name, PractitionerDetails())
+    every { tokenAuthenticator.sessionActive() } returns true
+    loginViewModel.login(mockedActivity(isDeviceOnline = true))
+    awaitLoginErrorState()
+    Assert.assertEquals(
+      LoginErrorState.MULTI_USER_LOGIN_ATTEMPT,
+      loginViewModel.loginErrorState.value!!,
+    )
+    Assert.assertFalse(loginViewModel.navigateToHome.value!!)
+  }
+
+  @Test
+  fun testDifferentUserAfterFullySyncedLogoutClearsPreviousUsersDataOnceAuthenticated() {
+    updateCredentials()
+    secureSharedPreference.saveCredentials("nativeUser", "n4t1veP5wd".toCharArray())
+    every { tokenAuthenticator.sessionActive() } returns true
+    coEvery { userSwitchManager.canSwitchUser() } returns true
+    coEvery { tokenAuthenticator.fetchAccessToken(any(), any()) } returns
+      Result.success(OAuthResponse(accessToken = "token", refreshToken = "refresh"))
+    coEvery { keycloakService.fetchUserInfo() } returns
+      Response.error(400, mockk<RealResponseBody>(relaxed = true))
+
+    loginViewModel.login(mockedActivity(isDeviceOnline = true))
+    awaitLoginErrorState()
+
+    coVerify { userSwitchManager.clearPreviousUserData("nativeUser") }
+    Assert.assertEquals(LoginErrorState.ERROR_FETCHING_USER, loginViewModel.loginErrorState.value!!)
+  }
+
+  @Test
+  fun testDifferentUserWithWrongPasswordNeverClearsPreviousUsersData() {
+    updateCredentials()
+    secureSharedPreference.saveCredentials("nativeUser", "n4t1veP5wd".toCharArray())
+    every { tokenAuthenticator.sessionActive() } returns false
+    coEvery { userSwitchManager.canSwitchUser() } returns true
+    coEvery { tokenAuthenticator.fetchAccessToken(any(), any()) } returns
+      Result.failure(UnknownHostException())
+
+    loginViewModel.login(mockedActivity(isDeviceOnline = true))
+    awaitLoginErrorState()
+
+    coVerify(exactly = 0) { userSwitchManager.clearPreviousUserData(any()) }
+    Assert.assertEquals(LoginErrorState.UNKNOWN_HOST, loginViewModel.loginErrorState.value!!)
   }
 
   @Test
@@ -823,6 +875,14 @@ internal class LoginViewModelTest : RobolectricTest() {
   fun testDownloadNowWorkflowConfigs() {
     loginViewModel.downloadNowWorkflowConfigs()
     verify { workManager.enqueue(any<OneTimeWorkRequest>()) }
+  }
+
+  /** login() runs on Dispatchers.IO, so wait for it to post its outcome before asserting. */
+  private fun awaitLoginErrorState() {
+    val deadline = System.currentTimeMillis() + 5_000
+    while (loginViewModel.loginErrorState.value == null && System.currentTimeMillis() < deadline) {
+      Thread.sleep(20)
+    }
   }
 
   private fun updateCredentials() {
