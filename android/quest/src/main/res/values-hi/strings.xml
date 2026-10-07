@@ -364,4 +364,5 @@
     <string name="logout_pending_sync_data_title">डेटा सिंक होना बाकी है</string>
     <string name="logout_pending_sync_message">डेटा खोने से बचाने के लिए लॉग आउट करने से पहले अपना डिवाइस सिंक करें</string>
     <string name="logout_pending_sync_logout">लॉग आउट</string>
+    <string name="dialog_close">बंद करें</string>
 </resources>

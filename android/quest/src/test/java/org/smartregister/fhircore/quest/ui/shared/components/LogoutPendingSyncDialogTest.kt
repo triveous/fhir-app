@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Build
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -24,7 +25,7 @@ class LogoutPendingSyncDialogTest {
   @Test
   fun showsThePendingCasesAndBothChoices() {
     composeRule.setContent {
-      AppTheme { LogoutPendingSyncCard(caseCount = 3, onLogout = {}, onSyncNow = {}) }
+      AppTheme { LogoutPendingSyncCard(caseCount = 3, onLogout = {}, onSyncNow = {}, onClose = {}) }
     }
 
     composeRule.onNodeWithText("3 cases pending to sync").assertIsDisplayed()
@@ -38,7 +39,7 @@ class LogoutPendingSyncDialogTest {
   @Test
   fun oneCaseUsesTheSingular() {
     composeRule.setContent {
-      AppTheme { LogoutPendingSyncCard(caseCount = 1, onLogout = {}, onSyncNow = {}) }
+      AppTheme { LogoutPendingSyncCard(caseCount = 1, onLogout = {}, onSyncNow = {}, onClose = {}) }
     }
 
     composeRule.onNodeWithText("1 case pending to sync").assertIsDisplayed()
@@ -47,7 +48,7 @@ class LogoutPendingSyncDialogTest {
   @Test
   fun pendingDataWithoutACaseDropsTheCount() {
     composeRule.setContent {
-      AppTheme { LogoutPendingSyncCard(caseCount = 0, onLogout = {}, onSyncNow = {}) }
+      AppTheme { LogoutPendingSyncCard(caseCount = 0, onLogout = {}, onSyncNow = {}, onClose = {}) }
     }
 
     composeRule.onNodeWithText("Data pending to sync").assertIsDisplayed()
@@ -59,7 +60,12 @@ class LogoutPendingSyncDialogTest {
     var syncs = 0
     composeRule.setContent {
       AppTheme {
-        LogoutPendingSyncCard(caseCount = 3, onLogout = { logouts++ }, onSyncNow = { syncs++ })
+        LogoutPendingSyncCard(
+          caseCount = 3,
+          onLogout = { logouts++ },
+          onSyncNow = { syncs++ },
+          onClose = {},
+        )
       }
     }
 
@@ -68,5 +74,29 @@ class LogoutPendingSyncDialogTest {
 
     assertEquals(1, logouts)
     assertEquals(1, syncs)
+  }
+
+  @Test
+  fun closeIconCancelsWithoutLoggingOutOrSyncing() {
+    var logouts = 0
+    var syncs = 0
+    var closes = 0
+    composeRule.setContent {
+      AppTheme {
+        LogoutPendingSyncCard(
+          caseCount = 3,
+          onLogout = { logouts++ },
+          onSyncNow = { syncs++ },
+          onClose = { closes++ },
+        )
+      }
+    }
+
+    composeRule.onNodeWithContentDescription("Close").assertIsDisplayed()
+    composeRule.onNodeWithTag(LOGOUT_PENDING_SYNC_CLOSE_TAG).performClick()
+
+    assertEquals(1, closes)
+    assertEquals(0, logouts)
+    assertEquals(0, syncs)
   }
 }

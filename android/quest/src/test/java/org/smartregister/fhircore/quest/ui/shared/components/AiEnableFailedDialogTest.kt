@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Build
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -23,7 +24,7 @@ class AiEnableFailedDialogTest {
 
   @Test
   fun onlineShowsTheFailureAndRetryWithoutTheInternetHint() {
-    composeRule.setContent { AppTheme { AiEnableFailedCard(isOnline = true, onRetry = {}) } }
+    composeRule.setContent { AppTheme { AiEnableFailedCard(isOnline = true, onRetry = {}, onClose = {}) } }
 
     composeRule.onNodeWithText("Failed to enable AI").assertIsDisplayed()
     composeRule
@@ -35,7 +36,7 @@ class AiEnableFailedDialogTest {
 
   @Test
   fun offlineAddsTheInternetHint() {
-    composeRule.setContent { AppTheme { AiEnableFailedCard(isOnline = false, onRetry = {}) } }
+    composeRule.setContent { AppTheme { AiEnableFailedCard(isOnline = false, onRetry = {}, onClose = {}) } }
 
     composeRule
       .onNodeWithText("Enabling AI requires internet. Check your connection and try again.")
@@ -45,10 +46,29 @@ class AiEnableFailedDialogTest {
   @Test
   fun retryReportsEachTap() {
     var retries = 0
-    composeRule.setContent { AppTheme { AiEnableFailedCard(isOnline = true, onRetry = { retries++ }) } }
+    composeRule.setContent {
+      AppTheme { AiEnableFailedCard(isOnline = true, onRetry = { retries++ }, onClose = {}) }
+    }
 
     composeRule.onNodeWithTag(AI_ENABLE_RETRY_TAG).performClick()
 
     assertEquals(1, retries)
+  }
+
+  @Test
+  fun closeIconDismissesWithoutRetrying() {
+    var retries = 0
+    var closes = 0
+    composeRule.setContent {
+      AppTheme {
+        AiEnableFailedCard(isOnline = true, onRetry = { retries++ }, onClose = { closes++ })
+      }
+    }
+
+    composeRule.onNodeWithContentDescription("Close").assertIsDisplayed()
+    composeRule.onNodeWithTag(AI_ENABLE_CLOSE_TAG).performClick()
+
+    assertEquals(1, closes)
+    assertEquals(0, retries)
   }
 }

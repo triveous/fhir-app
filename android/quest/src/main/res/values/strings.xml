@@ -363,4 +363,5 @@
     <string name="logout_pending_sync_data_title">Data pending to sync</string>
     <string name="logout_pending_sync_message">Sync your device before logging out to prevent data loss</string>
     <string name="logout_pending_sync_logout">Log out</string>
+    <string name="dialog_close">Close</string>
 </resources>
