@@ -746,8 +746,12 @@ constructor(
     }
 
 
-    fun getAllTasks() {
-        _isFetchingTasks.value = true
+    /**
+     * @param showLoader false refreshes the lists in place. The full-screen loader replaces the
+     * whole list, so a refresh the user did not ask for (one after a sync) should not raise it.
+     */
+    fun getAllTasks(showLoader: Boolean = true) {
+        if (showLoader) _isFetchingTasks.value = true
         viewModelScope.launch(Dispatchers.IO) {
             val practitionerDetails = getPractitionerDetails()
             val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")
