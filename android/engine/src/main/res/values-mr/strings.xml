@@ -99,7 +99,7 @@
     <string name="edit">संपादित करा</string>
     <string name="application_not_supported">अ‍ॅप्लिकेशन %1$s कॉन्फिग्स लोड करण्यात त्रुटी</string>
     <string name="eCBIS_app_name" translatable="false">eCBIS</string>
-    <string name="invalid_login_credentials">मोबाइल किंवा पासवर्ड अयोग्य आहे</string>
+    <string name="invalid_login_credentials">वापरकर्ता नाव किंवा पासवर्ड अयोग्य आहे</string>
     <string name="invalid_form_id">अवैध फॉर्म आयडी संलग्न</string>
     <string name="no">नाही</string>
     <string name="yes">होय</string>

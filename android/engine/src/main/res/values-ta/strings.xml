@@ -99,7 +99,7 @@
     <string name="edit">தொகு</string>
     <string name="application_not_supported">பயன்பாடு %1$s கட்டமைப்புகளை ஏற்றுவதில் பிழை</string>
     <string name="eCBIS_app_name" translatable="false">eCBIS</string>
-    <string name="invalid_login_credentials">மொபைல் அல்லது கடவுச்சொல் தவறாக உள்ளது</string>
+    <string name="invalid_login_credentials">பயனர்பெயர் அல்லது கடவுச்சொல் தவறாக உள்ளது</string>
     <string name="invalid_form_id">தவறான படிவ ஐடி இணைக்கப்பட்டுள்ளது</string>
     <string name="no">இல்லை</string>
     <string name="yes">ஆமாம்</string>

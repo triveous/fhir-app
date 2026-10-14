@@ -108,7 +108,7 @@
     <string name="edit">संशोधन करें</string>
     <string name="application_not_supported">एप्लिकेशन %1$s कॉन्फ़िगरेशन लोड करने में त्रुटि</string>
     <string name="eCBIS_app_name" translatable="false">eCBIS</string>
-    <string name="invalid_login_credentials">मोबाइल या पासवर्ड अमान्य है</string>
+    <string name="invalid_login_credentials">उपयोगकर्ता नाम या पासवर्ड अमान्य है</string>
     <string name="invalid_form_id">अमान्य फॉर्म आईडी जोड़ा गया</string>
     <string name="no">नहीं</string>
     <string name="yes">हाँ</string>

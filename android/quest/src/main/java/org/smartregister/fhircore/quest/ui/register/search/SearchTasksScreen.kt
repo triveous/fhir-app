@@ -232,14 +232,6 @@ fun SearchTasksScreen(
                                               .padding(horizontal = 16.dp)
                                               .padding(bottom = 2.dp)
                                         ) {
-                                            org.smartregister.fhircore.quest.ui.register.tasks.CardItemView(
-                                                viewModel,
-                                                task,
-                                                onSelectTask = {
-                                                    selectedTask = task
-                                                    coroutineScope.launch { bottomSheetState.show() }
-                                                })
-
                                             var statusLabel = ""
                                             var statusIcon: Painter = painterResource(id = R.drawable.ic_rec_new)
                                             val statusTextColor = CRAYOLA
@@ -265,21 +257,27 @@ fun SearchTasksScreen(
                                                 }
                                             }
 
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.End,
-                                                modifier = modifier
-                                                  .fillMaxWidth()
-                                                  .padding(top = 28.dp, end = 28.dp)
-                                            ) {
-                                                Image(painter = statusIcon, contentDescription = statusLabel)
-                                                Spacer(modifier = Modifier.padding(2.dp))
-                                                Text(
-                                                    text = statusLabel,
-                                                    color = statusTextColor,
-                                                    style = bodyNormal(12.sp)
-                                                )
-                                            }
+                                            org.smartregister.fhircore.quest.ui.register.tasks.CardItemView(
+                                                viewModel,
+                                                task,
+                                                trailingContent = {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.padding(top = 4.dp)
+                                                    ) {
+                                                        Image(painter = statusIcon, contentDescription = statusLabel)
+                                                        Spacer(modifier = Modifier.padding(2.dp))
+                                                        Text(
+                                                            text = statusLabel,
+                                                            color = statusTextColor,
+                                                            style = bodyNormal(12.sp)
+                                                        )
+                                                    }
+                                                },
+                                                onSelectTask = {
+                                                    selectedTask = task
+                                                    coroutineScope.launch { bottomSheetState.show() }
+                                                })
                                         }
                                     }
                                 }
