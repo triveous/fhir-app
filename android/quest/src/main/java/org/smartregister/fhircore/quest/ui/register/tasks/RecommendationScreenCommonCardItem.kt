@@ -20,6 +20,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -79,6 +80,7 @@ fun RecommendationItem(
     taskReason: String,
     taskStatus : Task.TaskStatus,
     taskStatusList: List<Pair<String, String>>?,
+    trailingContent: (@Composable () -> Unit)? = null,
     onClick: () -> Unit
 ) {
     var displayReason = ""
@@ -119,9 +121,19 @@ fun RecommendationItem(
                     contentDescription = org.smartregister.fhircore.quest.ui.main.components.FILTER
                 )
                 Column(modifier = Modifier.padding(horizontal = 12.dp)) {
-                    Text(
-                        text = name, style = body18Medium(), color = BRANDEIS_BLUE
-                    )
+                    // Laid out beside the status so long names wrap instead of running under it
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text(
+                            text = name,
+                            style = body18Medium(),
+                            color = BRANDEIS_BLUE,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (trailingContent != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            trailingContent()
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.Center) {
                         Text(

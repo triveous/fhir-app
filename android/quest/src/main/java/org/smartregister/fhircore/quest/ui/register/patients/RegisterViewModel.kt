@@ -16,6 +16,7 @@
 
 package org.smartregister.fhircore.quest.ui.register.patients
 
+import android.os.SystemClock
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableIntStateOf
@@ -62,6 +63,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.DocumentReference
@@ -81,6 +83,7 @@ import org.smartregister.fhircore.engine.configuration.ConfigType
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.configuration.register.RegisterConfiguration
 import org.smartregister.fhircore.engine.configuration.register.RegisterFilterField
+import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
 import org.smartregister.fhircore.engine.data.local.register.RegisterRepository
 import org.smartregister.fhircore.engine.domain.model.ActionParameter
 import org.smartregister.fhircore.engine.domain.model.Code
@@ -99,6 +102,7 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.daysPassed
 import org.smartregister.fhircore.engine.util.extension.encodeJson
 import org.smartregister.fhircore.engine.util.extension.extractLogicalIdUuid
+import org.smartregister.fhircore.engine.util.extension.isIn
 import org.smartregister.fhircore.engine.util.extension.isInCurrentMonth
 import org.smartregister.fhircore.engine.util.extension.isInCurrentWeek
 import org.smartregister.fhircore.engine.util.extension.isToday
@@ -108,6 +112,7 @@ import org.smartregister.fhircore.engine.util.extension.valueToString
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.data.register.RegisterPagingSource
 import org.smartregister.fhircore.quest.data.register.model.RegisterPagingSourceState
+import org.smartregister.fhircore.quest.ui.login.UserSwitchManager
 import org.smartregister.fhircore.quest.ui.main.AppMainEvent
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireViewModel
 import org.smartregister.fhircore.quest.ui.register.tasks.TaskCodes
@@ -119,6 +124,10 @@ import org.smartregister.fhircore.quest.util.DraftsUtils.saveBundleToSharedPrefe
 import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStringToDate
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.TaskProgressState
+import org.smartregister.fhircore.quest.util.AiReadiness
+import org.smartregister.fhircore.quest.util.AiStatus
+import org.smartregister.fhircore.quest.util.aiReadiness
+import org.smartregister.fhircore.quest.util.aiStatus
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialogState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
 import org.smartregister.model.practitioner.FhirPractitionerDetails
@@ -134,6 +143,12 @@ private const val PATIENT_PREVIEW_COUNT = 3
 /** Number of cases checked for sync status at a time - roughly what's visible on screen at once. */
 private const val VISIBLE_SYNC_STATUS_CHECK_COUNT = 5
 
+/** Long enough for the questionnaire to cover the screen, short enough not to feel stuck. */
+private const val CASE_LAUNCH_DEBOUNCE_MS = 1_000L
+private const val RETRY_DEBOUNCE_MS = 1_000L
+private const val AI_CHECK_TIMEOUT_MS = 10_000L
+private const val NEVER = Long.MIN_VALUE / 2
+
 @HiltViewModel
 class RegisterViewModel
 @Inject
@@ -146,6 +161,7 @@ constructor(
     val resourceDataRulesExecutor: ResourceDataRulesExecutor,
     val fhirEngine: FhirEngine,
     val featureFlagUtil: FeatureFlagUtil,
+    private val userSwitchManager: UserSwitchManager,
 ) : ViewModel() {
 
     private val _snackBarStateFlow = MutableSharedFlow<SnackBarMessageConfig>()
@@ -221,6 +237,14 @@ constructor(
     private val _isLogout = MutableStateFlow<Boolean>(false)
     val isLogout: StateFlow<Boolean> = _isLogout
 
+    /**
+     * Cases still to sync, for the "pending to sync" logout dialog; null while it is hidden. 0 means
+     * something other than a case (e.g. only photos) is pending.
+     */
+    private val _logoutPendingSyncCaseCount = MutableStateFlow<Int?>(null)
+    val logoutPendingSyncCaseCount: StateFlow<Int?> = _logoutPendingSyncCaseCount
+    private var logoutCheckJob: Job? = null
+
     private val _allSyncedPatientsStateFlow =
         MutableStateFlow<List<AllPatientsResourceData>>(emptyList())
     val allSyncedPatientsStateFlow: StateFlow<List<AllPatientsResourceData>> =
@@ -254,6 +278,182 @@ constructor(
     val permissionGranted: State<Boolean> = _permissionGranted
 
     var appMainEvent: AppMainEvent? = null
+
+    // Gate for adding cases. Only one situation blocks: the site has AI on (feature flag) but this
+    // device's registration StructureMap cannot extract the AI result, so the case would silently lose
+    // it. Sites that run with AI off add cases as usual. See AiReadiness; users only ever see "AI".
+
+    private var _showAiEnableFailedDialog = mutableStateOf(false)
+    val showAiEnableFailedDialog: State<Boolean> = _showAiEnableFailedDialog
+
+    /** Clock for the tap debounces; replaced in tests. */
+    internal var elapsedRealtime: () -> Long = SystemClock::elapsedRealtime
+    private var aiCheckInFlight = false
+    private var lastCaseLaunchAt = NEVER
+    private var lastAiRetryAt = NEVER
+
+    /** AI was last seen needing an update, so the sync that completes it gets announced. */
+    private var aiEnablePending = false
+
+    /** The user tapped Retry; if the sync that follows still leaves AI needing an update, the dialog comes back. */
+    private var aiRetryAwaitingSync = false
+
+    /**
+     * [AiReadiness] for cases registered with [questionnaireId]. An error or a read that hangs (the
+     * flag read falls back to the network when the device has no local copy) counts as
+     * [AiReadiness.UPDATE_NEEDED]: registering a case without its AI result is what this prevents, and
+     * the flag is normally read from the device in milliseconds.
+     */
+    suspend fun aiReadiness(questionnaireId: String): AiReadiness =
+        try {
+            withTimeoutOrNull(AI_CHECK_TIMEOUT_MS) {
+                withContext(dispatcherProvider.io()) {
+                    fhirEngine.aiReadiness(featureFlagUtil, questionnaireId)
+                }
+            } ?: AiReadiness.UPDATE_NEEDED.also { Timber.w("AI readiness check timed out for $questionnaireId") }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Timber.e(exception, "AI readiness check failed for $questionnaireId")
+            AiReadiness.UPDATE_NEEDED
+        }
+
+    /** The questionnaire behind the register's "Add new case" action, or null if it can't be read. */
+    fun registrationQuestionnaireId(registerId: String): String? =
+        try {
+            registrationQuestionnaireId(retrieveRegisterConfiguration(registerId))
+        } catch (exception: Exception) {
+            Timber.w(exception, "Could not resolve the registration questionnaire for $registerId")
+            null
+        }
+
+    fun registrationQuestionnaireId(registerConfiguration: RegisterConfiguration?): String? =
+        try {
+            registerConfiguration
+                ?.noResults
+                ?.actionButton
+                ?.actions
+                ?.find { it.trigger.isIn(ActionTrigger.ON_CLICK, ActionTrigger.ON_QUESTIONNAIRE_SUBMISSION) }
+                ?.interpolate(emptyMap())
+                ?.questionnaire
+                ?.interpolate(emptyMap())
+                ?.id
+                ?.takeIf { it.isNotBlank() }
+        } catch (exception: Exception) {
+            Timber.w(exception, "Could not resolve the registration questionnaire")
+            null
+        }
+
+    /**
+     * The profile screen's "AI … + Extraction …" label for the register's registration form, or null
+     * when it cannot be worked out (registration form not configured, or the check failed or hung),
+     * in which case the label is left out rather than showing a guess.
+     */
+    suspend fun aiStatusForRegister(registerId: String): AiStatus? {
+        val questionnaireId = registrationQuestionnaireId(registerId) ?: return null
+        return try {
+            withTimeoutOrNull(AI_CHECK_TIMEOUT_MS) {
+                withContext(dispatcherProvider.io()) { fhirEngine.aiStatus(featureFlagUtil, questionnaireId) }
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Timber.e(exception, "AI status check failed for $questionnaireId")
+            null
+        }
+    }
+
+    /**
+     * Gate for every "add a new case" entry point: runs [onAllowed] unless AI is on for the site but
+     * the device cannot extract the AI result ([AiReadiness.UPDATE_NEEDED]), in which case it opens the
+     * "Failed to enable AI" dialog instead. Sites with AI off are never blocked. Taps are ignored
+     * while a check is running and for [CASE_LAUNCH_DEBOUNCE_MS] after a launch, so neither a double
+     * tap nor a tap that lands before the form covers the screen opens it twice.
+     *
+     * Suspends in the caller's scope (the fragment's view lifecycle) so [onAllowed] never runs
+     * against a destroyed screen.
+     */
+    suspend fun launchIfAiUpToDate(questionnaireId: String, onAllowed: () -> Unit) {
+        if (aiCheckInFlight || elapsedRealtime() - lastCaseLaunchAt < CASE_LAUNCH_DEBOUNCE_MS) return
+        aiCheckInFlight = true
+        try {
+            if (aiReadiness(questionnaireId) == AiReadiness.UPDATE_NEEDED) {
+                Timber.w("AI is on but $questionnaireId cannot extract the AI result; add case blocked")
+                PostHogAnalytics.capture(
+                    PostHogAnalytics.Events.ADD_CASE_BLOCKED_AI_EXTRACTION_MISSING,
+                    mapOf("questionnaire_id" to questionnaireId),
+                )
+                aiEnablePending = true
+                _showAiEnableFailedDialog.value = true
+            } else {
+                aiEnablePending = false
+                lastCaseLaunchAt = elapsedRealtime()
+                onAllowed()
+            }
+        } finally {
+            aiCheckInFlight = false
+        }
+    }
+
+    /**
+     * Retry on the "Failed to enable AI" dialog. Returns true when the caller should start a sync.
+     * A repeated tap returns false, and so does a tap while offline — the dialog stays open and
+     * already says that enabling AI needs the internet.
+     */
+    fun onAiEnableRetry(isOnline: Boolean): Boolean {
+        val now = elapsedRealtime()
+        if (now - lastAiRetryAt < RETRY_DEBOUNCE_MS) return false
+        lastAiRetryAt = now
+        if (!isOnline) return false
+        _showAiEnableFailedDialog.value = false
+        aiEnablePending = true
+        aiRetryAwaitingSync = true
+        return true
+    }
+
+    fun dismissAiEnableFailedDialog() {
+        _showAiEnableFailedDialog.value = false
+    }
+
+    /**
+     * Records whether AI needs an update before any sync runs, so the sync that completes it can be
+     * announced even when the user has not tried to add a case yet.
+     */
+    suspend fun refreshAiEnabledState(questionnaireId: String) {
+        if (aiCheckInFlight) return
+        aiEnablePending = aiReadiness(questionnaireId) == AiReadiness.UPDATE_NEEDED
+    }
+
+    /**
+     * Call when a sync finishes. Returns true when AI needed an update before and this sync enabled
+     * it, so the screen can tell the user. A sync that switched the site's AI off settles it too, with
+     * nothing to announce. If the user had tapped Retry and AI still needs an update, the dialog comes
+     * back.
+     */
+    suspend fun reconcileAiAfterSync(questionnaireId: String?): Boolean {
+        val retried = aiRetryAwaitingSync
+        aiRetryAwaitingSync = false
+        if (!aiEnablePending || questionnaireId == null) return false
+        return when (aiReadiness(questionnaireId)) {
+            AiReadiness.READY -> {
+                aiEnablePending = false
+                PostHogAnalytics.capture(
+                    PostHogAnalytics.Events.AI_ENABLED_AFTER_SYNC,
+                    mapOf("questionnaire_id" to questionnaireId, "after_retry" to retried),
+                )
+                true
+            }
+            AiReadiness.DISABLED -> {
+                aiEnablePending = false
+                false
+            }
+            AiReadiness.UPDATE_NEEDED -> {
+                if (retried) _showAiEnableFailedDialog.value = true
+                false
+            }
+        }
+    }
+
     //var imageCount = 0
     //var unsyncedPatientsCount = 0
 
@@ -383,8 +583,43 @@ constructor(
         return practitionerId.isEmpty() || practitionerId != practitionerId.lowercase()
     }
 
-    fun logout() {
-        secureSharedPreference.deleteSessionPin()
+    /**
+     * Logout from the profile. With everything synced the user is logged out straight away and a
+     * different user may log in next; otherwise the pending-sync dialog asks them to sync first.
+     */
+    fun onLogoutClicked() {
+        if (logoutCheckJob?.isActive == true) return
+        logoutCheckJob =
+            viewModelScope.launch {
+                val pending =
+                    try {
+                        userSwitchManager.pendingSyncSummary()
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (exception: Exception) {
+                        // Cannot tell what is unsynced, so treat it as pending rather than risk it.
+                        Timber.e(exception, "Could not check pending sync before logout")
+                        null
+                    }
+                if (pending != null && !pending.hasPendingData) {
+                    logout(fullySynced = true)
+                } else {
+                    _logoutPendingSyncCaseCount.value = pending?.caseCount ?: 0
+                }
+            }
+    }
+
+    fun dismissLogoutPendingSync() {
+        _logoutPendingSyncCaseCount.value = null
+    }
+
+    /**
+     * Ends the session. Only a [fullySynced] logout lets a different user log in next; any other
+     * logout keeps the device to the same user so their unsynced data is not lost.
+     */
+    fun logout(fullySynced: Boolean = false) {
+        _logoutPendingSyncCaseCount.value = null
+        userSwitchManager.onLogout(fullySynced)
         _isLogout.value = true
     }
 
@@ -511,8 +746,12 @@ constructor(
     }
 
 
-    fun getAllTasks() {
-        _isFetchingTasks.value = true
+    /**
+     * @param showLoader false refreshes the lists in place. The full-screen loader replaces the
+     * whole list, so a refresh the user did not ask for (one after a sync) should not raise it.
+     */
+    fun getAllTasks(showLoader: Boolean = true) {
+        if (showLoader) _isFetchingTasks.value = true
         viewModelScope.launch(Dispatchers.IO) {
             val practitionerDetails = getPractitionerDetails()
             val practitionerId = practitionerDetails?.id.toString().substringAfterLast("/")

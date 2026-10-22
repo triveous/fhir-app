@@ -340,6 +340,7 @@ dependencies {
   testImplementation(libs.navigation.testing)
   testImplementation(libs.kotlin.test)
   testImplementation(libs.work.testing)
+  testImplementation(libs.ui.test.junit4)
   listOf(
     Dependencies.HapiFhir.fhirCoreDstu2,
     Dependencies.HapiFhir.fhirCoreDstu2016,

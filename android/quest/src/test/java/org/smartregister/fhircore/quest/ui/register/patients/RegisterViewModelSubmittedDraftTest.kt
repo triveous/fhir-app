@@ -58,6 +58,7 @@ import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import org.smartregister.fhircore.quest.util.DraftsUtils.saveBundleToSharedPreferences
+import org.smartregister.fhircore.quest.ui.login.UserSwitchManager
 
 /**
  * A draft whose case has been submitted must disappear from the register immediately. QA could
@@ -272,6 +273,7 @@ class RegisterViewModelSubmittedDraftTest {
             resourceDataRulesExecutor = mockk<ResourceDataRulesExecutor>(relaxed = true),
             fhirEngine = fhirEngine,
             featureFlagUtil = mockk<FeatureFlagUtil>(relaxed = true),
+            userSwitchManager = mockk<UserSwitchManager>(relaxed = true),
         )
             .also { viewModels.add(it) }
 }

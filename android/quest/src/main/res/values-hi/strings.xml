@@ -349,4 +349,20 @@
     <string name="app_update_forced_message">जारी रखने के लिए ऐप का नया वर्शन ज़रूरी है। कृपया अपडेट करें।</string>
     <string name="app_update_action_now">अभी अपडेट करें</string>
     <string name="app_update_dismiss">खारिज करें</string>
+    <string name="ai_enable_failed_title">AI चालू नहीं हो सका</string>
+    <string name="ai_enable_failed_message">तकनीकी समस्या के कारण AI चालू नहीं हो सका। कृपया पुनः प्रयास करें।</string>
+    <string name="ai_enable_failed_offline">AI चालू करने के लिए इंटरनेट ज़रूरी है। अपना कनेक्शन जांचें और पुनः प्रयास करें।</string>
+    <string name="ai_enable_retry">पुनः प्रयास करें</string>
+    <string name="ai_enabled_successfully">AI सफलतापूर्वक चालू हो गया।</string>
+    <string name="extraction_enabled">एक्सट्रैक्शन चालू है</string>
+    <string name="extraction_disabled">एक्सट्रैक्शन बंद है</string>
+    <string name="ai_extraction_status">%1$s + %2$s</string>
+    <plurals name="logout_pending_sync_title">
+        <item quantity="one">%d केस सिंक होना बाकी है</item>
+        <item quantity="other">%d केस सिंक होने बाकी हैं</item>
+    </plurals>
+    <string name="logout_pending_sync_data_title">डेटा सिंक होना बाकी है</string>
+    <string name="logout_pending_sync_message">डेटा खोने से बचाने के लिए लॉग आउट करने से पहले अपना डिवाइस सिंक करें</string>
+    <string name="logout_pending_sync_logout">लॉग आउट</string>
+    <string name="dialog_close">बंद करें</string>
 </resources>

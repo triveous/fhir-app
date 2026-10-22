@@ -108,7 +108,7 @@
     <string name="edit">Edit</string>
     <string name="application_not_supported">Error loading application %1$s configs</string>
     <string name="eCBIS_app_name" translatable="false">eCBIS</string>
-    <string name="invalid_login_credentials">mobile or password is invalid</string>
+    <string name="invalid_login_credentials">username or password is invalid</string>
     <string name="invalid_form_id">Invalid form ID attached</string>
     <string name="no">No</string>
     <string name="yes">Yes</string>
@@ -134,7 +134,7 @@
     <string name="service_card">SERVICE CARD</string>
     <string name="other_patients">Other patients</string>
     <string name="responses">RESPONSES (%1$s)</string>
-    <string name="multi_user_login_attempt">Attempted to login with a different provider</string>
+    <string name="multi_user_login_attempt">Another user has data on this device. They must log in, sync all cases and log out before a different user can log in</string>
     <string name="please_wait">Please wait…</string>
     <string name="clear_database">Reset data</string>
     <string name="transfer_data">Transfer Data</string>

@@ -55,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
+import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.R
 import org.smartregister.fhircore.engine.configuration.register.NoResultsConfig
@@ -75,6 +77,8 @@ import org.smartregister.fhircore.engine.domain.model.ToolBarHomeNavigation
 import org.smartregister.fhircore.engine.sync.AppSyncWorker
 import org.smartregister.fhircore.engine.ui.theme.LightColors
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
+import org.smartregister.fhircore.engine.util.extension.encodeResourceToString
+import org.smartregister.fhircore.engine.util.extension.isDeviceOnline
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.theme.Colors.ANTI_FLASH_WHITE
 import org.smartregister.fhircore.quest.theme.Colors.BRANDEIS_BLUE
@@ -90,6 +94,7 @@ import org.smartregister.fhircore.quest.ui.main.components.FILTER
 import org.smartregister.fhircore.quest.ui.main.components.TopScreenSection
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity.Companion.QUESTIONNAIRE_RESPONSE_PREFILL
 import org.smartregister.fhircore.quest.ui.register.components.EmptyStateSection
+import org.smartregister.fhircore.quest.ui.shared.components.AiEnableFailedDialog
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialog
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
@@ -123,6 +128,30 @@ fun RegisterScreen(
     val isSyncing by viewModel.isSyncRunning.collectAsState()
     val appUpdateUiState by appMainViewModel.appUpdateUiState.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Every way into the registration form (Add New Case, either layout, and editing a draft) goes
+    // through the AI gate: with AI on but no extraction the case would lose its AI result
+    val openRegistrationForm: (QuestionnaireResponse?) -> Unit = { draft ->
+        val actions = registerUiState.registerConfiguration?.noResults?.actionButton?.actions
+        val questionnaireId = viewModel.registrationQuestionnaireId(registerUiState.registerConfiguration)
+        if (actions != null && questionnaireId != null) {
+            scope.launch {
+                viewModel.launchIfAiUpToDate(questionnaireId) {
+                    val bundle =
+                        draft?.let {
+                            Bundle().apply {
+                                putString(QUESTIONNAIRE_RESPONSE_PREFILL, it.encodeResourceToString())
+                            }
+                        }
+                    // Only once the form really opens: backing out of it is what saves the draft
+                    // again, so a blocked or debounced launch must leave the stored draft alone
+                    draft?.let { viewModel.deleteIfNotOldDraft(it.id) }
+                    actions.handleClickEvent(navController, bundle = bundle)
+                }
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.isShowPendingSyncBanner()
@@ -134,9 +163,10 @@ fun RegisterScreen(
         ActivityResultContracts.RequestPermission(),
     ) { isGranted: Boolean ->
         viewModel.setPermissionGranted(isGranted)
-        if (isGranted) {
-            viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent, true) }
-        }
+        // The permission only covers the sync progress notification; a denial must not cancel the
+        // sync the user asked for (once denied for good, Android answers every later request with a
+        // denial, so gating on it left the sync and "Failed to enable AI" Retry buttons doing nothing)
+        viewModel.appMainEvent?.let { mainEvent -> appMainViewModel.onEvent(mainEvent, true) }
     }
 
     Scaffold(
@@ -165,6 +195,24 @@ fun RegisterScreen(
                     isOnline = isOnline,
                     onSoftUpdate = { launchAppStore(context) },
                     onDismissSoftUpdate = appMainViewModel::dismissSoftUpdateBanner,
+                    onOpenRegistrationForm = openRegistrationForm,
+                )
+            }
+
+            if (viewModel.showAiEnableFailedDialog.value) {
+                AiEnableFailedDialog(
+                    isOnline = isOnline,
+                    onRetry = {
+                        // isOnline can trail a connection that just dropped; ask the system at tap time
+                        if (viewModel.onAiEnableRetry(isOnline = context.isDeviceOnline())) {
+                            // A sync already running will bring the update too; the retry waits for it
+                            if (!AppSyncWorker.mutex.isLocked) {
+                                viewModel.appMainEvent = AppMainEvent.SyncData(context)
+                                handleSyncConfirm(viewModel, appMainViewModel, launcher)
+                            }
+                        }
+                    },
+                    onDismiss = viewModel::dismissAiEnableFailedDialog,
                 )
             }
 
@@ -292,6 +340,7 @@ private fun RegisterContent(
     isOnline: Boolean,
     onSoftUpdate: () -> Unit,
     onDismissSoftUpdate: () -> Unit,
+    onOpenRegistrationForm: (QuestionnaireResponse?) -> Unit,
 ) {
     val allSyncedPatients by viewModel.allPatientsStateFlow.collectAsState()
     val caseSyncStatus by viewModel.caseSyncStatusStateFlow.collectAsState()
@@ -328,8 +377,8 @@ private fun RegisterContent(
                 EmptyRegisterView(
                     modifier = modifier,
                     noResultConfig = noResultConfig,
-                    navController = navController,
                     isFetching = isLoadingCases,
+                    onOpenRegistrationForm = onOpenRegistrationForm,
                 )
             } else {
                 PopulatedRegisterView(
@@ -342,6 +391,7 @@ private fun RegisterContent(
                     caseSyncStatus = caseSyncStatus,
                     savedRes = savedRes,
                     isLoadingCases = isLoadingCases,
+                    onOpenRegistrationForm = onOpenRegistrationForm,
                     showDeleteDialog = showDeleteDialog,
                     onDeleteDraft = { id, show ->
                         deleteDraftId = id
@@ -367,8 +417,8 @@ private fun RegisterContent(
 private fun EmptyRegisterView(
     modifier: Modifier,
     noResultConfig: NoResultsConfig,
-    navController: NavController,
     isFetching: Boolean,
+    onOpenRegistrationForm: (QuestionnaireResponse?) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -427,7 +477,7 @@ private fun EmptyRegisterView(
                 modifier = modifier,
                 noResults = noResultConfig,
             ) {
-                noResultConfig.actionButton?.actions?.handleClickEvent(navController)
+                onOpenRegistrationForm(null)
             }
         }
     }
@@ -444,6 +494,7 @@ private fun PopulatedRegisterView(
     caseSyncStatus: Map<String, Boolean>,
     savedRes: List<QuestionnaireResponse>,
     isLoadingCases: Boolean,
+    onOpenRegistrationForm: (QuestionnaireResponse?) -> Unit,
     showDeleteDialog: Boolean,
     onDeleteDraft: (String, Boolean) -> Unit,
     onConfirmDelete: () -> Unit,
@@ -464,19 +515,13 @@ private fun PopulatedRegisterView(
                 modifier = modifier,
                 noResults = noResultConfig,
             ) {
-                noResultConfig.actionButton?.actions?.handleClickEvent(navController)
+                onOpenRegistrationForm(null)
             }
         }
 
         Box(modifier = modifier.fillMaxWidth()) {
-            val onEditDraftResponse: (String) -> Unit = { json ->
-                registerUiState.registerConfiguration?.noResults?.let { config ->
-                    val bundle = Bundle().apply {
-                        putString(QUESTIONNAIRE_RESPONSE_PREFILL, json)
-                    }
-                    config.actionButton?.actions?.handleClickEvent(navController, bundle = bundle)
-                }
-            }
+            // Submitting a draft registers a case too, so it goes through the same gate
+            val onEditDraftResponse: (QuestionnaireResponse) -> Unit = onOpenRegistrationForm
 
             Box(
                 modifier = Modifier
@@ -546,7 +591,7 @@ fun ShowDrafts(
     drafts: List<QuestionnaireResponse>,
     viewModel: RegisterViewModel,
     onDeleteResponse: (String, Boolean) -> Unit,
-    onEditResponse: (String) -> Unit?,
+    onEditResponse: (QuestionnaireResponse) -> Unit,
     allDraftsSize: Int,
 ) {
     Box(
@@ -590,7 +635,7 @@ private fun DraftsListSection(
     modifier: Modifier,
     drafts: List<QuestionnaireResponse>,
     viewModel: RegisterViewModel,
-    onEditResponse: (String) -> Unit?,
+    onEditResponse: (QuestionnaireResponse) -> Unit,
     onDeleteResponse: (String, Boolean) -> Unit,
     allDraftsSize: Int,
 ) {

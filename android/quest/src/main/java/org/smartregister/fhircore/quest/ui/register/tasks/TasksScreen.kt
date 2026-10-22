@@ -1334,6 +1334,7 @@ fun SectionView(
 fun CardItemView(
     viewModel: RegisterViewModel,
     task: RegisterViewModel.TaskItem,
+    trailingContent: (@Composable () -> Unit)? = null,
     onSelectTask: (RegisterViewModel.TaskItem) -> Unit
 ) {
     val name = task.patient?.name
@@ -1351,7 +1352,7 @@ fun CardItemView(
     println("CardItemView getTaskStatusList--> $taskStatusList")
     val reason = task.task.output.takeIf { it.isNotEmpty() }
         ?.get(0)?.value.valueToString()
-    RecommendationItem(name, phone, reason, task.task.status, taskStatusList) {
+    RecommendationItem(name, phone, reason, task.task.status, taskStatusList, trailingContent) {
         onSelectTask(task)
     }
 }

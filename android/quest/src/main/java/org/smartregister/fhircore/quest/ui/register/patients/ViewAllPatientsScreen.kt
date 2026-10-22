@@ -143,7 +143,7 @@ fun ViewAllPatientsScreen(
     screenTitle: String,
     from: String,
     registerUiState: RegisterUiState,
-    onEditDraftClicked: (String) -> Unit,
+    onEditDraftClicked: (QuestionnaireResponse) -> Unit,
     onBack: () -> Unit
 ) {
     val lazyListState: LazyListState = rememberLazyListState()
@@ -486,7 +486,7 @@ fun ShowAllDrafts(
     drafts: List<QuestionnaireResponse>,
     viewModel: RegisterViewModel,
     onDeleteResponse: (String, Boolean) -> Unit,
-    onEditResponse: (String) -> Unit?,
+    onEditResponse: (QuestionnaireResponse) -> Unit,
     allDraftsSize: Int
 ) {
     Box(

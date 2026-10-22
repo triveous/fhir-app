@@ -99,7 +99,7 @@
     <string name="edit">సవరించు</string>
     <string name="application_not_supported">అప్లికేషన్ %1$s కాన్ఫిగరేషన్లను లోడ్ చేయడంలో లోపం</string>
     <string name="eCBIS_app_name" translatable="false">eCBIS</string>
-    <string name="invalid_login_credentials">మొబైల్ లేదా పాస్వర్డ్ చెల్లదు</string>
+    <string name="invalid_login_credentials">వినియోగదారు పేరు లేదా పాస్వర్డ్ చెల్లదు</string>
     <string name="invalid_form_id">చెల్లని ఫారమ్ ID జత చేయబడింది</string>
     <string name="no">కాదు</string>
     <string name="yes">అవును</string>

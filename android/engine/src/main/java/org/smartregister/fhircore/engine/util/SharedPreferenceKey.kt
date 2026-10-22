@@ -52,4 +52,10 @@ enum class SharedPreferenceKey {
    * @see org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
    */
   UPLOADED_DOCUMENT_REFERENCES,
+
+  /**
+   * Set when the last session logged out with nothing left to sync, which is the only state in
+   * which a different user may log in on this device.
+   */
+  USER_SWITCH_ALLOWED,
 }

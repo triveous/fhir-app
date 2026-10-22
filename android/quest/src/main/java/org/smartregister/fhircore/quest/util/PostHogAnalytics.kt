@@ -52,6 +52,17 @@ object PostHogAnalytics {
          * alert, not just a count.
          */
         const val SUBMISSION_BLOCKED_INCOMPLETE = "submission_blocked_incomplete"
+
+        /**
+         * "Add new case" was refused because the site has AI on but the device's registration
+         * StructureMap cannot extract the AI result (a sync has not delivered the current one).
+         * Every one of these is a case that would otherwise have been registered without its AI
+         * result. Sites with AI off never send it.
+         */
+        const val ADD_CASE_BLOCKED_AI_EXTRACTION_MISSING = "add_case_blocked_ai_extraction_missing"
+
+        /** A sync delivered the missing AI result extraction; pairs with the event above. */
+        const val AI_ENABLED_AFTER_SYNC = "ai_enabled_after_sync"
         const val AI_INFERENCE_COMPLETED = "ai_inference_completed"
         const val AI_RESULT_VIEWED = "ai_result_viewed"
         const val AI_REFER_CASE = "ai_refer_case"

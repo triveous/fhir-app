@@ -44,10 +44,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.smartregister.fhircore.engine.configuration.workflow.ActionTrigger
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +81,8 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterEvent
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
+import org.smartregister.fhircore.quest.ui.shared.components.LogoutPendingSyncDialog
+import org.smartregister.fhircore.quest.util.AiStatus
 
 
 @Composable
@@ -91,7 +95,8 @@ fun ProfileSectionScreen(
     searchText: MutableState<String>,
     userName: String = "",
     onBackPressed: () -> Unit,
-    onClickChangeLanguage:() -> Unit
+    onClickChangeLanguage:() -> Unit,
+    onSyncNow: () -> Unit,
 ) {
 
     // The login username, not getUserName(): that returns the Practitioner logical id, which is a
@@ -99,9 +104,16 @@ fun ProfileSectionScreen(
     val userNameText = viewModel.getDisplayUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var showChangePinDialog by remember { mutableStateOf(false) }
-    var aiInferenceEnabled by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        aiInferenceEnabled = viewModel.featureFlagUtil.isAiInferenceEnabled()
+    // "AI Enabled/Disabled + Extraction Enabled/Disabled": the flag and the AI result extraction shown
+    // separately, so support can tell a wrong flag from a device that missed the StructureMap update.
+    // Re-read whenever a sync starts or ends, since a sync is what changes either of them.
+    var aiStatus by remember { mutableStateOf<AiStatus?>(null) }
+    val isSyncing by viewModel.isSyncRunning.collectAsState()
+    LaunchedEffect(isSyncing) {
+        val casesRegister = appMainViewModel.navigationConfiguration.clientRegisters.first()
+        val registerId =
+            casesRegister.actions?.find { it.trigger == ActionTrigger.ON_CLICK }?.id ?: casesRegister.id
+        aiStatus = viewModel.aiStatusForRegister(registerId)
     }
     val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: ""
 
@@ -131,6 +143,19 @@ fun ProfileSectionScreen(
         if (showForgotPasswordDialog) {
             ForgotPasswordDialog(
                 onDismissDialog = { showForgotPasswordDialog = false },
+            )
+        }
+
+        val logoutPendingSyncCaseCount by viewModel.logoutPendingSyncCaseCount.collectAsState()
+        logoutPendingSyncCaseCount?.let { caseCount ->
+            LogoutPendingSyncDialog(
+                caseCount = caseCount,
+                onLogout = { viewModel.logout() },
+                onSyncNow = {
+                    viewModel.dismissLogoutPendingSync()
+                    onSyncNow()
+                },
+                onDismiss = viewModel::dismissLogoutPendingSync,
             )
         }
 
@@ -306,7 +331,7 @@ fun ProfileSectionScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        viewModel.logout()
+                                        viewModel.onLogoutClicked()
                                     }
                                     .padding(horizontal = 16.dp, vertical = 16.dp)
                                     .background(Color.White)) {
@@ -342,15 +367,21 @@ fun ProfileSectionScreen(
                                 modifier = modifier.testTag(TOP_ROW_ICON_TEST_TAG),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = stringResource(
-                                id = org.smartregister.fhircore.engine.R.string.app_version,
-                                BuildConfig.VERSION_CODE,
-                                BuildConfig.VERSION_NAME)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = if (aiInferenceEnabled)
-                                stringResource(id = org.smartregister.fhircore.engine.R.string.ai_enabled) else
-                                    stringResource(id = org.smartregister.fhircore.engine.R.string.ai_disabled))
+                            // Stacked: "App version …" and "AI … + Extraction …" don't fit side by side
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = stringResource(
+                                    id = org.smartregister.fhircore.engine.R.string.app_version,
+                                    BuildConfig.VERSION_CODE,
+                                    BuildConfig.VERSION_NAME)
+                                )
+                                aiStatus?.let { status ->
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = aiStatusLabel(status),
+                                        modifier = Modifier.testTag(AI_STATUS_LABEL_TEST_TAG),
+                                    )
+                                }
+                            }
                         }
                     }}
                 }
@@ -358,6 +389,23 @@ fun ProfileSectionScreen(
         }
     }
 }
+
+const val AI_STATUS_LABEL_TEST_TAG = "aiStatusLabelTestTag"
+
+/** "AI Enabled + Extraction Disabled" etc. for the profile screen. */
+@Composable
+fun aiStatusLabel(status: AiStatus): String =
+    stringResource(
+        id = org.smartregister.fhircore.quest.R.string.ai_extraction_status,
+        stringResource(
+            id = if (status.flagEnabled) org.smartregister.fhircore.engine.R.string.ai_enabled
+            else org.smartregister.fhircore.engine.R.string.ai_disabled,
+        ),
+        stringResource(
+            id = if (status.extractionEnabled) org.smartregister.fhircore.quest.R.string.extraction_enabled
+            else org.smartregister.fhircore.quest.R.string.extraction_disabled,
+        ),
+    )
 
 @Composable
 fun ForgotPasswordDialog(

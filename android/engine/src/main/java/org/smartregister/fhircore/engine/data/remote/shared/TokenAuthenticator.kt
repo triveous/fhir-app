@@ -265,6 +265,17 @@ constructor(
   fun sessionActive(): Boolean =
     findAccount()?.let { isTokenActive(accountManager.peekAuthToken(it, AUTH_TOKEN_TYPE)) } ?: false
 
+  /** Removes the device account (and so the refresh token) held for [username]. */
+  fun removeAccount(username: String) {
+    accountManager
+      .getAccountsByType(authConfiguration.accountType)
+      .filter { it.name.equals(username, ignoreCase = true) }
+      .forEach { account ->
+        runCatching { accountManager.removeAccountExplicitly(account) }
+          .onFailure { Timber.e(it, "Could not remove account for previous user") }
+      }
+  }
+
   fun invalidateSession(onSessionInvalidated: () -> Unit) {
     findAccount()?.let { account ->
       accountManager.run {

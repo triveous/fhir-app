@@ -79,6 +79,7 @@ constructor(
   val tokenAuthenticator: TokenAuthenticator,
   val dispatcherProvider: DispatcherProvider,
   val workManager: WorkManager,
+  val userSwitchManager: UserSwitchManager,
 ) : ViewModel() {
 
   private val _launchDialPad: MutableLiveData<String?> = MutableLiveData(null)
@@ -198,6 +199,7 @@ constructor(
   }
 
   fun updateNavigateHome(navigateHome: Boolean = true) {
+    if (navigateHome) userSwitchManager.onLoginCompleted()
     _navigateToHome.postValue(navigateHome)
   }
 
@@ -219,19 +221,26 @@ constructor(
         key = SharedPreferenceKey.PRACTITIONER_DETAILS.name,
         decodeWithGson = true,
       )
-    if (tokenAuthenticator.sessionActive() && practitionerDetails != null) {
+    val previousUsername = secureSharedPreference.retrieveCredentials()?.username
+    val isDifferentUser = previousUsername != null && !username.equals(previousUsername, true)
+    // The still-active session belongs to the previous user, so it only short-circuits their login.
+    if (!isDifferentUser && tokenAuthenticator.sessionActive() && practitionerDetails != null) {
       _showProgressBar.postValue(false)
       updateNavigateHome(true)
     } else {
-      // Prevent user from logging in with different credentials
-      val existingCredentials = secureSharedPreference.retrieveCredentials()
-      if (existingCredentials != null && !username.equals(existingCredentials.username, true)) {
+      // A different user may only log in once the previous one logged out with everything synced;
+      // otherwise their unsynced cases would be lost.
+      if (isDifferentUser && !userSwitchManager.canSwitchUser()) {
         _showProgressBar.postValue(false)
         _loginErrorState.postValue(LoginErrorState.MULTI_USER_LOGIN_ATTEMPT)
       } else {
         tokenAuthenticator
           .fetchAccessToken(username, password)
-          .onSuccess { fetchPractitioner(onFetchUserInfo, onFetchPractitioner) }
+          .onSuccess {
+            // Cleared only now that the new user is authenticated, so a typo never wipes the device.
+            if (isDifferentUser) userSwitchManager.clearPreviousUserData(previousUsername!!)
+            fetchPractitioner(onFetchUserInfo, onFetchPractitioner)
+          }
           .onFailure {
             _showProgressBar.postValue(false)
             var errorState = LoginErrorState.ERROR_FETCHING_USER

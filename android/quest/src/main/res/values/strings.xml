@@ -348,4 +348,20 @@
     <string name="app_update_forced_message">A newer version of the app is required to continue. Please update.</string>
     <string name="app_update_action_now">Update now</string>
     <string name="app_update_dismiss">Dismiss</string>
+    <string name="ai_enable_failed_title">Failed to enable AI</string>
+    <string name="ai_enable_failed_message">AI could not be enabled due to a technical issue. Please try again.</string>
+    <string name="ai_enable_failed_offline">Enabling AI requires internet. Check your connection and try again.</string>
+    <string name="ai_enable_retry">Retry</string>
+    <string name="ai_enabled_successfully">AI is enabled successfully.</string>
+    <string name="extraction_enabled">Extraction Enabled</string>
+    <string name="extraction_disabled">Extraction Disabled</string>
+    <string name="ai_extraction_status">%1$s + %2$s</string>
+    <plurals name="logout_pending_sync_title">
+        <item quantity="one">%d case pending to sync</item>
+        <item quantity="other">%d cases pending to sync</item>
+    </plurals>
+    <string name="logout_pending_sync_data_title">Data pending to sync</string>
+    <string name="logout_pending_sync_message">Sync your device before logging out to prevent data loss</string>
+    <string name="logout_pending_sync_logout">Log out</string>
+    <string name="dialog_close">Close</string>
 </resources>

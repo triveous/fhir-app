@@ -41,6 +41,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -48,7 +49,9 @@ import com.google.android.fhir.sync.CurrentSyncJobStatus
 import com.google.android.fhir.sync.SyncJobStatus
 import com.google.android.fhir.sync.SyncOperation
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.smartregister.fhircore.engine.R
@@ -240,6 +243,20 @@ class TasksFragment : Fragment(), OnSyncListener {
   }
 
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    // Reload the recommendations whenever a sync finishes, so Tasks it downloaded appear without
+    // leaving the tab. Keyed on the worker's running state rather than onSync: periodic/background
+    // syncs never reach onSync listeners, and they are most of the syncs that happen.
+    // `drop(1)` skips the value the StateFlow replays on subscription, so every `false` after it
+    // is a sync that just ended. A sync that ends while the tab is stopped is covered by onResume.
+    viewLifecycleOwner.lifecycleScope.launch {
+      viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+        registerViewModel.isSyncRunning
+          .drop(1)
+          .filter { running -> !running }
+          .collect { registerViewModel.getAllTasks(showLoader = false) }
+      }
+    }
+
     /*viewLifecycleOwner.lifecycleScope.launch {
       viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.CREATED) {
         // Each register should have unique eventId

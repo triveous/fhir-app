@@ -59,6 +59,7 @@ import org.smartregister.fhircore.engine.ui.theme.AppTheme
 import org.smartregister.fhircore.engine.ui.theme.SearchHeaderColor
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.extension.isIn
+import org.smartregister.fhircore.quest.R as QuestR
 import org.smartregister.fhircore.quest.event.EventBus
 import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
@@ -83,19 +84,23 @@ class DashboardFragment : Fragment(), OnSyncListener {
     private val appMainViewModel by activityViewModels<AppMainViewModel>()
     //private val registerFragmentArgs by navArgs<SearchTasksFragmentArgs>()
     private val registerViewModel by viewModels<RegisterViewModel>()
+
+    /** The register behind the Cases tab; its "Add new case" action names the registration form. */
+    private val registerId: String by lazy {
+        val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.first()
+        topMenuConfig.actions?.find { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig.id
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
         appMainViewModel.retrieveIconsAsBitmap()
-        val topMenuConfig = appMainViewModel.navigationConfiguration.clientRegisters.first()
-        val topMenuConfigId =
-            topMenuConfig.actions?.find { it.trigger == ActionTrigger.ON_CLICK }?.id ?: topMenuConfig.id
 
         lifecycleScope.launchWhenCreated {
             registerViewModel.retrieveRegisterUiState(
-                registerId = topMenuConfigId,
+                registerId = registerId,
                 screenTitle = "screenTitle",
                 clearCache = false,
             )
@@ -176,6 +181,11 @@ class DashboardFragment : Fragment(), OnSyncListener {
         registerViewModel.getAllUnSyncedPatientsImages()
         registerViewModel.getAllUnSyncedPatients()
         //registerViewModel.getFilteredTasks(FilterType.URGENT_REFERRAL, taskStatus, taskPriority)
+        registerViewModel.registrationQuestionnaireId(registerId)?.let { questionnaireId ->
+            viewLifecycleOwner.lifecycleScope.launch {
+                registerViewModel.refreshAiEnabledState(questionnaireId)
+            }
+        }
     }
 
     override fun onStop() {
@@ -201,12 +211,17 @@ class DashboardFragment : Fragment(), OnSyncListener {
                                 val bundle = Bundle()
                                 //bundle.putString(QuestionnaireActivity.QUESTIONNAIRE_RESPONSE_PREFILL, "")
 
-                                (activity as QuestionnaireHandler).launchQuestionnaire(
-                                    context = requireActivity(),
-                                    questionnaireConfig = questionnaireConfigInterpolated,
-                                    actionParams = interpolatedParams,
-                                    extraIntentBundle = bundle
-                                )
+                                // AI on but no extraction would register this case without its AI result
+                                viewLifecycleOwner.lifecycleScope.launch {
+                                    registerViewModel.launchIfAiUpToDate(questionnaireConfigInterpolated.id) {
+                                        (activity as QuestionnaireHandler).launchQuestionnaire(
+                                            context = requireActivity(),
+                                            questionnaireConfig = questionnaireConfigInterpolated,
+                                            actionParams = interpolatedParams,
+                                            extraIntentBundle = bundle
+                                        )
+                                    }
+                                }
                             }
                         }
                         else -> {
@@ -237,9 +252,13 @@ class DashboardFragment : Fragment(), OnSyncListener {
             is CurrentSyncJobStatus.Succeeded -> {
                 refreshRegisterData()
                 lifecycleScope.launch {
+                    // A sync that turned AI on says so instead of the generic "Sync completed"
+                    val aiJustEnabled = registerViewModel.reconcileAiAfterSync(registrationQuestionnaireId())
                     registerViewModel.emitSnackBarState(
                         SnackBarMessageConfig(
-                            message = getString(R.string.sync_completed),
+                            message =
+                                if (aiJustEnabled) getString(QuestR.string.ai_enabled_successfully)
+                                else getString(R.string.sync_completed),
                             //actionLabel = getString(R.string.ok).uppercase(),
                             duration = SnackbarDuration.Short,
                         ),
@@ -254,9 +273,14 @@ class DashboardFragment : Fragment(), OnSyncListener {
                 syncJobStatus.toString()
                 // Show error message in snackBar message
                 lifecycleScope.launch {
+                    // The StructureMap downloads first, so a sync that fails later can still have
+                    // turned AI on; that is the more useful news for someone who just tapped Retry
+                    val aiJustEnabled = registerViewModel.reconcileAiAfterSync(registrationQuestionnaireId())
                     registerViewModel.emitSnackBarState(
                         SnackBarMessageConfig(
-                            message = getString(R.string.sync_completed_with_errors),
+                            message =
+                                if (aiJustEnabled) getString(QuestR.string.ai_enabled_successfully)
+                                else getString(R.string.sync_completed_with_errors),
                             duration = SnackbarDuration.Short,
                             //actionLabel = getString(R.string.ok).uppercase(),
                         ),
@@ -268,6 +292,9 @@ class DashboardFragment : Fragment(), OnSyncListener {
             }
         }
     }
+
+    private fun registrationQuestionnaireId(): String? =
+        registerViewModel.registrationQuestionnaireId(registerId)
 
     fun refreshRegisterData(questionnaireResponse: QuestionnaireResponse? = null) {
         /*with(registerFragmentArgs) {
