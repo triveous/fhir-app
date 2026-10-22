@@ -127,6 +127,10 @@ android {
   // unaffected because they're often built without the same packaging path.
   androidResources {
     noCompress += listOf("pt", "ptl", "bin", "tflite")
+    // ONNX models aren't wired up on this branch yet; keep them out of the APK.
+    // Setting this replaces AAPT's default pattern, so the defaults are repeated here.
+    ignoreAssetsPattern =
+      "!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!*.onnx"
   }
 
   packaging {
