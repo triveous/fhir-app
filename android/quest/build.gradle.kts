@@ -281,6 +281,26 @@ androidComponents {
   }
 }
 
+// The AI model weights are not tracked in git, so a fresh checkout (e.g. CI) has none. Fail
+// release builds early instead of shipping an APK whose inference silently fails at runtime.
+val verifyAiModelAssets =
+  tasks.register("verifyAiModelAssets") {
+    val models = listOf("model6.pt", "model8.pt", "model82.pt").map { file("src/main/assets/$it") }
+    doLast {
+      val missing = models.filterNot { it.exists() }.map { it.name }
+      if (missing.isNotEmpty()) {
+        throw GradleException(
+          "Missing AI model assets in quest/src/main/assets: ${missing.joinToString()}. " +
+            "They are not tracked in git; copy them in before building a release.",
+        )
+      }
+    }
+  }
+
+tasks.configureEach {
+  if (name.startsWith("merge") && name.endsWith("ReleaseAssets")) dependsOn(verifyAiModelAssets)
+}
+
 tasks.withType<Test> {
   testLogging { events = setOf(TestLogEvent.FAILED) }
   minHeapSize = "4608m"

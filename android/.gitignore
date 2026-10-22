@@ -4,6 +4,13 @@ src/*/assets/configs/
 src/androidTest/assets/resources.db
 src/benchmark/assets/resources.db
 
+# AI model weights: we don't have permission to publish them, so they must never be committed.
+# Copy them into quest/src/main/assets locally. (Dummy test models under src/test are fine.)
+*.pt
+*.ptl
+quest/src/main/assets/*.onnx
+quest/src/main/assets/*.onnx.data
+
 ### Java template
 # Compiled class file
 *.class
