@@ -128,7 +128,6 @@
     <string name="multi_user_login_attempt">ভিন্ন প্রদানকারী সহ লগইন করার চেষ্টা করা হয়েছে</string>
     <string name="please_wait">দয়া করে অপেক্ষা করুন…</string>
     <string name="clear_database">ডেটা রিসেট করুন</string>
-    <string name="transfer_data">ডেটা স্থানান্তর করুন</string>
     <string name="clear_database_title">ডেটাবেস রিসেট করুন!</string>
     <string name="clear_database_message">ডেটাবেস রিসেট করা আপনার ডিভাইস থেকে সমস্ত রেকর্ড মুছে ফেলবে। এই কর্মটি বাতিল করা যাবে না।</string>
     <string name="resetting_app">অ্যাপ্লিকেশন রিসেট হচ্ছে…</string>

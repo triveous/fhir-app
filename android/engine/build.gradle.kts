@@ -144,6 +144,7 @@ dependencies {
 
   api(libs.bundles.datastore.kt)
   api(libs.bundles.navigation)
+  api(libs.compose.material)
   api(libs.bundles.materialicons)
   api(libs.bundles.compose)
   api(libs.bundles.lifecycle)
@@ -157,7 +158,6 @@ dependencies {
   // Shared dependencies
   api(libs.glide)
   api(libs.knowledge) { exclude(group = "org.slf4j", module = "jcl-over-slf4j") }
-  api(libs.p2p.lib)
   api(libs.jjwt)
   api(libs.fhir.common.utils) { exclude(group = "org.slf4j", module = "jcl-over-slf4j") }
   api(libs.runtime.livedata)
@@ -272,6 +272,11 @@ dependencies {
     Dependencies.hapiFhirConstraints().forEach { (libName, constraints) ->
       api(libName, constraints)
     }
+    // p2p-lib used to pull these versions in transitively; keep them now that it's removed so the
+    // FHIR engine database and location stack don't silently downgrade (Room 2.5.2, GMS 21.0.1).
+    api(libs.room.runtime)
+    api(libs.room.ktx)
+    api(libs.play.services.location)
   }
 
   /** End SDK Dependency Graph workaround * */

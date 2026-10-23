@@ -128,7 +128,6 @@
     <string name="multi_user_login_attempt">अनेक प्रदात्यांसह लॉगिन करण्याचा प्रयत्न केला</string>
     <string name="please_wait">कृपया थांबा…</string>
     <string name="clear_database">डेटा रीसेट करा</string>
-    <string name="transfer_data">डेटा हस्तांतरण</string>
     <string name="clear_database_title">डेटाबेस रीसेट करा!</string>
     <string name="clear_database_message">डेटाबेस रीसेट केल्याने आपल्या उपकरणावरील सर्व रेकॉर्ड हटवले जातील. या क्रियेला पूर्ववत करता येणार नाही.</string>
     <string name="resetting_app">अ‍ॅप्लिकेशन रीसेट करत आहे…</string>

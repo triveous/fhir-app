@@ -137,7 +137,6 @@
     <string name="multi_user_login_attempt">इस डिवाइस पर किसी अन्य उपयोगकर्ता का डेटा है। किसी दूसरे उपयोगकर्ता के लॉगिन करने से पहले उन्हें लॉगिन करके सभी केस सिंक करने और लॉग आउट करना होगा</string>
     <string name="please_wait">कृपया प्रतीक्षा करें…</string>
     <string name="clear_database">डेटा रीसेट करें</string>
-    <string name="transfer_data">डेटा ट्रांसफर करें</string>
     <string name="clear_database_title">डेटाबेस रीसेट करें!</string>
     <string name="clear_database_message">डेटाबेस को रीसेट करने से आपके डिवाइस से सभी रिकॉर्ड हटा दिए जाएंगे। यह क्रिया पूर्ववत नहीं की जा सकती।</string>
     <string name="resetting_app">एप्लिकेशन रीसेट हो रहा है…</string>

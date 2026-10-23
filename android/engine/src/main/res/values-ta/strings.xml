@@ -128,7 +128,6 @@
     <string name="multi_user_login_attempt">வேறுபட்ட வழங்குநருடன் உள்நுழைய முயற்சித்தது</string>
     <string name="please_wait">தயவுசெய்து காத்திருங்கள்…</string>
     <string name="clear_database">தரவை மீட்டமைக்கவும்</string>
-    <string name="transfer_data">தரவை மாற்றவும்</string>
     <string name="clear_database_title">தரவை மீட்டமைக்கவும்!</string>
     <string name="clear_database_message">தரவை மீட்டமைப்பது உங்கள் சாதனத்தில் உள்ள அனைத்து பதிவுகளையும் அழிக்கும். இந்த நடவடிக்கையை திருப்பி செய்ய முடியாது.</string>
     <string name="resetting_app">பயன்பாட்டை மீட்டமைக்கிறேன்…</string>

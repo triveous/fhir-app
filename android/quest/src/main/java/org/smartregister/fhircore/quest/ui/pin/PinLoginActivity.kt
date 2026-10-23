@@ -23,27 +23,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.material.ExperimentalMaterialApi
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
-import org.smartregister.fhircore.engine.p2p.dao.P2PReceiverTransferDao
-import org.smartregister.fhircore.engine.p2p.dao.P2PSenderTransferDao
 import org.smartregister.fhircore.engine.ui.base.BaseMultiLanguageActivity
 import org.smartregister.fhircore.engine.ui.theme.AppTheme
-import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
 import org.smartregister.fhircore.engine.util.extension.launchActivityWithNoBackStackHistory
 import org.smartregister.fhircore.quest.ui.appsetting.AppSettingActivity
 import org.smartregister.fhircore.quest.ui.login.LoginActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainActivity
-import org.smartregister.p2p.P2PLibrary
 
 @AndroidEntryPoint
 class PinLoginActivity : BaseMultiLanguageActivity() {
 
-  @Inject lateinit var secureSharedPreference: SecureSharedPreference
-
-  @Inject lateinit var p2pSenderTransferDao: P2PSenderTransferDao
-
-  @Inject lateinit var p2pReceiverTransferDao: P2PReceiverTransferDao
   val pinViewModel by viewModels<PinViewModel>()
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,19 +63,6 @@ class PinLoginActivity : BaseMultiLanguageActivity() {
   @OptIn(ExperimentalMaterialApi::class)
   private fun navigateToHome() {
     startActivity(Intent(this, AppMainActivity::class.java))
-    // Initialize P2P only when username is provided then launch main activity
-    val username = secureSharedPreference.retrieveSessionUsername()
-    if (!username.isNullOrEmpty()) {
-      P2PLibrary.init(
-        P2PLibrary.Options(
-          context = applicationContext,
-          dbPassphrase = username,
-          username = username,
-          senderTransferDao = p2pSenderTransferDao,
-          receiverTransferDao = p2pReceiverTransferDao,
-        ),
-      )
-    }
     finish()
   }
 

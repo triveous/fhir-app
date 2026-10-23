@@ -52,6 +52,9 @@
     <!--Designer Color Name-->
     <color name="anti_flash_white">#F5F3F0</color>
     <color name="crayola">#2F363D</color>
+    <!-- Theme secondary colours; previously supplied by p2p-lib's resources -->
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
 
 
 </resources>

@@ -128,7 +128,6 @@
     <string name="multi_user_login_attempt">భిన్న ప్రొవైడర్‌తో లాగిన్ చేయాలని ప్రయత్నించారు</string>
     <string name="please_wait">దయచేసి వేచి ఉండండి…</string>
     <string name="clear_database">డేటా రీసెట్ చేయండి</string>
-    <string name="transfer_data">డేటా ప్రసారం</string>
     <string name="clear_database_title">డేటాబేస్ రీసెట్!</string>
     <string name="clear_database_message">డేటాబేస్‌ను రీసెట్ చేయడం మీ పరికరం నుండి అన్ని రికార్డులను తీసివేస్తుంది. ఈ చర్యను వెనక్కి తీసుకోవడం సాధ్యం కాదు.</string>
     <string name="resetting_app">అప్లికేషన్‌ను రీసెట్ చేయడం…</string>

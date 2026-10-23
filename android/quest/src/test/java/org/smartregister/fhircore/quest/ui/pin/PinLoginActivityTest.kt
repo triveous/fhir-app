@@ -21,11 +21,7 @@ import androidx.compose.material.ExperimentalMaterialApi
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.spyk
-import io.mockk.unmockkObject
 import org.junit.After
 import org.junit.Assert
 import org.junit.Before
@@ -39,7 +35,6 @@ import org.smartregister.fhircore.quest.robolectric.RobolectricTest
 import org.smartregister.fhircore.quest.ui.appsetting.AppSettingActivity
 import org.smartregister.fhircore.quest.ui.login.LoginActivity
 import org.smartregister.fhircore.quest.ui.main.AppMainActivity
-import org.smartregister.p2p.P2PLibrary
 
 @HiltAndroidTest
 class PinLoginActivityTest : RobolectricTest() {
@@ -98,17 +93,11 @@ class PinLoginActivityTest : RobolectricTest() {
   @OptIn(ExperimentalMaterialApi::class)
   @Test
   fun testNavigateToHomeLaunchesAppLMainActivity() {
-    // Mock p2p Library then un mock it at the end of test
-    mockkObject(P2PLibrary)
-    every { P2PLibrary.init(any()) } returns mockk()
-
     // When new pin is setup the app navigates to home screen
     pinLoginActivity.pinViewModel.onSetPin("1234".toCharArray())
     val resultIntent = Shadows.shadowOf(pinLoginActivity).nextStartedActivity
     Assert.assertNotNull(resultIntent)
     val shadowIntent: ShadowIntent = Shadows.shadowOf(resultIntent)
     Assert.assertEquals(AppMainActivity::class.java, shadowIntent.intentClass)
-
-    unmockkObject(P2PLibrary)
   }
 }

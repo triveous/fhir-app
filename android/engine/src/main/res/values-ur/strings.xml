@@ -128,7 +128,6 @@
     <string name="multi_user_login_attempt">مختلف فراہم کنندہ کے ساتھ لاگ ان کرنے کی کوشش کی گئی</string>
     <string name="please_wait">براہ کرم انتظار کریں…</string>
     <string name="clear_database">ڈیٹا دوبارہ ترتیب دیں</string>
-    <string name="transfer_data">ڈیٹا منتقل کریں</string>
     <string name="clear_database_title">ڈیٹا بیس دوبارہ ترتیب دیں!</string>
     <string name="clear_database_message">ڈیٹا بیس کو دوبارہ ترتیب دینے سے آپ کے آلے سے تمام ریکارڈ صاف ہو جائیں گے۔ یہ عمل ناقابل واپسی ہے۔</string>
     <string name="resetting_app">ایپ دوبارہ ترتیب دی جا رہی ہے…</string>

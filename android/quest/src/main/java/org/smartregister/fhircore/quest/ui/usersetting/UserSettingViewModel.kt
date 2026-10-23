@@ -53,7 +53,6 @@ import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.ui.appsetting.AppSettingActivity
 import org.smartregister.fhircore.quest.ui.login.AccountAuthenticator
 import org.smartregister.fhircore.quest.ui.login.LoginActivity
-import org.smartregister.p2p.utils.startP2PScreen
 import java.util.Locale
 import javax.inject.Inject
 
@@ -157,7 +156,6 @@ constructor(
           event.show,
           event.messageResourceId,
         )
-      is UserSettingsEvent.SwitchToP2PScreen -> startP2PScreen(context = event.context)
       is UserSettingsEvent.ShowContactView -> {}
       is UserSettingsEvent.OnLaunchOfflineMap -> {}
       is UserSettingsEvent.ShowInsightsScreen -> {
@@ -188,8 +186,6 @@ constructor(
       }
     }
   }
-
-  fun enabledDeviceToDeviceSync(): Boolean = applicationConfiguration.deviceToDeviceSync != null
 
   fun fetchUnsyncedResources() {
     viewModelScope.launch {

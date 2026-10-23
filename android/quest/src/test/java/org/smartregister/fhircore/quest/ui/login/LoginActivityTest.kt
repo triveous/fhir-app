@@ -24,10 +24,7 @@ import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.spyk
-import io.mockk.unmockkObject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Assert
 import org.junit.Before
@@ -44,7 +41,6 @@ import org.smartregister.fhircore.quest.app.fakes.Faker
 import org.smartregister.fhircore.quest.robolectric.RobolectricTest
 import org.smartregister.fhircore.quest.ui.main.AppMainActivity
 import org.smartregister.fhircore.quest.ui.pin.PinLoginActivity
-import org.smartregister.p2p.P2PLibrary
 
 @ExperimentalCoroutinesApi
 @HiltAndroidTest
@@ -94,9 +90,6 @@ class LoginActivityTest : RobolectricTest() {
     // Return a null session pin, pin login is enabled by default
     every { secureSharedPreference.retrieveSessionPin() } returns null
 
-    mockkObject(P2PLibrary)
-    every { P2PLibrary.init(any()) } returns mockk()
-
     loginActivity.loginViewModel.updateNavigateHome(true)
 
     val resultIntent = shadowOf(loginActivity).nextStartedActivity
@@ -107,8 +100,6 @@ class LoginActivityTest : RobolectricTest() {
 
     val shadowIntent: ShadowIntent = shadowOf(resultIntent)
     Assert.assertEquals(PinLoginActivity::class.java, shadowIntent.intentClass)
-
-    unmockkObject(P2PLibrary)
   }
 
   @Test
@@ -145,17 +136,11 @@ class LoginActivityTest : RobolectricTest() {
   @OptIn(ExperimentalMaterialApi::class)
   @Test
   fun testNavigateToScreenShouldLaunchHomeScreen() {
-    // Mock p2p Library then un mock it at the end of test
-    mockkObject(P2PLibrary)
-    every { P2PLibrary.init(any()) } returns mockk()
-
     loginActivity.navigateToHome()
 
     val resultIntent = shadowOf(loginActivity).nextStartedActivity
     Assert.assertNotNull(resultIntent)
     val shadowIntent: ShadowIntent = shadowOf(resultIntent)
     Assert.assertEquals(AppMainActivity::class.java, shadowIntent.intentClass)
-
-    unmockkObject(P2PLibrary)
   }
 }

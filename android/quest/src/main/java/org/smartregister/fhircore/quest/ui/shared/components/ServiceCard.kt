@@ -62,10 +62,10 @@ import org.smartregister.fhircore.engine.domain.model.ServiceStatus
 import org.smartregister.fhircore.engine.ui.theme.DefaultColor
 import org.smartregister.fhircore.engine.ui.theme.DividerColor
 import org.smartregister.fhircore.engine.ui.theme.SuccessColor
+import org.smartregister.fhircore.engine.util.extension.capitalizeFirstLetter
 import org.smartregister.fhircore.engine.util.extension.parseColor
 import org.smartregister.fhircore.quest.util.extensions.conditional
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
-import org.smartregister.p2p.utils.capitalize
 
 const val DIVIDER_TEST_TAG = "dividerTestTag"
 const val NUMBER_OF_ICONS_DISPLAYED = 2
@@ -166,7 +166,7 @@ private fun RowScope.RenderDetails(
   resourceData: ResourceData,
 ) {
   val iconsSplit = serviceMemberIcons?.split(",")?.filter { it.isNotEmpty() } ?: listOf()
-  val memberIcons = iconsSplit.map { it.capitalize().trim() }.take(NUMBER_OF_ICONS_DISPLAYED)
+  val memberIcons = iconsSplit.map { it.capitalizeFirstLetter().trim() }.take(NUMBER_OF_ICONS_DISPLAYED)
   Row(
     verticalAlignment = Alignment.CenterVertically,
     modifier = Modifier.weight(weight).padding(end = 6.dp).fillMaxWidth(),

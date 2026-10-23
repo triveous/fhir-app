@@ -46,11 +46,11 @@ import org.smartregister.fhircore.engine.domain.model.ActionConfig
 import org.smartregister.fhircore.engine.domain.model.ResourceData
 import org.smartregister.fhircore.engine.ui.theme.DefaultColor
 import org.smartregister.fhircore.engine.util.extension.camelCase
+import org.smartregister.fhircore.engine.util.extension.capitalizeFirstLetter
 import org.smartregister.fhircore.engine.util.extension.parseColor
 import org.smartregister.fhircore.engine.util.extension.removeExtraWhiteSpaces
 import org.smartregister.fhircore.quest.util.extensions.conditional
 import org.smartregister.fhircore.quest.util.extensions.handleClickEvent
-import org.smartregister.p2p.utils.capitalize
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -153,7 +153,7 @@ private fun CompoundTextPart(
         TextCase.UPPER_CASE -> text.uppercase()
         TextCase.LOWER_CASE -> text.lowercase()
         TextCase.CAMEL_CASE -> text.camelCase()
-        TextCase.TITLE_CASE -> text.capitalize()
+        TextCase.TITLE_CASE -> text.capitalizeFirstLetter()
         null -> text
       }.removeExtraWhiteSpaces(),
     color =

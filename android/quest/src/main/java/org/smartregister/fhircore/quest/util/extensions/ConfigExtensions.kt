@@ -44,7 +44,6 @@ import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.navigation.MainNavigationScreen
 import org.smartregister.fhircore.quest.navigation.NavigationArg
 import org.smartregister.fhircore.quest.ui.shared.QuestionnaireHandler
-import org.smartregister.p2p.utils.startP2PScreen
 
 const val PRACTITIONER_ID = "practitionerId"
 
@@ -158,7 +157,6 @@ fun List<ActionConfig>.handleClickEvent(
         navController.navigate(MainNavigationScreen.Settings.route)
       ApplicationWorkflow.LAUNCH_INSIGHT_SCREEN ->
         navController.navigate(MainNavigationScreen.Insight.route)
-      ApplicationWorkflow.DEVICE_TO_DEVICE_SYNC -> startP2PScreen(navController.context)
       ApplicationWorkflow.LAUNCH_MAP ->
         navController.navigate(
           MainNavigationScreen.GeoWidget.route,

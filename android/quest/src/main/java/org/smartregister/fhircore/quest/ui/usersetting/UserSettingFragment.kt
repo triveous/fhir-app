@@ -99,7 +99,6 @@ class UserSettingFragment : Fragment(), OnSyncListener {
                 fullname = userSettingViewModel.retrieveUserInfo()?.name,
                 allowSwitchingLanguages = userSettingViewModel.allowSwitchingLanguages(),
                 selectedLanguage = userSettingViewModel.loadSelectedLanguage(),
-                allowP2PSync = userSettingViewModel.enabledDeviceToDeviceSync(),
                 languages = userSettingViewModel.languages,
                 onEvent = userSettingViewModel::onEvent,
                 showDatabaseResetConfirmation =
