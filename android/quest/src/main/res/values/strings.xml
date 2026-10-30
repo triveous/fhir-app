@@ -356,6 +356,15 @@
     <string name="extraction_enabled">Extraction Enabled</string>
     <string name="extraction_disabled">Extraction Disabled</string>
     <string name="ai_extraction_status">%1$s + %2$s</string>
+    <string name="inconclusive_result">AI could not decide</string>
+    <string name="inconclusive_result_desc">Use your clinical judgement. Retake the photos or refer the case if in doubt.</string>
+    <string name="ai_inconclusive_photos">PHOTOS AI COULD NOT ASSESS</string>
+    <string name="no_photos_assessed">AI could not assess the photos.</string>
+    <string name="refer_case_upper">REFER CASE</string>
+    <string name="ai_model_ready">Model: %1$s %2$s</string>
+    <string name="ai_model_not_installed">No AI model installed</string>
+    <string name="ai_model_failed">AI model failed to load: %1$s</string>
+    <string name="ai_model_ambiguous">Several AI models installed; none selected</string>
     <plurals name="logout_pending_sync_title">
         <item quantity="one">%d case pending to sync</item>
         <item quantity="other">%d cases pending to sync</item>

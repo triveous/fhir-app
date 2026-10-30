@@ -43,12 +43,13 @@ Tracks when a user navigates to a specific screen.
 ### AI & Imaging Events
 | Event Name | Screen / Component | Trigger (When) | Properties |
 | :--- | :--- | :--- | :--- |
-| `photo_captured` | Camera Launcher | When a photo is taken and confirmed. | `ai_prediction`, `ai_confidence`, `screening_id`, `time_to_capture_ms`, `capture_to_result_ms`, `blur_laplacian_variance`, `brightness_mean`, `contrast_stddev`, `noise_estimate`, `device_model`, `memory_available_mb`, etc. |
+| `photo_captured` | Camera Launcher | When a photo is taken and confirmed. | `ai_prediction` (Suspicious/Non-Suspicious/Inconclusive), `ai_confidence`, `model_id`, `ai_class`, `ai_outcome` (POSITIVE/NEGATIVE/INCONCLUSIVE), `screening_id`, `time_to_capture_ms`, `capture_to_result_ms`, `blur_laplacian_variance`, `brightness_mean`, `contrast_stddev`, `noise_estimate`, `device_model`, `memory_available_mb`, etc. |
 | `photo_retaken` | Camera Launcher | When the user chooses to retake a photo. | `screening_id`, `retake_index` |
-| `ai_inference_completed` | QuestionnaireActivity | When all AI models finish processing. | `is_suspicious`, `image_count`, `suspicious_image_count`, `non_suspicious_image_count`, `low_confidence_image_count`, `mean_confidence`, `memory_used_mb`, etc. |
+| `ai_inference_completed` | QuestionnaireActivity | When a case's photo results are combined into the case result. | `is_suspicious`, `ai_outcome`, `ai_class`, `model_id`, `image_count`, `suspicious_image_count`, `non_suspicious_image_count`, `inconclusive_image_count`, `failed_image_count`, `low_confidence_image_count`, `mean_confidence`, `memory_used_mb`, etc. |
 | `ai_result_viewed` | AIResultActivity | When the AI result screen is displayed. | `is_suspicious`, `screening_id` |
 | `ai_refer_case` | AIResultActivity | When 'Refer Case' is clicked on result screen. | `is_suspicious`, `screening_id` |
-| `model_inference_completed`| Camera Launcher | When an individual AI model finishes. | `model_name` (v6/v8/v82/ensemble), `model_version`, `model_prediction`, `model_confidence`, `model_entropy`, `low_confidence`, `inference_time_ms`, `combined_inference_time_ms` |
+| `model_inference_completed`| ScreeningEngine | Once per ensemble member and once for the overall result of a photo. | `model_id`, `model_name` (ensemble member name as the model reports it, then `ensemble`; a single model reports its id), `model_version` (from the model's descriptor), `model_prediction` (the model's class id), `ai_outcome`, `model_confidence` (percent), `model_entropy`, `low_confidence`, `inference_time_ms` (whole classify call), `combined_inference_time_ms` (overall row only), `model_output_count` (number of classes). |
+| `ai_model_unavailable` | Camera Launcher | AI is on for the tenant but this install can't screen (no model, wrong `ai-model-id`, load failure). Photos are captured without AI. | `screening_id`, `model_id`, `ai_model_state` (NOT_INSTALLED/AMBIGUOUS/LOAD_FAILED…), `error_message` |
 | `image_upload_completed` | Sync Worker | When an image is uploaded to server. | `document_id`, `upload_duration_ms`, `response_code`, `pending_documents`, `bytes_uploaded`, `error_message` |
 
 ### Task Management

@@ -125,6 +125,7 @@ import org.smartregister.fhircore.quest.util.OpensrpDateUtils.convertToDateStrin
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.AiReadiness
+import org.smartregister.fhircore.quest.ml.ScreeningEngine
 import org.smartregister.fhircore.quest.util.AiStatus
 import org.smartregister.fhircore.quest.util.aiReadiness
 import org.smartregister.fhircore.quest.util.aiStatus
@@ -162,6 +163,9 @@ constructor(
     val fhirEngine: FhirEngine,
     val featureFlagUtil: FeatureFlagUtil,
     private val userSwitchManager: UserSwitchManager,
+    // Which AI model this install carries. Null only in tests that predate it, which then behave as
+    // if a model were installed (the only case before models became pluggable).
+    private val screeningEngine: ScreeningEngine? = null,
 ) : ViewModel() {
 
     private val _snackBarStateFlow = MutableSharedFlow<SnackBarMessageConfig>()
@@ -308,7 +312,11 @@ constructor(
         try {
             withTimeoutOrNull(AI_CHECK_TIMEOUT_MS) {
                 withContext(dispatcherProvider.io()) {
-                    fhirEngine.aiReadiness(featureFlagUtil, questionnaireId)
+                    fhirEngine.aiReadiness(
+                        featureFlagUtil,
+                        questionnaireId,
+                        aiModelSelected = screeningEngine?.status()?.isSelected ?: true,
+                    )
                 }
             } ?: AiReadiness.UPDATE_NEEDED.also { Timber.w("AI readiness check timed out for $questionnaireId") }
         } catch (exception: CancellationException) {
@@ -353,7 +361,9 @@ constructor(
         val questionnaireId = registrationQuestionnaireId(registerId) ?: return null
         return try {
             withTimeoutOrNull(AI_CHECK_TIMEOUT_MS) {
-                withContext(dispatcherProvider.io()) { fhirEngine.aiStatus(featureFlagUtil, questionnaireId) }
+                withContext(dispatcherProvider.io()) {
+                    fhirEngine.aiStatus(featureFlagUtil, questionnaireId, screeningEngine?.status())
+                }
             }
         } catch (exception: CancellationException) {
             throw exception

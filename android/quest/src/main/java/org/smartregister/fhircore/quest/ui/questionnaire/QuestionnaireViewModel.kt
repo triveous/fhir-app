@@ -102,18 +102,14 @@ import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
 import org.smartregister.fhircore.quest.R
 
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_CONFIDENCE_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_PREDICTION_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL8_CONFIDENCE_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL8_PREDICTION_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_CONFIDENCE_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_PREDICTION_URL
+import org.smartregister.fhircore.quest.ai.AiInferenceSummary
+import org.smartregister.fhircore.quest.ai.AiResultFhirMapper
+import org.smartregister.fhircore.quest.ai.CaseAggregator
+import org.smartregister.fhircore.quest.ml.ImageScreeningResult
 import org.smartregister.fhircore.quest.util.AI_RESULT_SUFFIX
-import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
-import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 import org.smartregister.fhircore.quest.util.languageExtensionToActionParameters
 import org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
@@ -1610,24 +1606,20 @@ constructor(
   }
 
   /**
-   * Walks the [questionnaireResponse] tree, materializes the per-image AI inference into the
-   * sibling `<linkId>$AI_RESULT_SUFFIX` hidden item, and returns a case-level summary.
+   * Walks the [questionnaireResponse] tree, materializes the per-image AI result into the sibling
+   * `<linkId>$AI_RESULT_SUFFIX` hidden item, and returns the case-level summary (see
+   * [CaseAggregator] for how photo results combine).
    *
-   * The contract is structural rather than path-based: any answer carrying the AI extensions is
-   * treated as an inference-bearing answer, and any item with the [AI_RESULT_SUFFIX] suffix is its
-   * sibling carrier. This avoids hardcoding `screening-group` / `patient-screening-image-group`.
+   * The contract is structural rather than path-based: any attachment answer carrying AI extensions
+   * is an inference-bearing answer, and any item with the [AI_RESULT_SUFFIX] suffix is its sibling
+   * carrier. Results are read through [AiResultFhirMapper], so drafts saved before the generic
+   * extension existed still summarise.
    */
   fun summarizeAiInference(
     questionnaireResponse: QuestionnaireResponse,
     questionnaire: Questionnaire? = null,
   ): AiInferenceSummary {
-    var isSuspicious = false
-    var imageCount = 0
-    var suspiciousImageCount = 0
-    var nonSuspiciousImageCount = 0
-    var lowConfidenceImageCount = 0
-    val confidenceValues = mutableListOf<Float>()
-    val suspiciousImages = linkedSetOf<String>()
+    val aggregator = CaseAggregator()
     val questionnaireItemsByLinkId =
       questionnaire?.let { mutableMapOf<String, Questionnaire.QuestionnaireItemComponent>() }
     questionnaire?.item?.let { collectQuestionnaireItems(it, questionnaireItemsByLinkId!!) }
@@ -1637,16 +1629,17 @@ constructor(
         if (item.linkId.endsWith(AI_RESULT_SUFFIX)) {
           val hiddenValue = item.answer.firstOrNull()?.value.asPrimitiveString()
           Timber.d("AI hidden item linkId=${item.linkId} value=$hiddenValue")
-          if (hiddenValue.isSuspiciousAiResult()) {
-            isSuspicious = true
+          val outcome = ImageScreeningResult.outcomeOfLegacyLabel(hiddenValue)
+          if (outcome != null) {
             val originalLinkId = item.linkId.removeSuffix(AI_RESULT_SUFFIX)
-            siblings
-              .firstOrNull { it.linkId == originalLinkId }
-              ?.answer
-              ?.firstOrNull()
-              ?.let { it.value as? Attachment }
-              ?.title
-              ?.let { suspiciousImages.add(it) }
+            val title =
+              siblings
+                .firstOrNull { it.linkId == originalLinkId }
+                ?.answer
+                ?.firstOrNull()
+                ?.let { it.value as? Attachment }
+                ?.title
+            aggregator.addHiddenResult(originalLinkId, outcome, title)
           }
           return@forEachQrItemWithSiblings
         }
@@ -1655,101 +1648,47 @@ constructor(
 
         // Only attachment-typed answers carry AI extensions; skip Coding/String/etc. items so
         // HAPI's typed accessors don't throw.
-        if (answer.value !is Attachment) return@forEachQrItemWithSiblings
+        val attachment = answer.value as? Attachment ?: return@forEachQrItemWithSiblings
 
-        // The combined AI extension is written by CustomAttachmentViewHolderFactory onto both
-        // the QR answer AND the Questionnaire item. SDC strips the QR answer's extensions on
-        // submit, so the Questionnaire item is the surviving source of truth.
+        // The AI extensions are written by CustomAttachmentViewHolderFactory onto both the QR
+        // answer AND the Questionnaire item. SDC strips the QR answer's extensions on submit, so
+        // the Questionnaire item is the surviving source of truth.
         val qItem = questionnaireItemsByLinkId?.get(item.linkId)
+        val stored =
+          AiResultFhirMapper.read { url ->
+            answer.getExtensionByUrl(url) ?: qItem?.getExtensionByUrl(url)
+          } ?: return@forEachQrItemWithSiblings
 
-        fun extString(url: String): String? =
-          answer.getExtensionByUrl(url)?.value.asPrimitiveString()
-            ?: qItem?.getExtensionByUrl(url)?.value.asPrimitiveString()
-
-        val result = extString(SUSPICIOUS_NON_SUSPICIOUS_URL)
-        val confidence = extString(CONFIDENCE_PERCENTAGE_URL)
-
-        val attachment = answer.value as? Attachment
-        val title = attachment?.title
         Timber.d(
-          "AI walk image item linkId=${item.linkId} title=$title " +
+          "AI walk image item linkId=${item.linkId} title=${attachment.title} " +
             "qrAnswerExtCount=${answer.extension.size} " +
-            "qItemExtCount=${qItem?.extension?.size ?: -1} " +
-            "combined=$result|$confidence " +
-            "v6=${extString(MODEL6_PREDICTION_URL)}|${extString(MODEL6_CONFIDENCE_URL)} " +
-            "v8=${extString(MODEL8_PREDICTION_URL)}|${extString(MODEL8_CONFIDENCE_URL)} " +
-            "v82=${extString(MODEL82_PREDICTION_URL)}|${extString(MODEL82_CONFIDENCE_URL)}",
+            "qItemExtCount=${qItem?.extension?.size ?: -1} result=$stored",
         )
+        aggregator.addPhoto(item.linkId, attachment.title, stored)
+        if (stored.failed) return@forEachQrItemWithSiblings
 
-        if (result.isSuspiciousAiResult()) {
-          isSuspicious = true
-          title?.let { suspiciousImages.add(it) }
-        }
-
-        if (!result.isNullOrBlank()) {
-          imageCount += 1
-          if (result.isSuspiciousAiResult()) {
-            suspiciousImageCount += 1
-          } else {
-            nonSuspiciousImageCount += 1
+        siblings
+          .firstOrNull { it.linkId == "${item.linkId}$AI_RESULT_SUFFIX" }
+          ?.let { hiddenItem ->
+            if (hiddenItem.answer.isEmpty()) hiddenItem.addAnswer()
+            hiddenItem.answer[0].value =
+              StringType("${stored.legacyLabel}|${stored.confidencePercentText}")
           }
 
-          confidence.toConfidenceFloat()?.let { confidenceValue ->
-            confidenceValues.add(confidenceValue)
-            if (confidenceValue < LOW_CONFIDENCE_THRESHOLD) {
-              lowConfidenceImageCount += 1
-            }
+        // Mirror onto the QR answer so downstream readers (e.g. StructureMap copy rules) see the
+        // values regardless of whether the SDC-stripped answer extensions are present.
+        AiResultFhirMapper.ALL_URLS.forEach { url ->
+          if (answer.getExtensionByUrl(url) == null) {
+            qItem?.getExtensionByUrl(url)?.let { answer.addExtension(it.copy()) }
           }
-
-          siblings
-            .firstOrNull { it.linkId == "${item.linkId}$AI_RESULT_SUFFIX" }
-            ?.let { hiddenItem ->
-              if (hiddenItem.answer.isEmpty()) hiddenItem.addAnswer()
-              hiddenItem.answer[0].value = StringType("$result|$confidence")
-            }
-
-          // Mirror onto the QR answer so downstream readers (e.g. StructureMap copy rules) see the
-          // values regardless of whether the SDC-stripped answer extensions are present.
-          if (answer.getExtensionByUrl(SUSPICIOUS_NON_SUSPICIOUS_URL) == null) {
-            answer.addExtension(SUSPICIOUS_NON_SUSPICIOUS_URL, StringType(result))
-          }
-          if (!confidence.isNullOrBlank() && answer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL) == null) {
-            answer.addExtension(CONFIDENCE_PERCENTAGE_URL, StringType(confidence))
-          }
-          listOf(
-              MODEL6_PREDICTION_URL,
-              MODEL6_CONFIDENCE_URL,
-              MODEL8_PREDICTION_URL,
-              MODEL8_CONFIDENCE_URL,
-              MODEL82_PREDICTION_URL,
-              MODEL82_CONFIDENCE_URL,
-            )
-            .forEach { url ->
-              if (answer.getExtensionByUrl(url) == null) {
-                qItem?.getExtensionByUrl(url)?.value?.asPrimitiveString()?.let {
-                  answer.addExtension(url, StringType(it))
-                }
-              }
-            }
         }
       }
-      Timber.d(
-        "=== AI inference summary done: isSuspicious=$isSuspicious " +
-          "suspiciousImages=$suspiciousImages ===",
-      )
     } catch (e: Exception) {
       Timber.e(e, "Failed to summarize AI inference results")
     }
-    return AiInferenceSummary(
-      isSuspicious = isSuspicious,
-      suspiciousImages = suspiciousImages.toList(),
-      imageCount = imageCount,
-      suspiciousImageCount = suspiciousImageCount,
-      nonSuspiciousImageCount = nonSuspiciousImageCount,
-      lowConfidenceImageCount = lowConfidenceImageCount,
-      meanConfidence =
-        confidenceValues.takeIf { it.isNotEmpty() }?.average()?.toFloat() ?: 0f,
-    )
+    return aggregator.summary().also {
+      Timber.d("=== AI inference summary done: %s ===", it)
+    }
   }
 
   private fun collectQuestionnaireItems(
@@ -1781,16 +1720,6 @@ constructor(
   private fun Base?.asPrimitiveString(): String? =
     this?.primitiveValue()?.takeIf { it.isNotBlank() } ?: this?.toString()?.takeIf { it.isNotBlank() }
 
-  private fun String?.isSuspiciousAiResult(): Boolean =
-    this?.substringBefore("|")?.trim()?.equals("suspicious", ignoreCase = true) == true
-
-  private fun String?.toConfidenceFloat(): Float? =
-    this
-      ?.substringBefore("|")
-      ?.replace("%", "")
-      ?.trim()
-      ?.toFloatOrNull()
-
   fun updateReferCase(qrId: String) {
     viewModelScope.launch(dispatcherProvider.io()) {
       try {
@@ -1815,7 +1744,6 @@ constructor(
     const val PATIENT_GIVEN_NAME_LINK_ID = "patient-name-given"
     const val PATIENT_REFERENCE_ID_SYSTEM = "https://midas.iisc.ac.in/fhir/identifier/patient-id"
     const val OUTPUT_PARAMETER_KEY = "OUTPUT"
-    private const val LOW_CONFIDENCE_THRESHOLD = 65f
 
     /** https://hl7.org/fhir/R4/extension-questionnaire-hidden.html */
     private const val EXTENSION_HIDDEN_URL =
@@ -1849,16 +1777,6 @@ constructor(
 data class UnansweredRequiredQuestion(
   val linkId: String,
   val label: String,
-)
-
-data class AiInferenceSummary(
-  val isSuspicious: Boolean,
-  val suspiciousImages: List<String>,
-  val imageCount: Int = 0,
-  val suspiciousImageCount: Int = 0,
-  val nonSuspiciousImageCount: Int = 0,
-  val lowConfidenceImageCount: Int = 0,
-  val meanConfidence: Float = 0f,
 )
 
 /**

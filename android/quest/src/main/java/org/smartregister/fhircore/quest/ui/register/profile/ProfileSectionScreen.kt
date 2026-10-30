@@ -82,6 +82,8 @@ import org.smartregister.fhircore.quest.ui.register.patients.RegisterUiState
 import org.smartregister.fhircore.quest.ui.register.patients.RegisterViewModel
 import org.smartregister.fhircore.quest.ui.register.patients.TOP_REGISTER_SCREEN_TEST_TAG
 import org.smartregister.fhircore.quest.ui.shared.components.LogoutPendingSyncDialog
+import org.smartregister.fhircore.quest.ml.AiModelState
+import org.smartregister.fhircore.quest.ml.AiModelStatus
 import org.smartregister.fhircore.quest.util.AiStatus
 
 
@@ -380,6 +382,13 @@ fun ProfileSectionScreen(
                                         text = aiStatusLabel(status),
                                         modifier = Modifier.testTag(AI_STATUS_LABEL_TEST_TAG),
                                     )
+                                    status.model?.let { model ->
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = aiModelLabel(model),
+                                            modifier = Modifier.testTag(AI_MODEL_LABEL_TEST_TAG),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -406,6 +415,30 @@ fun aiStatusLabel(status: AiStatus): String =
             else org.smartregister.fhircore.quest.R.string.extraction_disabled,
         ),
     )
+
+const val AI_MODEL_LABEL_TEST_TAG = "aiModelLabelTestTag"
+
+/** "Model: acme-oral 1.0.0", "No AI model installed", … for the profile screen. */
+@Composable
+fun aiModelLabel(model: AiModelStatus): String =
+    when (model.state) {
+        AiModelState.READY,
+        AiModelState.NOT_LOADED ->
+            stringResource(
+                id = org.smartregister.fhircore.quest.R.string.ai_model_ready,
+                model.modelId.orEmpty(),
+                model.modelVersion.orEmpty(),
+            )
+        AiModelState.NOT_INSTALLED ->
+            stringResource(id = org.smartregister.fhircore.quest.R.string.ai_model_not_installed)
+        AiModelState.AMBIGUOUS ->
+            stringResource(id = org.smartregister.fhircore.quest.R.string.ai_model_ambiguous)
+        AiModelState.LOAD_FAILED ->
+            stringResource(
+                id = org.smartregister.fhircore.quest.R.string.ai_model_failed,
+                model.modelId.orEmpty(),
+            )
+    }
 
 @Composable
 fun ForgotPasswordDialog(

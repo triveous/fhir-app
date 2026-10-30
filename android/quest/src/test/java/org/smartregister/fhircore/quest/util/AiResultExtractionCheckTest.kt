@@ -133,6 +133,16 @@ class AiResultExtractionCheckTest {
   }
 
   @Test
+  fun readinessIsDisabledWhenNoAiModelIsInstalledSoNothingIsBlocked() = runTest {
+    coEvery { featureFlagUtil.isAiInferenceEnabled() } returns true
+    givenLocal(registrationQuestionnaire(), mapWithoutAiResult)
+    assertEquals(
+      AiReadiness.DISABLED,
+      fhirEngine.aiReadiness(featureFlagUtil, QUESTIONNAIRE_ID, aiModelSelected = false),
+    )
+  }
+
+  @Test
   fun statusReportsTheExtractionEvenWhenTheFlagIsOff() = runTest {
     coEvery { featureFlagUtil.isAiInferenceEnabled() } returns false
     givenLocal(registrationQuestionnaire(), mapWithAiResult)

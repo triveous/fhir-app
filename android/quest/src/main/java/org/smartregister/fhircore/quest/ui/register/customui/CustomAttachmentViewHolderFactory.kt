@@ -49,7 +49,6 @@ import com.google.android.fhir.datacapture.views.factories.QuestionnaireItemView
 import com.google.android.material.divider.MaterialDivider
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
-import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.hl7.fhir.r4.model.Attachment
@@ -61,17 +60,14 @@ import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.ResourceType
 import org.hl7.fhir.r4.model.StringType
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
-import org.smartregister.fhircore.engine.util.FeatureFlagUtil
-import org.smartregister.fhircore.engine.util.FeatureFlagUtilEntryPoint
-import kotlinx.coroutines.runBlocking
 import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
-import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
-import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
+import org.smartregister.fhircore.quest.ai.AiResultFhirMapper
+import org.smartregister.fhircore.quest.ml.ImageScreeningResult
 import timber.log.Timber
 import java.io.File
 import java.math.BigDecimal
@@ -110,7 +106,6 @@ internal object CustomAttachmentViewHolderFactory :
             private lateinit var context: AppCompatActivity
             private lateinit var fhirEngine: FhirEngine
             private var sharedPreferencesHelper: SharedPreferencesHelper? = null
-            private var aiInferenceEnabled: Boolean = false
 
             override fun init(itemView: View) {
 
@@ -138,16 +133,6 @@ internal object CustomAttachmentViewHolderFactory :
                 context = itemView.context.tryUnwrapContext()!!
                 fhirEngine = FhirEngineProvider.getInstance(context.applicationContext)
                 sharedPreferencesHelper = SharedPreferencesHelper(itemView.context, Gson())
-                val featureFlagUtil = EntryPointAccessors
-                    .fromApplication(context.applicationContext, FeatureFlagUtilEntryPoint::class.java)
-                    .featureFlagUtil()
-                context.lifecycleScope.launch {
-                    aiInferenceEnabled = featureFlagUtil.isAiInferenceEnabled()
-                }
-            }
-
-            private fun isAiInferenceEnabled(): Boolean {
-                return aiInferenceEnabled
             }
 
             override fun bind(questionnaireViewItem: QuestionnaireViewItem) {
@@ -363,22 +348,23 @@ internal object CustomAttachmentViewHolderFactory :
                     if (!isSaved) return@setFragmentResultListener
                     val fileAbsolutePath =
                         result.getString(CameraxLauncherFragment.CAMERA_RESULT_URI_KEY)
-                    val predictionResult =
-                        result.getString(CameraxLauncherFragment.CAMERA_PREDICTION_KEY)
-                    val confidence = result.getString(CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY)
-                    val model6Prediction =
-                        result.getString(CameraxLauncherFragment.CAMERA_MODEL6_PREDICTION_KEY)
-                    val model6Confidence =
-                        result.getString(CameraxLauncherFragment.CAMERA_MODEL6_CONFIDENCE_KEY)
-                    val model8Prediction =
-                        result.getString(CameraxLauncherFragment.CAMERA_MODEL8_PREDICTION_KEY)
-                    val model8Confidence =
-                        result.getString(CameraxLauncherFragment.CAMERA_MODEL8_CONFIDENCE_KEY)
-                    val model82Prediction =
-                        result.getString(CameraxLauncherFragment.CAMERA_MODEL82_PREDICTION_KEY)
-                    val model82Confidence =
-                        result.getString(CameraxLauncherFragment.CAMERA_MODEL82_CONFIDENCE_KEY)
-                    val hasAiInferenceResult = isAiInferenceEnabled() && !predictionResult.isNullOrBlank()
+                    // The camera reports the photo's AI result (if AI ran) as JSON. The model is
+                    // a black box behind ScreeningEngine, so only this generic form arrives here.
+                    val screening =
+                        result.getString(CameraxLauncherFragment.CAMERA_SCREENING_RESULT_KEY)?.let { json ->
+                            runCatching { ImageScreeningResult.fromJson(json) }
+                                .onFailure { Timber.e(it, "Unreadable AI result from the camera") }
+                                .getOrNull()
+                        }
+                    val aiStatus = result.getString(CameraxLauncherFragment.CAMERA_AI_STATUS_KEY)
+                    // AI was active but there is no usable result: record that, so the case summary
+                    // treats this photo as unscreened rather than as a negative result.
+                    val aiExtensions =
+                        when {
+                            screening != null -> AiResultFhirMapper.extensionsFor(screening)
+                            aiStatus != null -> AiResultFhirMapper.failedExtensions()
+                            else -> emptyList()
+                        }
 
                     if (!fileAbsolutePath.isNullOrEmpty()) {
                         try {
@@ -399,15 +385,8 @@ internal object CustomAttachmentViewHolderFactory :
                                 return@setFragmentResultListener
                             }
 
-                            // Remove existing extensions before adding new ones
-                            questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
-                            questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
-                            questionnaireItem.removeExtension(MODEL6_PREDICTION_URL)
-                            questionnaireItem.removeExtension(MODEL6_CONFIDENCE_URL)
-                            questionnaireItem.removeExtension(MODEL8_PREDICTION_URL)
-                            questionnaireItem.removeExtension(MODEL8_CONFIDENCE_URL)
-                            questionnaireItem.removeExtension(MODEL82_PREDICTION_URL)
-                            questionnaireItem.removeExtension(MODEL82_CONFIDENCE_URL)
+                            // Remove the previous capture's AI result before adding this one
+                            AiResultFhirMapper.ALL_URLS.forEach(questionnaireItem::removeExtension)
 
                             // Create a document reference to store the file later and use the document ref
                             // permanent link in attachment url
@@ -415,89 +394,14 @@ internal object CustomAttachmentViewHolderFactory :
                                 attachmentUri,
                                 attachmentMimeTypeWithSubType
                             ).apply {
-                                // Add AI Model results to DocumentReference
-                                if (hasAiInferenceResult) {
-                                    if (!model6Prediction.isNullOrEmpty()) {
-                                        addExtension(
-                                            MODEL6_PREDICTION_URL,
-                                            StringType(model6Prediction)
-                                        )
-                                        addExtension(
-                                            MODEL6_CONFIDENCE_URL,
-                                            StringType(model6Confidence)
-                                        )
-                                    }
-
-                                    if (!model8Prediction.isNullOrEmpty()) {
-                                        addExtension(
-                                            MODEL8_PREDICTION_URL,
-                                            StringType(model8Prediction)
-                                        )
-                                        addExtension(
-                                            MODEL8_CONFIDENCE_URL,
-                                            StringType(model8Confidence)
-                                        )
-                                    }
-
-                                    if (!model82Prediction.isNullOrEmpty()) {
-                                        addExtension(
-                                            MODEL82_PREDICTION_URL,
-                                            StringType(model82Prediction)
-                                        )
-                                        addExtension(
-                                            MODEL82_CONFIDENCE_URL,
-                                            StringType(model82Confidence)
-                                        )
-                                    }
-                                }
+                                // The AI result also travels with the image itself.
+                                aiExtensions.forEach { addExtension(it.copy()) }
                             }
 
                             val answer =
                                 QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent()
                                     .apply {
-                                        if (hasAiInferenceResult) {
-                                            addExtension(
-                                                SUSPICIOUS_NON_SUSPICIOUS_URL,
-                                                StringType(predictionResult.orEmpty())
-                                            )
-                                            addExtension(
-                                                CONFIDENCE_PERCENTAGE_URL,
-                                                StringType(confidence.orEmpty())
-                                            )
-
-                                            if (!model6Prediction.isNullOrEmpty()) {
-                                                addExtension(
-                                                    MODEL6_PREDICTION_URL,
-                                                    StringType(model6Prediction)
-                                                )
-                                                addExtension(
-                                                    MODEL6_CONFIDENCE_URL,
-                                                    StringType(model6Confidence)
-                                                )
-                                            }
-
-                                            if (!model8Prediction.isNullOrEmpty()) {
-                                                addExtension(
-                                                    MODEL8_PREDICTION_URL,
-                                                    StringType(model8Prediction)
-                                                )
-                                                addExtension(
-                                                    MODEL8_CONFIDENCE_URL,
-                                                    StringType(model8Confidence)
-                                                )
-                                            }
-
-                                            if (!model82Prediction.isNullOrEmpty()) {
-                                                addExtension(
-                                                    MODEL82_PREDICTION_URL,
-                                                    StringType(model82Prediction)
-                                                )
-                                                addExtension(
-                                                    MODEL82_CONFIDENCE_URL,
-                                                    StringType(model82Confidence)
-                                                )
-                                            }
-                                        }
+                                        aiExtensions.forEach { addExtension(it.copy()) }
 
                                         // IMPORTANT: the DocumentReference id (carried in the URL)
                                         // is deliberately NOT baked in here. It is attached below,
@@ -514,53 +418,9 @@ internal object CustomAttachmentViewHolderFactory :
                                             }
                                     }
 
-                            if (hasAiInferenceResult) {
-                                //Suspicious/NonSuspicious
-                                questionnaireItem.addExtension(
-                                    SUSPICIOUS_NON_SUSPICIOUS_URL,
-                                    StringType(predictionResult.orEmpty())
-                                )
-
-                                //Confidence percentage
-                                questionnaireItem.addExtension(
-                                    CONFIDENCE_PERCENTAGE_URL,
-                                    StringType(confidence.orEmpty())
-                                )
-
-                                // Add individual model results to questionnaire item
-                                if (!model6Prediction.isNullOrEmpty()) {
-                                    questionnaireItem.addExtension(
-                                        MODEL6_PREDICTION_URL,
-                                        StringType(model6Prediction)
-                                    )
-                                    questionnaireItem.addExtension(
-                                        MODEL6_CONFIDENCE_URL,
-                                        StringType(model6Confidence)
-                                    )
-                                }
-
-                                if (!model8Prediction.isNullOrEmpty()) {
-                                    questionnaireItem.addExtension(
-                                        MODEL8_PREDICTION_URL,
-                                        StringType(model8Prediction)
-                                    )
-                                    questionnaireItem.addExtension(
-                                        MODEL8_CONFIDENCE_URL,
-                                        StringType(model8Confidence)
-                                    )
-                                }
-
-                                if (!model82Prediction.isNullOrEmpty()) {
-                                    questionnaireItem.addExtension(
-                                        MODEL82_PREDICTION_URL,
-                                        StringType(model82Prediction)
-                                    )
-                                    questionnaireItem.addExtension(
-                                        MODEL82_CONFIDENCE_URL,
-                                        StringType(model82Confidence)
-                                    )
-                                }
-                            }
+                            // SDC strips the QR answer's extensions on submit, so the result is also
+                            // kept on the Questionnaire item, which summarizeAiInference reads.
+                            aiExtensions.forEach { questionnaireItem.addExtension(it.copy()) }
 
                             // `questionnaireViewItem` is an `override lateinit var` that bind()
                             // reassigns as RecyclerView recycles this delegate across all image
@@ -601,7 +461,7 @@ internal object CustomAttachmentViewHolderFactory :
                                 divider.visibility = View.VISIBLE
                                 displayPreview(
                                     attachmentType = attachmentMimeType,
-                                    attachmentTitle = if (hasAiInferenceResult) "RESULT : $predictionResult" else capturedFile.name,
+                                    attachmentTitle = screening?.let { "RESULT : ${it.displayName}" } ?: capturedFile.name,
                                     attachmentUri = attachmentUri,
                                     questionnaireItem = questionnaireItem
                                 )
@@ -803,15 +663,6 @@ internal object CustomAttachmentViewHolderFactory :
                     Glide.with(context).load(uri).into(photoThumbnail)
                     this.photoTitle.text = photoTitle
 
-                    val result = questionnaireItem?.getExtensionString(SUSPICIOUS_NON_SUSPICIOUS_URL)
-                    val confidence = questionnaireItem?.getExtensionString(CONFIDENCE_PERCENTAGE_URL)
-                    val m6Pred = questionnaireItem?.getExtensionString(MODEL6_PREDICTION_URL)
-                    val m6Conf = questionnaireItem?.getExtensionString(MODEL6_CONFIDENCE_URL)
-                    val m8Pred = questionnaireItem?.getExtensionString(MODEL8_PREDICTION_URL)
-                    val m8Conf = questionnaireItem?.getExtensionString(MODEL8_CONFIDENCE_URL)
-                    val m82Pred = questionnaireItem?.getExtensionString(MODEL82_PREDICTION_URL)
-                    val m82Conf = questionnaireItem?.getExtensionString(MODEL82_CONFIDENCE_URL)
-                    //setAnswerFromAI(result, confidence, m6Pred, m6Conf, m8Pred, m8Conf, m82Pred, m82Conf)
                 } catch (exc: Exception) {
                     Timber.e("Failed to load photo preview: ${exc.message}")
                 }
@@ -964,14 +815,7 @@ internal object CustomAttachmentViewHolderFactory :
                     purgeDraftDocumentReference(deletedAttachment.url)
 
                     val questionnaireItem = boundViewItem.questionnaireItem
-                    questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
-                    questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
-                    questionnaireItem.removeExtension(MODEL6_PREDICTION_URL)
-                    questionnaireItem.removeExtension(MODEL6_CONFIDENCE_URL)
-                    questionnaireItem.removeExtension(MODEL8_PREDICTION_URL)
-                    questionnaireItem.removeExtension(MODEL8_CONFIDENCE_URL)
-                    questionnaireItem.removeExtension(MODEL82_PREDICTION_URL)
-                    questionnaireItem.removeExtension(MODEL82_CONFIDENCE_URL)
+                    AiResultFhirMapper.ALL_URLS.forEach(questionnaireItem::removeExtension)
 
                     divider.visibility = View.GONE
 
@@ -1356,24 +1200,6 @@ internal suspend fun purgeDraftDocumentReferenceIfSafe(
         PurgeDraftOutcome.NOT_FOUND
     }
 }
-
-internal const val MODEL6_PREDICTION_URL =
-    "http://smartregister.org/ai-model-result/v38-model-v6-prediction"
-
-internal const val MODEL6_CONFIDENCE_URL =
-    "http://smartregister.org/ai-model-result/v38-model-v6-confidence"
-
-internal const val MODEL8_PREDICTION_URL =
-    "http://smartregister.org/ai-model-result/v38-model-v8-prediction"
-
-internal const val MODEL8_CONFIDENCE_URL =
-    "http://smartregister.org/ai-model-result/v38-model-v8-confidence"
-
-internal const val MODEL82_PREDICTION_URL =
-    "http://smartregister.org/ai-model-result/v38-model-v82-prediction"
-
-internal const val MODEL82_CONFIDENCE_URL =
-    "http://smartregister.org/ai-model-result/v38-model82-confidence"
 
 internal const val CASE_PREDICTION_RESULT_URL =
     "http://smartregister.org/ai-model-result/case-prediction-result"

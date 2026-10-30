@@ -34,9 +34,25 @@ class FeatureFlagUtil @Inject constructor(
     private val mutex = Mutex()
     @Volatile private var cachedFlags: Map<String, Boolean> = emptyMap()
     @Volatile private var cachedUpdateConfig: AppUpdateConfig = AppUpdateConfig.NONE
+    @Volatile private var cachedAiModelId: String? = null
+
+    /** What this process last wrote per pref key; absent = not written yet. */
+    private val persistedAiModelId = java.util.concurrent.ConcurrentHashMap<String, Optional>()
+
+    private data class Optional(val value: String?)
 
     suspend fun isAiInferenceEnabled(): Boolean =
         readFlag(AI_INFERENCE_ENABLED_URL)
+
+    /**
+     * The AI model this tenant wants, from the optional [AI_MODEL_ID_URL] string extension; null
+     * when unset, so the app uses its build default. Only matters when the APK carries more than
+     * one model.
+     */
+    suspend fun getAiModelId(): String? {
+        refresh(sharedPreferencesHelper.getFeatureFlagsResourceId())
+        return cachedAiModelId
+    }
 
     /**
      * Returns the app-update configuration (target version + soft/forced behaviour) that the same
@@ -85,6 +101,7 @@ class FeatureFlagUtil @Inject constructor(
 
             cachedFlags = sharedPreferencesHelper.getLastKnownFeatureFlags(resourceId)
             cachedUpdateConfig = sharedPreferencesHelper.getLastKnownAppUpdateConfig(resourceId)
+            cachedAiModelId = sharedPreferencesHelper.read(aiModelIdPrefKey(resourceId), null)
             Timber.w(
                 "Feature flags unavailable id=%s; using last-known flags=%s update=%s",
                 resourceId, cachedFlags, cachedUpdateConfig,
@@ -126,15 +143,29 @@ class FeatureFlagUtil @Inject constructor(
     private fun applyAndPersist(resourceId: String, basic: Basic, source: String) {
         val flags = basic.toFlagsMap()
         val updateConfig = basic.toAppUpdateConfig()
+        val aiModelId =
+            basic.getExtensionByUrl(AI_MODEL_ID_URL)?.value?.primitiveValue()?.trim()?.takeIf { it.isNotEmpty() }
         cachedFlags = flags
         cachedUpdateConfig = updateConfig
+        cachedAiModelId = aiModelId
         sharedPreferencesHelper.saveLastKnownFeatureFlags(resourceId, flags)
         sharedPreferencesHelper.saveLastKnownAppUpdateConfig(resourceId, updateConfig)
-        Timber.d("Feature flags from %s id=%s: flags=%s update=%s", source, resourceId, flags, updateConfig)
+        // Every flag read lands here and write() commits synchronously, so only write on change.
+        val prefKey = aiModelIdPrefKey(resourceId)
+        if (persistedAiModelId[prefKey] != Optional(aiModelId)) {
+            sharedPreferencesHelper.write(prefKey, aiModelId)
+            persistedAiModelId[prefKey] = Optional(aiModelId)
+        }
+        Timber.d(
+            "Feature flags from %s id=%s: flags=%s update=%s aiModel=%s",
+            source, resourceId, flags, updateConfig, aiModelId,
+        )
     }
 
+    private fun aiModelIdPrefKey(resourceId: String) = "LAST_KNOWN_AI_MODEL_ID_$resourceId"
+
     private fun Basic.toFlagsMap(): Map<String, Boolean> =
-        extension.orEmpty().mapNotNull { ext ->
+        extension.orEmpty().filterNot { it.url == AI_MODEL_ID_URL }.mapNotNull { ext ->
             val value = ext.value?.primitiveValue()?.toBoolean()
             if (ext.url != null && value != null) ext.url to value else null
         }.toMap()
@@ -162,6 +193,10 @@ class FeatureFlagUtil @Inject constructor(
     companion object {
         const val AI_INFERENCE_ENABLED_URL =
             "https://midas.iisc.ac.in/fhir/StructureDefinition/ai-inference-enabled"
+
+        /** Optional string: id of the AI model to use when the APK carries more than one. */
+        const val AI_MODEL_ID_URL =
+            "https://midas.iisc.ac.in/fhir/StructureDefinition/ai-model-id"
 
         /** Parent (nested) extension that groups the whole app-update policy on the feature-flags Basic. */
         const val APP_UPDATE_URL =

@@ -41,6 +41,7 @@ import com.bumptech.glide.Glide
 import org.smartregister.fhircore.engine.ui.theme.LighterBlue
 import org.smartregister.fhircore.engine.ui.theme.PrimaryColor
 import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
+import org.smartregister.fhircore.ai.Outcome
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
@@ -58,8 +59,13 @@ class AIResultActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val isSuspicious = intent.getBooleanExtra("isSuspicious", false)
-        val suspiciousImages = intent.getStringArrayListExtra("suspiciousImages") ?: emptyList<String>()
+        val outcome =
+            intent.getStringExtra(EXTRA_OUTCOME)?.let { name -> Outcome.values().firstOrNull { it.name == name } }
+                ?: if (intent.getBooleanExtra(EXTRA_IS_SUSPICIOUS, false)) Outcome.POSITIVE else Outcome.NEGATIVE
+        val isSuspicious = outcome == Outcome.POSITIVE
+        val flaggedImages = intent.getStringArrayListExtra(EXTRA_IMAGES) ?: emptyList<String>()
+        val titleOverride = intent.getStringExtra(EXTRA_TITLE)
+        val descriptionOverride = intent.getStringExtra(EXTRA_DESCRIPTION)
         val screeningId = intent.getStringExtra(PostHogAnalytics.Props.SCREENING_ID)
 
         ScreeningTimer.markStep(screeningId, "ai_result_viewed")
@@ -67,6 +73,7 @@ class AIResultActivity : ComponentActivity() {
             PostHogAnalytics.Events.AI_RESULT_VIEWED,
             mapOf(
                 PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
+                PostHogAnalytics.Props.AI_OUTCOME to outcome.name,
                 PostHogAnalytics.Props.SCREENING_ID to screeningId,
             ),
         )
@@ -74,10 +81,11 @@ class AIResultActivity : ComponentActivity() {
         // Copy images to a private cache dir off the main thread. Sync worker only deletes after a
         // successful network upload + server verification, so this copy always wins the race.
         // Copies are cleaned up in onDestroy.
-        var displayImages by mutableStateOf(if (isSuspicious) suspiciousImages else emptyList<String>())
-        if (isSuspicious && suspiciousImages.isNotEmpty()) {
+        val showsImages = outcome != Outcome.NEGATIVE
+        var displayImages by mutableStateOf(if (showsImages) flaggedImages else emptyList<String>())
+        if (showsImages && flaggedImages.isNotEmpty()) {
             lifecycleScope.launch(Dispatchers.IO) {
-                val cached = suspiciousImages.mapNotNull { copyToPreviewCache(it) }
+                val cached = flaggedImages.mapNotNull { copyToPreviewCache(it) }
                 withContext(Dispatchers.Main) { displayImages = cached }
             }
         }
@@ -85,8 +93,10 @@ class AIResultActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 AIResultScreen(
-                    isSuspicious = isSuspicious,
+                    outcome = outcome,
                     suspiciousImages = displayImages,
+                    titleOverride = titleOverride,
+                    descriptionOverride = descriptionOverride,
                     onClose = {
                         intent.putExtra("refer_case", false)
                         setResult(RESULT_OK, intent)
@@ -97,6 +107,7 @@ class AIResultActivity : ComponentActivity() {
                             PostHogAnalytics.Events.AI_REFER_CASE,
                             mapOf(
                                 PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
+                                PostHogAnalytics.Props.AI_OUTCOME to outcome.name,
                                 PostHogAnalytics.Props.SCREENING_ID to screeningId,
                             ),
                         )
@@ -116,6 +127,23 @@ class AIResultActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         previewCacheDir.deleteRecursively()
+    }
+
+    companion object {
+        /** [Outcome] name of the case. */
+        const val EXTRA_OUTCOME = "aiOutcome"
+
+        /** Kept for callers that only know suspicious / non-suspicious. */
+        const val EXTRA_IS_SUSPICIOUS = "isSuspicious"
+
+        /** Photos that explain the outcome (flagged, or not assessable). */
+        const val EXTRA_IMAGES = "suspiciousImages"
+
+        /** Optional result-screen title from the model's class descriptor. */
+        const val EXTRA_TITLE = "aiResultTitle"
+
+        /** Optional result-screen explanation from the model's class descriptor. */
+        const val EXTRA_DESCRIPTION = "aiResultDescription"
     }
 
     private fun copyToPreviewCache(sourcePath: String): String? {
@@ -145,17 +173,26 @@ class AIResultActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AIResultScreen(
-    isSuspicious: Boolean,
+    outcome: Outcome,
     suspiciousImages: List<String>,
     onClose: () -> Unit,
-    onRefer: () -> Unit
+    onRefer: () -> Unit,
+    titleOverride: String? = null,
+    descriptionOverride: String? = null,
 ) {
+    val isSuspicious = outcome == Outcome.POSITIVE
+    val isInconclusive = outcome == Outcome.INCONCLUSIVE
     val context = LocalContext.current
     // The case is already saved when this screen opens, so system back must report a result
     // (RESULT_OK, refer_case=false) like the Done button instead of returning the user to the
     // already-submitted form, where submitting again would register a duplicate case.
     BackHandler(onBack = onClose)
-    val backgroundColor = if (isSuspicious) Colors.CORNSILK else LighterBlue
+    val backgroundColor =
+        when (outcome) {
+            Outcome.POSITIVE -> Colors.CORNSILK
+            Outcome.NEGATIVE -> LighterBlue
+            Outcome.INCONCLUSIVE -> InconclusiveBackground
+        }
     val title = if (isSuspicious) stringResource(R.string.add_patient) else stringResource(R.string.ai_result_title)
     var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
     val displayableSuspiciousImages = remember(context, suspiciousImages) {
@@ -211,20 +248,32 @@ fun AIResultScreen(
                     modifier = Modifier.size(124.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        painter = painterResource(
-                            id = if (isSuspicious) R.drawable.positive_sign else R.drawable.negative_sign
-                        ),
-                        contentDescription = "Result Illustration",
-                        modifier = Modifier.size(120.dp)
-                    )
+                    if (isInconclusive) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_alert_triangle),
+                            contentDescription = "Result Illustration",
+                            modifier = Modifier.size(96.dp)
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(
+                                id = if (isSuspicious) R.drawable.positive_sign else R.drawable.negative_sign
+                            ),
+                            contentDescription = "Result Illustration",
+                            modifier = Modifier.size(120.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = stringResource(
-                        if (isSuspicious) R.string.suspicious_result else R.string.nonsuspicious_result
+                    text = titleOverride ?: stringResource(
+                        when (outcome) {
+                            Outcome.POSITIVE -> R.string.suspicious_result
+                            Outcome.NEGATIVE -> R.string.nonsuspicious_result
+                            Outcome.INCONCLUSIVE -> R.string.inconclusive_result
+                        }
                     ),
                     style = body18Medium().copy(
                         color = Color(0xFF3D392E),
@@ -237,8 +286,12 @@ fun AIResultScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = stringResource(
-                        if (isSuspicious) R.string.suspicious_result_desc else R.string.nonsuspicious_result_desc
+                    text = descriptionOverride ?: stringResource(
+                        when (outcome) {
+                            Outcome.POSITIVE -> R.string.suspicious_result_desc
+                            Outcome.NEGATIVE -> R.string.nonsuspicious_result_desc
+                            Outcome.INCONCLUSIVE -> R.string.inconclusive_result_desc
+                        }
                     ),
                     style = body18Medium().copy(
                         color = Color(0xAB3D392E),
@@ -258,7 +311,9 @@ fun AIResultScreen(
                     .padding(vertical = 24.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.ai_detected_lesions),
+                    text = stringResource(
+                        if (isInconclusive) R.string.ai_inconclusive_photos else R.string.ai_detected_lesions
+                    ),
                     style = body18Medium().copy(
                         color = Color(0xAB2F363D),
                         fontSize = 14.sp,
@@ -268,7 +323,7 @@ fun AIResultScreen(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                if (isSuspicious && displayableSuspiciousImages.isNotEmpty()) {
+                if (!isNegative(outcome) && displayableSuspiciousImages.isNotEmpty()) {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -289,7 +344,7 @@ fun AIResultScreen(
                             }
                         }
                     }
-                } else if (!isSuspicious) {
+                } else if (isNegative(outcome) || isInconclusive) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -299,7 +354,9 @@ fun AIResultScreen(
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
-                            text = stringResource(R.string.no_lesions_found),
+                            text = stringResource(
+                                if (isInconclusive) R.string.no_photos_assessed else R.string.no_lesions_found
+                            ),
                             modifier = Modifier.padding(start = 16.dp),
                             style = body18Medium().copy(
                                 color = Color(0xFF3D392E),
@@ -360,7 +417,9 @@ fun AIResultScreen(
                             border = BorderStroke(1.dp, PrimaryColor)
                         ) {
                             Text(
-                                text = stringResource(R.string.refer_case),
+                                text = stringResource(
+                                    if (isInconclusive) R.string.refer_case_upper else R.string.refer_case
+                                ),
                                 style = body18Medium().copy(
                                     color = PrimaryColor,
                                     letterSpacing = 1.25.sp,
@@ -516,3 +575,8 @@ private fun Context.canOpenUri(uri: Uri): Boolean =
     runCatching {
         contentResolver.openInputStream(uri)?.use { true } == true
     }.getOrDefault(false)
+
+/** Neutral background for an inconclusive result: neither the referral nor the all-clear colour. */
+private val InconclusiveBackground = Color(0xFFF1F1EF)
+
+private fun isNegative(outcome: Outcome) = outcome == Outcome.NEGATIVE

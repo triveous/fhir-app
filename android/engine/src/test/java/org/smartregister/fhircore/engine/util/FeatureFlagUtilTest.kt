@@ -48,12 +48,42 @@ class FeatureFlagUtilTest {
     every { sharedPreferencesHelper.getFeatureFlagsResourceId() } returns featureFlagsResourceId
     every { sharedPreferencesHelper.getLastKnownFeatureFlags(any()) } returns emptyMap()
     every { sharedPreferencesHelper.getLastKnownAppUpdateConfig(any()) } returns AppUpdateConfig.NONE
+    every { sharedPreferencesHelper.read(any(), null as String?) } returns null
     featureFlagUtil =
       FeatureFlagUtil(
         fhirEngine = fhirEngine,
         fhirResourceDataSource = fhirResourceDataSource,
         sharedPreferencesHelper = sharedPreferencesHelper,
       )
+  }
+
+  @Test
+  fun testAiModelIdIsReadFromTheFlagsAndPersistedOnce() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
+      featureFlagsBasic(true).apply {
+        addExtension(FeatureFlagUtil.AI_MODEL_ID_URL, StringType("acme-oral"))
+      }
+
+    Assert.assertEquals("acme-oral", featureFlagUtil.getAiModelId())
+    Assert.assertEquals("acme-oral", featureFlagUtil.getAiModelId())
+    // A string flag is not a boolean flag.
+    Assert.assertTrue(featureFlagUtil.isAiInferenceEnabled())
+
+    verify(exactly = 1) {
+      sharedPreferencesHelper.write("LAST_KNOWN_AI_MODEL_ID_$featureFlagsResourceId", "acme-oral")
+    }
+    verify {
+      sharedPreferencesHelper.saveLastKnownFeatureFlags(
+        featureFlagsResourceId,
+        mapOf(FeatureFlagUtil.AI_INFERENCE_ENABLED_URL to true),
+      )
+    }
+  }
+
+  @Test
+  fun testAiModelIdIsNullWhenUnset() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns featureFlagsBasic(true)
+    Assert.assertNull(featureFlagUtil.getAiModelId())
   }
 
   @Test

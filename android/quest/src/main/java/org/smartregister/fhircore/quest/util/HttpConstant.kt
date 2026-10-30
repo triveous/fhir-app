@@ -11,3 +11,6 @@ const val REFER_CASE_URL="https://midas.iisc.ac.in/CodeSystem/refer-case"
 
 const val AI_RESULT_SUFFIX = "-ai-result"
 const val CASE_LEVEL_AI_RESULT_LINK_ID = "case-level-ai-result"
+
+/** Hidden QR item with the model's class for the whole case (e.g. "opmd"); see QuestionnaireActivity. */
+const val CASE_LEVEL_AI_CLASS_LINK_ID = "case-level-ai-class"

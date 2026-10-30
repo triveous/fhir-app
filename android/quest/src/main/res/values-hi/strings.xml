@@ -357,6 +357,15 @@
     <string name="extraction_enabled">एक्सट्रैक्शन चालू है</string>
     <string name="extraction_disabled">एक्सट्रैक्शन बंद है</string>
     <string name="ai_extraction_status">%1$s + %2$s</string>
+    <string name="inconclusive_result">AI तय नहीं कर पाया</string>
+    <string name="inconclusive_result_desc">अपने अनुभव से निर्णय लें। संदेह हो तो फ़ोटो फिर से लें या मामला रेफर करें।</string>
+    <string name="ai_inconclusive_photos">जिन फ़ोटो को AI जाँच नहीं पाया</string>
+    <string name="no_photos_assessed">AI फ़ोटो की जाँच नहीं कर पाया।</string>
+    <string name="refer_case_upper">रेफर करें</string>
+    <string name="ai_model_ready">मॉडल: %1$s %2$s</string>
+    <string name="ai_model_not_installed">कोई AI मॉडल इंस्टॉल नहीं है</string>
+    <string name="ai_model_failed">AI मॉडल लोड नहीं हुआ: %1$s</string>
+    <string name="ai_model_ambiguous">कई AI मॉडल इंस्टॉल हैं; कोई चुना नहीं गया</string>
     <plurals name="logout_pending_sync_title">
         <item quantity="one">%d केस सिंक होना बाकी है</item>
         <item quantity="other">%d केस सिंक होने बाकी हैं</item>

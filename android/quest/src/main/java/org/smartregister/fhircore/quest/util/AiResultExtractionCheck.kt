@@ -1,5 +1,6 @@
 package org.smartregister.fhircore.quest.util
 
+import org.smartregister.fhircore.quest.ml.AiModelStatus
 import com.google.android.fhir.FhirEngine
 import com.google.android.fhir.datacapture.extensions.targetStructureMap
 import org.hl7.fhir.r4.model.Questionnaire
@@ -25,23 +26,40 @@ enum class AiReadiness {
 /**
  * Both halves of AI on this device, read independently, for the profile screen's diagnostic label.
  * Unlike [aiReadiness] the extraction is checked even with the flag off, so a support person can tell
- * a wrong flag from a missing extraction.
+ * a wrong flag from a missing extraction. [model] is the installed AI model's state (null when unknown),
+ * so support can also tell a missing or broken model apart.
  */
-data class AiStatus(val flagEnabled: Boolean, val extractionEnabled: Boolean)
+data class AiStatus(
+  val flagEnabled: Boolean,
+  val extractionEnabled: Boolean,
+  val model: AiModelStatus? = null,
+)
 
-suspend fun FhirEngine.aiStatus(featureFlagUtil: FeatureFlagUtil, questionnaireId: String): AiStatus =
+suspend fun FhirEngine.aiStatus(
+  featureFlagUtil: FeatureFlagUtil,
+  questionnaireId: String,
+  model: AiModelStatus? = null,
+): AiStatus =
   AiStatus(
     flagEnabled = featureFlagUtil.isAiInferenceEnabled(),
     extractionEnabled = hasAiResultExtraction(questionnaireId),
+    model = model,
   )
 
 /**
  * [AiReadiness] for cases registered with [questionnaireId]. The flag is read first: on a site with AI
- * off the StructureMap is irrelevant, so it is not even loaded.
+ * off the StructureMap is irrelevant, so it is not even loaded. [aiModelSelected] false means this
+ * install has no AI model (the default build): AI can't run, so the site is treated as running
+ * without AI and nothing is blocked.
  */
-suspend fun FhirEngine.aiReadiness(featureFlagUtil: FeatureFlagUtil, questionnaireId: String): AiReadiness =
+suspend fun FhirEngine.aiReadiness(
+  featureFlagUtil: FeatureFlagUtil,
+  questionnaireId: String,
+  aiModelSelected: Boolean = true,
+): AiReadiness =
   when {
     !featureFlagUtil.isAiInferenceEnabled() -> AiReadiness.DISABLED
+    !aiModelSelected -> AiReadiness.DISABLED
     hasAiResultExtraction(questionnaireId) -> AiReadiness.READY
     else -> AiReadiness.UPDATE_NEEDED
   }

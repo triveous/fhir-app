@@ -32,18 +32,20 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.smartregister.fhircore.engine.util.FeatureFlagUtil
+import org.smartregister.fhircore.ai.Outcome
+import org.smartregister.fhircore.quest.ml.ImageScreeningResult
+import org.smartregister.fhircore.quest.ml.ScreeningEngine
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
 
 /**
  * Pure unit tests for [CameraxLauncherViewModel]. No Robolectric / Hilt: the ViewModel deliberately
- * owns only Android-free logic (the AI pipeline stays frozen in the Fragment), so the camera state
+ * owns only Android-free logic (inference runs behind ScreeningEngine), so the camera state
  * machine, screening orchestration and result/analytics assembly are testable with plain MockK.
  */
 class CameraxLauncherViewModelTest {
 
-    private val featureFlagUtil: FeatureFlagUtil = mockk()
+    private val screeningEngine: ScreeningEngine = mockk()
     private lateinit var viewModel: CameraxLauncherViewModel
 
     @Before
@@ -57,7 +59,7 @@ class CameraxLauncherViewModelTest {
         every { ScreeningTimer.incrementPhoto(any()) } returns 1
         every { PostHogAnalytics.capture(any(), any()) } just runs
 
-        viewModel = CameraxLauncherViewModel(featureFlagUtil)
+        viewModel = CameraxLauncherViewModel(screeningEngine)
     }
 
     @After
@@ -185,56 +187,47 @@ class CameraxLauncherViewModelTest {
         assertFalse(viewModel.uiState.value.isProcessing)
     }
 
-    // ───────────────────────────── feature flag ─────────────────────────────
+    // ───────────────────────────── AI gate ─────────────────────────────
 
     @Test
-    fun isAiInferenceEnabledDelegatesToFeatureFlagUtil() = runBlocking {
-        coEvery { featureFlagUtil.isAiInferenceEnabled() } returns true
+    fun isAiInferenceEnabledDelegatesToTheScreeningEngine() = runBlocking {
+        coEvery { screeningEngine.isAiActive() } returns true
         assertTrue(viewModel.isAiInferenceEnabled())
 
-        coEvery { featureFlagUtil.isAiInferenceEnabled() } returns false
+        coEvery { screeningEngine.isAiActive() } returns false
         assertFalse(viewModel.isAiInferenceEnabled())
     }
 
     // ───────────────────────────── result extras ─────────────────────────────
 
     @Test
-    fun buildResultExtrasWithResultMapForwardsAllKeys() {
-        val resultMap =
-            mapOf<String, Any>(
-                CameraxLauncherFragment.CAMERA_PREDICTION_KEY to "suspicious",
-                CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY to "82.5",
-                "model6_prediction" to "suspicious",
-                "model6_confidence" to "80.0",
-                "model8_prediction" to "suspicious",
-                "model8_confidence" to "84.0",
-                "model82_prediction" to "suspicious",
-                "model82_confidence" to "83.5",
-            )
+    fun buildResultExtrasWithAResultCarriesItAsJson() {
+        val extras = viewModel.buildResultExtras(aiEnabled = true, screening = screening())
 
-        val extras = viewModel.buildResultExtras(aiEnabled = true, resultMap = resultMap)
-
-        assertEquals("suspicious", extras[CameraxLauncherFragment.CAMERA_PREDICTION_KEY])
-        assertEquals("82.5", extras[CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY])
-        assertEquals("suspicious", extras[CameraxLauncherFragment.CAMERA_MODEL6_PREDICTION_KEY])
-        assertEquals("80.0", extras[CameraxLauncherFragment.CAMERA_MODEL6_CONFIDENCE_KEY])
-        assertEquals("84.0", extras[CameraxLauncherFragment.CAMERA_MODEL8_CONFIDENCE_KEY])
-        assertEquals("83.5", extras[CameraxLauncherFragment.CAMERA_MODEL82_CONFIDENCE_KEY])
-        assertEquals(8, extras.size)
+        assertEquals(2, extras.size)
+        assertEquals(
+            CameraxLauncherFragment.AI_STATUS_COMPLETED,
+            extras[CameraxLauncherFragment.CAMERA_AI_STATUS_KEY],
+        )
+        assertEquals(
+            screening(),
+            ImageScreeningResult.fromJson(extras.getValue(CameraxLauncherFragment.CAMERA_SCREENING_RESULT_KEY)),
+        )
     }
 
     @Test
-    fun buildResultExtrasWithoutResultButAiEnabledEmitsBlankPredictionAndConfidence() {
-        val extras = viewModel.buildResultExtras(aiEnabled = true, resultMap = null)
+    fun buildResultExtrasWithoutResultButAiEnabledReportsAFailure() {
+        val extras = viewModel.buildResultExtras(aiEnabled = true, screening = null)
 
-        assertEquals(2, extras.size)
-        assertEquals("", extras[CameraxLauncherFragment.CAMERA_PREDICTION_KEY])
-        assertEquals("", extras[CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY])
+        assertEquals(
+            mapOf(CameraxLauncherFragment.CAMERA_AI_STATUS_KEY to CameraxLauncherFragment.AI_STATUS_FAILED),
+            extras,
+        )
     }
 
     @Test
     fun buildResultExtrasWithoutResultAndAiDisabledIsEmpty() {
-        val extras = viewModel.buildResultExtras(aiEnabled = false, resultMap = null)
+        val extras = viewModel.buildResultExtras(aiEnabled = false, screening = null)
         assertTrue(extras.isEmpty())
     }
 
@@ -250,22 +243,19 @@ class CameraxLauncherViewModelTest {
         viewModel.onCaptureSaved("/data/IMG_1.jpeg") // saved = 1400, duration = 400
         now = 1_700L // props built at 1700 -> captureToResult = 300
 
-        val resultMap =
-            mapOf<String, Any>(
-                CameraxLauncherFragment.CAMERA_PREDICTION_KEY to "suspicious",
-                CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY to "90",
-            )
-
         val props =
             viewModel.buildPhotoCapturedProps(
-                resultMap = resultMap,
+                screening = screening(confidence = 0.9f, inferenceTimeMs = 250L),
                 qualityProps = mapOf("blur_score" to 0.1),
-                combinedInferenceTimeMs = 250L,
                 deviceMetrics = mapOf("device_model" to "Pixel"),
             )
 
-        assertEquals("suspicious", props[PostHogAnalytics.Props.AI_PREDICTION])
+        // The legacy label and confidence format dashboards were built on.
+        assertEquals("Suspicious", props[PostHogAnalytics.Props.AI_PREDICTION])
         assertEquals("90", props[PostHogAnalytics.Props.AI_CONFIDENCE])
+        assertEquals("acme-oral", props[PostHogAnalytics.Props.MODEL_ID])
+        assertEquals("suspicious", props[PostHogAnalytics.Props.AI_CLASS])
+        assertEquals("POSITIVE", props[PostHogAnalytics.Props.AI_OUTCOME])
         assertEquals("scr-1", props[PostHogAnalytics.Props.SCREENING_ID])
         assertEquals(400L, props[PostHogAnalytics.Props.TIME_TO_CAPTURE_MS])
         assertEquals(300L, props[PostHogAnalytics.Props.CAPTURE_TO_RESULT_MS])
@@ -279,9 +269,8 @@ class CameraxLauncherViewModelTest {
     fun buildPhotoCapturedPropsOmitsInferenceTimesWhenNull() {
         val props =
             viewModel.buildPhotoCapturedProps(
-                resultMap = null,
+                screening = null,
                 qualityProps = null,
-                combinedInferenceTimeMs = null,
                 deviceMetrics = emptyMap(),
             )
 
@@ -295,31 +284,18 @@ class CameraxLauncherViewModelTest {
 
     @Test
     fun preparePhotoCaptureWithAiEnabledReturnsProcessedMessageAndCapturesEvent() {
-        val resultMap =
-            mapOf<String, Any>(
-                CameraxLauncherFragment.CAMERA_PREDICTION_KEY to "non_suspicious",
-                CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY to "70",
-                "model6_prediction" to "non_suspicious",
-                "model6_confidence" to "70",
-                "model8_prediction" to "non_suspicious",
-                "model8_confidence" to "71",
-                "model82_prediction" to "non_suspicious",
-                "model82_confidence" to "69",
-            )
-
         val result =
             viewModel.preparePhotoCapture(
                 absolutePath = "/data/IMG_1.jpeg",
                 aiEnabled = true,
-                resultMap = resultMap,
+                screening = screening(),
                 qualityProps = emptyMap(),
-                combinedInferenceTimeMs = 100L,
                 deviceMetrics = emptyMap(),
             )
 
         assertEquals("/data/IMG_1.jpeg", result.uri)
         assertEquals(CameraxLauncherViewModel.MESSAGE_IMAGE_PROCESSED, result.toastMessage)
-        assertEquals("non_suspicious", result.stringExtras[CameraxLauncherFragment.CAMERA_PREDICTION_KEY])
+        assertTrue(result.stringExtras.containsKey(CameraxLauncherFragment.CAMERA_SCREENING_RESULT_KEY))
         verify { ScreeningTimer.incrementPhoto(any()) }
         verify { PostHogAnalytics.capture(PostHogAnalytics.Events.PHOTO_CAPTURED, any()) }
     }
@@ -330,9 +306,8 @@ class CameraxLauncherViewModelTest {
             viewModel.preparePhotoCapture(
                 absolutePath = "/data/IMG_2.jpeg",
                 aiEnabled = false,
-                resultMap = null,
+                screening = null,
                 qualityProps = null,
-                combinedInferenceTimeMs = null,
                 deviceMetrics = emptyMap(),
             )
 
@@ -340,4 +315,18 @@ class CameraxLauncherViewModelTest {
         assertTrue(result.stringExtras.isEmpty())
         verify { PostHogAnalytics.capture(PostHogAnalytics.Events.PHOTO_CAPTURED, any()) }
     }
+
+    private fun screening(confidence: Float = 0.825f, inferenceTimeMs: Long = 100L) =
+        ImageScreeningResult(
+            modelId = "acme-oral",
+            modelVersion = "1.0.0",
+            classId = "suspicious",
+            outcome = Outcome.POSITIVE,
+            displayName = "Suspicious",
+            confidence = confidence,
+            lowConfidence = false,
+            entropy = 0.4,
+            scores = mapOf("suspicious" to confidence, "non_suspicious" to 1 - confidence),
+            inferenceTimeMs = inferenceTimeMs,
+        )
 }

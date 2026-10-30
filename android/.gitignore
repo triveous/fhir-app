@@ -4,6 +4,18 @@ src/*/assets/configs/
 src/androidTest/assets/resources.db
 src/benchmark/assets/resources.db
 
+# AI model weights: the app ships without a model, and weights you have no licence to publish must
+# never be committed. Plugins (ai-plugins/) are tracked; the model files in their assets are not.
+# Remove the ai-plugins lines in your own fork if you do want to commit your weights.
+# Small dummy models under src/test are fine.
+*.pt
+*.ptl
+*.onnx.data
+quest/src/main/assets/*.onnx
+ai-plugins/*/src/main/assets/**/*.onnx
+ai-plugins/*/src/main/assets/**/*.ort
+ai-plugins/*/src/main/assets/**/*.tflite
+
 ### Java template
 # Compiled class file
 *.class

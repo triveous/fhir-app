@@ -67,6 +67,10 @@ import org.smartregister.fhircore.engine.util.extension.parcelableArrayList
 import org.smartregister.fhircore.engine.util.extension.showToast
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.databinding.QuestionnaireActivityBinding
+import org.smartregister.fhircore.ai.Outcome
+import org.smartregister.fhircore.ai.localized
+import org.smartregister.fhircore.quest.ml.ScreeningEngine
+import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_CLASS_LINK_ID
 import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RESULT_LINK_ID
 import org.smartregister.fhircore.quest.util.DeviceMetrics
 import org.smartregister.fhircore.quest.util.LocationUtils
@@ -89,6 +93,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
 
   @Inject lateinit var dispatcherProvider: DispatcherProvider
   @Inject lateinit var featureFlagUtil: FeatureFlagUtil
+  @Inject lateinit var screeningEngine: ScreeningEngine
   val viewModel by viewModels<QuestionnaireViewModel>()
   private lateinit var questionnaireConfig: QuestionnaireConfig
   private lateinit var actionParameters: ArrayList<ActionParameter>
@@ -101,8 +106,9 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private lateinit var activityResultLauncher: ActivityResultLauncher<Intent>
   private var questionnaireResponse: String? = null
   private var currentQR: QuestionnaireResponse? = null
-  private var isSuspiciousResult: Boolean = false
-  private var suspiciousImagesList: List<String> = emptyList()
+  private var caseOutcome: Outcome = Outcome.NEGATIVE
+  private val isSuspiciousResult: Boolean
+    get() = caseOutcome == Outcome.POSITIVE
   private var submissionIdTypes: List<IdType>? = null
   private var submissionQRResult: QuestionnaireResponse? = null
   private var screeningId: String? = null
@@ -111,12 +117,13 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
       if (result.resultCode == Activity.RESULT_OK) {
         val referCase = result.data?.getBooleanExtra("refer_case", false) ?: false
-        val aiVerdict = if (isSuspiciousResult) "suspicious" else "non_suspicious"
+        val aiVerdict = caseOutcome.verdict
         PostHogAnalytics.capture(
           PostHogAnalytics.Events.QUESTIONNAIRE_SUBMITTED,
           questionnaireAnalyticsProps(
             PostHogAnalytics.Props.REFER_CASE to referCase,
             PostHogAnalytics.Props.AI_VERDICT to aiVerdict,
+            // Referred although the AI didn't call for it (negative or inconclusive).
             PostHogAnalytics.Props.AI_OVERRIDDEN to (referCase && !isSuspiciousResult),
           ),
         )
@@ -155,7 +162,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
           questionnaireAnalyticsProps(
             PostHogAnalytics.Props.REFER_CASE to false,
             PostHogAnalytics.Props.AI_VERDICT to
-              (if (isSuspiciousResult) "suspicious" else "non_suspicious"),
+              caseOutcome.verdict,
             PostHogAnalytics.Props.AI_OVERRIDDEN to false,
           ),
         )
@@ -662,24 +669,26 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               )
             }
 
-            val aiEnabled = featureFlagUtil.isAiInferenceEnabled()
+            // AI on for the tenant and a model selected. With no model installed (the default
+            // build) the case is submitted exactly as with AI switched off.
+            val aiEnabled = screeningEngine.isAiActive()
 
             if (aiEnabled) {
               val aiSummary =
                 viewModel.summarizeAiInference(questionnaireResponse, questionnaire)
+              val outcome = aiSummary.outcome
               val isSuspicious = aiSummary.isSuspicious
               val suspiciousImages = aiSummary.suspiciousImages
 
-              val aiResultValue = if (isSuspicious) "suspicious" else "non-suspicious"
-              val aiResultItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
-                linkId = CASE_LEVEL_AI_RESULT_LINK_ID
-                addAnswer(
-                  QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
-                    value = StringType(aiResultValue)
-                  }
-                )
+              // Read by the registration StructureMap's case-level AI rule. "suspicious" and
+              // "non-suspicious" keep their original meaning; "inconclusive" is new.
+              questionnaireResponse.addItem(
+                caseLevelItem(CASE_LEVEL_AI_RESULT_LINK_ID, outcome.caseLevelValue),
+              )
+              // The model's own class for the case (e.g. "opmd"), for multi-class models.
+              aiSummary.caseClassId?.let {
+                questionnaireResponse.addItem(caseLevelItem(CASE_LEVEL_AI_CLASS_LINK_ID, it))
               }
-              questionnaireResponse.addItem(aiResultItem)
 
               val aiInferenceProps =
                 questionnaireAnalyticsProps(
@@ -689,6 +698,11 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                     PostHogAnalytics.Props.NON_SUSPICIOUS_IMAGE_COUNT to aiSummary.nonSuspiciousImageCount,
                     PostHogAnalytics.Props.LOW_CONFIDENCE_IMAGE_COUNT to aiSummary.lowConfidenceImageCount,
                     PostHogAnalytics.Props.MEAN_CONFIDENCE to aiSummary.meanConfidence,
+                    PostHogAnalytics.Props.AI_OUTCOME to outcome.name,
+                    PostHogAnalytics.Props.AI_CLASS to aiSummary.caseClassId,
+                    PostHogAnalytics.Props.MODEL_ID to aiSummary.modelId,
+                    PostHogAnalytics.Props.INCONCLUSIVE_IMAGE_COUNT to aiSummary.inconclusiveImageCount,
+                    PostHogAnalytics.Props.FAILED_IMAGE_COUNT to aiSummary.failedImageCount,
                   )
                   .toMutableMap()
                   .apply { putAll(DeviceMetrics.snapshot(this@QuestionnaireActivity)) }
@@ -698,8 +712,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               )
               Timber.d("=== About to launch AIResultActivity ===")
               currentQR = questionnaireResponse
-              isSuspiciousResult = isSuspicious
-              suspiciousImagesList = suspiciousImages
+              caseOutcome = outcome
+              val caseClass = screeningEngine.classDescriptor(aiSummary.modelId, aiSummary.caseClassId)
 
               ScreeningTimer.markStep(screeningId, "submission_started")
               viewModel.setProgressState(QuestionnaireProgressState.ExtractionInProgress(true))
@@ -718,8 +732,18 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                 ScreeningTimer.markStep(screeningId, "submission_completed")
 
                 val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
-                intent.putExtra("isSuspicious", isSuspicious)
-                intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
+                intent.putExtra(AIResultActivity.EXTRA_OUTCOME, outcome.name)
+                intent.putExtra(AIResultActivity.EXTRA_IS_SUSPICIOUS, isSuspicious)
+                intent.putStringArrayListExtra(AIResultActivity.EXTRA_IMAGES, ArrayList(suspiciousImages))
+                // A model may word its result screen itself ("Refer to a dermatologist"), in the
+                // app's chosen language (per-app locale, not necessarily the device's).
+                val locale = resources.configuration.locales[0]
+                caseClass?.resultTitle?.localized(locale)?.let {
+                  intent.putExtra(AIResultActivity.EXTRA_TITLE, it)
+                }
+                caseClass?.resultDescription?.localized(locale)?.let {
+                  intent.putExtra(AIResultActivity.EXTRA_DESCRIPTION, it)
+                }
                 intent.putExtra("questionnaireResponseId", qrResult.logicalId)
                 intent.putExtra(PostHogAnalytics.Props.SCREENING_ID, screeningId)
                 aiResultLauncher.launch(intent)
@@ -885,6 +909,16 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
     }
   }
 
+  private fun caseLevelItem(linkId: String, value: String) =
+    QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+      this.linkId = linkId
+      addAnswer(
+        QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+          this.value = StringType(value)
+        },
+      )
+    }
+
   private fun questionnaireAnalyticsProps(
     vararg extras: Pair<String, Any?>,
   ): Map<String, Any?> =
@@ -971,3 +1005,21 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
       )
   }
 }
+
+/** `case-level-ai-result` value the registration StructureMap reads. */
+private val Outcome.caseLevelValue: String
+  get() =
+    when (this) {
+      Outcome.POSITIVE -> "suspicious"
+      Outcome.NEGATIVE -> "non-suspicious"
+      Outcome.INCONCLUSIVE -> "inconclusive"
+    }
+
+/** `ai_verdict` analytics value. */
+private val Outcome.verdict: String
+  get() =
+    when (this) {
+      Outcome.POSITIVE -> "suspicious"
+      Outcome.NEGATIVE -> "non_suspicious"
+      Outcome.INCONCLUSIVE -> "inconclusive"
+    }

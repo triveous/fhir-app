@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import org.smartregister.fhircore.engine.util.FeatureFlagUtil
+import org.smartregister.fhircore.quest.ml.ImageScreeningResult
+import org.smartregister.fhircore.quest.ml.ScreeningEngine
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
 import javax.inject.Inject
@@ -43,7 +44,7 @@ data class CameraUiState(
 /** Result of preparing a captured photo for hand-off back to the questionnaire. */
 data class PhotoCaptureResult(
     val uri: String,
-    /** String extras (prediction / confidence / per-model results) for the fragment-result bundle. */
+    /** String extras (the AI result as JSON + its status) for the fragment-result bundle. */
     val stringExtras: Map<String, String>,
     val toastMessage: String,
 )
@@ -53,17 +54,15 @@ data class PhotoCaptureResult(
  * state machine, screening timing/analytics, the feature-flag gate, and assembly of the
  * fragment-result bundle + capture analytics props.
  *
- * The AI inference pipeline (model loading, OpenCV pre-processing, the PyTorch forward passes and
- * ensemble logic) is intentionally NOT here — it stays frozen in [CameraxLauncherFragment]. This
- * ViewModel only consumes the already-computed inference output (a plain result map) when building
- * the bundle and analytics, so the inference behavior is unchanged and this logic stays unit
- * testable without any Android / AI dependencies.
+ * AI inference itself is not here: it runs behind [ScreeningEngine], which the Fragment calls. This
+ * ViewModel only consumes the finished [ImageScreeningResult] when building the bundle and
+ * analytics, so this logic stays unit testable without any Android / AI dependencies.
  */
 @HiltViewModel
 class CameraxLauncherViewModel
 @Inject
 constructor(
-    private val featureFlagUtil: FeatureFlagUtil,
+    private val screeningEngine: ScreeningEngine,
 ) : ViewModel() {
 
     /**
@@ -90,7 +89,8 @@ constructor(
 
     fun screeningId(): String? = screeningId
 
-    suspend fun isAiInferenceEnabled(): Boolean = featureFlagUtil.isAiInferenceEnabled()
+    /** AI is on for the tenant and this install has a usable model. */
+    suspend fun isAiInferenceEnabled(): Boolean = screeningEngine.isAiActive()
 
     // ───────────────────────────── camera state machine ─────────────────────────────
 
@@ -182,22 +182,18 @@ constructor(
 
     /**
      * Builds the analytics props for a [PostHogAnalytics.Events.PHOTO_CAPTURED] event. Pure: the
-     * inference output ([resultMap], [qualityProps], [combinedInferenceTimeMs]) is supplied by the
-     * caller after the frozen pipeline has run.
+     * AI result ([screening]) and [qualityProps] are supplied by the caller.
      */
     @VisibleForTesting
     fun buildPhotoCapturedProps(
-        resultMap: Map<String, Any>?,
+        screening: ImageScreeningResult?,
         qualityProps: Map<String, Any>?,
-        combinedInferenceTimeMs: Long?,
         deviceMetrics: Map<String, Any>,
     ): Map<String, Any> {
         val props =
             mutableMapOf<String, Any>(
-                PostHogAnalytics.Props.AI_PREDICTION to
-                    (resultMap?.get(CameraxLauncherFragment.CAMERA_PREDICTION_KEY) ?: ""),
-                PostHogAnalytics.Props.AI_CONFIDENCE to
-                    (resultMap?.get(CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY) ?: ""),
+                PostHogAnalytics.Props.AI_PREDICTION to (screening?.legacyLabel ?: ""),
+                PostHogAnalytics.Props.AI_CONFIDENCE to (screening?.legacyConfidence ?: ""),
             )
         val captureToResultMs = captureSavedMs?.let { elapsedRealtimeProvider() - it }
         props[PostHogAnalytics.Props.SCREENING_ID] = screeningId.orEmpty()
@@ -205,68 +201,53 @@ constructor(
         captureToResultMs?.let { props[PostHogAnalytics.Props.CAPTURE_TO_RESULT_MS] = it }
         qualityProps?.let { props.putAll(it) }
         props.putAll(deviceMetrics)
-        combinedInferenceTimeMs?.let {
-            props[PostHogAnalytics.Props.INFERENCE_TIME_MS] = it
-            props[PostHogAnalytics.Props.COMBINED_INFERENCE_TIME_MS] = it
+        screening?.let {
+            props[PostHogAnalytics.Props.MODEL_ID] = it.modelId
+            props[PostHogAnalytics.Props.AI_CLASS] = it.classId
+            props[PostHogAnalytics.Props.AI_OUTCOME] = it.outcome.name
+            props[PostHogAnalytics.Props.INFERENCE_TIME_MS] = it.inferenceTimeMs
+            props[PostHogAnalytics.Props.COMBINED_INFERENCE_TIME_MS] = it.inferenceTimeMs
         }
         return props
     }
 
     /**
-     * Builds the string extras placed into the fragment-result bundle. When inference produced a
-     * non-empty [resultMap] every prediction/confidence key is forwarded; when there is no result
-     * but AI is enabled, prediction/confidence are emitted blank (matching the original contract).
+     * Builds the string extras placed into the fragment-result bundle: the AI result as JSON when
+     * there is one, and whether AI ran. "Failed" (AI active, no result) is kept distinct from "AI
+     * off" so the case summary can treat an unscreened photo as unknown rather than negative.
      */
     @VisibleForTesting
-    fun buildResultExtras(aiEnabled: Boolean, resultMap: Map<String, Any>?): Map<String, String> {
-        if (resultMap != null) {
-            return buildMap {
-                put(
-                    CameraxLauncherFragment.CAMERA_PREDICTION_KEY,
-                    resultMap[CameraxLauncherFragment.CAMERA_PREDICTION_KEY].asStringOrEmpty(),
+    fun buildResultExtras(aiEnabled: Boolean, screening: ImageScreeningResult?): Map<String, String> =
+        when {
+            screening != null ->
+                mapOf(
+                    CameraxLauncherFragment.CAMERA_SCREENING_RESULT_KEY to screening.toJson(),
+                    CameraxLauncherFragment.CAMERA_AI_STATUS_KEY to CameraxLauncherFragment.AI_STATUS_COMPLETED,
                 )
-                put(
-                    CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY,
-                    resultMap[CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY].asStringOrEmpty(),
-                )
-                put(CameraxLauncherFragment.CAMERA_MODEL6_PREDICTION_KEY, resultMap["model6_prediction"].asStringOrEmpty())
-                put(CameraxLauncherFragment.CAMERA_MODEL6_CONFIDENCE_KEY, resultMap["model6_confidence"].asStringOrEmpty())
-                put(CameraxLauncherFragment.CAMERA_MODEL8_PREDICTION_KEY, resultMap["model8_prediction"].asStringOrEmpty())
-                put(CameraxLauncherFragment.CAMERA_MODEL8_CONFIDENCE_KEY, resultMap["model8_confidence"].asStringOrEmpty())
-                put(CameraxLauncherFragment.CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"].asStringOrEmpty())
-                put(CameraxLauncherFragment.CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"].asStringOrEmpty())
-            }
+            aiEnabled ->
+                mapOf(CameraxLauncherFragment.CAMERA_AI_STATUS_KEY to CameraxLauncherFragment.AI_STATUS_FAILED)
+            else -> emptyMap()
         }
-        if (aiEnabled) {
-            return mapOf(
-                CameraxLauncherFragment.CAMERA_PREDICTION_KEY to "",
-                CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY to "",
-            )
-        }
-        return emptyMap()
-    }
 
     /**
      * Records the photo against the screening, fires the capture analytics event, and returns the
-     * data the Fragment needs to publish the fragment result. The frozen inference output is passed
-     * in via [resultMap]/[qualityProps]/[combinedInferenceTimeMs].
+     * data the Fragment needs to publish the fragment result.
      */
     fun preparePhotoCapture(
         absolutePath: String,
         aiEnabled: Boolean,
-        resultMap: Map<String, Any>?,
+        screening: ImageScreeningResult?,
         qualityProps: Map<String, Any>?,
-        combinedInferenceTimeMs: Long?,
         deviceMetrics: Map<String, Any>,
     ): PhotoCaptureResult {
         ScreeningTimer.incrementPhoto(screeningId)
         PostHogAnalytics.capture(
             PostHogAnalytics.Events.PHOTO_CAPTURED,
-            buildPhotoCapturedProps(resultMap, qualityProps, combinedInferenceTimeMs, deviceMetrics),
+            buildPhotoCapturedProps(screening, qualityProps, deviceMetrics),
         )
         return PhotoCaptureResult(
             uri = absolutePath,
-            stringExtras = buildResultExtras(aiEnabled, resultMap),
+            stringExtras = buildResultExtras(aiEnabled, screening),
             toastMessage = if (aiEnabled) MESSAGE_IMAGE_PROCESSED else MESSAGE_IMAGE_SAVED,
         )
     }
@@ -280,5 +261,3 @@ constructor(
         @VisibleForTesting const val MESSAGE_IMAGE_SAVED = "Image saved successfully"
     }
 }
-
-private fun Any?.asStringOrEmpty(): String = this?.toString().orEmpty()

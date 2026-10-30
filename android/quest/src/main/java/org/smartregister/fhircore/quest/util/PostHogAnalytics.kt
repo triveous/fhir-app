@@ -72,6 +72,13 @@ object PostHogAnalytics {
         const val SCREENING_COMPLETED = "screening_completed"
         const val SCREENING_ABANDONED = "screening_abandoned"
         const val MODEL_INFERENCE_COMPLETED = "model_inference_completed"
+
+        /**
+         * AI is switched on for the tenant but this install can't screen: no model in the APK, the
+         * tenant's `ai-model-id` names one the APK lacks, or the model failed to load. Capture then
+         * proceeds without AI.
+         */
+        const val AI_MODEL_UNAVAILABLE = "ai_model_unavailable"
         const val PHOTO_RETAKEN = "photo_retaken"
         const val IMAGE_UPLOAD_COMPLETED = "image_upload_completed"
         const val ERROR = "error"
@@ -115,6 +122,14 @@ object PostHogAnalytics {
         const val MEAN_CONFIDENCE = "mean_confidence"
         const val INFERENCE_TIME_MS = "inference_time_ms"
         const val COMBINED_INFERENCE_TIME_MS = "combined_inference_time_ms"
+        const val EXECUTION_PROVIDER = "execution_provider"
+        const val MODEL_OUTPUT_COUNT = "model_output_count"
+        const val MODEL_ID = "model_id"
+        const val AI_OUTCOME = "ai_outcome"
+        const val AI_CLASS = "ai_class"
+        const val AI_MODEL_STATE = "ai_model_state"
+        const val INCONCLUSIVE_IMAGE_COUNT = "inconclusive_image_count"
+        const val FAILED_IMAGE_COUNT = "failed_image_count"
         const val CAPTURE_TO_RESULT_MS = "capture_to_result_ms"
         const val BATTERY_PCT = "battery_pct"
         const val BATTERY_CHARGING = "battery_charging"

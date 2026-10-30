@@ -53,6 +53,30 @@ sonar {
   }
 }
 
+// ── AI plug-and-play build switches (see docs/ai-model-integration-guide.md) ──
+// The app ships without an AI model. A model is a code plugin: a module that implements
+// ScreeningModel from :ai-api and registers it with Hilt.
+// -PaiPlugins=a,b    plugins to include: a folder name under ai-plugins/, a project path
+//                    (":some:module") or Maven coordinates ("group:artifact:version").
+// -PaiModelId=<id>   default model when more than one is installed.
+// -PaiRequireModel   fail release builds that include no plugin.
+val aiPlugins: List<String> =
+  (findProperty("aiPlugins") as String?)
+    .orEmpty()
+    .split(",")
+    .map { it.trim() }
+    .filter { it.isNotEmpty() }
+val aiModelId: String = (findProperty("aiModelId") as String?).orEmpty().trim()
+val aiRequireModel: Boolean =
+  findProperty("aiRequireModel")?.toString()?.let { it.isEmpty() || it.toBoolean() } ?: false
+
+fun aiPluginDependency(spec: String): Any =
+  when {
+    spec.startsWith(":") -> project(spec)
+    spec.count { it == ':' } >= 2 -> spec
+    else -> project(":ai-plugins:$spec")
+  }
+
 android {
   compileSdk = BuildConfigs.compileSdk
 
@@ -79,6 +103,9 @@ android {
     buildConfigField("String", "POSTHOG_API_KEY", """"${project.extra["POSTHOG_API_KEY"]}"""")
     buildConfigField("String", "POSTHOG_HOST", """"${project.extra["POSTHOG_HOST"]}"""")
     buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
+    // Which AI model to use when the APK carries more than one (-PaiModelId=<id>). Empty: the only
+    // installed model, or none. A tenant can override it with the `ai-model-id` feature flag.
+    buildConfigField("String", "DEFAULT_AI_MODEL_ID", "\"${aiModelId}\"")
 
     testInstrumentationRunner = "org.smartregister.fhircore.quest.QuestTestRunner"
     testInstrumentationRunnerArguments["additionalTestOutputDir"] = "/sdcard/Download"
@@ -120,13 +147,10 @@ android {
     }
   }
 
-  // Keep PyTorch model files (and model weights) uncompressed in the APK.
-  // AAPT2 compresses unknown extensions by default; in release builds this has been
-  // observed to break PyTorch Mobile's `Module.load` (loaded module silently produces
-  // wrong outputs → every image classified as Non-Suspicious). Debug APKs are usually
-  // unaffected because they're often built without the same packaging path.
+  // Keep AI model files uncompressed in the APK, so plugins can memory-map them. AAPT2 compresses
+  // unknown extensions by default. Plugins' assets are merged into this APK, so this covers them.
   androidResources {
-    noCompress += listOf("pt", "ptl", "bin", "tflite")
+    noCompress += listOf("onnx", "ort", "tflite", "bin")
   }
 
   packaging {
@@ -277,6 +301,24 @@ androidComponents {
   }
 }
 
+// With -PaiRequireModel, a release build that includes no AI plugin fails, so an app that must
+// have AI can't ship without it. The plugin itself checks that its model files are present.
+val verifyAiPlugins =
+  tasks.register("verifyAiPlugins") {
+    doLast {
+      if (aiRequireModel && aiPlugins.isEmpty()) {
+        throw GradleException(
+          "-PaiRequireModel is set but no AI plugin is included. Add one with -PaiPlugins=<name>.",
+        )
+      }
+      logger.lifecycle("AI plugins: ${aiPlugins.joinToString().ifEmpty { "none" }}")
+    }
+  }
+
+tasks.configureEach {
+  if (name.startsWith("merge") && name.endsWith("ReleaseAssets")) dependsOn(verifyAiPlugins)
+}
+
 tasks.withType<Test> {
   testLogging { events = setOf(TestLogEvent.FAILED) }
   minHeapSize = "4608m"
@@ -290,8 +332,10 @@ configurations {
 
 dependencies {
   implementation(files("libs/opencv-411-android.aar"))
-  implementation ("org.pytorch:pytorch_android:1.10.0")
-  implementation ("org.pytorch:pytorch_android_torchvision:1.10.0")
+
+  // AI plug-and-play: the model contract, plus every plugin named in -PaiPlugins.
+  implementation(project(":ai-api"))
+  aiPlugins.forEach { implementation(aiPluginDependency(it)) }
 
   implementation(libs.activity)
   implementation(libs.constraintlayout)
@@ -341,6 +385,7 @@ dependencies {
   testImplementation(libs.kotlin.test)
   testImplementation(libs.work.testing)
   testImplementation(libs.ui.test.junit4)
+  testImplementation(project(":ai-api-testing"))
   listOf(
     Dependencies.HapiFhir.fhirCoreDstu2,
     Dependencies.HapiFhir.fhirCoreDstu2016,

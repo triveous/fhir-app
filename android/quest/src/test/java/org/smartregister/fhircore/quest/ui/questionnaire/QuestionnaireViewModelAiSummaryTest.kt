@@ -23,7 +23,9 @@ import org.hl7.fhir.r4.model.Attachment
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.StringType
+import org.hl7.fhir.r4.model.Extension
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
@@ -36,6 +38,9 @@ import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
+import org.smartregister.fhircore.ai.Outcome
+import org.smartregister.fhircore.quest.ai.AiResultFhirMapper
+import org.smartregister.fhircore.quest.ml.ImageScreeningResult
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 
@@ -65,6 +70,76 @@ class QuestionnaireViewModelAiSummaryTest {
     assertEquals(1, summary.lowConfidenceImageCount)
     assertEquals(62.5f, summary.meanConfidence)
   }
+
+  @Test
+  fun `summarizeAiInference reads the generic extension of a multi-class model`() {
+    val viewModel = questionnaireViewModel()
+    val opmd = screening("opmd", Outcome.POSITIVE, severity = 1)
+    val benign = screening("benign", Outcome.NEGATIVE)
+    val questionnaire =
+      Questionnaire().apply {
+        addItem(genericQuestionnaireItem("image-1", AiResultFhirMapper.extensionsFor(opmd)))
+        addItem(genericQuestionnaireItem("image-2", AiResultFhirMapper.extensionsFor(benign)))
+      }
+    val questionnaireResponse =
+      QuestionnaireResponse().apply {
+        addItem(attachmentResponseItem("image-1", "first.jpg"))
+        addItem(attachmentResponseItem("image-2", "second.jpg"))
+      }
+
+    val summary = viewModel.summarizeAiInference(questionnaireResponse, questionnaire)
+
+    assertEquals(Outcome.POSITIVE, summary.outcome)
+    assertEquals("opmd", summary.caseClassId)
+    assertEquals("acme", summary.modelId)
+    assertEquals(listOf("first.jpg"), summary.suspiciousImages)
+    // Mirrored onto the answer for StructureMap copy rules.
+    assertTrue(
+      questionnaireResponse.item[0].answer[0].hasExtension(AiResultFhirMapper.AI_SCREENING_RESULT_URL),
+    )
+  }
+
+  @Test
+  fun `a photo AI failed on makes the case inconclusive, not negative`() {
+    val viewModel = questionnaireViewModel()
+    val questionnaire =
+      Questionnaire().apply {
+        addItem(aiQuestionnaireItem("image-1", "Non-Suspicious", "90"))
+        addItem(genericQuestionnaireItem("image-2", AiResultFhirMapper.failedExtensions()))
+      }
+    val questionnaireResponse =
+      QuestionnaireResponse().apply {
+        addItem(attachmentResponseItem("image-1", "first.jpg"))
+        addItem(attachmentResponseItem("image-2", "second.jpg"))
+      }
+
+    val summary = viewModel.summarizeAiInference(questionnaireResponse, questionnaire)
+
+    assertEquals(Outcome.INCONCLUSIVE, summary.outcome)
+    assertFalse(summary.isSuspicious)
+    assertEquals(1, summary.failedImageCount)
+    assertEquals(listOf("second.jpg"), summary.suspiciousImages)
+  }
+
+  private fun screening(classId: String, outcome: Outcome, severity: Int = 0) =
+    ImageScreeningResult(
+      modelId = "acme",
+      modelVersion = "1",
+      classId = classId,
+      outcome = outcome,
+      displayName = classId,
+      severity = severity,
+      confidence = 0.8f,
+      lowConfidence = false,
+      entropy = 0.5,
+      scores = mapOf(classId to 0.8f),
+    )
+
+  private fun genericQuestionnaireItem(linkId: String, extensions: List<Extension>) =
+    Questionnaire.QuestionnaireItemComponent().apply {
+      this.linkId = linkId
+      extensions.forEach { addExtension(it) }
+    }
 
   private fun aiQuestionnaireItem(
     linkId: String,
