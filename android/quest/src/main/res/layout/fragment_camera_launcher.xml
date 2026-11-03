@@ -96,35 +96,33 @@
         android:layout_gravity="center"
         android:layout_height="match_parent">
 
+        <!-- The saved photo is square (1:1), so the live preview box is exactly square too.
+             Together with the 1:1 ViewPort in CameraxLauncherFragment.startCamera(), the preview
+             shows exactly the area that ends up in the saved JPEG; no hidden strips at the edges. -->
         <FrameLayout
             android:id="@+id/camera_preview_fl"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:background="@color/dark"
-            android:gravity="center"
             android:visibility="visible"
+            app:layout_constraintDimensionRatio="1:1"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
+            <!-- Rule-of-thirds grid, sized to the square capture area. -->
             <org.smartregister.fhircore.quest.camerax.CustomGraphic
                 android:id="@+id/cameraGrid"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/grid_height"
-                android:layout_gravity="center"
-                android:elevation="@dimen/spacing_8"
-                app:layout_constraintBottom_toBottomOf="@+id/previewView"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/previewView" />
+                android:layout_height="match_parent"
+                android:elevation="@dimen/spacing_8" />
 
             <androidx.camera.view.PreviewView
                 android:id="@+id/previewView"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:layout_height="match_parent"
+                app:scaleType="fillCenter" />
 
             <!-- Tap-to-focus indicator. Positioned at the tap point and animated at runtime. -->
             <androidx.appcompat.widget.AppCompatImageView
