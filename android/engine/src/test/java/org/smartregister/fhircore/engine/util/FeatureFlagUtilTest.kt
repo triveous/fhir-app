@@ -25,7 +25,12 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.currentTime
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.hl7.fhir.r4.model.Basic
 import org.hl7.fhir.r4.model.BooleanType
 import org.hl7.fhir.r4.model.IntegerType
@@ -129,8 +134,9 @@ class FeatureFlagUtilTest {
     coEvery { fhirEngine.create(any<Basic>(), isLocalOnly = true) } returns
       listOf(featureFlagsResourceId)
 
-    featureFlagUtil.refreshFromServer()
+    Assert.assertTrue(featureFlagUtil.refreshFromServer())
 
+    Assert.assertFalse(featureFlagUtil.lastServerRefreshFailed)
     coVerify { fhirResourceDataSource.getBasic(featureFlagsResourceId) }
     coVerify { fhirEngine.create(any<Basic>(), isLocalOnly = true) }
     verify {
@@ -146,10 +152,58 @@ class FeatureFlagUtilTest {
     coEvery { fhirResourceDataSource.getBasic(featureFlagsResourceId) } throws
       RuntimeException("timeout")
 
-    featureFlagUtil.refreshFromServer()
+    Assert.assertFalse(featureFlagUtil.refreshFromServer())
 
+    Assert.assertTrue(featureFlagUtil.lastServerRefreshFailed)
     coVerify(exactly = 0) { fhirEngine.create(any<Basic>(), isLocalOnly = any()) }
     verify(exactly = 0) { sharedPreferencesHelper.saveLastKnownFeatureFlags(any(), any()) }
+  }
+
+  /**
+   * Regression: a server that never answers (site server down) used to hold the flag lock for the
+   * whole 600 s OkHttp timeout. Every flag read waited behind it, so the add-case check timed out
+   * and showed "Failed to enable AI" on a phone where AI was fully enabled.
+   */
+  @Test
+  fun testFlagReadIsNotBlockedWhileServerRefreshHangs() = runTest {
+    coEvery { fhirResourceDataSource.getBasic(featureFlagsResourceId) } coAnswers { awaitCancellation() }
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns featureFlagsBasic(true)
+
+    val refresh = async { featureFlagUtil.refreshFromServer() }
+    runCurrent() // the refresh is now waiting on the server
+
+    // Answers straight from the device copy; would time out if it waited behind the refresh.
+    Assert.assertTrue(withTimeout(1_000) { featureFlagUtil.isAiInferenceEnabled() })
+    Assert.assertTrue(withTimeout(1_000) { featureFlagUtil.isAiInferenceEnabledLocally() })
+
+    // The hung server call gives up after its own cap instead of OkHttp's 600 s.
+    Assert.assertFalse(refresh.await())
+    Assert.assertEquals(FeatureFlagUtil.NETWORK_FETCH_TIMEOUT_MS, currentTime)
+    Assert.assertTrue(featureFlagUtil.lastServerRefreshFailed)
+    coVerify(exactly = 0) { fhirEngine.create(any<Basic>(), isLocalOnly = any()) }
+  }
+
+  @Test
+  fun testIsAiInferenceEnabledLocallyUsesLastKnownAndNeverCallsServer() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } throws
+      ResourceNotFoundException("Basic", featureFlagsResourceId)
+    every { sharedPreferencesHelper.getLastKnownFeatureFlags(featureFlagsResourceId) } returns
+      mapOf(FeatureFlagUtil.AI_INFERENCE_ENABLED_URL to true)
+
+    Assert.assertTrue(featureFlagUtil.isAiInferenceEnabledLocally())
+
+    coVerify(exactly = 0) { fhirResourceDataSource.getBasic(any()) }
+  }
+
+  @Test
+  fun testIsAiInferenceEnabledLocallyPrefersDeviceEngineCopy() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns featureFlagsBasic(false)
+    every { sharedPreferencesHelper.getLastKnownFeatureFlags(featureFlagsResourceId) } returns
+      mapOf(FeatureFlagUtil.AI_INFERENCE_ENABLED_URL to true)
+
+    Assert.assertFalse(featureFlagUtil.isAiInferenceEnabledLocally())
+
+    coVerify(exactly = 0) { fhirResourceDataSource.getBasic(any()) }
   }
 
   @Test

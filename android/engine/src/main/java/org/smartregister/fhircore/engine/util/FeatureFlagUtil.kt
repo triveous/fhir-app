@@ -6,8 +6,10 @@ import com.google.android.fhir.get
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import org.hl7.fhir.r4.model.Basic
 import org.smartregister.fhircore.engine.data.remote.fhir.resource.FhirResourceDataSource
 import org.smartregister.fhircore.engine.util.extension.updateLastUpdated
@@ -21,8 +23,13 @@ import javax.inject.Singleton
  * is kept fresh by [refreshFromServer], which every sync invokes (see AppSyncWorker): it fetches
  * the flags with a direct instance read — a `Basic?_id=<id>` search can be served stale from
  * HAPI's search-results cache for up to a minute, which is why flag changes used to need an
- * extra sync to appear — and writes the result through to the FhirEngine and to disk. A
- * single-flight mutex guarantees concurrent consumers share one refresh.
+ * extra sync to appear — and writes the result through to the FhirEngine and to disk.
+ *
+ * The network is never called while [mutex] is held. The mutex only guards the quick local
+ * read/apply/persist steps. Holding it across a server call let one slow or unreachable server
+ * (OkHttp waits up to 600 s) block every flag read on the device. The add-case AI check then timed
+ * out and showed "Failed to enable AI" on phones where AI was fully enabled. Server calls are also
+ * capped at [NETWORK_FETCH_TIMEOUT_MS].
  */
 @Singleton
 class FeatureFlagUtil @Inject constructor(
@@ -35,8 +42,30 @@ class FeatureFlagUtil @Inject constructor(
     @Volatile private var cachedFlags: Map<String, Boolean> = emptyMap()
     @Volatile private var cachedUpdateConfig: AppUpdateConfig = AppUpdateConfig.NONE
 
+    /**
+     * True when the last [refreshFromServer] could not get the flags: a timeout, a server error or
+     * no network. The previously stored flags stay in use. Screens check it when a sync finishes,
+     * so a sync whose flag fetch failed reports "Sync completed with errors".
+     */
+    @Volatile var lastServerRefreshFailed: Boolean = false
+        private set
+
     suspend fun isAiInferenceEnabled(): Boolean =
         readFlag(AI_INFERENCE_ENABLED_URL)
+
+    /**
+     * The AI flag as stored on this device: the FhirEngine copy, otherwise the last-known value
+     * on disk. Never calls the network and never waits on a refresh in progress. The add-case AI
+     * check uses this, so it answers from the device even when the server is down or slow. The
+     * stored copy is whatever the last successful sync fetched.
+     */
+    suspend fun isAiInferenceEnabledLocally(): Boolean {
+        val resourceId = sharedPreferencesHelper.getFeatureFlagsResourceId()
+        val flags =
+            readEngineBasic(resourceId)?.toFlagsMap()
+                ?: sharedPreferencesHelper.getLastKnownFeatureFlags(resourceId)
+        return flags[AI_INFERENCE_ENABLED_URL] == true
+    }
 
     /**
      * Returns the app-update configuration (target version + soft/forced behaviour) that the same
@@ -53,15 +82,25 @@ class FeatureFlagUtil @Inject constructor(
     /**
      * Fetches the latest feature flags from the server and stores them locally (FhirEngine +
      * SharedPreferences) so subsequent reads — including offline ones — see the values that were
-     * current when the sync ran. Never throws; on failure the previously stored values remain.
+     * current when the sync ran. Never throws. On failure (timeout, server error, offline) the
+     * previously stored values remain in use and [lastServerRefreshFailed] is set.
+     *
+     * @return true when the flags were fetched and stored.
      */
-    suspend fun refreshFromServer() {
+    suspend fun refreshFromServer(): Boolean {
         val resourceId = sharedPreferencesHelper.getFeatureFlagsResourceId()
+        // Outside the lock: readers keep getting the stored flags while this waits on the server.
+        val basic = fetchFromNetwork(resourceId)
+        if (basic == null) {
+            lastServerRefreshFailed = true
+            return false
+        }
         mutex.withLock {
-            val basic = fetchFromNetwork(resourceId) ?: return
             saveToEngine(basic)
             applyAndPersist(resourceId, basic, source = "sync")
         }
+        lastServerRefreshFailed = false
+        return true
     }
 
     private suspend fun readFlag(extensionUrl: String): Boolean {
@@ -76,13 +115,19 @@ class FeatureFlagUtil @Inject constructor(
                 applyAndPersist(resourceId, basic, source = "engine")
                 return
             }
+        }
 
-            fetchFromNetwork(resourceId)?.let { basic ->
+        // No copy on the device yet (before the first sync stored one). Fetch it outside the lock,
+        // so other readers are not held up behind the server.
+        fetchFromNetwork(resourceId)?.let { basic ->
+            mutex.withLock {
                 saveToEngine(basic)
                 applyAndPersist(resourceId, basic, source = "network")
-                return
             }
+            return
+        }
 
+        mutex.withLock {
             cachedFlags = sharedPreferencesHelper.getLastKnownFeatureFlags(resourceId)
             cachedUpdateConfig = sharedPreferencesHelper.getLastKnownAppUpdateConfig(resourceId)
             Timber.w(
@@ -104,7 +149,12 @@ class FeatureFlagUtil @Inject constructor(
 
     private suspend fun fetchFromNetwork(resourceId: String): Basic? =
         try {
-            fhirResourceDataSource.getBasic(resourceId)
+            withTimeoutOrNull(NETWORK_FETCH_TIMEOUT_MS) { fhirResourceDataSource.getBasic(resourceId) }
+                ?: null.also {
+                    Timber.w("Network read timed out for Basic/%s after %d ms", resourceId, NETWORK_FETCH_TIMEOUT_MS)
+                }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Timber.w(e, "Network read failed for Basic/%s", resourceId)
             null
@@ -160,6 +210,12 @@ class FeatureFlagUtil @Inject constructor(
     }
 
     companion object {
+        /**
+         * Longest wait for the flags resource (a small Basic) from the server. The shared OkHttp
+         * client allows 600 s, which is meant for big sync bundles and image uploads, not for this.
+         */
+        const val NETWORK_FETCH_TIMEOUT_MS = 30_000L
+
         const val AI_INFERENCE_ENABLED_URL =
             "https://midas.iisc.ac.in/fhir/StructureDefinition/ai-inference-enabled"
 

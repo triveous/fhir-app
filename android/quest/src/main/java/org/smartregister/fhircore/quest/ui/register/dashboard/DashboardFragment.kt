@@ -256,8 +256,12 @@ class DashboardFragment : Fragment(), OnSyncListener {
                     val aiJustEnabled = registerViewModel.reconcileAiAfterSync(registrationQuestionnaireId())
                     registerViewModel.emitSnackBarState(
                         SnackBarMessageConfig(
+                            // The data synced but the feature flags could not be fetched (server
+                            // timeout or error); the stored flags stay in use, so report an error.
                             message =
                                 if (aiJustEnabled) getString(QuestR.string.ai_enabled_successfully)
+                                else if (registerViewModel.featureFlagRefreshFailed())
+                                    getString(R.string.sync_completed_with_errors)
                                 else getString(R.string.sync_completed),
                             //actionLabel = getString(R.string.ok).uppercase(),
                             duration = SnackbarDuration.Short,
