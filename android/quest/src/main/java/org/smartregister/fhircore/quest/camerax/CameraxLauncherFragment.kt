@@ -9,11 +9,12 @@ import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
-import android.util.Size
+import android.util.Rational
 import android.view.GestureDetector
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
+import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
@@ -29,6 +30,7 @@ import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.appcompat.widget.AppCompatImageView
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
@@ -38,6 +40,8 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.core.TorchState
+import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -580,13 +584,23 @@ class CameraxLauncherFragment : DialogFragment() {
             try {
                 val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
-                // Preview only needs to fill the screen. Forcing a 4096x4096 preview target makes
-                // the camera configure a huge, slow-to-start stream — that is the "black screen
-                // then it loads" hang. Letting CameraX pick a display-sized preview resolution (and
-                // keeping it consistent with the capture use case) makes the first frames arrive
-                // almost immediately. The CAPTURED image quality is unaffected: ImageCapture below
-                // keeps the full 4096x4096 target, so the saved photo resolution is unchanged.
+                // What you see is what you save. Preview and capture both use the sensor's full
+                // 4:3 stream, and are bound together with a square (1:1) ViewPort, so CameraX
+                // crops BOTH to the same centre square of the sensor: the square PreviewView shows
+                // exactly the area the saved JPEG contains. Before this, the capture asked for a
+                // 4096x4096 (square) target while the preview was an unrelated 4:3 stream in a box
+                // slightly taller than square, so the user saw strips at the top and bottom that
+                // were never in the saved photo (QC measured ~0.5 cm per side).
+                //
+                // The saved photo keeps the same shape and field of view as before (the centre
+                // square of the 4:3 sensor), so the images the AI model sees do not change.
+                // Preview stays display-sized (no 4096 target), which keeps the camera quick to
+                // start; ImageCapture picks the largest 4:3 size, so the square crop keeps the
+                // full sensor height (e.g. 3000x3000 from a 4000x3000 sensor).
+                val rotation = previewView.display?.rotation ?: Surface.ROTATION_0
                 val preview = Preview.Builder()
+                    .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                    .setTargetRotation(rotation)
                     .build()
                     .also {
                         it.setSurfaceProvider(previewView.surfaceProvider)
@@ -595,13 +609,21 @@ class CameraxLauncherFragment : DialogFragment() {
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                 val imageCapture = ImageCapture.Builder()
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-                    .setTargetResolution(Size(4096, 4096))
+                    .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                    .setTargetRotation(rotation)
+                    .build()
+
+                val viewPort = ViewPort.Builder(Rational(1, 1), rotation)
+                    .setScaleType(ViewPort.FILL_CENTER)
+                    .build()
+                val useCaseGroup = UseCaseGroup.Builder()
+                    .addUseCase(preview)
+                    .addUseCase(imageCapture)
+                    .setViewPort(viewPort)
                     .build()
 
                 cameraProvider.unbindAll()
-                val camera = cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageCapture
-                )
+                val camera = cameraProvider.bindToLifecycle(this, cameraSelector, useCaseGroup)
 
                 cameraControl = camera.cameraControl
                 cameraInfo = camera.cameraInfo
