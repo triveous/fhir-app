@@ -27,6 +27,7 @@ import org.hl7.fhir.r4.model.ResourceType
 import org.smartregister.fhircore.engine.configuration.report.measure.ReportConfiguration
 import org.smartregister.fhircore.engine.configuration.report.measure.ReportConfiguration.Companion.DEFAULT_ROUNDING_PRECISION
 import org.smartregister.fhircore.engine.configuration.report.measure.ReportConfiguration.Companion.DEFAULT_ROUNDING_STRATEGY
+import org.smartregister.p2p.utils.capitalize
 
 // TODO: Enhancement - use FhirPathEngine evaluator for data extraction
 
@@ -42,7 +43,7 @@ enum class MeasurePopulationType(
     get() = "http://hl7.org/fhir/measure-population"
 
   val display: String
-    get() = code.capitalizeFirstLetter()
+    get() = code.capitalize()
 
   fun toCode(): String {
     return this.code

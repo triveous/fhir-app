@@ -374,15 +374,14 @@ class ConfigExtensionsTest : RobolectricTest() {
   }
 
   @Test
-  fun testDeviceToDeviceSyncActionOnClickDoesNothing() {
-    // P2P transfer was removed; configs that still use this workflow must not launch anything
+  fun testDeviceToDeviceSyncActionOnClick() {
     val clickAction =
       ActionConfig(
         trigger = ActionTrigger.ON_CLICK,
         workflow = ApplicationWorkflow.DEVICE_TO_DEVICE_SYNC.name,
       )
     listOf(clickAction).handleClickEvent(navController, resourceData)
-    verify(exactly = 0) { context.startActivity(any()) }
+    verify { context.startActivity(any()) }
   }
 
   @Test

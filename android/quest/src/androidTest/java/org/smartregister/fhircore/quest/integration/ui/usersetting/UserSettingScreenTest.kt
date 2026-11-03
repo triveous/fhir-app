@@ -117,6 +117,12 @@ class UserSettingScreenTest {
   }
 
   @Test
+  fun testWhenShowP2POption() {
+    initComposable(isP2PAvailable = true)
+    composeRule.onNodeWithText(activity.getString(R.string.transfer_data)).assertExists()
+  }
+
+  @Test
   fun testWhenShowDatabaseResetConfirmationTrueRendersConfirmationDialog() {
     initComposable(isShowDatabaseResetConfirmation = true)
     composeRule.onNodeWithText(activity.getString(R.string.clear_database_message)).assertExists()
@@ -174,6 +180,7 @@ class UserSettingScreenTest {
     isShowProgressBar: Boolean = false,
     isShowDatabaseResetConfirmation: Boolean = false,
     isDebugVariant: Boolean = false,
+    isP2PAvailable: Boolean = false,
   ) {
     scenario.onActivity { activity ->
       activity.setContent {
@@ -190,6 +197,7 @@ class UserSettingScreenTest {
           isDebugVariant = isDebugVariant,
           onEvent = {},
           mainNavController = rememberNavController(),
+          allowP2PSync = isP2PAvailable,
           lastSyncTime = "05:30 PM, Mar 3",
           showProgressIndicatorFlow = MutableStateFlow(false),
         )

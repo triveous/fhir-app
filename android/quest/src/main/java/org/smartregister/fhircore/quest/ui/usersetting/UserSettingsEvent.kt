@@ -25,6 +25,8 @@ sealed class UserSettingsEvent {
 
   data class ShowResetDatabaseConfirmationDialog(val isShow: Boolean) : UserSettingsEvent()
 
+  data class SwitchToP2PScreen(val context: Context) : UserSettingsEvent()
+
   data class ResetDatabaseFlag(val isReset: Boolean, val context: Context) : UserSettingsEvent()
 
   data class Logout(val context: Context) : UserSettingsEvent()

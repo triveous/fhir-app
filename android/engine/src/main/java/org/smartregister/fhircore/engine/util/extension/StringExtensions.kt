@@ -99,11 +99,6 @@ val String.fileExtension
 /** Function that converts snake_case string to camelCase */
 fun String.camelCase(): String = CaseUtils.toCamelCase(this, false, '_')
 
-/** Uppercase the first character, e.g. "numerator" becomes "Numerator" */
-fun String.capitalizeFirstLetter(): String = replaceFirstChar {
-  if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-}
-
 /**
  * Get the practitioner endpoint url and append the keycloak-uuid. The original String is assumed to
  * be a keycloak-uuid.

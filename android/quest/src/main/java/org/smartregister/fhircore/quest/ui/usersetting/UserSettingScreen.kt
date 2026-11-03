@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -95,6 +96,7 @@ import org.smartregister.fhircore.quest.ui.pin.CIRCULAR_PROGRESS_INDICATOR
 const val RESET_DATABASE_DIALOG = "resetDatabaseDialog"
 const val USER_SETTING_ROW_LOGOUT = "userSettingRowLogout"
 const val USER_SETTING_ROW_RESET_DATA = "userSettingRowResetData"
+const val USER_SETTING_ROW_P2P = "userSettingRowP2P"
 const val USER_SETTING_ROW_INSIGHTS = "userSettingRowInsights"
 const val USER_SETTING_ROW_CONTACT_HELP = "userSettingRowContactHelp"
 const val USER_SETTING_ROW_OFFLINE_MAP = "userSettingRowOfflineMap"
@@ -118,6 +120,7 @@ fun UserSettingScreen(
   onEvent: (UserSettingsEvent) -> Unit,
   mainNavController: NavController,
   appVersionPair: Pair<Int, String>? = null,
+  allowP2PSync: Boolean,
   lastSyncTime: String?,
   showProgressIndicatorFlow: MutableStateFlow<Boolean>,
 ) {
@@ -285,6 +288,16 @@ fun UserSettingScreen(
 
       if (showProgressBar) {
         LoaderDialog(modifier = modifier, dialogMessage = stringResource(messageResource))
+      }
+
+      if (allowP2PSync) {
+        UserSettingRow(
+          icon = Icons.Rounded.Share,
+          text = stringResource(id = R.string.transfer_data),
+          clickListener = { onEvent(UserSettingsEvent.SwitchToP2PScreen(context)) },
+          modifier = modifier.testTag(USER_SETTING_ROW_P2P),
+          canSwitchToScreen = true,
+        )
       }
 
       if (showDatabaseResetConfirmation) {
@@ -478,6 +491,7 @@ fun ConfirmClearDatabaseDialog(
 //    onEvent = {},
 //    mainNavController = rememberNavController(),
 //    appVersionPair = Pair(1, "1.0.1"),
+//    allowP2PSync = true,
 //    lastSyncTime = "05:30 PM, Mar 3",
 //    showProgressIndicatorFlow = MutableStateFlow(false),
 //  )
