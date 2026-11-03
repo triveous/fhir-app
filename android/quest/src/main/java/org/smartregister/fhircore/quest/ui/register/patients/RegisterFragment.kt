@@ -283,7 +283,11 @@ class RegisterFragment : Fragment(), OnSyncListener {
             hasShownSyncCompleted = true
             registerViewModel.emitSnackBarState(
               SnackBarMessageConfig(
-                message = getString(R.string.sync_completed),
+                // The data synced but the feature flags could not be fetched (server timeout or
+                // error); the flags stored on the device stay in use, so report it as an error.
+                message =
+                  if (registerViewModel.featureFlagRefreshFailed()) getString(R.string.sync_completed_with_errors)
+                  else getString(R.string.sync_completed),
                 duration = SnackbarDuration.Short,
               ),
             )

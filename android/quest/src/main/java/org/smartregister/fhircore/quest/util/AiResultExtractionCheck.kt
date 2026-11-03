@@ -31,17 +31,22 @@ data class AiStatus(val flagEnabled: Boolean, val extractionEnabled: Boolean)
 
 suspend fun FhirEngine.aiStatus(featureFlagUtil: FeatureFlagUtil, questionnaireId: String): AiStatus =
   AiStatus(
-    flagEnabled = featureFlagUtil.isAiInferenceEnabled(),
+    flagEnabled = featureFlagUtil.isAiInferenceEnabledLocally(),
     extractionEnabled = hasAiResultExtraction(questionnaireId),
   )
 
 /**
  * [AiReadiness] for cases registered with [questionnaireId]. The flag is read first: on a site with AI
  * off the StructureMap is irrelevant, so it is not even loaded.
+ *
+ * Both halves are read from the device only: the flag from its stored copy and the StructureMap
+ * from the local database. The server is never called, so a server that is down or slow cannot
+ * make a device with AI fully enabled look like it needs an update. Syncs keep the stored copies
+ * current.
  */
 suspend fun FhirEngine.aiReadiness(featureFlagUtil: FeatureFlagUtil, questionnaireId: String): AiReadiness =
   when {
-    !featureFlagUtil.isAiInferenceEnabled() -> AiReadiness.DISABLED
+    !featureFlagUtil.isAiInferenceEnabledLocally() -> AiReadiness.DISABLED
     hasAiResultExtraction(questionnaireId) -> AiReadiness.READY
     else -> AiReadiness.UPDATE_NEEDED
   }

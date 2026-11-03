@@ -113,28 +113,28 @@ class AiResultExtractionCheckTest {
 
   @Test
   fun readinessIsDisabledWhenTheFlagIsOffWhateverTheMap() = runTest {
-    coEvery { featureFlagUtil.isAiInferenceEnabled() } returns false
+    coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } returns false
     givenLocal(registrationQuestionnaire(), mapWithoutAiResult)
     assertEquals(AiReadiness.DISABLED, fhirEngine.aiReadiness(featureFlagUtil, QUESTIONNAIRE_ID))
   }
 
   @Test
   fun readinessIsReadyWhenTheFlagIsOnAndTheMapExtracts() = runTest {
-    coEvery { featureFlagUtil.isAiInferenceEnabled() } returns true
+    coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } returns true
     givenLocal(registrationQuestionnaire(), mapWithAiResult)
     assertEquals(AiReadiness.READY, fhirEngine.aiReadiness(featureFlagUtil, QUESTIONNAIRE_ID))
   }
 
   @Test
   fun readinessNeedsAnUpdateWhenTheFlagIsOnAndTheMapIsStale() = runTest {
-    coEvery { featureFlagUtil.isAiInferenceEnabled() } returns true
+    coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } returns true
     givenLocal(registrationQuestionnaire(), mapWithoutAiResult)
     assertEquals(AiReadiness.UPDATE_NEEDED, fhirEngine.aiReadiness(featureFlagUtil, QUESTIONNAIRE_ID))
   }
 
   @Test
   fun statusReportsTheExtractionEvenWhenTheFlagIsOff() = runTest {
-    coEvery { featureFlagUtil.isAiInferenceEnabled() } returns false
+    coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } returns false
     givenLocal(registrationQuestionnaire(), mapWithAiResult)
     assertEquals(
       AiStatus(flagEnabled = false, extractionEnabled = true),
@@ -144,7 +144,7 @@ class AiResultExtractionCheckTest {
 
   @Test
   fun statusReportsAMissingExtractionWithTheFlagOn() = runTest {
-    coEvery { featureFlagUtil.isAiInferenceEnabled() } returns true
+    coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } returns true
     givenLocal(registrationQuestionnaire(), mapWithoutAiResult)
     assertEquals(
       AiStatus(flagEnabled = true, extractionEnabled = false),

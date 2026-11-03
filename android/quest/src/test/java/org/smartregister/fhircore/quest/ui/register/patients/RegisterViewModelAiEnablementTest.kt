@@ -6,9 +6,11 @@ import androidx.lifecycle.viewModelScope
 import ca.uhn.fhir.context.FhirContext
 import com.google.android.fhir.FhirEngine
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -54,7 +56,7 @@ class RegisterViewModelAiEnablementTest {
   @Before
   fun setUp() {
     Dispatchers.setMain(testDispatcher)
-    coEvery { featureFlagUtil.isAiInferenceEnabled() } answers { flagEnabled }
+    coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } answers { flagEnabled }
     coEvery { fhirEngine.get(ResourceType.Questionnaire, QUESTIONNAIRE_ID) } returns
       Questionnaire().apply {
         id = QUESTIONNAIRE_ID
@@ -235,6 +237,63 @@ class RegisterViewModelAiEnablementTest {
       viewModel.refreshAiEnabledState(QUESTIONNAIRE_ID)
 
       assertFalse(viewModel.reconcileAiAfterSync(QUESTIONNAIRE_ID))
+    }
+
+  /**
+   * Server down: the check must answer from the device. If it still cannot finish (stuck read),
+   * the last answer this device worked out is used. "Failed to enable AI" must not appear on a
+   * phone where AI is enabled.
+   */
+  @Test
+  fun `a check that cannot finish falls back to the last known answer`() =
+    runTest(testDispatcher) {
+      val viewModel = createViewModel()
+      viewModel.launchIfAiUpToDate(QUESTIONNAIRE_ID) { launches++ }
+      assertEquals(1, launches)
+
+      coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } coAnswers { awaitCancellation() }
+      now += 2_000
+      viewModel.launchIfAiUpToDate(QUESTIONNAIRE_ID) { launches++ }
+
+      assertEquals(2, launches)
+      assertFalse(viewModel.showAiEnableFailedDialog.value)
+    }
+
+  @Test
+  fun `a check that cannot finish blocks only when it has never had an answer`() =
+    runTest(testDispatcher) {
+      coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } coAnswers { awaitCancellation() }
+      val viewModel = createViewModel()
+
+      viewModel.launchIfAiUpToDate(QUESTIONNAIRE_ID) { launches++ }
+
+      assertEquals(0, launches)
+      assertTrue(viewModel.showAiEnableFailedDialog.value)
+    }
+
+  @Test
+  fun `a stuck refresh after the sync does not announce AI as newly enabled`() =
+    runTest(testDispatcher) {
+      val viewModel = createViewModel()
+      viewModel.refreshAiEnabledState(QUESTIONNAIRE_ID)
+
+      coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } coAnswers { awaitCancellation() }
+      viewModel.refreshAiEnabledState(QUESTIONNAIRE_ID)
+      coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } answers { flagEnabled }
+
+      assertFalse(viewModel.reconcileAiAfterSync(QUESTIONNAIRE_ID))
+    }
+
+  @Test
+  fun `a failed flag fetch during sync is reported`() =
+    runTest(testDispatcher) {
+      val viewModel = createViewModel()
+
+      every { featureFlagUtil.lastServerRefreshFailed } returns true
+      assertTrue(viewModel.featureFlagRefreshFailed())
+
+      every { featureFlagUtil.lastServerRefreshFailed } returns false
+      assertFalse(viewModel.featureFlagRefreshFailed())
     }
 
   /** AI on, stale map, and the user has just been blocked from adding a case. */
