@@ -298,25 +298,46 @@ constructor(
     /** The user tapped Retry; if the sync that follows still leaves AI needing an update, the dialog comes back. */
     private var aiRetryAwaitingSync = false
 
+    /** The last [AiReadiness] actually worked out per questionnaire; the fallback when a check can't finish. */
+    private val lastKnownAiReadiness = mutableMapOf<String, AiReadiness>()
+
     /**
-     * [AiReadiness] for cases registered with [questionnaireId]. An error or a read that hangs (the
-     * flag read falls back to the network when the device has no local copy) counts as
-     * [AiReadiness.UPDATE_NEEDED]: registering a case without its AI result is what this prevents, and
-     * the flag is normally read from the device in milliseconds.
+     * [AiReadiness] for cases registered with [questionnaireId], read from the device only (stored
+     * flag + local StructureMap), so the server being down or slow does not change the answer.
+     *
+     * If the check itself errors or hangs, the last answer worked out on this device is used. Only
+     * when there has never been one does it count as [AiReadiness.UPDATE_NEEDED]: registering a case
+     * without its AI result is what this gate prevents.
      */
-    suspend fun aiReadiness(questionnaireId: String): AiReadiness =
-        try {
-            withTimeoutOrNull(AI_CHECK_TIMEOUT_MS) {
-                withContext(dispatcherProvider.io()) {
-                    fhirEngine.aiReadiness(featureFlagUtil, questionnaireId)
-                }
-            } ?: AiReadiness.UPDATE_NEEDED.also { Timber.w("AI readiness check timed out for $questionnaireId") }
-        } catch (exception: CancellationException) {
-            throw exception
-        } catch (exception: Exception) {
-            Timber.e(exception, "AI readiness check failed for $questionnaireId")
-            AiReadiness.UPDATE_NEEDED
+    suspend fun aiReadiness(questionnaireId: String): AiReadiness {
+        val readiness =
+            try {
+                withTimeoutOrNull(AI_CHECK_TIMEOUT_MS) {
+                    withContext(dispatcherProvider.io()) {
+                        fhirEngine.aiReadiness(featureFlagUtil, questionnaireId)
+                    }
+                } ?: null.also { Timber.w("AI readiness check timed out for $questionnaireId") }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                Timber.e(exception, "AI readiness check failed for $questionnaireId")
+                null
+            }
+        if (readiness != null) {
+            lastKnownAiReadiness[questionnaireId] = readiness
+            return readiness
         }
+        return lastKnownAiReadiness[questionnaireId]
+            ?.also { Timber.w("Using last known AI readiness $it for $questionnaireId") }
+            ?: AiReadiness.UPDATE_NEEDED
+    }
+
+    /**
+     * True when the sync that just finished could not fetch the feature flags from the server
+     * (timeout, server error). The flags stored on the device stay in use; the screen reports
+     * "Sync completed with errors" instead of a clean completion.
+     */
+    fun featureFlagRefreshFailed(): Boolean = featureFlagUtil.lastServerRefreshFailed
 
     /** The questionnaire behind the register's "Add new case" action, or null if it can't be read. */
     fun registrationQuestionnaireId(registerId: String): String? =
