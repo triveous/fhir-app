@@ -143,6 +143,67 @@ object OpenCVUtils {
     }
 
     // ─────────────────────────────────────────────────────────────────────
+    // ONNX pipeline — the frozen "Read → Resize" steps of the ONNX proposal.
+    // Unlike scaleImageMat nothing is normalised: the model receives the raw
+    // BGR uint8 pixels exactly as Python's cv2.imread + cv2.resize give them.
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Decodes [filePath] the way `cv2.imread(path)` does: 8-bit, 3-channel BGR,
+     * alpha dropped, EXIF orientation applied.
+     *
+     * @return A [CvType.CV_8UC3] Mat the caller must release, or `null` if the
+     *         file cannot be decoded.
+     */
+    fun readBgr(filePath: String): Mat? {
+        val mat = Imgcodecs.imread(filePath, Imgcodecs.IMREAD_COLOR)
+        if (mat.empty() || mat.type() != CvType.CV_8UC3) {
+            Timber.e("Failed to decode image as 8-bit BGR: %s", filePath)
+            mat.release()
+            return null
+        }
+        return mat
+    }
+
+    /**
+     * Resizes [source] to [width] × [height] with bicubic interpolation, i.e.
+     * `cv2.resize(src, (width, height), interpolation=cv2.INTER_CUBIC)`.
+     * The caller owns the returned Mat.
+     */
+    fun resizeBicubic(source: Mat, width: Int, height: Int): Mat {
+        val resized = Mat()
+        Imgproc.resize(
+            source,
+            resized,
+            Size(width.toDouble(), height.toDouble()),
+            0.0,
+            0.0,
+            Imgproc.INTER_CUBIC,
+        )
+        return resized
+    }
+
+    /**
+     * Copies the pixels of a CV_8UC3 Mat out as interleaved B,G,R bytes in
+     * row-major order (H×W×C) — the same memory layout as the numpy array
+     * `cv2.imread` returns.
+     */
+    fun toBgrBytes(mat: Mat): ByteArray {
+        require(mat.type() == CvType.CV_8UC3) {
+            "Expected a CV_8UC3 Mat, got ${CvType.typeToString(mat.type())}"
+        }
+        // Mat.get into a flat array needs contiguous rows; a submat/ROI view is not.
+        val continuous = if (mat.isContinuous) mat else mat.clone()
+        try {
+            val bytes = ByteArray(continuous.total().toInt() * continuous.channels())
+            continuous.get(0, 0, bytes)
+            return bytes
+        } finally {
+            if (continuous !== mat) continuous.release()
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
     // Pipeline steps — each returns a NEW Mat owned by the caller.
     // ─────────────────────────────────────────────────────────────────────
 

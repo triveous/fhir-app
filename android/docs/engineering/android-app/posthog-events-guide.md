@@ -48,7 +48,7 @@ Tracks when a user navigates to a specific screen.
 | `ai_inference_completed` | QuestionnaireActivity | When all AI models finish processing. | `is_suspicious`, `image_count`, `suspicious_image_count`, `non_suspicious_image_count`, `low_confidence_image_count`, `mean_confidence`, `memory_used_mb`, etc. |
 | `ai_result_viewed` | AIResultActivity | When the AI result screen is displayed. | `is_suspicious`, `screening_id` |
 | `ai_refer_case` | AIResultActivity | When 'Refer Case' is clicked on result screen. | `is_suspicious`, `screening_id` |
-| `model_inference_completed`| Camera Launcher | When an individual AI model finishes. | `model_name` (v6/v8/v82/ensemble), `model_version`, `model_prediction`, `model_confidence`, `model_entropy`, `low_confidence`, `inference_time_ms`, `combined_inference_time_ms` |
+| `model_inference_completed`| Camera Launcher | When an individual AI model finishes. | `model_name` (v6/v8/v82/ensemble), `model_version`, `model_prediction`, `model_confidence`, `model_entropy`, `low_confidence`, `inference_time_ms`, `combined_inference_time_ms`. ONNX pipeline only: `execution_provider` (cpu/xnnpack/nnapi), `model_output_count`; `model_version` is `onnx-v1` rather than `v38`, and each component's `inference_time_ms` is the whole session run, because one run produces every value. |
 | `image_upload_completed` | Sync Worker | When an image is uploaded to server. | `document_id`, `upload_duration_ms`, `response_code`, `pending_documents`, `bytes_uploaded`, `error_message` |
 
 ### Task Management
