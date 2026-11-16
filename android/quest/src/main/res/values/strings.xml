@@ -337,6 +337,13 @@
     <string name="ai_detected_lesions">AI-DETECTED LESIONS</string>
     <string name="none">None</string>
     <string name="no_lesions_found">No lesions found.</string>
+    <string name="ai_class_non_suspicious">Non-suspicious</string>
+    <string name="ai_class_low_risk_suspicious">Low-risk suspicious</string>
+    <string name="ai_class_high_risk_suspicious">High-risk suspicious</string>
+    <string name="ai_result_low_risk">Low risk: refer to a dentist</string>
+    <string name="ai_result_low_risk_desc">AI found low-risk signs and recommends referral. If in doubt, talk to your supervisor.</string>
+    <string name="ai_result_high_risk">High risk: refer to a dentist</string>
+    <string name="ai_result_high_risk_desc">AI found high-risk signs and recommends referral. If in doubt, talk to your supervisor.</string>
     <string name="refer_case">STILL REFER?</string>
     <string name="done_upper">COMPLETE</string>
 

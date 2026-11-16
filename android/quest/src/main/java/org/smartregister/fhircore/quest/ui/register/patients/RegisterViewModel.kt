@@ -127,6 +127,8 @@ import org.smartregister.fhircore.quest.util.TaskProgressState
 import org.smartregister.fhircore.quest.util.AiReadiness
 import org.smartregister.fhircore.quest.util.AiStatus
 import org.smartregister.fhircore.quest.util.aiReadiness
+import org.smartregister.fhircore.quest.ml.AiModelSelection
+import org.smartregister.fhircore.quest.ml.AiModelSelector
 import org.smartregister.fhircore.quest.util.aiStatus
 import org.smartregister.fhircore.quest.util.dailog.ForegroundSyncDialogState
 import org.smartregister.fhircore.quest.util.extensions.toParamDataMap
@@ -162,6 +164,7 @@ constructor(
     val fhirEngine: FhirEngine,
     val featureFlagUtil: FeatureFlagUtil,
     private val userSwitchManager: UserSwitchManager,
+    private val aiModelSelector: AiModelSelector? = null,
 ) : ViewModel() {
 
     private val _snackBarStateFlow = MutableSharedFlow<SnackBarMessageConfig>()
@@ -314,7 +317,9 @@ constructor(
             try {
                 withTimeoutOrNull(AI_CHECK_TIMEOUT_MS) {
                     withContext(dispatcherProvider.io()) {
-                        fhirEngine.aiReadiness(featureFlagUtil, questionnaireId)
+                        fhirEngine.aiReadiness(featureFlagUtil, questionnaireId) {
+                            aiModelSelector?.currentLocally() !is AiModelSelection.Unavailable
+                        }
                     }
                 } ?: null.also { Timber.w("AI readiness check timed out for $questionnaireId") }
             } catch (exception: CancellationException) {
@@ -331,6 +336,19 @@ constructor(
             ?.also { Timber.w("Using last known AI readiness $it for $questionnaireId") }
             ?: AiReadiness.UPDATE_NEEDED
     }
+
+    /**
+     * Why AI can't run on this APK (e.g. `unknown_model`), or null when the model is fine and the
+     * block is the StructureMap. For the add-case-blocked analytics only.
+     */
+    private suspend fun aiUnavailableReason(): String? =
+        try {
+            (aiModelSelector?.currentLocally() as? AiModelSelection.Unavailable)?.reason?.telemetryName
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            null
+        }
 
     /**
      * True when the sync that just finished could not fetch the feature flags from the server
@@ -402,7 +420,10 @@ constructor(
                 Timber.w("AI is on but $questionnaireId cannot extract the AI result; add case blocked")
                 PostHogAnalytics.capture(
                     PostHogAnalytics.Events.ADD_CASE_BLOCKED_AI_EXTRACTION_MISSING,
-                    mapOf("questionnaire_id" to questionnaireId),
+                    mapOf(
+                        "questionnaire_id" to questionnaireId,
+                        PostHogAnalytics.Props.AI_UNAVAILABLE_REASON to aiUnavailableReason(),
+                    ),
                 )
                 aiEnablePending = true
                 _showAiEnableFailedDialog.value = true

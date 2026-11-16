@@ -114,6 +114,11 @@ import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSha
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
+import org.smartregister.fhircore.quest.ml.ActiveAiModel
+import org.smartregister.fhircore.quest.ml.AiClass
+import org.smartregister.fhircore.quest.ml.CombineRuleEvaluator
+import org.smartregister.fhircore.quest.ml.ModelCatalog
+import org.smartregister.fhircore.quest.ml.RuleSource
 import org.smartregister.fhircore.quest.util.languageExtensionToActionParameters
 import org.smartregister.fhircore.engine.util.UploadedDocumentReferenceLedger
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
@@ -1620,33 +1625,39 @@ constructor(
   fun summarizeAiInference(
     questionnaireResponse: QuestionnaireResponse,
     questionnaire: Questionnaire? = null,
+    activeModel: ActiveAiModel = DEFAULT_ACTIVE_MODEL,
   ): AiInferenceSummary {
-    var isSuspicious = false
+    val model = activeModel.model
     var imageCount = 0
     var suspiciousImageCount = 0
     var nonSuspiciousImageCount = 0
     var lowConfidenceImageCount = 0
     val confidenceValues = mutableListOf<Float>()
-    val suspiciousImages = linkedSetOf<String>()
+    val classImageCounts = linkedMapOf<String, Int>()
+    // Each photo's class, keyed by its item linkId, with its title. A photo's own answer wins; a
+    // hidden `<linkId>-ai-result` item fills in when the answer's extensions were stripped.
+    val photoClasses = linkedMapOf<String, Pair<AiClass, String?>>()
+    val hiddenClasses = linkedMapOf<String, Pair<AiClass, String?>>()
     val questionnaireItemsByLinkId =
       questionnaire?.let { mutableMapOf<String, Questionnaire.QuestionnaireItemComponent>() }
     questionnaire?.item?.let { collectQuestionnaireItems(it, questionnaireItemsByLinkId!!) }
     try {
-      Timber.d("=== AI inference summary: walking QR ===")
+      Timber.d("=== AI inference summary (%s): walking QR ===", model.id)
       forEachQrItemWithSiblings(questionnaireResponse.item) { item, siblings ->
         if (item.linkId.endsWith(AI_RESULT_SUFFIX)) {
           val hiddenValue = item.answer.firstOrNull()?.value.asPrimitiveString()
           Timber.d("AI hidden item linkId=${item.linkId} value=$hiddenValue")
-          if (hiddenValue.isSuspiciousAiResult()) {
-            isSuspicious = true
+          val hiddenClass = ModelCatalog.classInModel(hiddenValue, model)
+          if (hiddenClass != null) {
             val originalLinkId = item.linkId.removeSuffix(AI_RESULT_SUFFIX)
-            siblings
-              .firstOrNull { it.linkId == originalLinkId }
-              ?.answer
-              ?.firstOrNull()
-              ?.let { it.value as? Attachment }
-              ?.title
-              ?.let { suspiciousImages.add(it) }
+            val title =
+              siblings
+                .firstOrNull { it.linkId == originalLinkId }
+                ?.answer
+                ?.firstOrNull()
+                ?.let { it.value as? Attachment }
+                ?.title
+            hiddenClasses[originalLinkId] = hiddenClass to title
           }
           return@forEachQrItemWithSiblings
         }
@@ -1681,17 +1692,17 @@ constructor(
             "v82=${extString(MODEL82_PREDICTION_URL)}|${extString(MODEL82_CONFIDENCE_URL)}",
         )
 
-        if (result.isSuspiciousAiResult()) {
-          isSuspicious = true
-          title?.let { suspiciousImages.add(it) }
-        }
-
         if (!result.isNullOrBlank()) {
+          // Decided by what the class means, never by comparing text: "Low-risk suspicious"
+          // must refer, and "non-suspicious" contains "suspicious".
+          val photoClass = ModelCatalog.classInModel(result, model)
           imageCount += 1
-          if (result.isSuspiciousAiResult()) {
-            suspiciousImageCount += 1
+          if (photoClass?.isRefer == true) suspiciousImageCount += 1 else nonSuspiciousImageCount += 1
+          if (photoClass != null) {
+            photoClasses[item.linkId] = photoClass to title
+            classImageCounts[photoClass.id] = (classImageCounts[photoClass.id] ?: 0) + 1
           } else {
-            nonSuspiciousImageCount += 1
+            Timber.w("AI result %s on %s is not a class of %s", result, item.linkId, model.id)
           }
 
           confidence.toConfidenceFloat()?.let { confidenceValue ->
@@ -1733,22 +1744,41 @@ constructor(
             }
         }
       }
-      Timber.d(
-        "=== AI inference summary done: isSuspicious=$isSuspicious " +
-          "suspiciousImages=$suspiciousImages ===",
-      )
+      hiddenClasses.forEach { (linkId, value) -> photoClasses.putIfAbsent(linkId, value) }
     } catch (e: Exception) {
       Timber.e(e, "Failed to summarize AI inference results")
     }
+
+    val caseClass =
+      CombineRuleEvaluator.decide(
+        model.classes,
+        photoClasses.values.map { it.first.id },
+        activeModel.rule.case,
+      )
+    // The photos that explain a referral: every photo AI flagged for referral, most serious first.
+    val referredImages =
+      photoClasses.values
+        .filter { it.first.isRefer }
+        .sortedByDescending { it.first.severity }
+        .mapNotNull { it.second }
+        .distinct()
+    Timber.d(
+      "=== AI inference summary done: case=%s referredImages=%s ===",
+      caseClass.id,
+      referredImages,
+    )
     return AiInferenceSummary(
-      isSuspicious = isSuspicious,
-      suspiciousImages = suspiciousImages.toList(),
+      isSuspicious = caseClass.isRefer,
+      suspiciousImages = if (caseClass.isRefer) referredImages else emptyList(),
       imageCount = imageCount,
       suspiciousImageCount = suspiciousImageCount,
       nonSuspiciousImageCount = nonSuspiciousImageCount,
       lowConfidenceImageCount = lowConfidenceImageCount,
       meanConfidence =
         confidenceValues.takeIf { it.isNotEmpty() }?.average()?.toFloat() ?: 0f,
+      caseClass = caseClass,
+      modelId = model.id,
+      classImageCounts = classImageCounts,
     )
   }
 
@@ -1780,9 +1810,6 @@ constructor(
 
   private fun Base?.asPrimitiveString(): String? =
     this?.primitiveValue()?.takeIf { it.isNotBlank() } ?: this?.toString()?.takeIf { it.isNotBlank() }
-
-  private fun String?.isSuspiciousAiResult(): Boolean =
-    this?.substringBefore("|")?.trim()?.equals("suspicious", ignoreCase = true) == true
 
   private fun String?.toConfidenceFloat(): Float? =
     this
@@ -1851,6 +1878,16 @@ data class UnansweredRequiredQuestion(
   val label: String,
 )
 
+/**
+ * The case-level AI result.
+ *
+ * @property isSuspicious the case's class recommends referral.
+ * @property suspiciousImages titles of the photos flagged for referral, most serious first (empty
+ *   when the case is not referred).
+ * @property suspiciousImageCount / nonSuspiciousImageCount photos whose class does / does not refer.
+ * @property caseClass the case's class; its [AiClass.caseValue] is written to `case-level-ai-result`.
+ * @property classImageCounts photos per class id.
+ */
 data class AiInferenceSummary(
   val isSuspicious: Boolean,
   val suspiciousImages: List<String>,
@@ -1859,7 +1896,16 @@ data class AiInferenceSummary(
   val nonSuspiciousImageCount: Int = 0,
   val lowConfidenceImageCount: Int = 0,
   val meanConfidence: Float = 0f,
+  val caseClass: AiClass =
+    if (isSuspicious) ModelCatalog.BINARY.classById(ModelCatalog.SUSPICIOUS)!!
+    else ModelCatalog.BINARY.leastSevereClass,
+  val modelId: String = ModelCatalog.DEFAULT_MODEL_ID,
+  val classImageCounts: Map<String, Int> = emptyMap(),
 )
+
+/** Today's model with its shipped rule: what a case is combined with when no model is passed. */
+private val DEFAULT_ACTIVE_MODEL =
+  ActiveAiModel(ModelCatalog.BINARY, ModelCatalog.BINARY.defaultRule, RuleSource.SHIPPED)
 
 /**
  * Outcome of [QuestionnaireViewModel.reconcileDocumentReferencesForSubmission].

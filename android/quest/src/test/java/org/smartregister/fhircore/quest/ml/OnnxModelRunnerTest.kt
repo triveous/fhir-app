@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 Ona Systems, Inc
+ * Copyright 2026 Indian Institute of Science (IISc)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,12 +87,37 @@ class OnnxModelRunnerTest {
   }
 
   @Test
+  fun `runEach returns each model's outputs and runs only the listed models`() {
+    runner("probs_uint8_nchw.onnx", "probs_float32_nhwc.onnx").use { runner ->
+      assertEquals(2, runner.modelCount)
+      val both = runner.runEach(bgrImage())
+      assertEquals(2, both.size)
+      both.forEach { assertArrayEquals(EXPECTED, it, TOLERANCE) }
+
+      val secondOnly = runner.runEach(bgrImage(), listOf(1))
+      assertEquals(1, secondOnly.size)
+      assertArrayEquals(EXPECTED, secondOnly.single(), TOLERANCE)
+    }
+  }
+
+  @Test
   fun `runner output feeds the interpreter end to end`() {
     runner("probs_uint8_nchw.onnx").use { runner ->
       runner.warmUp()
-      val prediction = ScreeningOutputInterpreter.interpret(runner.run(bgrImage()))
+      // The fixture emits the three members' probabilities as one [1, 3] output.
+      val outputs = runner.run(bgrImage()).map { floatArrayOf(it) }
+      val prediction =
+        ScreeningOutputInterpreter.interpret(
+          ModelCatalog.BINARY,
+          ModelCatalog.BINARY.defaultRule,
+          RuleSource.SHIPPED,
+          outputs,
+        )
 
-      assertEquals(listOf(false, false, true), prediction.components.map { it.isSuspicious })
+      assertEquals(
+        listOf("non-suspicious", "non-suspicious", "suspicious"),
+        prediction.members.map { it.predictedClass.id },
+      )
       assertEquals("Non-Suspicious", prediction.toResultMap()["camera_prediction"])
     }
   }
@@ -104,7 +129,12 @@ class OnnxModelRunnerTest {
 
       assertArrayEquals(floatArrayOf(-3.6875f, 0f, 3.8125f), logits, TOLERANCE)
       assertThrows(OnnxContractException::class.java) {
-        ScreeningOutputInterpreter.interpret(logits)
+        ScreeningOutputInterpreter.interpret(
+          ModelCatalog.BINARY,
+          ModelCatalog.BINARY.defaultRule,
+          RuleSource.SHIPPED,
+          logits.map { floatArrayOf(it) },
+        )
       }
     }
   }

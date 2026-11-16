@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "id": "oral-3class-v1/majority",
+  "version": 1,
+  "modelId": "oral-3class-v1",
+  "members": [
+    "m1",
+    "m2",
+    "m3"
+  ],
+  "photo": {
+    "method": "vote",
+    "countMoreSevere": true,
+    "votesNeeded": {
+      "high-risk-suspicious": "all",
+      "low-risk-suspicious": "majority"
+    },
+    "fallback": "non-suspicious"
+  },
+  "case": {
+    "method": "vote",
+    "countMoreSevere": true,
+    "votesNeeded": "any",
+    "fallback": "non-suspicious"
+  }
+}

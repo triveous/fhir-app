@@ -24,8 +24,16 @@ import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
 import org.hl7.fhir.r4.model.StringType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.smartregister.fhircore.quest.ml.ActiveAiModel
+import org.smartregister.fhircore.quest.ml.ModelCatalog
+import org.smartregister.fhircore.quest.ml.ResultScreenStyle
+import org.smartregister.fhircore.quest.ml.RuleSource
+import org.smartregister.fhircore.quest.ml.VoteBlock
+import org.smartregister.fhircore.quest.ml.Votes
+import org.smartregister.fhircore.quest.ml.VotesNeeded
 import org.smartregister.fhircore.engine.configuration.ConfigurationRegistry
 import org.smartregister.fhircore.engine.data.local.DefaultRepository
 import org.smartregister.fhircore.engine.rulesengine.ResourceDataRulesExecutor
@@ -65,6 +73,132 @@ class QuestionnaireViewModelAiSummaryTest {
     assertEquals(1, summary.lowConfidenceImageCount)
     assertEquals(62.5f, summary.meanConfidence)
   }
+
+  @Test
+  fun `a 2-class case keeps writing suspicious and non-suspicious`() {
+    val viewModel = questionnaireViewModel()
+    val questionnaire = Questionnaire().apply { addItem(aiQuestionnaireItem("image-1", "Non-Suspicious", "90")) }
+    val questionnaireResponse = QuestionnaireResponse().apply { addItem(attachmentResponseItem("image-1", "a.jpg")) }
+
+    val summary = viewModel.summarizeAiInference(questionnaireResponse, questionnaire)
+
+    assertFalse(summary.isSuspicious)
+    assertEquals("non-suspicious", summary.caseClass.caseValue)
+    assertEquals(ModelCatalog.BINARY_MODEL_ID, summary.modelId)
+    assertTrue(summary.suspiciousImages.isEmpty())
+  }
+
+  @Test
+  fun `a low-risk photo refers the 3-class case (it used to read as non-suspicious)`() {
+    val viewModel = questionnaireViewModel()
+    val questionnaire =
+      Questionnaire().apply {
+        addItem(aiQuestionnaireItem("image-1", "non-suspicious", "91"))
+        addItem(aiQuestionnaireItem("image-2", "low-risk-suspicious", "70"))
+        addItem(aiQuestionnaireItem("image-3", "non-suspicious", "88"))
+      }
+    val questionnaireResponse =
+      QuestionnaireResponse().apply {
+        addItem(attachmentResponseItem("image-1", "first.jpg"))
+        addItem(attachmentResponseItem("image-2", "second.jpg"))
+        addItem(attachmentResponseItem("image-3", "third.jpg"))
+      }
+
+    val summary = viewModel.summarizeAiInference(questionnaireResponse, questionnaire, threeClass)
+
+    assertTrue(summary.isSuspicious)
+    assertEquals(ModelCatalog.LOW_RISK_SUSPICIOUS, summary.caseClass.id)
+    assertEquals("low-risk-suspicious", summary.caseClass.caseValue)
+    assertEquals(ResultScreenStyle.ORANGE, summary.caseClass.screen)
+    assertEquals(listOf("second.jpg"), summary.suspiciousImages)
+    assertEquals(1, summary.suspiciousImageCount)
+    assertEquals(2, summary.nonSuspiciousImageCount)
+    assertEquals(
+      mapOf(ModelCatalog.NON_SUSPICIOUS to 2, ModelCatalog.LOW_RISK_SUSPICIOUS to 1),
+      summary.classImageCounts,
+    )
+  }
+
+  @Test
+  fun `the most serious photo decides a 3-class case and leads the flagged photos`() {
+    val viewModel = questionnaireViewModel()
+    val questionnaire =
+      Questionnaire().apply {
+        addItem(aiQuestionnaireItem("image-1", "low-risk-suspicious", "70"))
+        addItem(aiQuestionnaireItem("image-2", "high-risk-suspicious", "80"))
+      }
+    val questionnaireResponse =
+      QuestionnaireResponse().apply {
+        addItem(attachmentResponseItem("image-1", "low.jpg"))
+        addItem(attachmentResponseItem("image-2", "high.jpg"))
+      }
+
+    val summary = viewModel.summarizeAiInference(questionnaireResponse, questionnaire, threeClass)
+
+    assertEquals(ModelCatalog.HIGH_RISK_SUSPICIOUS, summary.caseClass.id)
+    assertEquals(ResultScreenStyle.RED, summary.caseClass.screen)
+    assertEquals(listOf("high.jpg", "low.jpg"), summary.suspiciousImages)
+  }
+
+  @Test
+  fun `a site case rule can need low-risk on two photos`() {
+    val viewModel = questionnaireViewModel()
+    val twoPhotos =
+      threeClass.copy(
+        rule =
+          threeClass.rule.copy(
+            case =
+              VoteBlock(
+                VotesNeeded.PerClass(
+                  mapOf(
+                    ModelCatalog.HIGH_RISK_SUSPICIOUS to Votes.AnyOne,
+                    ModelCatalog.LOW_RISK_SUSPICIOUS to Votes.AtLeast(2),
+                  ),
+                ),
+              ),
+          ),
+      )
+    val questionnaire =
+      Questionnaire().apply {
+        addItem(aiQuestionnaireItem("image-1", "low-risk-suspicious", "70"))
+        addItem(aiQuestionnaireItem("image-2", "non-suspicious", "90"))
+      }
+    val questionnaireResponse =
+      QuestionnaireResponse().apply {
+        addItem(attachmentResponseItem("image-1", "first.jpg"))
+        addItem(attachmentResponseItem("image-2", "second.jpg"))
+      }
+
+    val summary = viewModel.summarizeAiInference(questionnaireResponse, questionnaire, twoPhotos)
+
+    assertEquals(ModelCatalog.NON_SUSPICIOUS, summary.caseClass.id)
+    assertFalse(summary.isSuspicious)
+  }
+
+  @Test
+  fun `a 3-class result kept only in the hidden ai-result item still decides the case`() {
+    val viewModel = questionnaireViewModel()
+    val questionnaireResponse =
+      QuestionnaireResponse().apply {
+        addItem(attachmentResponseItem("image-1", "only.jpg"))
+        addItem(
+          QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+            linkId = "image-1-ai-result"
+            addAnswer().value = StringType("high-risk-suspicious|80")
+          },
+        )
+      }
+
+    val summary = viewModel.summarizeAiInference(questionnaireResponse, null, threeClass)
+
+    assertEquals(ModelCatalog.HIGH_RISK_SUSPICIOUS, summary.caseClass.id)
+    assertEquals(listOf("only.jpg"), summary.suspiciousImages)
+    // Not counted as a classified photo: its own answer carried no result.
+    assertEquals(0, summary.imageCount)
+  }
+
+  private val threeClass =
+    ActiveAiModel(ModelCatalog.THREE_CLASS, ModelCatalog.THREE_CLASS.defaultRule, RuleSource.SHIPPED)
 
   private fun aiQuestionnaireItem(
     linkId: String,

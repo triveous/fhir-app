@@ -255,4 +255,26 @@ constructor(@ApplicationContext val context: Context, val gson: Gson) {
 
     private fun appUpdateConfigPrefKey(resourceId: String) = "APP_UPDATE_CONFIG_$resourceId"
 
+    /**
+     * Persists the last-known AI model settings, so a device that is offline (or whose flag fetch
+     * failed) keeps running the model and rule the site last chose.
+     */
+    fun saveLastKnownAiModelConfig(resourceId: String, config: AiModelConfig) {
+        prefs.edit {
+            putString(aiModelConfigPrefKey(resourceId), gson.toJson(config))
+        }
+    }
+
+    fun getLastKnownAiModelConfig(resourceId: String): AiModelConfig {
+        val json = prefs.getString(aiModelConfigPrefKey(resourceId), null) ?: return AiModelConfig.NONE
+        return try {
+            gson.fromJson(json, AiModelConfig::class.java) ?: AiModelConfig.NONE
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to parse persisted AI model config for %s", resourceId)
+            AiModelConfig.NONE
+        }
+    }
+
+    private fun aiModelConfigPrefKey(resourceId: String) = "AI_MODEL_CONFIG_$resourceId"
+
 }

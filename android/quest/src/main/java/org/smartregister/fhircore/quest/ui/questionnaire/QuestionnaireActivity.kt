@@ -74,6 +74,8 @@ import org.smartregister.fhircore.quest.util.PermissionUtils
 import org.smartregister.fhircore.quest.util.REFER_CASE_URL
 import org.smartregister.fhircore.quest.util.ResourceUtils
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
+import org.smartregister.fhircore.quest.ml.AiModelSelection
+import org.smartregister.fhircore.quest.ml.AiModelSelector
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
 import timber.log.Timber
@@ -89,6 +91,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
 
   @Inject lateinit var dispatcherProvider: DispatcherProvider
   @Inject lateinit var featureFlagUtil: FeatureFlagUtil
+  @Inject lateinit var aiModelSelector: AiModelSelector
   val viewModel by viewModels<QuestionnaireViewModel>()
   private lateinit var questionnaireConfig: QuestionnaireConfig
   private lateinit var actionParameters: ArrayList<ActionParameter>
@@ -102,6 +105,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
   private var questionnaireResponse: String? = null
   private var currentQR: QuestionnaireResponse? = null
   private var isSuspiciousResult: Boolean = false
+  /** The case's AI class id (e.g. `low-risk-suspicious`), for analytics after the result screen. */
+  private var aiCaseClassId: String? = null
   private var suspiciousImagesList: List<String> = emptyList()
   private var submissionIdTypes: List<IdType>? = null
   private var submissionQRResult: QuestionnaireResponse? = null
@@ -118,6 +123,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             PostHogAnalytics.Props.REFER_CASE to referCase,
             PostHogAnalytics.Props.AI_VERDICT to aiVerdict,
             PostHogAnalytics.Props.AI_OVERRIDDEN to (referCase && !isSuspiciousResult),
+            PostHogAnalytics.Props.AI_CLASS to aiCaseClassId,
           ),
         )
         ScreeningTimer.end(
@@ -157,6 +163,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             PostHogAnalytics.Props.AI_VERDICT to
               (if (isSuspiciousResult) "suspicious" else "non_suspicious"),
             PostHogAnalytics.Props.AI_OVERRIDDEN to false,
+            PostHogAnalytics.Props.AI_CLASS to aiCaseClassId,
           ),
         )
         ScreeningTimer.end(
@@ -665,12 +672,21 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
             val aiEnabled = featureFlagUtil.isAiInferenceEnabled()
 
             if (aiEnabled) {
+              // The model + rule this screening ran with (locked when its first photo was taken).
+              val aiSelection = aiModelSelector.forScreening(screeningId)
+              val activeModel = (aiSelection as? AiModelSelection.Ready)?.active
               val aiSummary =
-                viewModel.summarizeAiInference(questionnaireResponse, questionnaire)
+                if (activeModel != null) {
+                  viewModel.summarizeAiInference(questionnaireResponse, questionnaire, activeModel)
+                } else {
+                  viewModel.summarizeAiInference(questionnaireResponse, questionnaire)
+                }
               val isSuspicious = aiSummary.isSuspicious
               val suspiciousImages = aiSummary.suspiciousImages
 
-              val aiResultValue = if (isSuspicious) "suspicious" else "non-suspicious"
+              // Same field as always: 2-class sites keep `suspicious` / `non-suspicious`, 3-class
+              // sites write the case's class id (e.g. `low-risk-suspicious`).
+              val aiResultValue = aiSummary.caseClass.caseValue
               val aiResultItem = QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
                 linkId = CASE_LEVEL_AI_RESULT_LINK_ID
                 addAnswer(
@@ -689,6 +705,12 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
                     PostHogAnalytics.Props.NON_SUSPICIOUS_IMAGE_COUNT to aiSummary.nonSuspiciousImageCount,
                     PostHogAnalytics.Props.LOW_CONFIDENCE_IMAGE_COUNT to aiSummary.lowConfidenceImageCount,
                     PostHogAnalytics.Props.MEAN_CONFIDENCE to aiSummary.meanConfidence,
+                    PostHogAnalytics.Props.AI_CLASS to aiSummary.caseClass.id,
+                    PostHogAnalytics.Props.MODEL_ID to aiSummary.modelId,
+                    PostHogAnalytics.Props.RULE_ID to activeModel?.rule?.id,
+                    PostHogAnalytics.Props.RULE_VERSION to activeModel?.rule?.version,
+                    PostHogAnalytics.Props.RULE_SOURCE to activeModel?.ruleSource?.telemetryName,
+                    PostHogAnalytics.Props.CLASS_IMAGE_COUNTS to aiSummary.classImageCounts,
                   )
                   .toMutableMap()
                   .apply { putAll(DeviceMetrics.snapshot(this@QuestionnaireActivity)) }
@@ -699,6 +721,7 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               Timber.d("=== About to launch AIResultActivity ===")
               currentQR = questionnaireResponse
               isSuspiciousResult = isSuspicious
+              aiCaseClassId = aiSummary.caseClass.id
               suspiciousImagesList = suspiciousImages
 
               ScreeningTimer.markStep(screeningId, "submission_started")
@@ -719,6 +742,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
 
                 val intent = Intent(this@QuestionnaireActivity, AIResultActivity::class.java)
                 intent.putExtra("isSuspicious", isSuspicious)
+                intent.putExtra(AIResultActivity.EXTRA_AI_CLASS_ID, aiSummary.caseClass.id)
+                intent.putExtra(AIResultActivity.EXTRA_AI_MODEL_ID, aiSummary.modelId)
                 intent.putStringArrayListExtra("suspiciousImages", ArrayList(suspiciousImages))
                 intent.putExtra("questionnaireResponseId", qrResult.logicalId)
                 intent.putExtra(PostHogAnalytics.Props.SCREENING_ID, screeningId)

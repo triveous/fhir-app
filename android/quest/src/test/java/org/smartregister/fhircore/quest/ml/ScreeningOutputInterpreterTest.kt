@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 Ona Systems, Inc
+ * Copyright 2026 Indian Institute of Science (IISc)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,14 +24,27 @@ import org.junit.Test
 
 class ScreeningOutputInterpreterTest {
 
+  private val binary = ModelCatalog.BINARY
+  private val threeClass = ModelCatalog.THREE_CLASS
+
+  private fun interpretBinary(vararg probabilities: Float, rule: CombineRule = binary.defaultRule) =
+    ScreeningOutputInterpreter.interpret(
+      binary,
+      rule,
+      RuleSource.SHIPPED,
+      probabilities.map { floatArrayOf(it) },
+    )
+
+  private fun interpretThreeClass(vararg members: FloatArray, rule: CombineRule = threeClass.defaultRule) =
+    ScreeningOutputInterpreter.interpret(threeClass, rule, RuleSource.SHIPPED, members.toList())
+
   /**
    * The v38 PyTorch pipeline's probabilities and result maps for docs/test-images, as recorded in
-   * scripts/ai_inference_baseline.json. Fed the same probabilities, the ONNX interpreter must
-   * produce the same result map byte for byte, so nothing downstream (bundle extras, FHIR
-   * extensions, analytics) can tell the runtimes apart.
+   * scripts/ai_inference_baseline.json. Fed the same probabilities, the interpreter must produce the
+   * same FHIR-bound result keys byte for byte, so 2-class sites see no change.
    */
   @Test
-  fun `result map matches the PyTorch pipeline for the recorded test images`() {
+  fun `2-class result map matches the PyTorch pipeline for the recorded test images`() {
     val baseline =
       listOf(
         floatArrayOf(0.9999998807907104f, 0.9999996423721313f, 1.0f) to
@@ -47,78 +60,157 @@ class ScreeningOutputInterpreterTest {
       )
 
     baseline.forEach { (probabilities, expected) ->
-      assertEquals(expected, ScreeningOutputInterpreter.interpret(probabilities).toResultMap())
+      val resultMap = interpretBinary(*probabilities).toResultMap()
+      assertEquals(expected, resultMap.filterKeys { it in expected.keys })
     }
   }
 
   @Test
-  fun `three outputs are named v6, v8, v82 and the ensemble needs all three suspicious`() {
-    val result = ScreeningOutputInterpreter.interpret(floatArrayOf(0.9f, 0.2f, 0.8f))
+  fun `2-class members are v6, v8, v82 and the shipped rule needs all three suspicious`() {
+    val result = interpretBinary(0.9f, 0.2f, 0.8f)
 
-    assertEquals(listOf("v6", "v8", "v82"), result.components.map { it.modelName })
-    assertEquals(listOf(true, false, true), result.components.map { it.isSuspicious })
-    assertEquals("ensemble", result.ensemble.modelName)
-    assertFalse(result.ensemble.isSuspicious)
-    assertEquals("Non-Suspicious", result.ensemble.displayPrediction)
-    assertEquals((90f + 80f + 80f) / 3, result.ensemble.confidence, 1e-4f)
-    assertEquals((0.9f + 0.2f + 0.8f) / 3, result.ensemble.probability, 1e-6f)
+    assertEquals(listOf("v6", "v8", "v82"), result.members.map { it.member.id })
+    assertEquals(listOf(true, false, true), result.members.map { it.predictedClass.isRefer })
+    assertFalse(result.finalClass.isRefer)
+    assertEquals("Non-Suspicious", result.finalClass.savedValue)
+    assertEquals((90f + 80f + 80f) / 3, result.confidence, 1e-4f)
+    assertEquals((0.9f + 0.2f + 0.8f) / 3, result.probability, 1e-6f)
   }
 
   @Test
   fun `confidence is taken on the predicted side and 0_5 is not suspicious`() {
-    val (atThreshold, justAbove) =
-      ScreeningOutputInterpreter.interpret(floatArrayOf(0.5f, 0.6f)).components
+    val (atThreshold, justAbove) = interpretBinary(0.5f, 0.6f, 0.1f).members
 
-    assertFalse(atThreshold.isSuspicious)
+    assertFalse(atThreshold.predictedClass.isRefer)
     assertEquals(50f, atThreshold.confidence, 1e-4f)
     assertTrue(atThreshold.lowConfidence)
-    assertEquals("non_suspicious", atThreshold.prediction)
+    assertEquals("non_suspicious", atThreshold.predictedClass.telemetryName)
 
-    assertTrue(justAbove.isSuspicious)
+    assertTrue(justAbove.predictedClass.isRefer)
     assertEquals(60f, justAbove.confidence, 1e-4f)
     assertTrue(justAbove.lowConfidence)
-    assertEquals("suspicious", justAbove.prediction)
+    assertEquals("suspicious", justAbove.predictedClass.telemetryName)
   }
 
   @Test
-  fun `a single output becomes the ensemble with generic keys`() {
-    val result = ScreeningOutputInterpreter.interpret(floatArrayOf(0.97f))
+  fun `a remote majority rule changes the 2-class photo result`() {
+    val majority =
+      binary.defaultRule.copy(
+        id = "binary/majority",
+        photo = VoteBlock(VotesNeeded.PerClass(mapOf(ModelCatalog.SUSPICIOUS to Votes.Majority))),
+      )
 
-    assertEquals("component_0", result.components.single().modelName)
-    assertTrue(result.ensemble.isSuspicious)
-    assertEquals(result.components.single().confidence, result.ensemble.confidence, 0f)
+    assertEquals("Suspicious", interpretBinary(0.9f, 0.2f, 0.8f, rule = majority).finalClass.savedValue)
+  }
+
+  @Test
+  fun `a rule that drops a member is fed one output per remaining member`() {
+    val twoMembers = binary.defaultRule.copy(members = listOf("v6", "v82"))
+
+    val result = interpretBinary(0.9f, 0.8f, rule = twoMembers)
+
+    assertEquals(listOf("v6", "v82"), result.members.map { it.member.id })
+    assertEquals(setOf("model6_prediction", "model82_prediction"), result.toResultMap().keys.filter { it.startsWith("model") && it.endsWith("_prediction") }.toSet())
+    assertTrue(result.finalClass.isRefer)
+  }
+
+  @Test
+  fun `3-class softmax members are combined by the shipped rule`() {
+    // The plan's worked example: m1 high-risk, m2 low-risk, m3 non-suspicious.
+    val result =
+      interpretThreeClass(
+        floatArrayOf(0.1f, 0.2f, 0.7f),
+        floatArrayOf(0.2f, 0.6f, 0.2f),
+        floatArrayOf(0.8f, 0.1f, 0.1f),
+      )
+
     assertEquals(
-      setOf("camera_prediction", "camera_confidence", "component0_prediction", "component0_confidence"),
-      result.toResultMap().keys,
+      listOf(ModelCatalog.HIGH_RISK_SUSPICIOUS, ModelCatalog.LOW_RISK_SUSPICIOUS, ModelCatalog.NON_SUSPICIOUS),
+      result.members.map { it.predictedClass.id },
     )
+    // High-risk needs all 3 (has 1); at-least-low-risk needs a majority (has 2).
+    assertEquals(ModelCatalog.LOW_RISK_SUSPICIOUS, result.finalClass.id)
+    assertTrue(result.finalClass.isRefer)
+    // Confidence = mean probability the members give the final class.
+    assertEquals((0.2f + 0.6f + 0.1f) / 3 * 100, result.confidence, 1e-3f)
+
+    val map = result.toResultMap()
+    assertEquals("low-risk-suspicious", map["camera_prediction"])
+    assertEquals("high-risk-suspicious", map["model6_prediction"])
+    assertEquals("low-risk-suspicious", map["model8_prediction"])
+    assertEquals("non-suspicious", map["model82_prediction"])
+    assertEquals("70.0", map["model6_confidence"])
+    assertEquals(ModelCatalog.THREE_CLASS_MODEL_ID, map["model_id"])
+    assertEquals("low-risk-suspicious", map["ai_class"])
+  }
+
+  @Test
+  fun `3-class all high-risk is high-risk and all agreeing non-suspicious is non-suspicious`() {
+    val high = floatArrayOf(0.05f, 0.15f, 0.8f)
+    val none = floatArrayOf(0.9f, 0.05f, 0.05f)
+
+    assertEquals(ModelCatalog.HIGH_RISK_SUSPICIOUS, interpretThreeClass(high, high, high).finalClass.id)
+    assertEquals(ModelCatalog.NON_SUSPICIOUS, interpretThreeClass(none, none, none).finalClass.id)
+  }
+
+  @Test
+  fun `a softmax tie goes to the more serious class`() {
+    val tie = floatArrayOf(0.2f, 0.4f, 0.4f)
+
+    val member = interpretThreeClass(tie, tie, tie).members.first()
+
+    assertEquals(ModelCatalog.HIGH_RISK_SUSPICIOUS, member.predictedClass.id)
+  }
+
+  @Test
+  fun `softmax outputs that do not sum to 1 are rejected as missing Softmax`() {
+    val error =
+      assertThrows(OnnxContractException::class.java) {
+        interpretThreeClass(
+          floatArrayOf(0.9f, 0.9f, 0.9f),
+          floatArrayOf(0.1f, 0.1f, 0.8f),
+          floatArrayOf(0.1f, 0.1f, 0.8f),
+        )
+      }
+    assertTrue(error.message!!.contains("Softmax"))
+  }
+
+  @Test
+  fun `wrong output sizes and member counts are rejected`() {
+    assertThrows(OnnxContractException::class.java) {
+      interpretThreeClass(floatArrayOf(0.5f, 0.5f), floatArrayOf(0.5f, 0.5f), floatArrayOf(0.5f, 0.5f))
+    }
+    assertThrows(OnnxContractException::class.java) { interpretBinary(0.9f, 0.9f) }
   }
 
   @Test
   fun `raw logits are rejected instead of being clamped into a verdict`() {
     // What the v38 models emit before the Kotlin sigmoid: a graph exported without Sigmoid.
-    val error =
-      assertThrows(OnnxContractException::class.java) {
-        ScreeningOutputInterpreter.interpret(floatArrayOf(15.6f, 14.9f, 21.3f))
-      }
+    val error = assertThrows(OnnxContractException::class.java) { interpretBinary(15.6f, 14.9f, 21.3f) }
     assertTrue(error.message!!.contains("Sigmoid"))
   }
 
   @Test
   fun `non-finite, negative and empty outputs are rejected`() {
-    listOf(floatArrayOf(Float.NaN), floatArrayOf(-0.2f), floatArrayOf(Float.POSITIVE_INFINITY), floatArrayOf())
-      .forEach { outputs ->
-        assertThrows(OnnxContractException::class.java) {
-          ScreeningOutputInterpreter.interpret(outputs)
-        }
-      }
+    listOf(Float.NaN, -0.2f, Float.POSITIVE_INFINITY).forEach { bad ->
+      assertThrows(OnnxContractException::class.java) { interpretBinary(bad, 0.5f, 0.5f) }
+    }
+    assertThrows(OnnxContractException::class.java) {
+      ScreeningOutputInterpreter.interpret(
+        binary,
+        binary.defaultRule,
+        RuleSource.SHIPPED,
+        listOf(floatArrayOf(), floatArrayOf(0.5f), floatArrayOf(0.5f)),
+      )
+    }
   }
 
   @Test
   fun `float slack just outside 0 to 1 is tolerated and snapped into range`() {
-    val result = ScreeningOutputInterpreter.interpret(floatArrayOf(1.00005f, -0.00005f))
+    val result = interpretBinary(1.00005f, -0.00005f, 0.5f)
 
-    assertEquals(1f, result.components[0].probability, 0f)
-    assertEquals(0f, result.components[1].probability, 0f)
+    assertEquals(1f, result.members[0].probability, 0f)
+    assertEquals(0f, result.members[1].probability, 0f)
   }
 
   private fun legacyMap(

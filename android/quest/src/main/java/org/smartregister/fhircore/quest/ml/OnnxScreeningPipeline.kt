@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 Ona Systems, Inc
+ * Copyright 2026 Indian Institute of Science (IISc)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,31 +28,32 @@ import org.smartregister.fhircore.quest.util.ScreeningTimer
 import timber.log.Timber
 
 /**
- * The ONNX replacement for the camera fragment's PyTorch `processImage`:
+ * The ONNX pipeline for any model in [ModelCatalog] whose `.onnx` files are bundled:
  *
  * 1. Read the photo with OpenCV as BGR uint8.
  * 2. Resize (bicubic) to the size the model declares.
  * 3. Pack into the model's input tensor — no normalisation; see [ModelInputSpec].
- * 4. Run the model; its outputs are already probabilities (Sigmoid is in the graph).
- * 5. Interpret them exactly as before and emit the same result keys and analytics.
+ * 4. Run the members the combine rule keeps; outputs are already probabilities (in the graph).
+ * 5. Read them per the model's descriptor and combine them with the rule
+ *    ([ScreeningOutputInterpreter]), emitting the same result keys and analytics as before.
  *
- * Active only when the model is bundled ([isModelBundled]); otherwise the fragment keeps using the
- * PyTorch pipeline.
+ * For the 2-class model the camera fragment falls back to the PyTorch pipeline when its `.onnx`
+ * files aren't bundled ([canRun] is false).
  */
 @Singleton
 class OnnxScreeningPipeline @Inject constructor(private val engine: OnnxInferenceEngine) {
 
-  val isModelBundled: Boolean
-    get() = engine.isModelBundled
+  /** True when [model]'s `.onnx` files are bundled. */
+  fun canRun(model: ModelDescriptor): Boolean = engine.isBundled(model)
 
-  /** Creates the ORT session ahead of the first capture. Failures are reported, not thrown. */
-  suspend fun warmUp() {
+  /** Creates the ORT sessions ahead of the first capture. Failures are reported, not thrown. */
+  suspend fun warmUp(model: ModelDescriptor) {
     withContext(Dispatchers.Default) {
       try {
-        engine.warmUp()
+        engine.warmUp(model)
       } catch (e: Exception) {
-        Timber.e(e, "ONNX model failed to load")
-        PostHogAnalytics.captureError(ERROR_SOURCE, "Model load failed: ${e.message}")
+        Timber.e(e, "ONNX model %s failed to load", model.id)
+        PostHogAnalytics.captureError(ERROR_SOURCE, "Model ${model.id} load failed: ${e.message}")
       }
     }
   }
@@ -61,7 +62,12 @@ class OnnxScreeningPipeline @Inject constructor(private val engine: OnnxInferenc
    * Blocking; call on a background dispatcher. Returns `null` (after reporting the error) when the
    * image cannot be processed — the same contract as the PyTorch `processImage`.
    */
-  fun process(absolutePath: String, screeningId: String?, runAiInference: Boolean): Result? {
+  fun process(
+    active: ActiveAiModel,
+    absolutePath: String,
+    screeningId: String?,
+    runAiInference: Boolean,
+  ): Result? {
     val cleanup = mutableListOf<Mat>()
     return try {
       val original = OpenCVUtils.readBgr(absolutePath)
@@ -82,7 +88,8 @@ class OnnxScreeningPipeline @Inject constructor(private val engine: OnnxInferenc
       val qualityProps = ImageQualityAnalyzer.analyze(analyzed)
       if (!runAiInference) return Result(emptyMap(), qualityProps, 0L)
 
-      val spec = engine.inputSpec()
+      val model = active.model
+      val spec = engine.inputSpec(model)
       val modelInput =
         if (spec.width == analyzed.width() && spec.height == analyzed.height()) {
           analyzed
@@ -91,18 +98,31 @@ class OnnxScreeningPipeline @Inject constructor(private val engine: OnnxInferenc
         }
 
       ScreeningTimer.markStep(screeningId, "ai_inference_started")
-      val run = engine.run(OpenCVUtils.toBgrBytes(modelInput))
-      val prediction = ScreeningOutputInterpreter.interpret(run.values)
-      prediction.components.forEach { captureModelInference(screeningId, it, run, null) }
-      captureModelInference(screeningId, prediction.ensemble, run, run.inferenceTimeMs)
+      val members = model.activeMembers(active.rule)
+      val run = engine.run(model, members, OpenCVUtils.toBgrBytes(modelInput))
+      val classification =
+        ScreeningOutputInterpreter.interpret(model, active.rule, active.ruleSource, run.memberOutputs)
+      // One session run per member; each member reports the whole run's time, as before.
+      classification.captureInferenceEvents(
+        screeningId = screeningId,
+        modelVersion = model.telemetryVersion,
+        memberTimesMs = null,
+        combinedTimeMs = run.inferenceTimeMs,
+        extraProps =
+          mapOf(
+            PostHogAnalytics.Props.EXECUTION_PROVIDER to run.executionProvider.telemetryName,
+            PostHogAnalytics.Props.MODEL_OUTPUT_COUNT to run.values.size,
+          ),
+      )
       ScreeningTimer.markStep(screeningId, "ai_inference_completed")
 
       Timber.d(
-        "ONNX outputs %s -> %s",
+        "ONNX %s outputs %s -> %s",
+        model.id,
         run.values.contentToString(),
-        prediction.ensemble.displayPrediction,
+        classification.finalClass.id,
       )
-      Result(prediction.toResultMap(), qualityProps, run.inferenceTimeMs)
+      Result(classification.toResultMap(), qualityProps, run.inferenceTimeMs)
     } catch (e: Exception) {
       Timber.e(e, "ONNX image processing failed")
       PostHogAnalytics.captureError(ERROR_SOURCE, "Image processing failed: ${e.message}")
@@ -110,34 +130,6 @@ class OnnxScreeningPipeline @Inject constructor(private val engine: OnnxInferenc
     } finally {
       cleanup.forEach { it.release() }
     }
-  }
-
-  /**
-   * Same event and properties as the PyTorch pipeline, so dashboards keep working. One session
-   * run now produces every component's value, so each component reports the whole run's time.
-   */
-  private fun captureModelInference(
-    screeningId: String?,
-    result: ModelPrediction,
-    run: OnnxRunResult,
-    combinedInferenceTimeMs: Long?,
-  ) {
-    PostHogAnalytics.capture(
-      PostHogAnalytics.Events.MODEL_INFERENCE_COMPLETED,
-      mapOf(
-        PostHogAnalytics.Props.SCREENING_ID to screeningId,
-        PostHogAnalytics.Props.MODEL_NAME to result.modelName,
-        PostHogAnalytics.Props.MODEL_VERSION to OnnxModelContract.MODEL_VERSION,
-        PostHogAnalytics.Props.MODEL_PREDICTION to result.prediction,
-        PostHogAnalytics.Props.MODEL_CONFIDENCE to result.confidence,
-        PostHogAnalytics.Props.MODEL_ENTROPY to result.entropy,
-        PostHogAnalytics.Props.LOW_CONFIDENCE to result.lowConfidence,
-        PostHogAnalytics.Props.INFERENCE_TIME_MS to run.inferenceTimeMs,
-        PostHogAnalytics.Props.COMBINED_INFERENCE_TIME_MS to combinedInferenceTimeMs,
-        PostHogAnalytics.Props.EXECUTION_PROVIDER to run.executionProvider.telemetryName,
-        PostHogAnalytics.Props.MODEL_OUTPUT_COUNT to run.values.size,
-      ),
-    )
   }
 
   /** Mirrors the fragment's `ImageProcessingResult`. */

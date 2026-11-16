@@ -16,8 +16,9 @@ enum class AiReadiness {
   READY,
 
   /**
-   * Flag on but the StructureMap cannot extract the AI result (a sync missed the current map), so a
-   * case registered now would silently lose its AI result. The only state that blocks adding a case.
+   * Flag on but a case registered now would not get a correct AI result: the StructureMap cannot
+   * extract it (a sync missed the current map), or the site's AI model (`ai-model.id`) can't run on
+   * this APK. The only state that blocks adding a case.
    */
   UPDATE_NEEDED,
 }
@@ -44,9 +45,14 @@ suspend fun FhirEngine.aiStatus(featureFlagUtil: FeatureFlagUtil, questionnaireI
  * make a device with AI fully enabled look like it needs an update. Syncs keep the stored copies
  * current.
  */
-suspend fun FhirEngine.aiReadiness(featureFlagUtil: FeatureFlagUtil, questionnaireId: String): AiReadiness =
+suspend fun FhirEngine.aiReadiness(
+  featureFlagUtil: FeatureFlagUtil,
+  questionnaireId: String,
+  isModelAvailable: suspend () -> Boolean = { true },
+): AiReadiness =
   when {
     !featureFlagUtil.isAiInferenceEnabledLocally() -> AiReadiness.DISABLED
+    !isModelAvailable() -> AiReadiness.UPDATE_NEEDED
     hasAiResultExtraction(questionnaireId) -> AiReadiness.READY
     else -> AiReadiness.UPDATE_NEEDED
   }

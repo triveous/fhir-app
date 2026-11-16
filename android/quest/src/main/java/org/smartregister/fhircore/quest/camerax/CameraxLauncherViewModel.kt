@@ -199,6 +199,10 @@ constructor(
                 PostHogAnalytics.Props.AI_CONFIDENCE to
                     (resultMap?.get(CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY) ?: ""),
             )
+        // Model / class / rule of the photo's result (only present when AI produced one).
+        resultMap?.let { map ->
+            RESULT_ANALYTICS_KEYS.forEach { key -> map[key]?.let { props[key] = it } }
+        }
         val captureToResultMs = captureSavedMs?.let { elapsedRealtimeProvider() - it }
         props[PostHogAnalytics.Props.SCREENING_ID] = screeningId.orEmpty()
         timeToCaptureMs?.let { props[PostHogAnalytics.Props.TIME_TO_CAPTURE_MS] = it }
@@ -272,6 +276,16 @@ constructor(
     }
 
     companion object {
+        /** Result-map keys copied as-is onto `photo_captured`. */
+        private val RESULT_ANALYTICS_KEYS =
+            listOf(
+                PostHogAnalytics.Props.AI_CLASS,
+                PostHogAnalytics.Props.MODEL_ID,
+                PostHogAnalytics.Props.RULE_ID,
+                PostHogAnalytics.Props.RULE_VERSION,
+                PostHogAnalytics.Props.RULE_SOURCE,
+            )
+
         private const val STEP_PHOTO_CAPTURE_STARTED = "photo_capture_started"
         private const val STEP_PHOTO_CAPTURE_COMPLETED = "photo_capture_completed"
 

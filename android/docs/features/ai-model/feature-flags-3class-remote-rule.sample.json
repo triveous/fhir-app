@@ -1,0 +1,49 @@
+{
+  "resourceType": "Basic",
+  "id": "demo-feature-flags",
+  "code": {
+    "coding": [
+      {
+        "system": "https://midas.iisc.ac.in/fhir/CodeSystem/feature-flags",
+        "code": "feature-flags",
+        "display": "Application feature flags"
+      }
+    ]
+  },
+  "extension": [
+    {
+      "url": "https://midas.iisc.ac.in/fhir/StructureDefinition/ai-inference-enabled",
+      "valueBoolean": true
+    },
+    {
+      "url": "https://midas.iisc.ac.in/fhir/StructureDefinition/ai-model",
+      "extension": [
+        {
+          "url": "id",
+          "valueString": "oral-3class-v1"
+        },
+        {
+          "url": "rule",
+          "valueString": "{\"schema\":1,\"id\":\"oral-3class-v1/majority\",\"version\":1,\"modelId\":\"oral-3class-v1\",\"members\":[\"m1\",\"m2\",\"m3\"],\"photo\":{\"method\":\"vote\",\"countMoreSevere\":true,\"votesNeeded\":{\"high-risk-suspicious\":\"all\",\"low-risk-suspicious\":\"majority\"},\"fallback\":\"non-suspicious\"},\"case\":{\"method\":\"vote\",\"countMoreSevere\":true,\"votesNeeded\":\"any\",\"fallback\":\"non-suspicious\"}}"
+        }
+      ]
+    },
+    {
+      "url": "https://midas.iisc.ac.in/fhir/StructureDefinition/app-update",
+      "extension": [
+        {
+          "url": "minSupportedVersionCode",
+          "valueInteger": 60
+        },
+        {
+          "url": "latestVersionCode",
+          "valueInteger": 60
+        },
+        {
+          "url": "latestVersionName",
+          "valueString": "AA_v1.8.0"
+        }
+      ]
+    }
+  ]
+}

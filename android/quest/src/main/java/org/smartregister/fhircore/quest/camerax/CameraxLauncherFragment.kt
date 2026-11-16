@@ -73,7 +73,6 @@ import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.text.DecimalFormat
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.collections.get
@@ -86,12 +85,17 @@ import org.opencv.core.Mat
 import org.opencv.imgproc.Imgproc
 import org.smartregister.fhircore.quest.util.DeviceMetrics
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
+import org.smartregister.fhircore.quest.ml.ActiveAiModel
+import org.smartregister.fhircore.quest.ml.AiModelSelection
+import org.smartregister.fhircore.quest.ml.AiModelSelector
+import org.smartregister.fhircore.quest.ml.ModelCatalog
 import org.smartregister.fhircore.quest.ml.OnnxScreeningPipeline
+import org.smartregister.fhircore.quest.ml.RuleSource
+import org.smartregister.fhircore.quest.ml.ScreeningOutputInterpreter
 import org.smartregister.fhircore.quest.util.ImageQualityAnalyzer
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
 import javax.inject.Inject
-import kotlin.math.ln
 
 @AndroidEntryPoint
 class CameraxLauncherFragment : DialogFragment() {
@@ -102,9 +106,16 @@ class CameraxLauncherFragment : DialogFragment() {
     @Inject
     lateinit var featureFlagUtil: FeatureFlagUtil
 
-    // Takes over from the PyTorch pipeline below as soon as the .onnx model is bundled.
+    // Runs any model whose .onnx files are bundled; the 2-class model falls back to PyTorch below.
     @Inject
     lateinit var onnxScreeningPipeline: OnnxScreeningPipeline
+
+    // Picks the site's model + combine rule, locked per screening (ai-model on the feature flags).
+    @Inject
+    lateinit var aiModelSelector: AiModelSelector
+
+    // The model this screening runs; set by initModelJob (or on first submit) when AI is on.
+    @Volatile private var aiSelection: AiModelSelection? = null
 
     private val cameraxViewModel: CameraxLauncherViewModel by viewModels()
 
@@ -310,7 +321,13 @@ class CameraxLauncherFragment : DialogFragment() {
 
         initModelJob = lifecycleScope.launch {
             if (isAiInferenceEnabled()) {
-                if (onnxScreeningPipeline.isModelBundled) onnxScreeningPipeline.warmUp() else initModel()
+                val selection = aiModelSelector.forScreening(screeningId).also { aiSelection = it }
+                val active = (selection as? AiModelSelection.Ready)?.active ?: return@launch
+                if (onnxScreeningPipeline.canRun(active.model)) {
+                    onnxScreeningPipeline.warmUp(active.model)
+                } else if (active.model.pyTorchFallback) {
+                    initModel()
+                }
             }
         }
     }
@@ -792,15 +809,41 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
-    /** ONNX pipeline when its model is bundled, otherwise the PyTorch [processImage] below. */
+    /**
+     * Runs the screening's model: on ONNX when its files are bundled, otherwise on the PyTorch
+     * [processImage] (2-class model only). With AI off, or a model that can't run here, only the
+     * image-quality metrics are computed and the photo is saved without an AI result.
+     */
     private fun processCapturedImage(absolutePath: String, runAiInference: Boolean): ImageProcessingResult? {
-        if (!onnxScreeningPipeline.isModelBundled) return processImage(absolutePath, runAiInference)
-        return onnxScreeningPipeline.process(absolutePath, screeningId, runAiInference)?.let {
-            ImageProcessingResult(it.resultMap, it.qualityProps, it.inferenceTimeMs)
+        val active = (aiSelection as? AiModelSelection.Ready)?.active?.takeIf { runAiInference }
+        if (active == null) {
+            // Quality metrics only, from the same pipeline that would have run today's model.
+            return if (onnxScreeningPipeline.canRun(ModelCatalog.BINARY)) {
+                runOnnx(DEFAULT_MODEL, absolutePath, runAiInference = false)
+            } else {
+                processImage(absolutePath, active = null)
+            }
+        }
+        return when {
+            onnxScreeningPipeline.canRun(active.model) -> runOnnx(active, absolutePath, runAiInference = true)
+            active.model.pyTorchFallback -> processImage(absolutePath, active)
+            else -> processImage(absolutePath, active = null)
         }
     }
 
-    private fun processImage(absolutePath: String, runAiInference: Boolean): ImageProcessingResult? {
+    private fun runOnnx(active: ActiveAiModel, absolutePath: String, runAiInference: Boolean) =
+        onnxScreeningPipeline.process(active, absolutePath, screeningId, runAiInference)?.let {
+            ImageProcessingResult(it.resultMap, it.qualityProps, it.inferenceTimeMs)
+        }
+
+    /**
+     * The PyTorch pipeline for the 2-class model. Each member's forward pass is unchanged; the
+     * members are combined by the screening's rule ([ScreeningOutputInterpreter]), which for the
+     * shipped rule is the original "all three must agree", so results are unchanged.
+     *
+     * @param active the model and rule to run, or null for image-quality metrics only.
+     */
+    private fun processImage(absolutePath: String, active: ActiveAiModel?): ImageProcessingResult? {
         val sourceMat = OpenCVUtils.scaleImageMat(absolutePath)
         if (sourceMat == null) {
             PostHogAnalytics.captureError("CameraxLauncherFragment", "Image processing failed: unable to decode image")
@@ -810,7 +853,7 @@ class CameraxLauncherFragment : DialogFragment() {
         val rgbMat = Mat()
         return try {
             val qualityProps = ImageQualityAnalyzer.analyze(sourceMat)
-            if (!runAiInference) return ImageProcessingResult(emptyMap(), qualityProps, 0L)
+            if (active == null) return ImageProcessingResult(emptyMap(), qualityProps, 0L)
 
             Imgproc.cvtColor(sourceMat, rgbMat, Imgproc.COLOR_BGR2RGB)
             val processedImage = Bitmap.createBitmap(rgbMat.cols(), rgbMat.rows(), Bitmap.Config.ARGB_8888)
@@ -824,48 +867,28 @@ class CameraxLauncherFragment : DialogFragment() {
             val inputIValue = IValue.from(bgrTensor)
 
             ScreeningTimer.markStep(screeningId, "ai_inference_started")
-            val result6 = runInference(inputIValue, module6, "v6")
-            val result8 = runInference(inputIValue, module8, "v8")
-            val result82 = runInference(inputIValue, module82, "v82")
-            val modelResults = listOf(result6, result8, result82)
-
-            modelResults.forEach { captureModelInference(it) }
-
-            val combinedInferenceTimeMs = modelResults.sumOf { it.inferenceTimeMs }
-            val allSuspicious = modelResults.all { it.isSuspicious }
-            val finalPrediction = if (allSuspicious) 1 else 0
-            val finalClassName = classes.diseases[finalPrediction]
-            val finalConfidenceValue = modelResults.map { it.confidence }.average().toFloat()
-            val finalConfidence = DecimalFormat("#.##").format(finalConfidenceValue)
-            val ensemble =
-                ModelInferenceResult(
-                    modelName = "ensemble",
-                    prediction = if (allSuspicious) "suspicious" else "non_suspicious",
-                    displayPrediction = finalClassName,
-                    confidence = finalConfidenceValue,
-                    probability = modelResults.map { it.probability }.average().toFloat(),
-                    entropy = modelResults.map { it.entropy }.average(),
-                    lowConfidence = finalConfidenceValue < LOW_CONFIDENCE_THRESHOLD,
-                    inferenceTimeMs = combinedInferenceTimeMs,
-                    combinedInferenceTimeMs = combinedInferenceTimeMs,
-                    isSuspicious = allSuspicious,
+            val modules = mapOf("v6" to module6, "v8" to module8, "v82" to module82)
+            val members = active.model.activeMembers(active.rule)
+            val runs = members.map { runInference(inputIValue, modules[it.id], it.id) }
+            val classification =
+                ScreeningOutputInterpreter.interpret(
+                    active.model,
+                    active.rule,
+                    active.ruleSource,
+                    runs.map { floatArrayOf(it.probability) },
                 )
-            captureModelInference(ensemble)
+            val combinedInferenceTimeMs = runs.sumOf { it.inferenceTimeMs }
+            classification.captureInferenceEvents(
+                screeningId = screeningId,
+                modelVersion = MODEL_VERSION,
+                memberTimesMs = runs.map { it.inferenceTimeMs },
+                combinedTimeMs = combinedInferenceTimeMs,
+            )
             ScreeningTimer.markStep(screeningId, "ai_inference_completed")
 
-            Timber.d("Final prediction: $finalPrediction, Class: $finalClassName")
+            Timber.d("Final prediction: %s", classification.finalClass.id)
             ImageProcessingResult(
-                resultMap =
-                    mapOf(
-                        CAMERA_PREDICTION_KEY to finalClassName,
-                        CAMERA_CONFIDENCE_KEY to finalConfidence,
-                        "model6_prediction" to result6.displayPrediction,
-                        "model6_confidence" to result6.confidence.toString(),
-                        "model8_prediction" to result8.displayPrediction,
-                        "model8_confidence" to result8.confidence.toString(),
-                        "model82_prediction" to result82.displayPrediction,
-                        "model82_confidence" to result82.confidence.toString(),
-                    ),
+                resultMap = classification.toResultMap(),
                 qualityProps = qualityProps,
                 combinedInferenceTimeMs = combinedInferenceTimeMs,
             )
@@ -879,51 +902,16 @@ class CameraxLauncherFragment : DialogFragment() {
         }
     }
 
-    private fun runInference(inputIValue: IValue, module: Module?, modelName: String): ModelInferenceResult {
+    /** One member's forward pass: its sigmoid probability of "suspicious" and how long it took. */
+    private fun runInference(inputIValue: IValue, module: Module?, modelName: String): MemberRun {
         val startedMs = SystemClock.elapsedRealtime()
         val outputTensor = module?.forward(inputIValue)?.toTensor()
             ?: throw IllegalStateException("Module $modelName is null or forward operation failed")
         val inferenceTimeMs = SystemClock.elapsedRealtime() - startedMs
-        val probability = sigmoid(outputTensor.dataAsFloatArray[0])
-        val prediction = if (probability > 0.5f) 1 else 0
-        val confidence = if (prediction == 1) probability * 100 else (1 - probability) * 100
-        return ModelInferenceResult(
-            modelName = modelName,
-            prediction = if (prediction == 1) "suspicious" else "non_suspicious",
-            displayPrediction = classes.diseases[prediction],
-            confidence = confidence,
-            probability = probability,
-            entropy = binaryEntropy(probability),
-            // Low-confidence is evaluated on the predicted side of 50%; 65% is the V1 launch cut.
-            lowConfidence = confidence < LOW_CONFIDENCE_THRESHOLD,
-            inferenceTimeMs = inferenceTimeMs,
-            isSuspicious = prediction == 1,
-        )
-    }
-
-    private fun captureModelInference(result: ModelInferenceResult) {
-        PostHogAnalytics.capture(
-            PostHogAnalytics.Events.MODEL_INFERENCE_COMPLETED,
-            mapOf(
-                PostHogAnalytics.Props.SCREENING_ID to screeningId,
-                PostHogAnalytics.Props.MODEL_NAME to result.modelName,
-                PostHogAnalytics.Props.MODEL_VERSION to MODEL_VERSION,
-                PostHogAnalytics.Props.MODEL_PREDICTION to result.prediction,
-                PostHogAnalytics.Props.MODEL_CONFIDENCE to result.confidence,
-                PostHogAnalytics.Props.MODEL_ENTROPY to result.entropy,
-                PostHogAnalytics.Props.LOW_CONFIDENCE to result.lowConfidence,
-                PostHogAnalytics.Props.INFERENCE_TIME_MS to result.inferenceTimeMs,
-                PostHogAnalytics.Props.COMBINED_INFERENCE_TIME_MS to result.combinedInferenceTimeMs,
-            ),
-        )
+        return MemberRun(sigmoid(outputTensor.dataAsFloatArray[0]), inferenceTimeMs)
     }
 
     private fun sigmoid(value: Float): Float = (1 / (1 + exp(-value))).toFloat()
-
-    private fun binaryEntropy(probability: Float): Double {
-        val p = probability.coerceIn(0.000001f, 0.999999f).toDouble()
-        return -p * ln(p) - (1 - p) * ln(1 - p)
-    }
 
     fun View.setSafeOnClickListener(interval: Long = 1000, onSafeClick: (View) -> Unit) {
         var lastClickTime = 0L
@@ -951,6 +939,16 @@ class CameraxLauncherFragment : DialogFragment() {
                 // Main, hit a null Module, throw, and surface as "Error" — which the
                 // case-level combine then reads as Non-Suspicious (false negative).
                 initModelJob?.join()
+                // AI may have been switched on after the dialog opened: pick the model now.
+                if (aiSelection == null) {
+                    val selection = aiModelSelector.forScreening(screeningId).also { aiSelection = it }
+                    val active = (selection as? AiModelSelection.Ready)?.active
+                    if (active != null && !onnxScreeningPipeline.canRun(active.model) &&
+                        active.model.pyTorchFallback && module6 == null
+                    ) {
+                        initModel()
+                    }
+                }
                 withContext(Dispatchers.IO) {
                     processCapturedImage(absolutePath, runAiInference = true)
                 }
@@ -1004,24 +1002,16 @@ class CameraxLauncherFragment : DialogFragment() {
         val combinedInferenceTimeMs: Long,
     )
 
-    private data class ModelInferenceResult(
-        val modelName: String,
-        val prediction: String,
-        val displayPrediction: String,
-        val confidence: Float,
-        val probability: Float,
-        val entropy: Double,
-        val lowConfidence: Boolean,
-        val inferenceTimeMs: Long,
-        val combinedInferenceTimeMs: Long? = null,
-        val isSuspicious: Boolean,
-    )
+    private data class MemberRun(val probability: Float, val inferenceTimeMs: Long)
 
     companion object {
         private const val ARG_SAVED_PHOTO_URI = "arg_saved_photo_uri"
         private const val ARG_SCREENING_ID = "arg_screening_id"
         private const val MODEL_VERSION = "v38"
-        private const val LOW_CONFIDENCE_THRESHOLD = 65f
+
+        /** Today's model with its shipped rule; only used for quality metrics when AI is off. */
+        private val DEFAULT_MODEL =
+            ActiveAiModel(ModelCatalog.BINARY, ModelCatalog.BINARY.defaultRule, RuleSource.SHIPPED)
         const val CAMERA_RESULT_KEY = "camera_result"
         const val CAMERA_RESULT_URI_KEY = "camera_result_uri"
         const val CAMERA_PREDICTION_KEY = "camera_prediction"

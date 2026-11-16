@@ -21,6 +21,9 @@ object Colors {
     val Quartz = Color(0xFF49454F)
     val CharlestonGreen = Color(0xFF282828)
     val CORNSILK = Color(0xFFFFF8E0)
+    /** AI result screen backgrounds for 3-class cases (Blue reuses LighterBlue). */
+    val RESULT_ORANGE = Color(0xFFFFEAD6)
+    val RESULT_RED = Color(0xFFFFE1E1)
     val DEEP_LILAC = Color(0xFF9D4AC7)
     val LAVENDER_WEB = Color(0xFFF3E1FC)
     val PHILIPPINE_YELLOW = Color(0xFFFFC800)

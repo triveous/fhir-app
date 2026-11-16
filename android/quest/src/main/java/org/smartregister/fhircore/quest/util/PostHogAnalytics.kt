@@ -64,6 +64,12 @@ object PostHogAnalytics {
         /** A sync delivered the missing AI result extraction; pairs with the event above. */
         const val AI_ENABLED_AFTER_SYNC = "ai_enabled_after_sync"
         const val AI_INFERENCE_COMPLETED = "ai_inference_completed"
+
+        /**
+         * The site's remote combine rule (`ai-model.rule`) failed the app's checks, so the rule
+         * shipped with the model is used instead. Sent once per rule per app process.
+         */
+        const val AI_RULE_REJECTED = "ai_rule_rejected"
         const val AI_RESULT_VIEWED = "ai_result_viewed"
         const val AI_REFER_CASE = "ai_refer_case"
         const val PHOTO_CAPTURED = "photo_captured"
@@ -117,6 +123,24 @@ object PostHogAnalytics {
         const val COMBINED_INFERENCE_TIME_MS = "combined_inference_time_ms"
         const val EXECUTION_PROVIDER = "execution_provider"
         const val MODEL_OUTPUT_COUNT = "model_output_count"
+
+        /** Class id of a photo's or case's AI result, e.g. `low-risk-suspicious`. */
+        const val AI_CLASS = "ai_class"
+
+        /** The AI model the site runs, e.g. `oral-3class-v1` (`ai-model.id`). */
+        const val MODEL_ID = "model_id"
+
+        /** The combine rule's id, version and source (`shipped` or `remote`). */
+        const val RULE_ID = "rule_id"
+        const val RULE_VERSION = "rule_version"
+        const val RULE_SOURCE = "rule_source"
+        const val RULE_REJECT_REASON = "rule_reject_reason"
+
+        /** Why AI can't run on this device: e.g. `unknown_model`, `model_not_bundled`. */
+        const val AI_UNAVAILABLE_REASON = "ai_unavailable_reason"
+
+        /** Photos per class id in a case, e.g. `{"low-risk-suspicious": 1, "non-suspicious": 2}`. */
+        const val CLASS_IMAGE_COUNTS = "class_image_counts"
         const val CAPTURE_TO_RESULT_MS = "capture_to_result_ms"
         const val BATTERY_PCT = "battery_pct"
         const val BATTERY_CHARGING = "battery_charging"

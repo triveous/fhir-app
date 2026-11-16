@@ -53,6 +53,7 @@ class FeatureFlagUtilTest {
     every { sharedPreferencesHelper.getFeatureFlagsResourceId() } returns featureFlagsResourceId
     every { sharedPreferencesHelper.getLastKnownFeatureFlags(any()) } returns emptyMap()
     every { sharedPreferencesHelper.getLastKnownAppUpdateConfig(any()) } returns AppUpdateConfig.NONE
+    every { sharedPreferencesHelper.getLastKnownAiModelConfig(any()) } returns AiModelConfig.NONE
     featureFlagUtil =
       FeatureFlagUtil(
         fhirEngine = fhirEngine,
@@ -308,6 +309,68 @@ class FeatureFlagUtilTest {
 
     Assert.assertEquals(lastKnown, config)
   }
+
+  @Test
+  fun testAiModelConfigIsReadFromTheNestedAiModelExtension() = runTest {
+    val rule = """{"schema":1,"id":"r","version":1,"modelId":"oral-3class-v1","photo":{"votesNeeded":"all"}}"""
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns
+      aiModelBasic(modelId = "oral-3class-v1", rule = rule)
+
+    Assert.assertEquals(AiModelConfig("oral-3class-v1", rule), featureFlagUtil.getAiModelConfig())
+    Assert.assertTrue(featureFlagUtil.isAiInferenceEnabled())
+    verify(exactly = 1) {
+      sharedPreferencesHelper.saveLastKnownAiModelConfig(featureFlagsResourceId, AiModelConfig("oral-3class-v1", rule))
+    }
+  }
+
+  @Test
+  fun testMissingOrBlankAiModelMeansTheDefaultModel() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returnsMany
+      listOf(featureFlagsBasic(true), aiModelBasic(modelId = "  ", rule = ""))
+
+    Assert.assertEquals(AiModelConfig.NONE, featureFlagUtil.getAiModelConfig())
+    Assert.assertEquals(AiModelConfig.NONE, featureFlagUtil.getAiModelConfig())
+  }
+
+  @Test
+  fun testAiModelExtensionIsNotTurnedIntoABooleanFlag() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returns aiModelBasic(modelId = "oral-3class-v1")
+    val saved = slot<Map<String, Boolean>>()
+    every { sharedPreferencesHelper.saveLastKnownFeatureFlags(any(), capture(saved)) } returns Unit
+
+    featureFlagUtil.isAiInferenceEnabled()
+
+    Assert.assertEquals(setOf(FeatureFlagUtil.AI_INFERENCE_ENABLED_URL), saved.captured.keys)
+  }
+
+  @Test
+  fun testAiModelConfigFallsBackToLastKnownWhenNothingIsReachable() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } throws ResourceNotFoundException("Basic", featureFlagsResourceId)
+    coEvery { fhirResourceDataSource.getBasic(featureFlagsResourceId) } throws RuntimeException("offline")
+    every { sharedPreferencesHelper.getLastKnownAiModelConfig(featureFlagsResourceId) } returns
+      AiModelConfig("oral-3class-v1")
+
+    Assert.assertEquals(AiModelConfig("oral-3class-v1"), featureFlagUtil.getAiModelConfig())
+  }
+
+  @Test
+  fun testAiModelConfigLocallyNeverCallsTheNetwork() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } throws ResourceNotFoundException("Basic", featureFlagsResourceId)
+    every { sharedPreferencesHelper.getLastKnownAiModelConfig(featureFlagsResourceId) } returns
+      AiModelConfig("oral-3class-v1")
+
+    Assert.assertEquals(AiModelConfig("oral-3class-v1"), featureFlagUtil.getAiModelConfigLocally())
+    coVerify(exactly = 0) { fhirResourceDataSource.getBasic(any()) }
+  }
+
+  private fun aiModelBasic(modelId: String, rule: String? = null): Basic =
+    featureFlagsBasic(true).apply {
+      addExtension().apply {
+        url = FeatureFlagUtil.AI_MODEL_URL
+        addExtension(FeatureFlagUtil.AI_MODEL_ID, StringType(modelId))
+        rule?.let { addExtension(FeatureFlagUtil.AI_MODEL_RULE, StringType(it)) }
+      }
+    }
 
   private fun featureFlagsBasic(aiInferenceEnabled: Boolean): Basic =
     Basic().apply {

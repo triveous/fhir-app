@@ -338,6 +338,13 @@
     <string name="ai_detected_lesions">AI द्वारा पहचाने गए घाव</string>
     <string name="none">कोई नहीं</string>
     <string name="no_lesions_found">कोई घाव नहीं मिला</string>
+    <string name="ai_class_non_suspicious">संदिग्ध नहीं</string>
+    <string name="ai_class_low_risk_suspicious">कम जोखिम वाला संदिग्ध</string>
+    <string name="ai_class_high_risk_suspicious">अधिक जोखिम वाला संदिग्ध</string>
+    <string name="ai_result_low_risk">कम जोखिम: दंत चिकित्सक के पास रेफर करें</string>
+    <string name="ai_result_low_risk_desc">AI को कम जोखिम के लक्षण मिले हैं और रेफर करने की सलाह है। कोई संदेह हो तो अपने सुपरवाइजर से बात करें।</string>
+    <string name="ai_result_high_risk">अधिक जोखिम: दंत चिकित्सक के पास रेफर करें</string>
+    <string name="ai_result_high_risk_desc">AI को अधिक जोखिम के लक्षण मिले हैं और रेफर करने की सलाह है। कोई संदेह हो तो अपने सुपरवाइजर से बात करें।</string>
     <string name="refer_case">फिर भी रेफर करें</string>
     <string name="done_upper">आगे बढ़ें</string>
 

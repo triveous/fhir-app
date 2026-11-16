@@ -1,0 +1,10 @@
+# Kotlin files owned by IISc. Spotless gives these license-header-iisc.txt; every other Kotlin
+# file keeps the upstream OpenSRP (Ona) header in license-header.txt.
+#
+# Add every new file we create here (a path or a glob, relative to the android/ folder).
+# Files from upstream OpenSRP stay Ona even when we edit them.
+
+# AI screening pipeline (AAR-466 ONNX, AAR-567 multi-class)
+quest/src/main/java/org/smartregister/fhircore/quest/ml/**/*.kt
+quest/src/test/java/org/smartregister/fhircore/quest/ml/**/*.kt
+engine/src/main/java/org/smartregister/fhircore/engine/util/AiModelConfig.kt

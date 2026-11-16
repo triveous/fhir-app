@@ -87,11 +87,32 @@ subprojects {
 
   configure<SpotlessExtension> {
 
+    // Files IISc added carry the IISc header (license-header-iisc.txt); all other Kotlin files keep
+    // the upstream OpenSRP header. The IISc list is license-header-iisc-files.txt, root-relative.
+    val iiscKotlinFiles =
+      rootProject.file("license-header-iisc-files.txt")
+        .takeIf { it.exists() }
+        ?.readLines()
+        .orEmpty()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() && !it.startsWith("#") && it.startsWith("${project.name}/") }
+        .map { it.removePrefix("${project.name}/") }
+
     kotlin {
       target("**/*.kt")
+      targetExclude(iiscKotlinFiles)
       ktlint(BuildConfigs.ktLintVersion)
       ktfmt().googleStyle()
       licenseHeaderFile("${project.rootProject.projectDir}/license-header.txt")
+    }
+
+    if (iiscKotlinFiles.isNotEmpty()) {
+      format("kotlinIisc", com.diffplug.gradle.spotless.KotlinExtension::class.java) {
+        target(iiscKotlinFiles)
+        ktlint(BuildConfigs.ktLintVersion)
+        ktfmt().googleStyle()
+        licenseHeaderFile("${project.rootProject.projectDir}/license-header-iisc.txt")
+      }
     }
 
     kotlinGradle {

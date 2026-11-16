@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 Ona Systems, Inc
+ * Copyright 2026 Indian Institute of Science (IISc)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,71 +22,76 @@ import android.content.Context
 import android.os.SystemClock
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.EnumSet
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import timber.log.Timber
 
 /**
- * App-scoped owner of the ONNX screening model. The session is created once per process (not once
- * per camera dialog, as the PyTorch modules are) straight from the asset bytes, so nothing is
- * copied to `filesDir`.
+ * App-scoped owner of the ONNX screening models. Each model's sessions are created once per process
+ * (not once per camera dialog, as the PyTorch modules are) straight from the asset bytes, so
+ * nothing is copied to `filesDir`.
  *
- * Loading is lazy and thread-safe: [warmUp] and [run] may race and the model is still created
+ * Loading is lazy and thread-safe: [warmUp] and [run] may race and a model is still created
  * exactly once. A failed load is not cached, so the next call retries.
  */
 @Singleton
 class OnnxInferenceEngine @Inject constructor(@ApplicationContext private val context: Context) {
 
-  /** True when every file in [OnnxModelContract.ASSET_NAMES] is bundled in the APK. */
-  val isModelBundled: Boolean by lazy {
-    val bundled = context.assets.list("").orEmpty().toSet()
-    OnnxModelContract.ASSET_NAMES.all { it in bundled }
-  }
+  private val bundledAssets: Set<String> by lazy { context.assets.list("").orEmpty().toSet() }
 
-  @Volatile private var loaded: LoadedModel? = null
+  /** True when every `.onnx` file [model] lists is bundled in the APK. */
+  fun isBundled(model: ModelDescriptor): Boolean =
+    model.onnxAssets.isNotEmpty() && model.onnxAssets.all { it in bundledAssets }
+
+  private val loaded = ConcurrentHashMap<String, LoadedModel>()
   private val loadLock = Any()
 
-  /** Loads the model and runs one warm-up pass. Blocking; call off the main thread. */
-  fun warmUp() {
-    load()
+  /** Loads [model] and runs one warm-up pass. Blocking; call off the main thread. */
+  fun warmUp(model: ModelDescriptor) {
+    load(model)
   }
 
-  /** The input the bundled model declares, loading the model if needed. Blocking. */
-  fun inputSpec(): ModelInputSpec = load().runner.inputSpec
+  /** The input [model] declares, loading it if needed. Blocking. */
+  fun inputSpec(model: ModelDescriptor): ModelInputSpec = load(model).runner.inputSpec
 
-  /** Runs the model on [bgrHwc] (the bytes of a CV_8UC3 Mat sized to [inputSpec]). Blocking. */
-  fun run(bgrHwc: ByteArray): OnnxRunResult {
-    val model = load()
+  /**
+   * Runs the members of [model] in [members] on [bgrHwc] (the bytes of a CV_8UC3 Mat sized to
+   * [inputSpec]). Blocking.
+   */
+  fun run(model: ModelDescriptor, members: List<ModelMember>, bgrHwc: ByteArray): OnnxRunResult {
+    val loadedModel = load(model)
+    val indices = members.map { member -> model.members.indexOfFirst { it.id == member.id } }
     val startedMs = SystemClock.elapsedRealtime()
-    val values = model.runner.run(bgrHwc)
+    val outputs = loadedModel.runner.runEach(bgrHwc, indices)
     return OnnxRunResult(
-      values = values,
+      memberOutputs = outputs,
       inferenceTimeMs = SystemClock.elapsedRealtime() - startedMs,
-      executionProvider = model.executionProvider,
+      executionProvider = loadedModel.executionProvider,
     )
   }
 
-  private fun load(): LoadedModel {
-    loaded?.let {
+  private fun load(model: ModelDescriptor): LoadedModel {
+    loaded[model.id]?.let {
       return it
     }
     synchronized(loadLock) {
-      loaded?.let {
+      loaded[model.id]?.let {
         return it
       }
       val startedMs = SystemClock.elapsedRealtime()
-      val models =
-        OnnxModelContract.ASSET_NAMES.map { name -> context.assets.open(name).use { it.readBytes() } }
-      val (runner, provider) = createRunner(models, OnnxModelContract.EXECUTION_PROVIDER)
+      val files = model.onnxAssets.map { name -> context.assets.open(name).use { it.readBytes() } }
+      val (runner, provider) = createRunner(files, OnnxModelContract.EXECUTION_PROVIDER)
       runner.warmUp()
       Timber.i(
-        "ONNX model ready on %s in %d ms, input %s",
+        "ONNX model %s ready on %s in %d ms, input %s",
+        model.id,
         provider.telemetryName,
         SystemClock.elapsedRealtime() - startedMs,
         runner.inputSpec,
       )
-      return LoadedModel(runner, provider).also { loaded = it }
+      return LoadedModel(runner, provider).also { loaded[model.id] = it }
     }
   }
 
@@ -134,9 +139,13 @@ class OnnxInferenceEngine @Inject constructor(@ApplicationContext private val co
   }
 }
 
-/** Every output value of one run, the wall time of the session run(s) and where they ran. */
+/** Each member's outputs from one run, the wall time of the session run(s) and where they ran. */
 class OnnxRunResult(
-  val values: FloatArray,
+  val memberOutputs: List<FloatArray>,
   val inferenceTimeMs: Long,
   val executionProvider: ExecutionProvider,
-)
+) {
+  /** Every output value, flattened in member order. */
+  val values: FloatArray
+    get() = memberOutputs.fold(FloatArray(0)) { all, values -> all + values }
+}

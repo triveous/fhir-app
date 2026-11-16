@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 Ona Systems, Inc
+ * Copyright 2026 Indian Institute of Science (IISc)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,19 +67,30 @@ class OnnxModelRunner(
     get() = inputSpecs.first()
 
   /** Runs every model on [bgrHwc] (see [ModelInputSpec.packUint8]) and returns all outputs. */
-  fun run(bgrHwc: ByteArray): FloatArray {
-    val values = mutableListOf<Float>()
-    sessions.forEachIndexed { index, session ->
+  fun run(bgrHwc: ByteArray): FloatArray =
+    runEach(bgrHwc).fold(FloatArray(0)) { all, values -> all + values }
+
+  /** Number of model files this runner holds. */
+  val modelCount: Int
+    get() = sessions.size
+
+  /**
+   * Runs the models at [indices] (default: all, in list order) on [bgrHwc] and returns each
+   * model's outputs, flattened in its declared output order. Skipped models cost nothing.
+   */
+  fun runEach(bgrHwc: ByteArray, indices: List<Int> = sessions.indices.toList()): List<FloatArray> =
+    indices.map { index ->
+      val session = sessions[index]
       val spec = inputSpecs[index]
+      val values = mutableListOf<Float>()
       createInputTensor(spec, bgrHwc).use { input ->
         // Result iterates in the session's declared output order.
         session.run(mapOf(spec.name to input)).use { result ->
           result.forEach { (name, value) -> values += value.toFloats(name) }
         }
       }
+      values.toFloatArray()
     }
-    return values.toFloatArray()
-  }
 
   /**
    * Runs one all-zero image through every model so the first real capture does not pay for ORT's

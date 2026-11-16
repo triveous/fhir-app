@@ -41,6 +41,9 @@ class FeatureFlagUtil @Inject constructor(
     private val mutex = Mutex()
     @Volatile private var cachedFlags: Map<String, Boolean> = emptyMap()
     @Volatile private var cachedUpdateConfig: AppUpdateConfig = AppUpdateConfig.NONE
+    @Volatile private var cachedAiModelConfig: AiModelConfig = AiModelConfig.NONE
+    /** What this process last wrote to disk for the AI model settings, keyed by resource id. */
+    @Volatile private var lastPersistedAiModelConfig: Pair<String, AiModelConfig>? = null
 
     /**
      * True when the last [refreshFromServer] could not get the flags: a timeout, a server error or
@@ -65,6 +68,26 @@ class FeatureFlagUtil @Inject constructor(
             readEngineBasic(resourceId)?.toFlagsMap()
                 ?: sharedPreferencesHelper.getLastKnownFeatureFlags(resourceId)
         return flags[AI_INFERENCE_ENABLED_URL] == true
+    }
+
+    /**
+     * The site's AI model settings (which model, and an optional combine-rule override) from the
+     * nested [AI_MODEL_URL] extension. Same engine-first / network / last-known read path as the
+     * flags. [AiModelConfig.NONE] when the site sets no model, i.e. today's default model.
+     */
+    suspend fun getAiModelConfig(): AiModelConfig {
+        refresh(sharedPreferencesHelper.getFeatureFlagsResourceId())
+        return cachedAiModelConfig
+    }
+
+    /**
+     * [getAiModelConfig] from the device only: the FhirEngine copy, otherwise the last-known value
+     * on disk. Never calls the network, like [isAiInferenceEnabledLocally].
+     */
+    suspend fun getAiModelConfigLocally(): AiModelConfig {
+        val resourceId = sharedPreferencesHelper.getFeatureFlagsResourceId()
+        return readEngineBasic(resourceId)?.toAiModelConfig()
+            ?: sharedPreferencesHelper.getLastKnownAiModelConfig(resourceId)
     }
 
     /**
@@ -130,6 +153,7 @@ class FeatureFlagUtil @Inject constructor(
         mutex.withLock {
             cachedFlags = sharedPreferencesHelper.getLastKnownFeatureFlags(resourceId)
             cachedUpdateConfig = sharedPreferencesHelper.getLastKnownAppUpdateConfig(resourceId)
+            cachedAiModelConfig = sharedPreferencesHelper.getLastKnownAiModelConfig(resourceId)
             Timber.w(
                 "Feature flags unavailable id=%s; using last-known flags=%s update=%s",
                 resourceId, cachedFlags, cachedUpdateConfig,
@@ -176,11 +200,21 @@ class FeatureFlagUtil @Inject constructor(
     private fun applyAndPersist(resourceId: String, basic: Basic, source: String) {
         val flags = basic.toFlagsMap()
         val updateConfig = basic.toAppUpdateConfig()
+        val aiModelConfig = basic.toAiModelConfig()
         cachedFlags = flags
         cachedUpdateConfig = updateConfig
         sharedPreferencesHelper.saveLastKnownFeatureFlags(resourceId, flags)
         sharedPreferencesHelper.saveLastKnownAppUpdateConfig(resourceId, updateConfig)
-        Timber.d("Feature flags from %s id=%s: flags=%s update=%s", source, resourceId, flags, updateConfig)
+        // Every flag read lands here and the prefs write is a disk write, so only write on change.
+        if (lastPersistedAiModelConfig != resourceId to aiModelConfig) {
+            sharedPreferencesHelper.saveLastKnownAiModelConfig(resourceId, aiModelConfig)
+            lastPersistedAiModelConfig = resourceId to aiModelConfig
+        }
+        cachedAiModelConfig = aiModelConfig
+        Timber.d(
+            "Feature flags from %s id=%s: flags=%s update=%s aiModel=%s",
+            source, resourceId, flags, updateConfig, aiModelConfig.modelId,
+        )
     }
 
     private fun Basic.toFlagsMap(): Map<String, Boolean> =
@@ -188,6 +222,18 @@ class FeatureFlagUtil @Inject constructor(
             val value = ext.value?.primitiveValue()?.toBoolean()
             if (ext.url != null && value != null) ext.url to value else null
         }.toMap()
+
+    /**
+     * Parses the nested `ai-model` extension: `id` (the model) and `rule` (an optional combine-rule
+     * override, kept as the raw JSON string; the app validates it before use). Blank values count
+     * as absent. Absent parent → [AiModelConfig.NONE].
+     */
+    private fun Basic.toAiModelConfig(): AiModelConfig {
+        val parent = getExtensionByUrl(AI_MODEL_URL) ?: return AiModelConfig.NONE
+        fun sub(url: String): String? =
+            parent.getExtensionByUrl(url)?.value?.primitiveValue()?.trim()?.takeIf { it.isNotEmpty() }
+        return AiModelConfig(modelId = sub(AI_MODEL_ID), rule = sub(AI_MODEL_RULE))
+    }
 
     /**
      * Parses the single nested `app-update` extension into an [AppUpdateConfig]. The parent
@@ -218,6 +264,19 @@ class FeatureFlagUtil @Inject constructor(
 
         const val AI_INFERENCE_ENABLED_URL =
             "https://midas.iisc.ac.in/fhir/StructureDefinition/ai-inference-enabled"
+
+        /**
+         * Parent (nested) extension that groups the site's AI model settings. Carries no value of
+         * its own, so released apps (which turn every valued extension into a boolean flag) skip it.
+         */
+        const val AI_MODEL_URL =
+            "https://midas.iisc.ac.in/fhir/StructureDefinition/ai-model"
+
+        /** Sub-extension of [AI_MODEL_URL]: the model id, e.g. `oral-3class-v1`. */
+        const val AI_MODEL_ID = "id"
+
+        /** Sub-extension of [AI_MODEL_URL]: optional combine-rule override, a JSON string. */
+        const val AI_MODEL_RULE = "rule"
 
         /** Parent (nested) extension that groups the whole app-update policy on the feature-flags Basic. */
         const val APP_UPDATE_URL =

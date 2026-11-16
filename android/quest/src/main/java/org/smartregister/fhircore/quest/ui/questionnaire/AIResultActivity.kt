@@ -42,6 +42,8 @@ import org.smartregister.fhircore.engine.ui.theme.LighterBlue
 import org.smartregister.fhircore.engine.ui.theme.PrimaryColor
 import org.smartregister.fhircore.engine.util.extension.applyWindowInsetListener
 import org.smartregister.fhircore.quest.R
+import org.smartregister.fhircore.quest.ml.ModelCatalog
+import org.smartregister.fhircore.quest.ml.ResultScreenStyle
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
 import org.smartregister.fhircore.quest.theme.Colors
@@ -58,7 +60,17 @@ class AIResultActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val isSuspicious = intent.getBooleanExtra("isSuspicious", false)
+        // The case's class picks the screen: 3-class models get Blue / Orange / Red; 2-class models
+        // (and callers that pass no class) keep today's two screens.
+        val legacySuspicious = intent.getBooleanExtra("isSuspicious", false)
+        val aiClass =
+            intent.getStringExtra(EXTRA_AI_MODEL_ID)
+                ?.let(ModelCatalog::byId)
+                ?.classById(intent.getStringExtra(EXTRA_AI_CLASS_ID).orEmpty())
+        val isSuspicious = aiClass?.isRefer ?: legacySuspicious
+        val screenStyle =
+            aiClass?.screen
+                ?: if (isSuspicious) ResultScreenStyle.LEGACY_SUSPICIOUS else ResultScreenStyle.LEGACY_NON_SUSPICIOUS
         val suspiciousImages = intent.getStringArrayListExtra("suspiciousImages") ?: emptyList<String>()
         val screeningId = intent.getStringExtra(PostHogAnalytics.Props.SCREENING_ID)
 
@@ -68,6 +80,7 @@ class AIResultActivity : ComponentActivity() {
             mapOf(
                 PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
                 PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                PostHogAnalytics.Props.AI_CLASS to aiClass?.id,
             ),
         )
 
@@ -86,6 +99,7 @@ class AIResultActivity : ComponentActivity() {
             MaterialTheme {
                 AIResultScreen(
                     isSuspicious = isSuspicious,
+                    screenStyle = screenStyle,
                     suspiciousImages = displayImages,
                     onClose = {
                         intent.putExtra("refer_case", false)
@@ -98,6 +112,7 @@ class AIResultActivity : ComponentActivity() {
                             mapOf(
                                 PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,
                                 PostHogAnalytics.Props.SCREENING_ID to screeningId,
+                                PostHogAnalytics.Props.AI_CLASS to aiClass?.id,
                             ),
                         )
                         intent.putExtra("refer_case", true)
@@ -140,13 +155,46 @@ class AIResultActivity : ComponentActivity() {
             null
         }
     }
+
+    companion object {
+        /** The case's class id, e.g. `low-risk-suspicious`. */
+        const val EXTRA_AI_CLASS_ID = "aiClassId"
+
+        /** The model the case ran, which defines what [EXTRA_AI_CLASS_ID] means. */
+        const val EXTRA_AI_MODEL_ID = "aiModelId"
+    }
 }
+
+/** Background, heading and description of each result screen. */
+private data class ResultScreenContent(
+    val background: Color,
+    @androidx.annotation.StringRes val heading: Int,
+    @androidx.annotation.StringRes val description: Int,
+)
+
+private fun ResultScreenStyle.content(): ResultScreenContent =
+    when (this) {
+        ResultScreenStyle.LEGACY_SUSPICIOUS ->
+            ResultScreenContent(Colors.CORNSILK, R.string.suspicious_result, R.string.suspicious_result_desc)
+        ResultScreenStyle.LEGACY_NON_SUSPICIOUS,
+        ResultScreenStyle.BLUE ->
+            ResultScreenContent(LighterBlue, R.string.nonsuspicious_result, R.string.nonsuspicious_result_desc)
+        ResultScreenStyle.ORANGE ->
+            ResultScreenContent(Colors.RESULT_ORANGE, R.string.ai_result_low_risk, R.string.ai_result_low_risk_desc)
+        ResultScreenStyle.RED ->
+            ResultScreenContent(Colors.RESULT_RED, R.string.ai_result_high_risk, R.string.ai_result_high_risk_desc)
+    }
+
+private val ResultScreenStyle.isLegacy: Boolean
+    get() = this == ResultScreenStyle.LEGACY_SUSPICIOUS || this == ResultScreenStyle.LEGACY_NON_SUSPICIOUS
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AIResultScreen(
     isSuspicious: Boolean,
     suspiciousImages: List<String>,
+    screenStyle: ResultScreenStyle =
+        if (isSuspicious) ResultScreenStyle.LEGACY_SUSPICIOUS else ResultScreenStyle.LEGACY_NON_SUSPICIOUS,
     onClose: () -> Unit,
     onRefer: () -> Unit
 ) {
@@ -155,7 +203,8 @@ fun AIResultScreen(
     // (RESULT_OK, refer_case=false) like the Done button instead of returning the user to the
     // already-submitted form, where submitting again would register a duplicate case.
     BackHandler(onBack = onClose)
-    val backgroundColor = if (isSuspicious) Colors.CORNSILK else LighterBlue
+    val content = screenStyle.content()
+    val backgroundColor = content.background
     val title = if (isSuspicious) stringResource(R.string.add_patient) else stringResource(R.string.ai_result_title)
     var fullScreenImageUrl by remember { mutableStateOf<String?>(null) }
     val displayableSuspiciousImages = remember(context, suspiciousImages) {
@@ -223,9 +272,7 @@ fun AIResultScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = stringResource(
-                        if (isSuspicious) R.string.suspicious_result else R.string.nonsuspicious_result
-                    ),
+                    text = stringResource(content.heading),
                     style = body18Medium().copy(
                         color = Color(0xFF3D392E),
                         fontSize = 20.sp,
@@ -237,9 +284,7 @@ fun AIResultScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = stringResource(
-                        if (isSuspicious) R.string.suspicious_result_desc else R.string.nonsuspicious_result_desc
-                    ),
+                    text = stringResource(content.description),
                     style = body18Medium().copy(
                         color = Color(0xAB3D392E),
                         fontWeight = FontWeight.Normal,
@@ -247,7 +292,10 @@ fun AIResultScreen(
                         fontSize = 18.sp,
                     ),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.width(264.dp).height(64.dp)
+                    // Today's screens keep their fixed box; the 3-class texts are longer.
+                    modifier =
+                        if (screenStyle.isLegacy) Modifier.width(264.dp).height(64.dp)
+                        else Modifier.width(264.dp).heightIn(min = 64.dp)
                 )
             }
 

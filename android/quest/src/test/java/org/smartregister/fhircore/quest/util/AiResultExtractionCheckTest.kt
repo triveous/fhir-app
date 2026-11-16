@@ -126,6 +126,25 @@ class AiResultExtractionCheckTest {
   }
 
   @Test
+  fun readinessNeedsAnUpdateWhenTheSitesModelCannotRunHereEvenIfTheMapExtracts() = runTest {
+    coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } returns true
+    givenLocal(registrationQuestionnaire(), mapWithAiResult)
+    assertEquals(
+      AiReadiness.UPDATE_NEEDED,
+      fhirEngine.aiReadiness(featureFlagUtil, QUESTIONNAIRE_ID) { false },
+    )
+  }
+
+  @Test
+  fun theModelIsNotCheckedWhenTheFlagIsOff() = runTest {
+    coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } returns false
+    assertEquals(
+      AiReadiness.DISABLED,
+      fhirEngine.aiReadiness(featureFlagUtil, QUESTIONNAIRE_ID) { error("must not be called") },
+    )
+  }
+
+  @Test
   fun readinessNeedsAnUpdateWhenTheFlagIsOnAndTheMapIsStale() = runTest {
     coEvery { featureFlagUtil.isAiInferenceEnabledLocally() } returns true
     givenLocal(registrationQuestionnaire(), mapWithoutAiResult)

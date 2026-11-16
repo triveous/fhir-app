@@ -72,6 +72,7 @@ import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
+import org.smartregister.fhircore.quest.ml.ModelCatalog
 import timber.log.Timber
 import java.io.File
 import java.math.BigDecimal
@@ -149,6 +150,14 @@ internal object CustomAttachmentViewHolderFactory :
             private fun isAiInferenceEnabled(): Boolean {
                 return aiInferenceEnabled
             }
+
+            /**
+             * The photo tile's text for a saved AI result: the class label for models that define
+             * one (3-class), otherwise the saved value as before (`Suspicious` / `Non-Suspicious`).
+             */
+            private fun aiResultLabel(savedValue: String?): String =
+                ModelCatalog.classForSavedValue(savedValue)?.labelRes?.let { context.getString(it) }
+                    ?: savedValue.orEmpty()
 
             override fun bind(questionnaireViewItem: QuestionnaireViewItem) {
                 this.questionnaireViewItem = questionnaireViewItem
@@ -601,7 +610,7 @@ internal object CustomAttachmentViewHolderFactory :
                                 divider.visibility = View.VISIBLE
                                 displayPreview(
                                     attachmentType = attachmentMimeType,
-                                    attachmentTitle = if (hasAiInferenceResult) "RESULT : $predictionResult" else capturedFile.name,
+                                    attachmentTitle = if (hasAiInferenceResult) "RESULT : ${aiResultLabel(predictionResult)}" else capturedFile.name,
                                     attachmentUri = attachmentUri,
                                     questionnaireItem = questionnaireItem
                                 )

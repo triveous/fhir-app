@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "combine-rule.schema.json",
+  "title": "AI combine rule (proposed, AAR-567)",
+  "description": "Shape and allowed values of the rule stored in ai-model.rule on the feature-flags Basic, and of the default rule shipped with each model. Checks this schema cannot express are done by the app: member and class ids must exist in the model, a photo votesNeeded number must not exceed the members running, modelId must equal ai-model.id. Fields marked Later are designed but rejected by the first release.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "version", "modelId", "photo"],
+  "properties": {
+    "schema": {
+      "description": "Rule format version. A number the app does not know is rejected.",
+      "const": 1
+    },
+    "id": {
+      "description": "The rule's name, saved with every result, e.g. oral-3class-v1/majority.",
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "description": "Bump on every change.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "modelId": {
+      "description": "Must equal ai-model.id.",
+      "$ref": "#/$defs/slug"
+    },
+    "members": {
+      "description": "Member models to run. Default: all members the model ships. May drop members, cannot add one.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/slug" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "lowConfidence": {
+      "description": "Later. What happens to a photo whose confidence % is below the cut.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["below"],
+      "properties": {
+        "below": { "type": "number", "minimum": 0, "maximum": 100, "default": 65 },
+        "action": { "enum": ["flag", "inconclusive"], "default": "flag" }
+      }
+    },
+    "photo": {
+      "description": "Member models -> one photo's result.",
+      "$ref": "#/$defs/photoBlock"
+    },
+    "case": {
+      "description": "Photos -> the case result. Default: the most serious photo decides (vote, votesNeeded any, countMoreSevere true).",
+      "$ref": "#/$defs/caseBlock"
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "votes": {
+      "description": "all = every vote (AND); majority = more than half; any = at least one (OR); a number = at least that many.",
+      "oneOf": [
+        { "enum": ["all", "majority", "any"] },
+        { "type": "integer", "minimum": 1 }
+      ]
+    },
+    "votesNeeded": {
+      "description": "One value for every class, or a map of class id -> value. A class left out of the map can only be the fallback.",
+      "oneOf": [
+        { "$ref": "#/$defs/votes" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/slug" },
+          "additionalProperties": { "$ref": "#/$defs/votes" }
+        }
+      ],
+      "default": "any"
+    },
+    "fallback": {
+      "description": "Result when no class gets enough votes: a class id, or inconclusive (needs the Inconclusive screen). Default: the least serious class.",
+      "$ref": "#/$defs/slug"
+    },
+    "photoBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "method": { "enum": ["vote", "mean"], "default": "vote", "description": "mean is Later." },
+        "votesNeeded": { "$ref": "#/$defs/votesNeeded" },
+        "countMoreSevere": { "type": "boolean", "default": true },
+        "fallback": { "$ref": "#/$defs/fallback" },
+        "weights": {
+          "description": "Later, mean only. Default 1 for every member.",
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/slug" },
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "decideBy": {
+          "description": "Later, mean only.",
+          "enum": ["highestScore", "thresholds"],
+          "default": "highestScore"
+        },
+        "thresholds": {
+          "description": "Later, mean + decideBy thresholds only. Checked from most serious to least.",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/slug" },
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      },
+      "if": { "required": ["method"], "properties": { "method": { "const": "mean" } } },
+      "then": {
+        "properties": { "votesNeeded": false, "countMoreSevere": false },
+        "if": { "required": ["decideBy"], "properties": { "decideBy": { "const": "thresholds" } } },
+        "then": { "required": ["thresholds"] },
+        "else": { "properties": { "thresholds": false } }
+      },
+      "else": {
+        "properties": { "weights": false, "decideBy": false, "thresholds": false }
+      }
+    },
+    "caseBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "method": { "const": "vote", "default": "vote" },
+        "votesNeeded": { "$ref": "#/$defs/votesNeeded" },
+        "countMoreSevere": { "type": "boolean", "default": true },
+        "fallback": { "$ref": "#/$defs/fallback" },
+        "onFailedPhoto": {
+          "description": "What a photo where AI failed does to the case. inconclusive needs the Inconclusive screen.",
+          "enum": ["ignore", "inconclusive"],
+          "default": "ignore"
+        },
+        "minPhotos": {
+          "description": "Later. Fewer photos with an AI result -> Inconclusive.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      }
+    }
+  }
+}
