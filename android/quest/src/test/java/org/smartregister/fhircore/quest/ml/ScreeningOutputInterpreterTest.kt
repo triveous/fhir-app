@@ -22,6 +22,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_PREDICTION_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_CONFIDENCE_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL8_PREDICTION_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL8_CONFIDENCE_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_PREDICTION_URL
+import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_CONFIDENCE_URL
 
 class ScreeningOutputInterpreterTest {
 
@@ -146,6 +153,50 @@ class ScreeningOutputInterpreterTest {
     assertEquals(ModelCatalog.THREE_CLASS_MODEL_ID, map["model_id"])
     assertEquals("low-risk-suspicious", map["ai_class"])
     assertEquals("m1,m2", map["ai_members"])
+  }
+
+  @Test
+  fun `each member's result is passed under its own model's answer URLs`() {
+    val prefix = CameraxLauncherFragment.CAMERA_MEMBER_RESULT_KEY_PREFIX
+    val base = "http://smartregister.org/ai-model-result/"
+
+    val threeClassMap = interpretThreeClass(floatArrayOf(-2f, 0f, 5f), floatArrayOf(4f, 1f, -2f)).toResultMap()
+    assertEquals("high-risk-suspicious", threeClassMap["${prefix}${base}oral-3class-v1-m1-prediction"])
+    assertEquals("non-suspicious", threeClassMap["${prefix}${base}oral-3class-v1-m2-prediction"])
+    assertTrue(threeClassMap.containsKey("${prefix}${base}oral-3class-v1-m1-confidence"))
+    assertFalse("3-class results never use the 2-class URLs", threeClassMap.keys.any { it.contains("v38-model") })
+
+    // 2-class results keep the URLs already on the server, including `v38-model82-confidence`.
+    val binaryMap = interpretBinary(0.9f, 0.2f, 0.8f).toResultMap()
+    assertEquals("Suspicious", binaryMap["${prefix}$MODEL6_PREDICTION_URL"])
+    assertEquals("Non-Suspicious", binaryMap["${prefix}$MODEL8_PREDICTION_URL"])
+    assertEquals(binaryMap["model82_confidence"], binaryMap["${prefix}$MODEL82_CONFIDENCE_URL"])
+  }
+
+  @Test
+  fun `every model's member result URLs are known, distinct and the 2-class ones unchanged`() {
+    val binary = ModelCatalog.BINARY
+    assertEquals(
+      listOf(
+        MODEL6_PREDICTION_URL,
+        MODEL6_CONFIDENCE_URL,
+        MODEL8_PREDICTION_URL,
+        MODEL8_CONFIDENCE_URL,
+        MODEL82_PREDICTION_URL,
+        MODEL82_CONFIDENCE_URL,
+      ),
+      binary.members.flatMap { binary.resultUrlsOf(it).both },
+    )
+    assertEquals(
+      listOf(
+        "http://smartregister.org/ai-model-result/oral-3class-v1-m1-prediction",
+        "http://smartregister.org/ai-model-result/oral-3class-v1-m1-confidence",
+        "http://smartregister.org/ai-model-result/oral-3class-v1-m2-prediction",
+        "http://smartregister.org/ai-model-result/oral-3class-v1-m2-confidence",
+      ),
+      threeClass.members.flatMap { threeClass.resultUrlsOf(it).both },
+    )
+    assertEquals(10, ModelCatalog.ALL_MEMBER_RESULT_URLS.size)
   }
 
   @Test

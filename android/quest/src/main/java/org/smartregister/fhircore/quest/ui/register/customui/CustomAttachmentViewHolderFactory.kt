@@ -68,6 +68,7 @@ import org.smartregister.fhircore.engine.util.extension.logicalId
 import org.smartregister.fhircore.quest.BuildConfig
 import org.smartregister.fhircore.quest.R
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
+import org.smartregister.fhircore.quest.camerax.CameraxLauncherViewModel
 import org.smartregister.fhircore.quest.ui.questionnaire.QuestionnaireActivity
 import org.smartregister.fhircore.quest.ui.register.patients.DocumentReferenceCaseType
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
@@ -387,6 +388,14 @@ internal object CustomAttachmentViewHolderFactory :
                         result.getString(CameraxLauncherFragment.CAMERA_MODEL82_PREDICTION_KEY)
                     val model82Confidence =
                         result.getString(CameraxLauncherFragment.CAMERA_MODEL82_CONFIDENCE_KEY)
+                    // Each member's result under the URL it is saved with on the QuestionnaireResponse
+                    // (named after the model, e.g. `oral-3class-v1-m1-prediction`).
+                    val memberResults =
+                        CameraxLauncherViewModel.memberResults(
+                            result.keySet()
+                                .filter { it.startsWith(CameraxLauncherFragment.CAMERA_MEMBER_RESULT_KEY_PREFIX) }
+                                .associateWith { result.getString(it) },
+                        )
                     val hasAiInferenceResult = isAiInferenceEnabled() && !predictionResult.isNullOrBlank()
 
                     if (!fileAbsolutePath.isNullOrEmpty()) {
@@ -411,12 +420,8 @@ internal object CustomAttachmentViewHolderFactory :
                             // Remove existing extensions before adding new ones
                             questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
                             questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
-                            questionnaireItem.removeExtension(MODEL6_PREDICTION_URL)
-                            questionnaireItem.removeExtension(MODEL6_CONFIDENCE_URL)
-                            questionnaireItem.removeExtension(MODEL8_PREDICTION_URL)
-                            questionnaireItem.removeExtension(MODEL8_CONFIDENCE_URL)
-                            questionnaireItem.removeExtension(MODEL82_PREDICTION_URL)
-                            questionnaireItem.removeExtension(MODEL82_CONFIDENCE_URL)
+                            // Every model's per-member results, whichever model wrote them.
+                            ModelCatalog.ALL_MEMBER_RESULT_URLS.forEach { questionnaireItem.removeExtension(it) }
 
                             // Create a document reference to store the file later and use the document ref
                             // permanent link in attachment url
@@ -474,38 +479,7 @@ internal object CustomAttachmentViewHolderFactory :
                                                 StringType(confidence.orEmpty())
                                             )
 
-                                            if (!model6Prediction.isNullOrEmpty()) {
-                                                addExtension(
-                                                    MODEL6_PREDICTION_URL,
-                                                    StringType(model6Prediction)
-                                                )
-                                                addExtension(
-                                                    MODEL6_CONFIDENCE_URL,
-                                                    StringType(model6Confidence)
-                                                )
-                                            }
-
-                                            if (!model8Prediction.isNullOrEmpty()) {
-                                                addExtension(
-                                                    MODEL8_PREDICTION_URL,
-                                                    StringType(model8Prediction)
-                                                )
-                                                addExtension(
-                                                    MODEL8_CONFIDENCE_URL,
-                                                    StringType(model8Confidence)
-                                                )
-                                            }
-
-                                            if (!model82Prediction.isNullOrEmpty()) {
-                                                addExtension(
-                                                    MODEL82_PREDICTION_URL,
-                                                    StringType(model82Prediction)
-                                                )
-                                                addExtension(
-                                                    MODEL82_CONFIDENCE_URL,
-                                                    StringType(model82Confidence)
-                                                )
-                                            }
+                                            memberResults.forEach { (url, value) -> addExtension(url, StringType(value)) }
                                         }
 
                                         // IMPORTANT: the DocumentReference id (carried in the URL)
@@ -536,38 +510,9 @@ internal object CustomAttachmentViewHolderFactory :
                                     StringType(confidence.orEmpty())
                                 )
 
-                                // Add individual model results to questionnaire item
-                                if (!model6Prediction.isNullOrEmpty()) {
-                                    questionnaireItem.addExtension(
-                                        MODEL6_PREDICTION_URL,
-                                        StringType(model6Prediction)
-                                    )
-                                    questionnaireItem.addExtension(
-                                        MODEL6_CONFIDENCE_URL,
-                                        StringType(model6Confidence)
-                                    )
-                                }
-
-                                if (!model8Prediction.isNullOrEmpty()) {
-                                    questionnaireItem.addExtension(
-                                        MODEL8_PREDICTION_URL,
-                                        StringType(model8Prediction)
-                                    )
-                                    questionnaireItem.addExtension(
-                                        MODEL8_CONFIDENCE_URL,
-                                        StringType(model8Confidence)
-                                    )
-                                }
-
-                                if (!model82Prediction.isNullOrEmpty()) {
-                                    questionnaireItem.addExtension(
-                                        MODEL82_PREDICTION_URL,
-                                        StringType(model82Prediction)
-                                    )
-                                    questionnaireItem.addExtension(
-                                        MODEL82_CONFIDENCE_URL,
-                                        StringType(model82Confidence)
-                                    )
+                                // Each member's result, under its model's own URLs
+                                memberResults.forEach { (url, value) ->
+                                    questionnaireItem.addExtension(url, StringType(value))
                                 }
                             }
 
@@ -975,12 +920,8 @@ internal object CustomAttachmentViewHolderFactory :
                     val questionnaireItem = boundViewItem.questionnaireItem
                     questionnaireItem.removeExtension(SUSPICIOUS_NON_SUSPICIOUS_URL)
                     questionnaireItem.removeExtension(CONFIDENCE_PERCENTAGE_URL)
-                    questionnaireItem.removeExtension(MODEL6_PREDICTION_URL)
-                    questionnaireItem.removeExtension(MODEL6_CONFIDENCE_URL)
-                    questionnaireItem.removeExtension(MODEL8_PREDICTION_URL)
-                    questionnaireItem.removeExtension(MODEL8_CONFIDENCE_URL)
-                    questionnaireItem.removeExtension(MODEL82_PREDICTION_URL)
-                    questionnaireItem.removeExtension(MODEL82_CONFIDENCE_URL)
+                    // Every model's per-member results, whichever model wrote them.
+                    ModelCatalog.ALL_MEMBER_RESULT_URLS.forEach { questionnaireItem.removeExtension(it) }
 
                     divider.visibility = View.GONE
 

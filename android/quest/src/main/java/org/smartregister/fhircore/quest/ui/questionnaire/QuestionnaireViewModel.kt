@@ -102,12 +102,6 @@ import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
 import org.smartregister.fhircore.quest.R
 
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_CONFIDENCE_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL6_PREDICTION_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL8_CONFIDENCE_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL8_PREDICTION_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_CONFIDENCE_URL
-import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_PREDICTION_URL
 import org.smartregister.fhircore.quest.util.AI_RESULT_SUFFIX
 import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_MODEL_LINK_ID
 import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RULE_LINK_ID
@@ -1689,9 +1683,10 @@ constructor(
             "qrAnswerExtCount=${answer.extension.size} " +
             "qItemExtCount=${qItem?.extension?.size ?: -1} " +
             "combined=$result|$confidence " +
-            "v6=${extString(MODEL6_PREDICTION_URL)}|${extString(MODEL6_CONFIDENCE_URL)} " +
-            "v8=${extString(MODEL8_PREDICTION_URL)}|${extString(MODEL8_CONFIDENCE_URL)} " +
-            "v82=${extString(MODEL82_PREDICTION_URL)}|${extString(MODEL82_CONFIDENCE_URL)}",
+            "members=" +
+            ModelCatalog.ALL_MEMBER_RESULT_URLS.mapNotNull { url ->
+              extString(url)?.let { "${url.substringAfterLast('/')}=$it" }
+            },
         )
 
         if (!result.isNullOrBlank()) {
@@ -1729,14 +1724,8 @@ constructor(
           if (!confidence.isNullOrBlank() && answer.getExtensionByUrl(CONFIDENCE_PERCENTAGE_URL) == null) {
             answer.addExtension(CONFIDENCE_PERCENTAGE_URL, StringType(confidence))
           }
-          listOf(
-              MODEL6_PREDICTION_URL,
-              MODEL6_CONFIDENCE_URL,
-              MODEL8_PREDICTION_URL,
-              MODEL8_CONFIDENCE_URL,
-              MODEL82_PREDICTION_URL,
-              MODEL82_CONFIDENCE_URL,
-            )
+          // Every model's per-member results, under whichever URLs the model saves them.
+          ModelCatalog.ALL_MEMBER_RESULT_URLS
             .forEach { url ->
               if (answer.getExtensionByUrl(url) == null) {
                 qItem?.getExtensionByUrl(url)?.value?.asPrimitiveString()?.let {

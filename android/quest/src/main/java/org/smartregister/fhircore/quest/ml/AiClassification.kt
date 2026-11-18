@@ -71,10 +71,38 @@ data class AiClass(
  * One member model of an ensemble.
  *
  * @property id the name rules use (`members`) and telemetry reports as `model_name`.
- * @property resultKeyPrefix result-map prefix, which picks the per-model FHIR field pair the
- *   member's result is saved in: `model6` → `v38-model-v6-prediction` / `-confidence`.
+ * @property resultKeyPrefix result-map prefix of the legacy per-model slot (`model6`, `model8`,
+ *   `model82`) the member's result is also passed through; the photo's DocumentReference still
+ *   saves results under those slots' `v38-model-v*` URLs.
+ * @property resultUrls the URLs the member's result is saved under on the photo's
+ *   QuestionnaireResponse answer. Null uses [ModelDescriptor.resultUrlsOf]'s default, which names
+ *   the model and the member.
  */
-data class ModelMember(val id: String, val resultKeyPrefix: String)
+data class ModelMember(
+  val id: String,
+  val resultKeyPrefix: String,
+  val resultUrls: MemberResultUrls? = null,
+)
+
+/**
+ * The two extensions holding one member's result on a photo's QuestionnaireResponse answer: its
+ * class (saved value) and its confidence (percent).
+ */
+data class MemberResultUrls(val prediction: String, val confidence: String) {
+  val both: List<String>
+    get() = listOf(prediction, confidence)
+
+  companion object {
+    const val BASE = "http://smartregister.org/ai-model-result/"
+
+    /** URLs named after the model and the member, e.g. `.../oral-3class-v1-m1-prediction`. */
+    fun named(modelId: String, memberId: String) =
+      MemberResultUrls(
+        prediction = "$BASE$modelId-$memberId-prediction",
+        confidence = "$BASE$modelId-$memberId-confidence",
+      )
+  }
+}
 
 /** How to read one member's raw output. */
 sealed interface OutputLayout {
@@ -187,6 +215,10 @@ data class ModelDescriptor(
   fun classById(classId: String): AiClass? = classes.firstOrNull { it.id == classId }
 
   fun memberById(memberId: String): ModelMember? = members.firstOrNull { it.id == memberId }
+
+  /** Where [member]'s result is saved on a photo's QuestionnaireResponse answer. */
+  fun resultUrlsOf(member: ModelMember): MemberResultUrls =
+    member.resultUrls ?: MemberResultUrls.named(id, member.id)
 
   /** The least serious class: the default fallback when no class gets enough votes. */
   val leastSevereClass: AiClass

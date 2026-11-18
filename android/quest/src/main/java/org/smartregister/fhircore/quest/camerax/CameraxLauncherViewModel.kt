@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.smartregister.fhircore.engine.util.FeatureFlagUtil
+import org.smartregister.fhircore.quest.ml.ModelCatalog
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import org.smartregister.fhircore.quest.util.ScreeningTimer
 import javax.inject.Inject
@@ -239,6 +240,10 @@ constructor(
                 put(CameraxLauncherFragment.CAMERA_MODEL8_CONFIDENCE_KEY, resultMap["model8_confidence"].asStringOrEmpty())
                 put(CameraxLauncherFragment.CAMERA_MODEL82_PREDICTION_KEY, resultMap["model82_prediction"].asStringOrEmpty())
                 put(CameraxLauncherFragment.CAMERA_MODEL82_CONFIDENCE_KEY, resultMap["model82_confidence"].asStringOrEmpty())
+                // Each member's result under the URL it is saved with on the QuestionnaireResponse.
+                resultMap
+                    .filterKeys { it.startsWith(CameraxLauncherFragment.CAMERA_MEMBER_RESULT_KEY_PREFIX) }
+                    .forEach { (key, value) -> put(key, value.asStringOrEmpty()) }
             }
         }
         if (aiEnabled) {
@@ -276,6 +281,20 @@ constructor(
     }
 
     companion object {
+        /**
+         * Each member's result from the camera result's string [extras], as (URL it is saved under
+         * on the QuestionnaireResponse answer, value), in model and member order with prediction
+         * before confidence. Blank values are left out.
+         */
+        fun memberResults(extras: Map<String, String?>): List<Pair<String, String>> {
+            val prefix = CameraxLauncherFragment.CAMERA_MEMBER_RESULT_KEY_PREFIX
+            val order = ModelCatalog.ALL_MEMBER_RESULT_URLS
+            return extras
+                .filterKeys { it.startsWith(prefix) }
+                .mapNotNull { (key, value) -> value?.takeIf { it.isNotBlank() }?.let { key.removePrefix(prefix) to it } }
+                .sortedBy { (url, _) -> order.indexOf(url).takeIf { it >= 0 } ?: Int.MAX_VALUE }
+        }
+
         /** Result-map keys copied as-is onto `photo_captured`. */
         private val RESULT_ANALYTICS_KEYS =
             listOf(

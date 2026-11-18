@@ -224,6 +224,47 @@ class CameraxLauncherViewModelTest {
     }
 
     @Test
+    fun buildResultExtrasForwardsEachMemberResultUnderItsUrl() {
+        val prefix = CameraxLauncherFragment.CAMERA_MEMBER_RESULT_KEY_PREFIX
+        val m1 = "http://smartregister.org/ai-model-result/oral-3class-v1-m1-prediction"
+        val resultMap =
+            mapOf<String, Any>(
+                CameraxLauncherFragment.CAMERA_PREDICTION_KEY to "low-risk-suspicious",
+                CameraxLauncherFragment.CAMERA_CONFIDENCE_KEY to "70",
+                "$prefix$m1" to "high-risk-suspicious",
+                "model_id" to "oral-3class-v1",
+            )
+
+        val extras = viewModel.buildResultExtras(aiEnabled = true, resultMap = resultMap)
+
+        assertEquals("high-risk-suspicious", extras["$prefix$m1"])
+        assertFalse("analytics keys are not forwarded", extras.containsKey("model_id"))
+    }
+
+    @Test
+    fun memberResultsAreReadInModelOrderWithoutBlanks() {
+        val prefix = CameraxLauncherFragment.CAMERA_MEMBER_RESULT_KEY_PREFIX
+        val base = "http://smartregister.org/ai-model-result/oral-3class-v1-"
+        val extras =
+            mapOf(
+                "${prefix}${base}m2-confidence" to "90.0",
+                "${prefix}${base}m1-prediction" to "low-risk-suspicious",
+                "${prefix}${base}m2-prediction" to "non-suspicious",
+                "${prefix}${base}m1-confidence" to "",
+                CameraxLauncherFragment.CAMERA_PREDICTION_KEY to "low-risk-suspicious",
+            )
+
+        assertEquals(
+            listOf(
+                "${base}m1-prediction" to "low-risk-suspicious",
+                "${base}m2-prediction" to "non-suspicious",
+                "${base}m2-confidence" to "90.0",
+            ),
+            CameraxLauncherViewModel.memberResults(extras),
+        )
+    }
+
+    @Test
     fun buildResultExtrasWithoutResultButAiEnabledEmitsBlankPredictionAndConfidence() {
         val extras = viewModel.buildResultExtras(aiEnabled = true, resultMap = null)
 

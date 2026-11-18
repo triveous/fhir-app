@@ -69,7 +69,9 @@ object ModelCatalog {
           ),
         ),
       members =
-        OnnxModelContract.COMPONENTS.map { ModelMember(id = it.modelName, resultKeyPrefix = it.resultKeyPrefix) },
+        OnnxModelContract.COMPONENTS.map {
+          ModelMember(id = it.modelName, resultKeyPrefix = it.resultKeyPrefix, resultUrls = it.resultUrls)
+        },
       outputLayout =
         OutputLayout.SigmoidBinary(positiveClassId = SUSPICIOUS, negativeClassId = NON_SUSPICIOUS),
       onnxAssets = OnnxModelContract.ASSET_NAMES,
@@ -104,8 +106,11 @@ object ModelCatalog {
    * Until every file in [THREE_CLASS_ASSETS] is in `assets/`, sites set to this model see "Failed
    * to enable AI" instead of a wrong result.
    *
-   * Members reuse two of the per-model FHIR field pairs (`v38-model-v6/v8-*`); classes are saved as
-   * their ids in the same fields 2-class sites use.
+   * Each member's result is saved on the photo's QuestionnaireResponse answer under URLs named
+   * after the model and member (`.../ai-model-result/oral-3class-v1-m1-prediction` / `-confidence`).
+   * The photo's DocumentReference, and the Media the StructureMap copies the answer to, still use
+   * the 2-class `v38-model-v6/v8-*` slots (`resultKeyPrefix`). The combined class is saved as its
+   * id in the same fields 2-class sites use.
    */
   val THREE_CLASS =
     ModelDescriptor(
@@ -164,6 +169,15 @@ object ModelCatalog {
   val ALL: List<ModelDescriptor> = listOf(BINARY, THREE_CLASS)
 
   fun byId(modelId: String): ModelDescriptor? = ALL.firstOrNull { it.id == modelId }
+
+  /**
+   * Every URL a member result can be saved under on a photo's answer, for every model, in model
+   * and member order (prediction before confidence). Used to clear a retaken photo's old results
+   * whichever model wrote them, and to keep the saved order stable.
+   */
+  val ALL_MEMBER_RESULT_URLS: List<String> by lazy {
+    ALL.flatMap { model -> model.members.flatMap { model.resultUrlsOf(it).both } }.distinct()
+  }
 
   /**
    * The class a saved `ai-result-value` (or `case-level-ai-result`) value stands for, in any known

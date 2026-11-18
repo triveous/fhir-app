@@ -1017,6 +1017,11 @@ class CameraxLauncherFragment : DialogFragment() {
         const val CAMERA_PREDICTION_KEY = "camera_prediction"
         const val CAMERA_CONFIDENCE_KEY = "camera_confidence"
 
+        /**
+         * Prefix of the result keys that carry one member's result: the rest of the key is the URL
+         * it is saved under on the QuestionnaireResponse answer (see `ModelDescriptor.resultUrlsOf`).
+         */
+        const val CAMERA_MEMBER_RESULT_KEY_PREFIX = "camera_member_result|"
         const val CAMERA_MODEL6_PREDICTION_KEY = "camera_model6_prediction"
         const val CAMERA_MODEL6_CONFIDENCE_KEY = "camera_model6_confidence"
         const val CAMERA_MODEL8_PREDICTION_KEY = "camera_model8_prediction"

@@ -57,7 +57,9 @@ data class PhotoClassification(
   /**
    * The result map the camera fragment hands to its ViewModel. The prediction and confidence keys
    * are what the photo's FHIR fields are written from, so for the 2-class model they are byte for
-   * byte what the app always wrote. The extra `ai_*` keys only feed analytics.
+   * byte what the app always wrote. Each member's result is also keyed by
+   * [CameraxLauncherFragment.CAMERA_MEMBER_RESULT_KEY_PREFIX] + the URL it is saved under on the
+   * QuestionnaireResponse answer. The extra `ai_*` keys only feed analytics.
    */
   fun toResultMap(): Map<String, Any> = buildMap {
     put(CameraxLauncherFragment.CAMERA_PREDICTION_KEY, finalClass.savedValue)
@@ -65,6 +67,10 @@ data class PhotoClassification(
     members.forEach {
       put("${it.member.resultKeyPrefix}_prediction", it.predictedClass.savedValue)
       put("${it.member.resultKeyPrefix}_confidence", it.confidence.toString())
+      // The same result under the URLs it is saved with on the QuestionnaireResponse answer.
+      val urls = model.resultUrlsOf(it.member)
+      put(CameraxLauncherFragment.CAMERA_MEMBER_RESULT_KEY_PREFIX + urls.prediction, it.predictedClass.savedValue)
+      put(CameraxLauncherFragment.CAMERA_MEMBER_RESULT_KEY_PREFIX + urls.confidence, it.confidence.toString())
     }
     putAll(analyticsProps())
   }

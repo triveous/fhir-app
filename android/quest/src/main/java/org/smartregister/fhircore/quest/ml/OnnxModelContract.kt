@@ -59,15 +59,40 @@ object OnnxModelContract {
 
   /**
    * Identity of each output value when the model emits exactly this many. Output `i` is reported
-   * as `COMPONENTS[i]`, which keeps today's `model6_*`/`model8_*`/`model82_*` result keys (and
-   * therefore the `v38-model-v*` FHIR extensions) unchanged. Any other output count falls back to
-   * `component_<i>` names.
+   * as `COMPONENTS[i]`, which keeps today's `model6_*`/`model8_*`/`model82_*` result keys and the
+   * `v38-model-v*` FHIR extensions each component's result is saved under (including the
+   * `v38-model82-confidence` spelling already on the server) unchanged. Any other output count
+   * falls back to `component_<i>` names.
    */
   val COMPONENTS =
     listOf(
-      ModelComponent(modelName = "v6", resultKeyPrefix = "model6"),
-      ModelComponent(modelName = "v8", resultKeyPrefix = "model8"),
-      ModelComponent(modelName = "v82", resultKeyPrefix = "model82"),
+      ModelComponent(
+        modelName = "v6",
+        resultKeyPrefix = "model6",
+        resultUrls =
+          MemberResultUrls(
+            prediction = "${MemberResultUrls.BASE}v38-model-v6-prediction",
+            confidence = "${MemberResultUrls.BASE}v38-model-v6-confidence",
+          ),
+      ),
+      ModelComponent(
+        modelName = "v8",
+        resultKeyPrefix = "model8",
+        resultUrls =
+          MemberResultUrls(
+            prediction = "${MemberResultUrls.BASE}v38-model-v8-prediction",
+            confidence = "${MemberResultUrls.BASE}v38-model-v8-confidence",
+          ),
+      ),
+      ModelComponent(
+        modelName = "v82",
+        resultKeyPrefix = "model82",
+        resultUrls =
+          MemberResultUrls(
+            prediction = "${MemberResultUrls.BASE}v38-model-v82-prediction",
+            confidence = "${MemberResultUrls.BASE}v38-model82-confidence",
+          ),
+      ),
     )
 
   /** A component is "Suspicious" when its probability is strictly above this. */
@@ -89,7 +114,11 @@ object OnnxModelContract {
   val EXECUTION_PROVIDER = ExecutionProvider.CPU
 }
 
-data class ModelComponent(val modelName: String, val resultKeyPrefix: String)
+data class ModelComponent(
+  val modelName: String,
+  val resultKeyPrefix: String,
+  val resultUrls: MemberResultUrls,
+)
 
 /** ONNX Runtime execution providers the engine knows how to configure. */
 enum class ExecutionProvider(val telemetryName: String) {
