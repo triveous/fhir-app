@@ -33,10 +33,10 @@ enum class InputElementType {
 /**
  * The image input a model declares, and how to pack a BGR image into it.
  *
- * The app never normalises: pixel values reach the model exactly as `cv2.imread` + `cv2.resize`
- * produce them (BGR order, 0–255). The only per-model choices are the tensor layout and element
- * type, both read from the model itself so a re-exported model cannot silently disagree with the
- * app about them.
+ * The tensor layout and element type are read from the model itself, so a re-exported model
+ * cannot silently disagree with the app about them. A uint8 input always gets the pixels exactly
+ * as `cv2.imread` + `cv2.resize` produce them (BGR order, 0–255); a float input gets them through
+ * the model's [InputPreprocessing], which defaults to the same raw pixels.
  */
 data class ModelInputSpec(
   val name: String,
@@ -77,23 +77,38 @@ data class ModelInputSpec(
   }
 
   /**
-   * Same as [packUint8] but as float32, for models whose graph starts from float input. Values
-   * stay on the 0–255 scale.
+   * Same as [packUint8] but as float32, for models whose graph starts from float input. Each value
+   * goes through [preprocessing]; the default leaves it a raw BGR pixel on the 0–255 scale.
    */
-  fun packFloat32(bgrHwc: ByteArray): FloatBuffer {
+  fun packFloat32(
+    bgrHwc: ByteArray,
+    preprocessing: InputPreprocessing = InputPreprocessing.RAW_BGR,
+  ): FloatBuffer {
     requireImageSize(bgrHwc)
     val out =
       ByteBuffer.allocateDirect(elementCount * Float.SIZE_BYTES)
         .order(ByteOrder.nativeOrder())
         .asFloatBuffer()
-    when (layout) {
-      TensorLayout.NHWC -> bgrHwc.forEach { out.put(it.toUnsignedFloat()) }
-      TensorLayout.NCHW -> {
-        val pixels = height * width
-        for (channel in 0 until CHANNELS) {
-          for (pixel in 0 until pixels) out.put(bgrHwc[pixel * CHANNELS + channel].toUnsignedFloat())
-        }
+    // Output channel c reads this offset within a BGR pixel.
+    val sourceOffset =
+      when (preprocessing.channelOrder) {
+        ChannelOrder.BGR -> intArrayOf(0, 1, 2)
+        ChannelOrder.RGB -> intArrayOf(2, 1, 0)
       }
+    fun value(pixel: Int, channel: Int): Float {
+      val raw = bgrHwc[pixel * CHANNELS + sourceOffset[channel]].toUnsignedFloat()
+      return (raw * preprocessing.scale - preprocessing.mean[channel]) / preprocessing.std[channel]
+    }
+    val pixels = height * width
+    when (layout) {
+      TensorLayout.NHWC ->
+        for (pixel in 0 until pixels) {
+          for (channel in 0 until CHANNELS) out.put(value(pixel, channel))
+        }
+      TensorLayout.NCHW ->
+        for (channel in 0 until CHANNELS) {
+          for (pixel in 0 until pixels) out.put(value(pixel, channel))
+        }
     }
     out.rewind()
     return out

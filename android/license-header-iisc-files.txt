@@ -8,3 +8,6 @@
 quest/src/main/java/org/smartregister/fhircore/quest/ml/**/*.kt
 quest/src/test/java/org/smartregister/fhircore/quest/ml/**/*.kt
 engine/src/main/java/org/smartregister/fhircore/engine/util/AiModelConfig.kt
+
+# Profile screen "Developers Only" dialog (AAR-567)
+quest/src/test/java/org/smartregister/fhircore/quest/ui/register/profile/DeveloperInfoDialogTest.kt

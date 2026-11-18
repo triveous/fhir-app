@@ -38,7 +38,12 @@ class OnnxModelRunner(
   models: List<ByteArray>,
   sessionOptions: OrtSession.SessionOptions,
   defaultInputSize: Int = OnnxModelContract.DEFAULT_INPUT_SIZE,
+  private val preprocessing: InputPreprocessing = InputPreprocessing.RAW_BGR,
+  outputName: String? = null,
 ) : AutoCloseable {
+
+  /** The outputs fetched from every model; null fetches all of them. */
+  private val requestedOutputs: Set<String>? = outputName?.let(::setOf)
 
   private val environment = OrtEnvironment.getEnvironment()
   private val sessions: List<OrtSession>
@@ -54,6 +59,19 @@ class OnnxModelRunner(
       require(inputSpecs.all { it.height == first.height && it.width == first.width }) {
         "All models must take the same input size, found " +
           inputSpecs.joinToString { "${it.height}x${it.width}" }
+      }
+      require(
+        preprocessing == InputPreprocessing.RAW_BGR ||
+          inputSpecs.all { it.elementType == InputElementType.FLOAT32 },
+      ) {
+        "Input preprocessing needs float inputs; a uint8 model preprocesses inside its graph"
+      }
+      if (outputName != null) {
+        created.forEach {
+          require(outputName in it.outputNames) {
+            "Model has no output '$outputName'; it declares ${it.outputNames}"
+          }
+        }
       }
     } catch (e: Exception) {
       created.forEach { it.close() }
@@ -76,7 +94,8 @@ class OnnxModelRunner(
 
   /**
    * Runs the models at [indices] (default: all, in list order) on [bgrHwc] and returns each
-   * model's outputs, flattened in its declared output order. Skipped models cost nothing.
+   * model's outputs (only the requested one when an output name was given), flattened in its
+   * declared output order. Skipped models cost nothing.
    */
   fun runEach(bgrHwc: ByteArray, indices: List<Int> = sessions.indices.toList()): List<FloatArray> =
     indices.map { index ->
@@ -85,9 +104,9 @@ class OnnxModelRunner(
       val values = mutableListOf<Float>()
       createInputTensor(spec, bgrHwc).use { input ->
         // Result iterates in the session's declared output order.
-        session.run(mapOf(spec.name to input)).use { result ->
-          result.forEach { (name, value) -> values += value.toFloats(name) }
-        }
+        val inputs = mapOf(spec.name to input)
+        val run = requestedOutputs?.let { session.run(inputs, it) } ?: session.run(inputs)
+        run.use { result -> result.forEach { (name, value) -> values += value.toFloats(name) } }
       }
       values.toFloatArray()
     }
@@ -109,7 +128,7 @@ class OnnxModelRunner(
       InputElementType.UINT8 ->
         OnnxTensor.createTensor(environment, spec.packUint8(bgrHwc), spec.shape, OnnxJavaType.UINT8)
       InputElementType.FLOAT32 ->
-        OnnxTensor.createTensor(environment, spec.packFloat32(bgrHwc), spec.shape)
+        OnnxTensor.createTensor(environment, spec.packFloat32(bgrHwc, preprocessing), spec.shape)
     }
 
   private fun OnnxValue.toFloats(outputName: String): List<Float> {

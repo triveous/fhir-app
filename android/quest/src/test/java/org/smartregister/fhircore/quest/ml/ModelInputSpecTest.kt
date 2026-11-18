@@ -77,6 +77,47 @@ class ModelInputSpecTest {
   }
 
   @Test
+  fun `float packing applies the model's channel order, scale, mean and std`() {
+    // Two pixels, interleaved B,G,R: (10, 20, 30) and (40, 50, 60).
+    val bgrHwc = byteArrayOf(10, 20, 30, 40, 50, 60)
+    val preprocessing =
+      InputPreprocessing(
+        channelOrder = ChannelOrder.RGB,
+        scale = 0.1f,
+        mean = listOf(1f, 2f, 3f),
+        std = listOf(2f, 4f, 0.5f),
+      )
+    fun packed(layout: TensorLayout) =
+      ModelInputSpec("input", layout, InputElementType.FLOAT32, 1, 2)
+        .packFloat32(bgrHwc, preprocessing)
+        .let { buffer -> FloatArray(buffer.remaining()).also(buffer::get) }
+
+    // R = (30, 60), G = (20, 50), B = (10, 40); value = (pixel * 0.1 - mean) / std per channel.
+    val r = floatArrayOf((3f - 1f) / 2f, (6f - 1f) / 2f)
+    val g = floatArrayOf((2f - 2f) / 4f, (5f - 2f) / 4f)
+    val b = floatArrayOf((1f - 3f) / 0.5f, (4f - 3f) / 0.5f)
+    assertArrayEquals(r + g + b, packed(TensorLayout.NCHW), 1e-6f)
+    assertArrayEquals(
+      floatArrayOf(r[0], g[0], b[0], r[1], g[1], b[1]),
+      packed(TensorLayout.NHWC),
+      1e-6f,
+    )
+  }
+
+  @Test
+  fun `float packing without preprocessing keeps raw BGR pixels`() {
+    val spec = ModelInputSpec("input", TensorLayout.NCHW, InputElementType.FLOAT32, 1, 2)
+
+    val packed = spec.packFloat32(byteArrayOf(1, 2, 3, 4, 5, 250.toByte()))
+
+    assertArrayEquals(
+      floatArrayOf(1f, 4f, 2f, 5f, 3f, 250f),
+      FloatArray(packed.remaining()).also(packed::get),
+      0f,
+    )
+  }
+
+  @Test
   fun `NHWC uint8 packing passes the OpenCV bytes through untouched`() {
     val spec = ModelInputSpec("image", TensorLayout.NHWC, InputElementType.UINT8, 1, 2)
     val bgrHwc = byteArrayOf(1, 2, 3, 4, 5, 6)

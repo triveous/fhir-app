@@ -384,9 +384,25 @@ constructor(
         }
 
     /**
-     * The profile screen's "AI … + Extraction …" label for the register's registration form, or null
-     * when it cannot be worked out (registration form not configured, or the check failed or hung),
-     * in which case the label is left out rather than showing a guess.
+     * The model and combine rule a new screening would run, from the settings stored on the device,
+     * for the profile screen's developer dialog. Null when it cannot be read.
+     */
+    suspend fun aiModelSelection(): AiModelSelection? =
+        try {
+            withTimeoutOrNull(AI_CHECK_TIMEOUT_MS) {
+                withContext(dispatcherProvider.io()) { aiModelSelector?.currentLocally() }
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Timber.e(exception, "AI model selection could not be read")
+            null
+        }
+
+    /**
+     * The "AI Enabled / Extraction Enabled" lines of the profile screen's developer dialog for the
+     * register's registration form, or null when they cannot be worked out (registration form not
+     * configured, or the check failed or hung), in which case they are left out rather than guessed.
      */
     suspend fun aiStatusForRegister(registerId: String): AiStatus? {
         val questionnaireId = registrationQuestionnaireId(registerId) ?: return null

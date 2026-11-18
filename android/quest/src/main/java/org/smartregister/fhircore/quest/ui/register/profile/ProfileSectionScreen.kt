@@ -34,9 +34,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PermDeviceInformation
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Scaffold
@@ -71,6 +73,7 @@ import org.smartregister.fhircore.quest.theme.Theme.getBackground
 import org.smartregister.fhircore.quest.theme.bodyBold
 import org.smartregister.fhircore.quest.theme.bodyMedium
 import org.smartregister.fhircore.quest.theme.bodyNormal
+import org.smartregister.fhircore.quest.ml.AiModelSelection
 import org.smartregister.fhircore.quest.ui.login.CHANGE_PIN__DIALOG
 import org.smartregister.fhircore.quest.ui.login.PASSWORD_FORGOT_DIALOG
 import org.smartregister.fhircore.quest.ui.main.AppMainViewModel
@@ -104,16 +107,20 @@ fun ProfileSectionScreen(
     val userNameText = viewModel.getDisplayUserName()
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var showChangePinDialog by remember { mutableStateOf(false) }
-    // "AI Enabled/Disabled + Extraction Enabled/Disabled": the flag and the AI result extraction shown
-    // separately, so support can tell a wrong flag from a device that missed the StructureMap update.
-    // Re-read whenever a sync starts or ends, since a sync is what changes either of them.
+    // The developer dialog behind the info icon next to the app version: the AI flag and the AI
+    // result extraction shown separately (so support can tell a wrong flag from a device that missed
+    // the StructureMap update), and the model and combine rule a new screening would run.
+    // Re-read whenever a sync starts or ends, since a sync is what changes any of them.
     var aiStatus by remember { mutableStateOf<AiStatus?>(null) }
+    var aiSelection by remember { mutableStateOf<AiModelSelection?>(null) }
+    var showDeveloperInfoDialog by remember { mutableStateOf(false) }
     val isSyncing by viewModel.isSyncRunning.collectAsState()
     LaunchedEffect(isSyncing) {
         val casesRegister = appMainViewModel.navigationConfiguration.clientRegisters.first()
         val registerId =
             casesRegister.actions?.find { it.trigger == ActionTrigger.ON_CLICK }?.id ?: casesRegister.id
         aiStatus = viewModel.aiStatusForRegister(registerId)
+        aiSelection = viewModel.aiModelSelection()
     }
     val selectedSiteName = viewModel.sharedPreferencesHelper.getSiteName() ?: ""
 
@@ -140,6 +147,13 @@ fun ProfileSectionScreen(
 
         ) { innerPadding ->
 
+        if (showDeveloperInfoDialog) {
+            DeveloperInfoDialog(
+                status = aiStatus,
+                selection = aiSelection,
+                onDismissDialog = { showDeveloperInfoDialog = false },
+            )
+        }
         if (showForgotPasswordDialog) {
             ForgotPasswordDialog(
                 onDismissDialog = { showForgotPasswordDialog = false },
@@ -367,20 +381,26 @@ fun ProfileSectionScreen(
                                 modifier = modifier.testTag(TOP_ROW_ICON_TEST_TAG),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            // Stacked: "App version …" and "AI … + Extraction …" don't fit side by side
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = stringResource(
+                            Text(
+                                text = stringResource(
                                     id = org.smartregister.fhircore.engine.R.string.app_version,
                                     BuildConfig.VERSION_CODE,
-                                    BuildConfig.VERSION_NAME)
+                                    BuildConfig.VERSION_NAME),
+                                // Not weighted to fill the row, so the info icon sits right after it.
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            IconButton(
+                                onClick = { showDeveloperInfoDialog = true },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .testTag(DEVELOPER_INFO_ICON_TEST_TAG),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Info,
+                                    contentDescription = stringResource(R.string.developer_info_icon),
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(18.dp),
                                 )
-                                aiStatus?.let { status ->
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = aiStatusLabel(status),
-                                        modifier = Modifier.testTag(AI_STATUS_LABEL_TEST_TAG),
-                                    )
-                                }
                             }
                         }
                     }}
@@ -390,22 +410,106 @@ fun ProfileSectionScreen(
     }
 }
 
-const val AI_STATUS_LABEL_TEST_TAG = "aiStatusLabelTestTag"
+const val DEVELOPER_INFO_ICON_TEST_TAG = "developerInfoIconTestTag"
+const val DEVELOPER_INFO_DIALOG_TEST_TAG = "developerInfoDialogTestTag"
 
-/** "AI Enabled + Extraction Disabled" etc. for the profile screen. */
+/**
+ * The lines of the "Developers Only" dialog: the AI flag, the AI result extraction, and the model
+ * and combine rule a new screening would run, with whether the rule is the app's own or was set
+ * by the site's feature flag. A part that could not be read is left out rather than guessed.
+ */
 @Composable
-fun aiStatusLabel(status: AiStatus): String =
-    stringResource(
-        id = org.smartregister.fhircore.quest.R.string.ai_extraction_status,
-        stringResource(
-            id = if (status.flagEnabled) org.smartregister.fhircore.engine.R.string.ai_enabled
-            else org.smartregister.fhircore.engine.R.string.ai_disabled,
-        ),
-        stringResource(
-            id = if (status.extractionEnabled) org.smartregister.fhircore.quest.R.string.extraction_enabled
-            else org.smartregister.fhircore.quest.R.string.extraction_disabled,
-        ),
+fun developerInfoLines(status: AiStatus?, selection: AiModelSelection?): List<String> = buildList {
+    status?.let {
+        add(
+            stringResource(
+                if (it.flagEnabled) org.smartregister.fhircore.engine.R.string.ai_enabled
+                else org.smartregister.fhircore.engine.R.string.ai_disabled,
+            ),
+        )
+        add(
+            stringResource(
+                if (it.extractionEnabled) R.string.extraction_enabled else R.string.extraction_disabled,
+            ),
+        )
+    }
+    when (selection) {
+        is AiModelSelection.Ready -> {
+            val active = selection.active
+            add(stringResource(R.string.developer_info_model, active.model.id))
+            add(
+                stringResource(
+                    R.string.developer_info_members,
+                    active.model.activeMembers(active.rule).joinToString(", ") { it.id },
+                ),
+            )
+            add(stringResource(R.string.developer_info_rule, active.rule.id))
+            add(
+                stringResource(
+                    R.string.developer_info_rule_source,
+                    stringResource(
+                        if (active.ruleSetBySite) R.string.developer_info_rule_source_flag
+                        else R.string.developer_info_rule_source_default,
+                    ),
+                ),
+            )
+            active.ignoredSetting?.let { add(stringResource(R.string.developer_info_setting_ignored, it)) }
+        }
+        is AiModelSelection.Unavailable -> {
+            add(stringResource(R.string.developer_info_model, selection.modelId))
+            add(stringResource(R.string.developer_info_model_unavailable, selection.reason.telemetryName))
+        }
+        null -> Unit
+    }
+    if (isEmpty()) add(stringResource(R.string.developer_info_unavailable))
+}
+
+@Composable
+fun DeveloperInfoDialog(
+    status: AiStatus?,
+    selection: AiModelSelection?,
+    onDismissDialog: () -> Unit,
+) {
+    val lines = developerInfoLines(status, selection)
+    AlertDialog(
+        onDismissRequest = onDismissDialog,
+        title = {
+            androidx.compose.material.Text(
+                text = stringResource(R.string.developer_info_title),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+            )
+        },
+        text = {
+            Column {
+                lines.forEach { line ->
+                    androidx.compose.material.Text(
+                        text = line,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 2.dp),
+                    )
+                }
+            }
+        },
+        buttons = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                androidx.compose.material.Text(
+                    color = MaterialTheme.colors.primary,
+                    text = stringResource(org.smartregister.fhircore.engine.R.string.ok),
+                    modifier = Modifier
+                        .padding(horizontal = 10.dp)
+                        .clickable { onDismissDialog() },
+                )
+            }
+        },
+        modifier = Modifier.testTag(DEVELOPER_INFO_DIALOG_TEST_TAG),
     )
+}
 
 @Composable
 fun ForgotPasswordDialog(

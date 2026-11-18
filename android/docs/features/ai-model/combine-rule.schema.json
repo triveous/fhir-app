@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "combine-rule.schema.json",
   "title": "AI combine rule (proposed, AAR-567)",
-  "description": "Shape and allowed values of the rule stored in ai-model.rule on the feature-flags Basic, and of the default rule shipped with each model. Checks this schema cannot express are done by the app: member and class ids must exist in the model, a photo votesNeeded number must not exceed the members running, modelId must equal ai-model.id. Fields marked Later are designed but rejected by the first release.",
+  "description": "Shape and allowed values of the rule stored in ai-model.rule on the feature-flags Basic, and of the default rule shipped with each model. Checks this schema cannot express are done by the app: member and class ids must exist in the model, a photo votesNeeded number must not exceed the members running, a photo table must have exactly one row for every combination of member answers, modelId must equal ai-model.id. Fields marked Later are designed but rejected by the first release.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "id", "version", "modelId", "photo"],
@@ -26,7 +26,7 @@
       "$ref": "#/$defs/slug"
     },
     "members": {
-      "description": "Member models to run. Default: all members the model ships. May drop members, cannot add one.",
+      "description": "Member models to run. Default: all members the model ships. May drop members, cannot add one. The site's ai-model.members setting, when present, wins over this.",
       "type": "array",
       "items": { "$ref": "#/$defs/slug" },
       "minItems": 1,
@@ -84,7 +84,22 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "method": { "enum": ["vote", "mean"], "default": "vote", "description": "mean is Later." },
+        "method": {
+          "enum": ["vote", "table", "mean"],
+          "default": "vote",
+          "description": "vote = count member answers; table = look the result up from the member answers; mean is Later."
+        },
+        "table": {
+          "description": "table only. One row per combination of member answers: the running members' class ids in model order, then the photo's result. Every combination must appear exactly once. Needs at least 2 members; when a site runs one member, that member's answer is the result and the table is not used.",
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "items": { "$ref": "#/$defs/slug" }
+          }
+        },
         "votesNeeded": { "$ref": "#/$defs/votesNeeded" },
         "countMoreSevere": { "type": "boolean", "default": true },
         "fallback": { "$ref": "#/$defs/fallback" },
@@ -107,16 +122,28 @@
           "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
         }
       },
-      "if": { "required": ["method"], "properties": { "method": { "const": "mean" } } },
-      "then": {
-        "properties": { "votesNeeded": false, "countMoreSevere": false },
-        "if": { "required": ["decideBy"], "properties": { "decideBy": { "const": "thresholds" } } },
-        "then": { "required": ["thresholds"] },
-        "else": { "properties": { "thresholds": false } }
-      },
-      "else": {
-        "properties": { "weights": false, "decideBy": false, "thresholds": false }
-      }
+      "allOf": [
+        {
+          "if": { "required": ["method"], "properties": { "method": { "const": "mean" } } },
+          "then": {
+            "properties": { "votesNeeded": false, "countMoreSevere": false },
+            "if": { "required": ["decideBy"], "properties": { "decideBy": { "const": "thresholds" } } },
+            "then": { "required": ["thresholds"] },
+            "else": { "properties": { "thresholds": false } }
+          },
+          "else": {
+            "properties": { "weights": false, "decideBy": false, "thresholds": false }
+          }
+        },
+        {
+          "if": { "required": ["method"], "properties": { "method": { "const": "table" } } },
+          "then": {
+            "required": ["table"],
+            "properties": { "votesNeeded": false, "countMoreSevere": false, "fallback": false }
+          },
+          "else": { "properties": { "table": false } }
+        }
+      ]
     },
     "caseBlock": {
       "type": "object",

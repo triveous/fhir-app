@@ -85,8 +85,41 @@ sealed interface OutputLayout {
     val threshold: Float = 0.5f,
   ) : OutputLayout
 
-  /** One probability per class (softmax already applied), in [classOrder]. Highest wins. */
-  data class Softmax(val classOrder: List<String>) : OutputLayout
+  /**
+   * One value per class, in [classOrder]. Highest wins. With [appliedInGraph] the values are
+   * already softmax probabilities; without it they are raw scores (logits) and the app applies
+   * softmax itself.
+   */
+  data class Softmax(val classOrder: List<String>, val appliedInGraph: Boolean = true) :
+    OutputLayout
+}
+
+enum class ChannelOrder {
+  BGR,
+  RGB,
+}
+
+/**
+ * What the app does to the photo's pixels before a model with a float input sees them:
+ * `value = (pixel * scale - mean[channel]) / std[channel]`, channels in [channelOrder]. [mean] and
+ * [std] are listed in [channelOrder]. A model with a uint8 input does its own preprocessing in the
+ * graph and must use [RAW_BGR].
+ */
+data class InputPreprocessing(
+  val channelOrder: ChannelOrder = ChannelOrder.BGR,
+  val scale: Float = 1f,
+  val mean: List<Float> = listOf(0f, 0f, 0f),
+  val std: List<Float> = listOf(1f, 1f, 1f),
+) {
+  init {
+    require(mean.size == 3 && std.size == 3) { "mean and std need one value per channel" }
+    require(std.none { it == 0f }) { "std must not be 0" }
+  }
+
+  companion object {
+    /** Pixels exactly as `cv2.imread` gives them: BGR, 0-255. Today's 2-class models. */
+    val RAW_BGR = InputPreprocessing()
+  }
 }
 
 /** How a photo's confidence is worked out from its members. */
@@ -118,6 +151,12 @@ data class ModelDescriptor(
   val defaultRule: CombineRule,
   val confidenceMode: ConfidenceMode,
   val lowConfidencePercent: Float = DEFAULT_LOW_CONFIDENCE_PERCENT,
+  val inputPreprocessing: InputPreprocessing = InputPreprocessing.RAW_BGR,
+  /**
+   * The one output the app reads from each member's `.onnx` file. Null reads every output, in the
+   * order the file declares them.
+   */
+  val onnxOutputName: String? = null,
 ) {
   init {
     require(classes.isNotEmpty()) { "Model $id declares no classes" }
@@ -153,7 +192,10 @@ data class ModelDescriptor(
   val leastSevereClass: AiClass
     get() = classes.minBy { it.severity }
 
-  /** Members to run under [rule]: its `members` if set, otherwise all, in model order. */
+  /**
+   * Members to run under [rule]: its `members` if set, otherwise all. Always in model order,
+   * whatever order the rule lists them in.
+   */
   fun activeMembers(rule: CombineRule): List<ModelMember> =
     rule.members?.let { ids -> members.filter { it.id in ids } } ?: members
 

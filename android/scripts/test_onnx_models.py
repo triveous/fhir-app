@@ -100,7 +100,7 @@ class OnnxModelTests(unittest.TestCase):
             with self.subTest(model=path.name):
                 graph = onnx.load(str(path), load_external_data=False).graph
                 external = [t.name for t in graph.initializer if t.data_location == onnx.TensorProto.EXTERNAL]
-                self.assertEqual(external, [], "run scripts/embed_onnx_weights.py")
+                self.assertEqual(external, [], "run scripts/prepare_onnx_models.py")
 
     def test_outputs_come_from_sigmoid(self):
         producers = [harness._producing_ops(p) for p in self.model_paths]

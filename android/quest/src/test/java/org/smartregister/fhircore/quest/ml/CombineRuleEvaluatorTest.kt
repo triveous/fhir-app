@@ -17,6 +17,7 @@
 package org.smartregister.fhircore.quest.ml
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.smartregister.fhircore.quest.ml.ModelCatalog.HIGH_RISK_SUSPICIOUS as HIGH
 import org.smartregister.fhircore.quest.ml.ModelCatalog.LOW_RISK_SUSPICIOUS as LOW
@@ -48,8 +49,54 @@ class CombineRuleEvaluatorTest {
   }
 
   @Test
-  fun `worked example - high all and low majority (the shipped rule) is low-risk`() {
-    assertEquals(LOW, decide(workedExample, ModelCatalog.THREE_CLASS.defaultRule.photo))
+  fun `worked example - high all and low majority is low-risk`() {
+    assertEquals(LOW, decide(workedExample, perClass(HIGH to Votes.All, LOW to Votes.Majority, fallback = NON)))
+  }
+
+  /** The ML team's table (docs/features/ai-model/combine-table-m1-m2.png): M1, M2, Comb_result. */
+  @Test
+  fun `the shipped 3-class rule is the ML team's table for two members`() {
+    val teamTable =
+      listOf(
+        Triple(0, 0, 0),
+        Triple(0, 1, 0),
+        Triple(0, 2, 1),
+        Triple(1, 0, 0),
+        Triple(1, 1, 1),
+        Triple(1, 2, 2),
+        Triple(2, 0, 1),
+        Triple(2, 1, 2),
+        Triple(2, 2, 2),
+      )
+    val classOf = listOf(NON, LOW, HIGH)
+    val rule = ModelCatalog.THREE_CLASS.defaultRule.photo
+
+    assertEquals(null, (rule as ClassTable).problem(threeClasses, memberCount = 2))
+    teamTable.forEach { (m1, m2, expected) ->
+      assertEquals(
+        "M1=$m1 M2=$m2",
+        classOf[expected],
+        CombineRuleEvaluator.decidePhoto(threeClasses, listOf(classOf[m1], classOf[m2]), rule).id,
+      )
+    }
+  }
+
+  @Test
+  fun `with one member running, a table rule gives that member's answer`() {
+    val rule = ModelCatalog.THREE_CLASS.defaultRule.photo
+
+    listOf(NON, LOW, HIGH).forEach {
+      assertEquals(it, CombineRuleEvaluator.decidePhoto(threeClasses, listOf(it), rule).id)
+    }
+  }
+
+  @Test
+  fun `a table without a row for the answers fails instead of guessing`() {
+    val rule = ModelCatalog.THREE_CLASS.defaultRule.photo
+
+    assertThrows(IllegalStateException::class.java) {
+      CombineRuleEvaluator.decidePhoto(threeClasses, listOf(NON, LOW, HIGH), rule)
+    }
   }
 
   @Test
@@ -101,7 +148,7 @@ class CombineRuleEvaluatorTest {
 
   @Test
   fun `the shipped 2-class photo rule is all three must agree`() {
-    val rule = ModelCatalog.BINARY.defaultRule.photo
+    val rule = ModelCatalog.BINARY.defaultRule.photo as VoteBlock
 
     assertEquals(SUSPICIOUS, decide(listOf(SUSPICIOUS, SUSPICIOUS, SUSPICIOUS), rule, binaryClasses))
     assertEquals(NON, decide(listOf(SUSPICIOUS, SUSPICIOUS, NON), rule, binaryClasses))

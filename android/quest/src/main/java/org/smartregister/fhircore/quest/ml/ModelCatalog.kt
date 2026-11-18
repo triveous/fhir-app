@@ -90,13 +90,22 @@ object ModelCatalog {
     )
 
   /**
-   * The 3-class model. Assumed contract until the ML team delivers it: three members, each
-   * emitting softmax probabilities `[1, 3]` in [THREE_CLASS_OUTPUT_ORDER]. Change the order or the
-   * file names here if the delivery differs. Until every file in [THREE_CLASS_ASSETS] is in
-   * `assets/`, sites set to this model see "Failed to enable AI" instead of a wrong result.
+   * The 3-class model, as delivered on 2026-11-13: two MobileViTv2 multitask members (`m1`, `m2`),
+   * each `input` float32 `[batch, 3, 256, 256]` → `cls_logits [batch, 3]` (raw scores; the app
+   * applies softmax) plus a segmentation output the app does not use. The bundled files are the
+   * classification part only, built by `scripts/prepare_onnx_models.py`.
    *
-   * Members reuse the three per-model FHIR field pairs (`v38-model-v6/v8/v82-*`); classes are saved
-   * as their ids in the same fields 2-class sites use.
+   * A site runs both members or one of them (`ai-model.members`). With both, the photo's class
+   * comes from the ML team's table ([THREE_CLASS_TABLE]); with one, it is that member's answer.
+   *
+   * Not yet confirmed by the ML team, so check before a site is switched to this model:
+   * [THREE_CLASS_PREPROCESSING] (nothing in the files states it) and [THREE_CLASS_OUTPUT_ORDER].
+   *
+   * Until every file in [THREE_CLASS_ASSETS] is in `assets/`, sites set to this model see "Failed
+   * to enable AI" instead of a wrong result.
+   *
+   * Members reuse two of the per-model FHIR field pairs (`v38-model-v6/v8-*`); classes are saved as
+   * their ids in the same fields 2-class sites use.
    */
   val THREE_CLASS =
     ModelDescriptor(
@@ -136,27 +145,20 @@ object ModelCatalog {
         listOf(
           ModelMember(id = "m1", resultKeyPrefix = "model6"),
           ModelMember(id = "m2", resultKeyPrefix = "model8"),
-          ModelMember(id = "m3", resultKeyPrefix = "model82"),
         ),
-      outputLayout = OutputLayout.Softmax(THREE_CLASS_OUTPUT_ORDER),
+      outputLayout = OutputLayout.Softmax(THREE_CLASS_OUTPUT_ORDER, appliedInGraph = false),
       onnxAssets = THREE_CLASS_ASSETS,
       pyTorchFallback = false,
       defaultRule =
         CombineRule(
-          id = "$THREE_CLASS_MODEL_ID/high-all-low-majority",
+          id = "$THREE_CLASS_MODEL_ID/m1-m2-table",
           version = 1,
           modelId = THREE_CLASS_MODEL_ID,
-          photo =
-            VoteBlock(
-              votesNeeded =
-                VotesNeeded.PerClass(
-                  mapOf(HIGH_RISK_SUSPICIOUS to Votes.All, LOW_RISK_SUSPICIOUS to Votes.Majority),
-                ),
-              countMoreSevere = true,
-              fallback = NON_SUSPICIOUS,
-            ),
+          photo = THREE_CLASS_TABLE,
         ),
       confidenceMode = ConfidenceMode.MEAN_FINAL_CLASS_PROBABILITY,
+      inputPreprocessing = THREE_CLASS_PREPROCESSING,
+      onnxOutputName = "cls_logits",
     )
 
   val ALL: List<ModelDescriptor> = listOf(BINARY, THREE_CLASS)
@@ -190,11 +192,46 @@ object ModelCatalog {
     return model.classes.filter { it.outcome == found.outcome }.maxByOrNull { it.severity }
   }
 
-  /** Assumed 3-class output order; see [THREE_CLASS]. */
+  /**
+   * Assumed order of the three `cls_logits` values: the ML team's classes 0, 1, 2. Matches their
+   * combine table, where a higher number is the more serious class.
+   */
   private val THREE_CLASS_OUTPUT_ORDER
     get() = listOf(NON_SUSPICIOUS, LOW_RISK_SUSPICIOUS, HIGH_RISK_SUSPICIOUS)
 
-  /** Placeholder file names for the 3-class members; rename to the delivered files. */
+  /**
+   * Assumed input of the 3-class members: RGB, scaled to 0–1, no mean/std (the MobileViTv2
+   * default). Of the candidates tried on docs/test-images it is the one where the two members
+   * agree best, on both the class and the lesion mask; that is evidence, not confirmation.
+   */
+  private val THREE_CLASS_PREPROCESSING
+    get() = InputPreprocessing(channelOrder = ChannelOrder.RGB, scale = 1f / 255f)
+
+  /** One file per 3-class member, in member order. */
   private val THREE_CLASS_ASSETS
-    get() = listOf("oral_3class_m1.onnx", "oral_3class_m2.onnx", "oral_3class_m3.onnx")
+    get() = listOf("oral_3class_m1.onnx", "oral_3class_m2.onnx")
+
+  /**
+   * The ML team's table for combining the two members' answers on a photo
+   * (docs/features/ai-model/combine-table-m1-m2.png). Keys are (m1, m2).
+   */
+  private val THREE_CLASS_TABLE: ClassTable
+    get() {
+      val non = NON_SUSPICIOUS
+      val low = LOW_RISK_SUSPICIOUS
+      val high = HIGH_RISK_SUSPICIOUS
+      return ClassTable(
+        mapOf(
+          listOf(non, non) to non,
+          listOf(non, low) to non,
+          listOf(non, high) to low,
+          listOf(low, non) to non,
+          listOf(low, low) to low,
+          listOf(low, high) to high,
+          listOf(high, non) to low,
+          listOf(high, low) to high,
+          listOf(high, high) to high,
+        ),
+      )
+    }
 }

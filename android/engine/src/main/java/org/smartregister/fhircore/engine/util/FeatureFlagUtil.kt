@@ -224,15 +224,20 @@ class FeatureFlagUtil @Inject constructor(
         }.toMap()
 
     /**
-     * Parses the nested `ai-model` extension: `id` (the model) and `rule` (an optional combine-rule
-     * override, kept as the raw JSON string; the app validates it before use). Blank values count
-     * as absent. Absent parent → [AiModelConfig.NONE].
+     * Parses the nested `ai-model` extension: `id` (the model), `rule` (an optional combine-rule
+     * override) and `members` (which of the model's members run). `rule` and `members` are kept as
+     * the raw strings; the app validates them before use. Blank values count as absent. Absent
+     * parent → [AiModelConfig.NONE].
      */
     private fun Basic.toAiModelConfig(): AiModelConfig {
         val parent = getExtensionByUrl(AI_MODEL_URL) ?: return AiModelConfig.NONE
         fun sub(url: String): String? =
             parent.getExtensionByUrl(url)?.value?.primitiveValue()?.trim()?.takeIf { it.isNotEmpty() }
-        return AiModelConfig(modelId = sub(AI_MODEL_ID), rule = sub(AI_MODEL_RULE))
+        return AiModelConfig(
+            modelId = sub(AI_MODEL_ID),
+            rule = sub(AI_MODEL_RULE),
+            members = sub(AI_MODEL_MEMBERS),
+        )
     }
 
     /**
@@ -277,6 +282,12 @@ class FeatureFlagUtil @Inject constructor(
 
         /** Sub-extension of [AI_MODEL_URL]: optional combine-rule override, a JSON string. */
         const val AI_MODEL_RULE = "rule"
+
+        /**
+         * Sub-extension of [AI_MODEL_URL]: optional comma-separated ids of the members to run,
+         * e.g. `m1` to run one model of a two-model ensemble.
+         */
+        const val AI_MODEL_MEMBERS = "members"
 
         /** Parent (nested) extension that groups the whole app-update policy on the feature-flags Basic. */
         const val APP_UPDATE_URL =

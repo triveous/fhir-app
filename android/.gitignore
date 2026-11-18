@@ -190,3 +190,9 @@ google-services.json
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 
+
+# AI model weights are not published: keep them local (see docs/features/ai-model/README.md).
+quest/src/main/assets/*.pt
+quest/src/main/assets/*.onnx
+quest/src/main/assets/*.onnx.data
+model-sources/

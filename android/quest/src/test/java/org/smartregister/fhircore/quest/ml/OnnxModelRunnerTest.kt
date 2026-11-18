@@ -18,6 +18,7 @@ package org.smartregister.fhircore.quest.ml
 
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import java.io.File
 import kotlin.math.exp
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -76,6 +77,64 @@ class OnnxModelRunnerTest {
   fun `separate outputs are concatenated in declared order`() {
     runner("probs_uint8_nchw_split.onnx").use { runner ->
       assertArrayEquals(EXPECTED, runner.run(bgrImage()), TOLERANCE)
+    }
+  }
+
+  @Test
+  fun `a named output is the only one read`() {
+    runner("probs_uint8_nchw_split.onnx", outputName = "p2").use { runner ->
+      assertArrayEquals(floatArrayOf(EXPECTED[2]), runner.run(bgrImage()), TOLERANCE)
+    }
+    assertThrows(IllegalArgumentException::class.java) {
+      runner("probs_uint8_nchw_split.onnx", outputName = "cls_logits")
+    }
+  }
+
+  @Test
+  fun `a float model gets the pixels through the model's preprocessing`() {
+    // RGB order: the model's first channel now sees R (250) and its last sees B (10).
+    val rgb = InputPreprocessing(channelOrder = ChannelOrder.RGB)
+    runner("probs_float32_nhwc.onnx", preprocessing = rgb).use { runner ->
+      assertArrayEquals(EXPECTED.reversedArray(), runner.run(bgrImage()), TOLERANCE)
+    }
+    // A uint8 model preprocesses inside its graph; asking the app to do it too is a mistake.
+    assertThrows(IllegalArgumentException::class.java) {
+      runner("probs_uint8_nchw.onnx", preprocessing = rgb)
+    }
+  }
+
+  /**
+   * The real 3-class files, when they are in `assets/` (they are not in git): each member must
+   * load under the catalog's settings and give three finite scores the interpreter can read.
+   */
+  @Test
+  fun `the bundled 3-class members load and give three scores each`() {
+    val model = ModelCatalog.THREE_CLASS
+    val files =
+      model.onnxAssets.map { name ->
+        listOf(File("src/main/assets/$name"), File("quest/src/main/assets/$name")).firstOrNull { it.isFile }
+      }
+    assumeTrue("3-class model files are not in assets", files.all { it != null })
+
+    val runner =
+      OrtSession.SessionOptions().use { options ->
+        OnnxModelRunner(
+          models = files.map { it!!.readBytes() },
+          sessionOptions = options,
+          preprocessing = model.inputPreprocessing,
+          outputName = model.onnxOutputName,
+        )
+      }
+    runner.use {
+      assertEquals(
+        ModelInputSpec("input", TensorLayout.NCHW, InputElementType.FLOAT32, 256, 256),
+        it.inputSpec,
+      )
+      val outputs = it.runEach(bgrImage())
+      assertEquals(listOf(3, 3), outputs.map { scores -> scores.size })
+
+      val result = ScreeningOutputInterpreter.interpret(model, model.defaultRule, RuleSource.SHIPPED, outputs)
+      assertEquals(listOf("m1", "m2"), result.members.map { member -> member.member.id })
     }
   }
 
@@ -139,12 +198,18 @@ class OnnxModelRunnerTest {
     }
   }
 
-  private fun runner(vararg fixtures: String): OnnxModelRunner {
+  private fun runner(
+    vararg fixtures: String,
+    preprocessing: InputPreprocessing = InputPreprocessing.RAW_BGR,
+    outputName: String? = null,
+  ): OnnxModelRunner {
     val models = fixtures.map { name ->
       checkNotNull(javaClass.getResourceAsStream("/onnx/$name")) { "Missing fixture $name" }
         .use { it.readBytes() }
     }
-    return OrtSession.SessionOptions().use { OnnxModelRunner(models, it) }
+    return OrtSession.SessionOptions().use {
+      OnnxModelRunner(models, it, preprocessing = preprocessing, outputName = outputName)
+    }
   }
 
   /** 256×256 image, every pixel B=10, G=128, R=250, laid out as a CV_8UC3 Mat's bytes. */

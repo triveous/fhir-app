@@ -697,6 +697,8 @@ class QuestionnaireActivity : BaseMultiLanguageActivity() {
               }
               questionnaireResponse.addItem(aiResultItem)
 
+              activeModel?.let { questionnaireResponse.recordAiModelAndRule(it) }
+
               val aiInferenceProps =
                 questionnaireAnalyticsProps(
                     PostHogAnalytics.Props.IS_SUSPICIOUS to isSuspicious,

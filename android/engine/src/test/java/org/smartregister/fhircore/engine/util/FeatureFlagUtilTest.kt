@@ -363,12 +363,28 @@ class FeatureFlagUtilTest {
     coVerify(exactly = 0) { fhirResourceDataSource.getBasic(any()) }
   }
 
-  private fun aiModelBasic(modelId: String, rule: String? = null): Basic =
+  @Test
+  fun testAiModelMembersIsReadAndBlankMeansAbsent() = runTest {
+    coEvery { fhirEngine.get<Basic>(featureFlagsResourceId) } returnsMany
+      listOf(
+        aiModelBasic(modelId = "oral-3class-v1", members = " m1 "),
+        aiModelBasic(modelId = "oral-3class-v1", members = " "),
+      )
+
+    Assert.assertEquals(
+      AiModelConfig("oral-3class-v1", members = "m1"),
+      featureFlagUtil.getAiModelConfig(),
+    )
+    Assert.assertEquals(AiModelConfig("oral-3class-v1"), featureFlagUtil.getAiModelConfig())
+  }
+
+  private fun aiModelBasic(modelId: String, rule: String? = null, members: String? = null): Basic =
     featureFlagsBasic(true).apply {
       addExtension().apply {
         url = FeatureFlagUtil.AI_MODEL_URL
         addExtension(FeatureFlagUtil.AI_MODEL_ID, StringType(modelId))
         rule?.let { addExtension(FeatureFlagUtil.AI_MODEL_RULE, StringType(it)) }
+        members?.let { addExtension(FeatureFlagUtil.AI_MODEL_MEMBERS, StringType(it)) }
       }
     }
 

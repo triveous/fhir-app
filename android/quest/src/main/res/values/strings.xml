@@ -362,7 +362,17 @@
     <string name="ai_enabled_successfully">AI is enabled successfully.</string>
     <string name="extraction_enabled">Extraction Enabled</string>
     <string name="extraction_disabled">Extraction Disabled</string>
-    <string name="ai_extraction_status">%1$s + %2$s</string>
+    <string name="developer_info_icon" translatable="false">Developer information</string>
+    <string name="developer_info_title" translatable="false">Developers Only</string>
+    <string name="developer_info_model" translatable="false">AI model: %1$s</string>
+    <string name="developer_info_members" translatable="false">Models running: %1$s</string>
+    <string name="developer_info_rule" translatable="false">Rule: %1$s</string>
+    <string name="developer_info_rule_source" translatable="false">Rule set by: %1$s</string>
+    <string name="developer_info_rule_source_default" translatable="false">App default</string>
+    <string name="developer_info_rule_source_flag" translatable="false">Feature flag</string>
+    <string name="developer_info_setting_ignored" translatable="false">Feature flag setting ignored: %1$s</string>
+    <string name="developer_info_model_unavailable" translatable="false">Not available in this app version (%1$s)</string>
+    <string name="developer_info_unavailable" translatable="false">Not available</string>
     <plurals name="logout_pending_sync_title">
         <item quantity="one">%d case pending to sync</item>
         <item quantity="other">%d cases pending to sync</item>

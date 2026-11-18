@@ -24,12 +24,22 @@ import org.smartregister.fhircore.engine.util.FeatureFlagUtil
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
 import timber.log.Timber
 
-/** The model a screening runs and the combine rule it uses. */
+/**
+ * The model a screening runs and the combine rule it uses.
+ *
+ * @property ignoredSetting why the site's `ai-model.rule` or `ai-model.members` was not applied
+ *   (it failed the app's checks), or null when every setting the site made is in effect.
+ */
 data class ActiveAiModel(
   val model: ModelDescriptor,
   val rule: CombineRule,
   val ruleSource: RuleSource,
-)
+  val ignoredSetting: String? = null,
+) {
+  /** The rule differs from the one built into the app: the site's flag set it or narrowed it. */
+  val ruleSetBySite: Boolean
+    get() = ruleSource == RuleSource.REMOTE || rule != model.defaultRule
+}
 
 /** Whether the site's chosen model can run on this APK. */
 sealed interface AiModelSelection {
@@ -48,13 +58,18 @@ sealed interface AiModelSelection {
 }
 
 /**
- * Resolves the site's AI settings (`ai-model.id` + optional `ai-model.rule` on the feature-flags
- * Basic) into the model and combine rule to run:
+ * Resolves the site's AI settings (`ai-model.id`, optional `ai-model.rule` and `ai-model.members`
+ * on the feature-flags Basic) into the model and combine rule to run:
  * 1. No model set → [ModelCatalog.DEFAULT_MODEL_ID] (today's 2-class model, unchanged).
  * 2. A model this APK doesn't know, or whose files aren't bundled → [AiModelSelection.Unavailable].
  *    The app never quietly falls back to a different model.
  * 3. A remote rule that passes [CombineRuleParser]'s checks replaces the model's shipped rule;
  *    one that fails is reported as `ai_rule_rejected` and the shipped rule is used.
+ * 4. `ai-model.members` limits which members run (e.g. one model of a two-model ensemble). It
+ *    wins over the rule's own `members`. Naming one member runs that member alone under its own
+ *    rule, `<model id>/<member id>-only`, so the rule id always says what decided a photo. A value
+ *    that fails the checks is reported as `ai_rule_rejected` and ignored, so the members the rule
+ *    names (all by default) run.
  *
  * A screening's selection is locked the first time it is asked for, so a sync during a screening
  * never mixes models or rules within one case.
@@ -106,28 +121,87 @@ constructor(
         ?: return unavailable(modelId, AiModelSelection.Reason.UNKNOWN_MODEL)
     if (!isRunnable(model)) return unavailable(modelId, AiModelSelection.Reason.NOT_BUNDLED)
 
-    val ruleJson = config.rule ?: return ready(model, model.defaultRule, RuleSource.SHIPPED)
+    val ruleJson = config.rule ?: return ready(model, model.defaultRule, RuleSource.SHIPPED, config)
     return when (val parsed = CombineRuleParser.parse(ruleJson, model)) {
-      is RuleParseResult.Accepted -> ready(model, parsed.rule, RuleSource.REMOTE)
+      is RuleParseResult.Accepted -> ready(model, parsed.rule, RuleSource.REMOTE, config)
       is RuleParseResult.Rejected -> {
-        reportOnce("rule|$modelId|$ruleJson") {
-          Timber.w("Remote AI rule rejected for %s: %s", modelId, parsed.reason)
-          PostHogAnalytics.capture(
-            PostHogAnalytics.Events.AI_RULE_REJECTED,
-            mapOf(
-              PostHogAnalytics.Props.MODEL_ID to modelId,
-              PostHogAnalytics.Props.RULE_ID to parsed.ruleId,
-              PostHogAnalytics.Props.RULE_REJECT_REASON to parsed.reason,
-            ),
-          )
-        }
-        ready(model, model.defaultRule, RuleSource.SHIPPED)
+        reportRejected("rule|$modelId|$ruleJson", modelId, parsed.ruleId, parsed.reason)
+        ready(model, model.defaultRule, RuleSource.SHIPPED, config, ruleProblem = "rule: ${parsed.reason}")
       }
     }
   }
 
-  private fun ready(model: ModelDescriptor, rule: CombineRule, source: RuleSource) =
-    AiModelSelection.Ready(ActiveAiModel(model, rule, source))
+  private fun ready(
+    model: ModelDescriptor,
+    rule: CombineRule,
+    source: RuleSource,
+    config: AiModelConfig,
+    ruleProblem: String? = null,
+  ): AiModelSelection.Ready {
+    val (siteRule, membersProblem) = withSiteMembers(model, rule, config.members)
+    val ignored = listOfNotNull(ruleProblem, membersProblem).joinToString("; ").ifEmpty { null }
+    return AiModelSelection.Ready(ActiveAiModel(model, siteRule, source, ignored))
+  }
+
+  /**
+   * [rule] running only the members the site names in `ai-model.members` ([setting]), or [rule]
+   * unchanged when the site names none or the value fails the checks; the second value is then
+   * why it failed. One member gets [singleMemberRule] in place of [rule]'s photo block.
+   */
+  private fun withSiteMembers(
+    model: ModelDescriptor,
+    rule: CombineRule,
+    setting: String?,
+  ): Pair<CombineRule, String?> {
+    setting ?: return rule to null
+    val ids = setting.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    val problem =
+      when {
+        ids.isEmpty() -> "members names no member"
+        ids.toSet().size != ids.size -> "members repeats a member"
+        else ->
+          ids.firstOrNull { model.memberById(it) == null }
+            ?.let { "members names $it, which model ${model.id} does not have" }
+            // One member needs no table; several need a table written for that many.
+            ?: (rule.photo as? ClassTable)
+              ?.takeIf { ids.size > 1 }
+              ?.problem(model.classes, ids.size)
+      }
+    if (problem != null) {
+      reportRejected("members|${model.id}|${rule.id}|$setting", model.id, rule.id, problem)
+      return rule to problem
+    }
+    return (ids.singleOrNull()?.let { singleMemberRule(model, it, rule) } ?: rule.copy(members = ids)) to null
+  }
+
+  /**
+   * The rule for running [memberId] alone: its answer is the photo's class, with nothing to
+   * combine. It has its own id, so analytics and the case's saved rule id show that one member
+   * decided. The case block stays [rule]'s.
+   */
+  private fun singleMemberRule(model: ModelDescriptor, memberId: String, rule: CombineRule) =
+    CombineRule(
+      id = "${model.id}/$memberId-only",
+      version = 1,
+      modelId = model.id,
+      members = listOf(memberId),
+      photo = VoteBlock(VotesNeeded.Same(Votes.AnyOne), countMoreSevere = false),
+      case = rule.case,
+    )
+
+  private fun reportRejected(key: String, modelId: String, ruleId: String?, reason: String) {
+    reportOnce(key) {
+      Timber.w("Remote AI settings rejected for %s: %s", modelId, reason)
+      PostHogAnalytics.capture(
+        PostHogAnalytics.Events.AI_RULE_REJECTED,
+        mapOf(
+          PostHogAnalytics.Props.MODEL_ID to modelId,
+          PostHogAnalytics.Props.RULE_ID to ruleId,
+          PostHogAnalytics.Props.RULE_REJECT_REASON to reason,
+        ),
+      )
+    }
+  }
 
   private fun unavailable(modelId: String, reason: AiModelSelection.Reason): AiModelSelection {
     reportOnce("model|$modelId|$reason") {

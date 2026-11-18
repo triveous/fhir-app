@@ -48,6 +48,7 @@ object CombineRuleParser {
   private val TOP_LEVEL = setOf("schema", "id", "version", "modelId", "members", "photo", "case")
   private val TOP_LEVEL_LATER = setOf("lowConfidence")
   private val PHOTO_FIELDS = setOf("method", "votesNeeded", "countMoreSevere", "fallback")
+  private val PHOTO_TABLE_FIELDS = setOf("method", "table")
   private val PHOTO_LATER = setOf("weights", "decideBy", "thresholds")
   private val CASE_FIELDS = PHOTO_FIELDS + "onFailedPhoto"
   private val CASE_LATER = setOf("minPhotos")
@@ -82,10 +83,15 @@ object CombineRuleParser {
     val members = root["members"]?.let { readMembers(it, model) }
     val activeMemberCount = members?.size ?: model.members.size
 
-    val photo =
+    val photo: PhotoRule =
       (root["photo"] as? JsonObject)?.let {
-        checkFields(it, "photo", PHOTO_FIELDS, PHOTO_LATER)
-        readVoteBlock(it, "photo", model, maxCount = activeMemberCount)
+        if (it.string("method") == METHOD_TABLE) {
+          checkFields(it, "photo", PHOTO_TABLE_FIELDS, PHOTO_LATER)
+          readTable(it["table"], model, activeMemberCount)
+        } else {
+          checkFields(it, "photo", PHOTO_FIELDS, PHOTO_LATER)
+          readVoteBlock(it, "photo", model, maxCount = activeMemberCount)
+        }
       } ?: invalid("photo is required and must be an object")
 
     val case =
@@ -127,6 +133,31 @@ object CombineRuleParser {
     return ids
   }
 
+  /**
+   * `photo.table`: one row per combination of member answers, each row the running members'
+   * class ids in model order followed by the photo's class.
+   */
+  private fun readTable(element: JsonElement?, model: ModelDescriptor, memberCount: Int): ClassTable {
+    val array = element as? JsonArray ?: invalid("photo.table is required and must be a list of rows")
+    val rows = mutableMapOf<List<String>, String>()
+    array.forEach { row ->
+      val cells =
+        (row as? JsonArray)?.map {
+          (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content
+            ?: invalid("photo.table rows must be lists of class ids")
+        } ?: invalid("photo.table rows must be lists of class ids")
+      if (cells.size != memberCount + 1) {
+        invalid("photo.table row $cells must list $memberCount member answer(s) and the result")
+      }
+      if (rows.put(cells.dropLast(1), cells.last()) != null) {
+        invalid("photo.table repeats the answers ${cells.dropLast(1)}")
+      }
+    }
+    val table = ClassTable(rows)
+    table.problem(model.classes, memberCount)?.let { invalid("photo.$it") }
+    return table
+  }
+
   private fun readVoteBlock(
     block: JsonObject,
     name: String,
@@ -137,7 +168,8 @@ object CombineRuleParser {
       when ((it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content) {
         "vote" -> Unit
         "mean" -> invalid("$name.method mean is not supported yet")
-        else -> invalid("$name.method must be vote or mean")
+        METHOD_TABLE -> invalid("$name.method table is only for photo")
+        else -> invalid("$name.method must be vote, table or mean")
       }
     }
     val votesNeeded =
@@ -214,4 +246,5 @@ object CombineRuleParser {
   private class InvalidRule(message: String) : Exception(message)
 
   private const val INCONCLUSIVE = "inconclusive"
+  private const val METHOD_TABLE = "table"
 }

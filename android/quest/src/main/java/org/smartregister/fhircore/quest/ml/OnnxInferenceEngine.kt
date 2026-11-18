@@ -82,7 +82,7 @@ class OnnxInferenceEngine @Inject constructor(@ApplicationContext private val co
       }
       val startedMs = SystemClock.elapsedRealtime()
       val files = model.onnxAssets.map { name -> context.assets.open(name).use { it.readBytes() } }
-      val (runner, provider) = createRunner(files, OnnxModelContract.EXECUTION_PROVIDER)
+      val (runner, provider) = createRunner(model, files, OnnxModelContract.EXECUTION_PROVIDER)
       runner.warmUp()
       Timber.i(
         "ONNX model %s ready on %s in %d ms, input %s",
@@ -100,12 +100,20 @@ class OnnxInferenceEngine @Inject constructor(@ApplicationContext private val co
    * cannot place to CPU — so the only fallback needed here is for a session that fails to build.
    */
   private fun createRunner(
-    models: List<ByteArray>,
+    model: ModelDescriptor,
+    files: List<ByteArray>,
     preferred: ExecutionProvider,
   ): Pair<OnnxModelRunner, ExecutionProvider> {
+    fun runner(options: OrtSession.SessionOptions) =
+      OnnxModelRunner(
+        models = files,
+        sessionOptions = options,
+        preprocessing = model.inputPreprocessing,
+        outputName = model.onnxOutputName,
+      )
     if (preferred != ExecutionProvider.CPU) {
       try {
-        return sessionOptions(preferred).use { OnnxModelRunner(models, it) } to preferred
+        return sessionOptions(preferred).use(::runner) to preferred
       } catch (e: Exception) {
         Timber.w(e, "Falling back to CPU: %s session failed", preferred.telemetryName)
         PostHogAnalytics.captureError(
@@ -114,8 +122,7 @@ class OnnxInferenceEngine @Inject constructor(@ApplicationContext private val co
         )
       }
     }
-    return sessionOptions(ExecutionProvider.CPU).use { OnnxModelRunner(models, it) } to
-      ExecutionProvider.CPU
+    return sessionOptions(ExecutionProvider.CPU).use(::runner) to ExecutionProvider.CPU
   }
 
   private fun sessionOptions(provider: ExecutionProvider) =

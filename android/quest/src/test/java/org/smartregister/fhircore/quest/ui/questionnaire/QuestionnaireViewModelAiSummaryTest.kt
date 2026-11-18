@@ -44,10 +44,41 @@ import org.smartregister.fhircore.engine.util.SecureSharedPreference
 import org.smartregister.fhircore.engine.util.SharedPreferencesHelper
 import org.smartregister.fhircore.engine.util.fhirpath.FhirPathDataExtractor
 import org.smartregister.fhircore.engine.util.helper.TransformSupportServices
+import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_MODEL_LINK_ID
+import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RULE_LINK_ID
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.SUSPICIOUS_NON_SUSPICIOUS_URL
 
 class QuestionnaireViewModelAiSummaryTest {
+
+  private fun QuestionnaireResponse.answersOf(linkId: String) =
+    item.filter { it.linkId == linkId }.map { it.answerFirstRep.value.primitiveValue() }
+
+  @Test
+  fun `the case records the model id and the rule id as answers`() {
+    val model = ModelCatalog.THREE_CLASS
+    val response =
+      QuestionnaireResponse().apply { addItem(attachmentResponseItem("image-1", "first.jpg")) }
+
+    response.recordAiModelAndRule(ActiveAiModel(model, model.defaultRule, RuleSource.SHIPPED))
+
+    assertEquals(listOf("oral-3class-v1"), response.answersOf(CASE_LEVEL_AI_MODEL_LINK_ID))
+    assertEquals(listOf("oral-3class-v1/m1-m2-table"), response.answersOf(CASE_LEVEL_AI_RULE_LINK_ID))
+    assertEquals("the photo answers are left alone", 3, response.item.size)
+  }
+
+  @Test
+  fun `recording the model and rule again replaces the earlier values`() {
+    val threeClass = ModelCatalog.THREE_CLASS
+    val binary = ModelCatalog.BINARY
+    val response = QuestionnaireResponse()
+
+    response.recordAiModelAndRule(ActiveAiModel(threeClass, threeClass.defaultRule, RuleSource.SHIPPED))
+    response.recordAiModelAndRule(ActiveAiModel(binary, binary.defaultRule, RuleSource.SHIPPED))
+
+    assertEquals(listOf("oral-binary-v1"), response.answersOf(CASE_LEVEL_AI_MODEL_LINK_ID))
+    assertEquals(listOf("oral-binary-v1/all-agree"), response.answersOf(CASE_LEVEL_AI_RULE_LINK_ID))
+  }
 
   @Test
   fun `summarizeAiInference returns case-level image aggregates`() {

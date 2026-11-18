@@ -16,6 +16,7 @@
 
 package org.smartregister.fhircore.quest.ml
 
+import kotlin.math.exp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -115,62 +116,95 @@ class ScreeningOutputInterpreterTest {
   }
 
   @Test
-  fun `3-class softmax members are combined by the shipped rule`() {
-    // The plan's worked example: m1 high-risk, m2 low-risk, m3 non-suspicious.
-    val result =
-      interpretThreeClass(
-        floatArrayOf(0.1f, 0.2f, 0.7f),
-        floatArrayOf(0.2f, 0.6f, 0.2f),
-        floatArrayOf(0.8f, 0.1f, 0.1f),
-      )
+  fun `3-class members emit logits and are combined by the shipped table`() {
+    // m1 says high-risk, m2 says non-suspicious: the table gives low-risk.
+    val result = interpretThreeClass(floatArrayOf(-1f, 0f, 3f), floatArrayOf(4f, 1f, -2f))
 
+    assertEquals(listOf("m1", "m2"), result.members.map { it.member.id })
     assertEquals(
-      listOf(ModelCatalog.HIGH_RISK_SUSPICIOUS, ModelCatalog.LOW_RISK_SUSPICIOUS, ModelCatalog.NON_SUSPICIOUS),
+      listOf(ModelCatalog.HIGH_RISK_SUSPICIOUS, ModelCatalog.NON_SUSPICIOUS),
       result.members.map { it.predictedClass.id },
     )
-    // High-risk needs all 3 (has 1); at-least-low-risk needs a majority (has 2).
     assertEquals(ModelCatalog.LOW_RISK_SUSPICIOUS, result.finalClass.id)
     assertTrue(result.finalClass.isRefer)
+
+    // Softmax is applied by the app: exp(3) / (exp(-1) + exp(0) + exp(3)).
+    val m1 = softmax(-1f, 0f, 3f)
+    val m2 = softmax(4f, 1f, -2f)
+    assertEquals(m1[2], result.members[0].probability, 1e-6f)
+    assertEquals(1f, result.members[0].classProbabilities.values.sum(), 1e-5f)
     // Confidence = mean probability the members give the final class.
-    assertEquals((0.2f + 0.6f + 0.1f) / 3 * 100, result.confidence, 1e-3f)
+    assertEquals((m1[1] + m2[1]) / 2 * 100, result.confidence, 1e-3f)
+    assertTrue(result.lowConfidence)
 
     val map = result.toResultMap()
     assertEquals("low-risk-suspicious", map["camera_prediction"])
     assertEquals("high-risk-suspicious", map["model6_prediction"])
-    assertEquals("low-risk-suspicious", map["model8_prediction"])
-    assertEquals("non-suspicious", map["model82_prediction"])
-    assertEquals("70.0", map["model6_confidence"])
+    assertEquals("non-suspicious", map["model8_prediction"])
+    assertFalse(map.containsKey("model82_prediction"))
+    assertEquals((m1[2] * 100).toString(), map["model6_confidence"])
     assertEquals(ModelCatalog.THREE_CLASS_MODEL_ID, map["model_id"])
     assertEquals("low-risk-suspicious", map["ai_class"])
+    assertEquals("m1,m2", map["ai_members"])
   }
 
   @Test
-  fun `3-class all high-risk is high-risk and all agreeing non-suspicious is non-suspicious`() {
-    val high = floatArrayOf(0.05f, 0.15f, 0.8f)
-    val none = floatArrayOf(0.9f, 0.05f, 0.05f)
+  fun `3-class members that agree give their class`() {
+    val high = floatArrayOf(-2f, 0f, 5f)
+    val none = floatArrayOf(6f, 0f, -3f)
 
-    assertEquals(ModelCatalog.HIGH_RISK_SUSPICIOUS, interpretThreeClass(high, high, high).finalClass.id)
-    assertEquals(ModelCatalog.NON_SUSPICIOUS, interpretThreeClass(none, none, none).finalClass.id)
+    assertEquals(ModelCatalog.HIGH_RISK_SUSPICIOUS, interpretThreeClass(high, high).finalClass.id)
+    assertEquals(ModelCatalog.NON_SUSPICIOUS, interpretThreeClass(none, none).finalClass.id)
   }
 
   @Test
-  fun `a softmax tie goes to the more serious class`() {
-    val tie = floatArrayOf(0.2f, 0.4f, 0.4f)
+  fun `a site running one 3-class member gets that member's answer`() {
+    val onlyM2 = threeClass.defaultRule.copy(members = listOf("m2"))
 
-    val member = interpretThreeClass(tie, tie, tie).members.first()
+    val result = interpretThreeClass(floatArrayOf(-2f, 0f, 5f), rule = onlyM2)
+
+    assertEquals(listOf("m2"), result.members.map { it.member.id })
+    assertEquals(ModelCatalog.HIGH_RISK_SUSPICIOUS, result.finalClass.id)
+    val map = result.toResultMap()
+    assertEquals("high-risk-suspicious", map["model8_prediction"])
+    assertFalse(map.containsKey("model6_prediction"))
+    assertEquals("m2", map["ai_members"])
+    assertEquals(softmax(-2f, 0f, 5f)[2] * 100, result.confidence, 1e-3f)
+  }
+
+  @Test
+  fun `a tie goes to the more serious class`() {
+    val tie = floatArrayOf(0f, 2f, 2f)
+
+    val member = interpretThreeClass(tie, tie).members.first()
 
     assertEquals(ModelCatalog.HIGH_RISK_SUSPICIOUS, member.predictedClass.id)
   }
 
   @Test
-  fun `softmax outputs that do not sum to 1 are rejected as missing Softmax`() {
+  fun `non-finite logits are rejected`() {
+    assertThrows(OnnxContractException::class.java) {
+      interpretThreeClass(floatArrayOf(Float.NaN, 0f, 1f), floatArrayOf(0f, 0f, 1f))
+    }
+  }
+
+  @Test
+  fun `a model with Softmax in its graph must emit values that sum to 1`() {
+    val inGraph =
+      threeClass.copy(
+        outputLayout = (threeClass.outputLayout as OutputLayout.Softmax).copy(appliedInGraph = true),
+      )
+    val interpret = { m1: FloatArray, m2: FloatArray ->
+      ScreeningOutputInterpreter.interpret(inGraph, inGraph.defaultRule, RuleSource.SHIPPED, listOf(m1, m2))
+    }
+
+    assertEquals(
+      ModelCatalog.HIGH_RISK_SUSPICIOUS,
+      interpret(floatArrayOf(0.1f, 0.2f, 0.7f), floatArrayOf(0.2f, 0.6f, 0.2f)).finalClass.id,
+    )
     val error =
       assertThrows(OnnxContractException::class.java) {
-        interpretThreeClass(
-          floatArrayOf(0.9f, 0.9f, 0.9f),
-          floatArrayOf(0.1f, 0.1f, 0.8f),
-          floatArrayOf(0.1f, 0.1f, 0.8f),
-        )
+        interpret(floatArrayOf(0.9f, 0.9f, 0.9f), floatArrayOf(0.1f, 0.1f, 0.8f))
       }
     assertTrue(error.message!!.contains("Softmax"))
   }
@@ -178,8 +212,9 @@ class ScreeningOutputInterpreterTest {
   @Test
   fun `wrong output sizes and member counts are rejected`() {
     assertThrows(OnnxContractException::class.java) {
-      interpretThreeClass(floatArrayOf(0.5f, 0.5f), floatArrayOf(0.5f, 0.5f), floatArrayOf(0.5f, 0.5f))
+      interpretThreeClass(floatArrayOf(0.5f, 0.5f), floatArrayOf(0.5f, 0.5f))
     }
+    assertThrows(OnnxContractException::class.java) { interpretThreeClass(floatArrayOf(0f, 0f, 1f)) }
     assertThrows(OnnxContractException::class.java) { interpretBinary(0.9f, 0.9f) }
   }
 
@@ -211,6 +246,11 @@ class ScreeningOutputInterpreterTest {
 
     assertEquals(1f, result.members[0].probability, 0f)
     assertEquals(0f, result.members[1].probability, 0f)
+  }
+
+  private fun softmax(vararg logits: Float): List<Float> {
+    val exponentials = logits.map { exp(it.toDouble()) }
+    return exponentials.map { (it / exponentials.sum()).toFloat() }
   }
 
   private fun legacyMap(

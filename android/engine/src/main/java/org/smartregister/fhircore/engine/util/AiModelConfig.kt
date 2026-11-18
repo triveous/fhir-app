@@ -27,8 +27,14 @@ package org.smartregister.fhircore.engine.util
  *   in which case the app uses its default (today's 2-class) model.
  * @property rule the optional combine-rule override, as the JSON string the server stores. Null
  *   when the site uses the rule that ships with the model. The app validates it before use.
+ * @property members which of the model's members the site runs, as the comma-separated ids the
+ *   server stores, e.g. `m1` or `m1,m2`. Null runs what the rule says (every member by default).
  */
-data class AiModelConfig(val modelId: String? = null, val rule: String? = null) {
+data class AiModelConfig(
+  val modelId: String? = null,
+  val rule: String? = null,
+  val members: String? = null,
+) {
   companion object {
     val NONE = AiModelConfig()
   }

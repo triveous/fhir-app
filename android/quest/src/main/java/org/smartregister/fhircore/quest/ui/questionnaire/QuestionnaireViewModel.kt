@@ -109,6 +109,8 @@ import org.smartregister.fhircore.quest.ui.register.customui.MODEL8_PREDICTION_U
 import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_CONFIDENCE_URL
 import org.smartregister.fhircore.quest.ui.register.customui.MODEL82_PREDICTION_URL
 import org.smartregister.fhircore.quest.util.AI_RESULT_SUFFIX
+import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_MODEL_LINK_ID
+import org.smartregister.fhircore.quest.util.CASE_LEVEL_AI_RULE_LINK_ID
 import org.smartregister.fhircore.quest.util.CONFIDENCE_PERCENTAGE_URL
 import org.smartregister.fhircore.quest.util.DraftsUtils.getAllDraftsJsonFromSharedPreferences
 import org.smartregister.fhircore.quest.util.DraftsUtils.parseDraftResponses
@@ -1877,6 +1879,34 @@ data class UnansweredRequiredQuestion(
   val linkId: String,
   val label: String,
 )
+
+/**
+ * Records on the case which model and combine rule produced its AI result, as two answers next to
+ * `case-level-ai-result`: [CASE_LEVEL_AI_MODEL_LINK_ID] (the model id, e.g. `oral-3class-v1`) and
+ * [CASE_LEVEL_AI_RULE_LINK_ID] (the rule id, e.g. `oral-3class-v1/m1-m2-table`, or
+ * `oral-3class-v1/m1-only` when one member ran). Earlier values are replaced, so a case never
+ * carries two.
+ */
+fun QuestionnaireResponse.recordAiModelAndRule(active: ActiveAiModel) {
+  val values =
+    mapOf(
+      CASE_LEVEL_AI_MODEL_LINK_ID to active.model.id,
+      CASE_LEVEL_AI_RULE_LINK_ID to active.rule.id,
+    )
+  item.removeAll { it.linkId in values.keys }
+  values.forEach { (answerLinkId, answerValue) ->
+    addItem(
+      QuestionnaireResponse.QuestionnaireResponseItemComponent().apply {
+        linkId = answerLinkId
+        addAnswer(
+          QuestionnaireResponse.QuestionnaireResponseItemAnswerComponent().apply {
+            value = StringType(answerValue)
+          },
+        )
+      },
+    )
+  }
+}
 
 /**
  * The case-level AI result.

@@ -18,6 +18,7 @@ package org.smartregister.fhircore.quest.ml
 
 import java.text.DecimalFormat
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.ln
 import org.smartregister.fhircore.quest.camerax.CameraxLauncherFragment
 import org.smartregister.fhircore.quest.util.PostHogAnalytics
@@ -76,6 +77,7 @@ data class PhotoClassification(
       PostHogAnalytics.Props.RULE_ID to rule.id,
       PostHogAnalytics.Props.RULE_VERSION to rule.version,
       PostHogAnalytics.Props.RULE_SOURCE to ruleSource.telemetryName,
+      PostHogAnalytics.Props.AI_MEMBERS to members.joinToString(",") { it.member.id },
     )
 
   /**
@@ -152,7 +154,8 @@ data class PhotoClassification(
 /**
  * Turns each member's raw output into its answer, then applies the combine rule's `photo` block.
  * How an output is read comes from the model's [OutputLayout]: one sigmoid probability (today's
- * 2-class models) or one softmax probability per class. Arithmetic for the sigmoid layout is the
+ * 2-class models) or one value per class (softmax probabilities, or logits the app turns into
+ * them). Arithmetic for the sigmoid layout is the
  * PyTorch pipeline's, so 2-class results are unchanged.
  */
 object ScreeningOutputInterpreter {
@@ -176,7 +179,15 @@ object ScreeningOutputInterpreter {
     val predictions =
       members.mapIndexed { index, member -> predict(model, member, outputs[index]) }
     val finalClass =
-      CombineRuleEvaluator.decide(model.classes, predictions.map { it.predictedClass.id }, rule.photo)
+      try {
+        CombineRuleEvaluator.decidePhoto(
+          model.classes,
+          predictions.map { it.predictedClass.id },
+          rule.photo,
+        )
+      } catch (e: IllegalStateException) {
+        throw OnnxContractException("Rule ${rule.id} can't combine ${members.map { it.id }}: ${e.message}")
+      }
     val confidence =
       when (model.confidenceMode) {
         ConfidenceMode.MEAN_MEMBER_CONFIDENCE -> predictions.map { it.confidence }.average().toFloat()
@@ -245,8 +256,9 @@ object ScreeningOutputInterpreter {
         "Member ${member.id} emitted ${raw.size} values, expected ${layout.classOrder.size}",
       )
     }
-    checkProbabilities(member, raw, hint = "Is Softmax missing from the exported graph?")
-    val probabilities = raw.map { it.coerceIn(0f, 1f) }
+    val values = if (layout.appliedInGraph) raw else softmax(member, raw)
+    checkProbabilities(member, values, hint = "Is Softmax missing from the exported graph?")
+    val probabilities = values.map { it.coerceIn(0f, 1f) }
     if (abs(probabilities.sum() - 1f) > SOFTMAX_SUM_TOLERANCE) {
       throw OnnxContractException(
         "Member ${member.id} outputs ${raw.contentToString()} do not sum to 1. " +
@@ -279,6 +291,19 @@ object ScreeningOutputInterpreter {
           "(offending: $outOfRange). $hint",
       )
     }
+  }
+
+  /** Softmax of raw scores, for models whose graph stops at the logits. */
+  private fun softmax(member: ModelMember, logits: FloatArray): FloatArray {
+    if (logits.any { !it.isFinite() }) {
+      throw OnnxContractException(
+        "Member ${member.id} outputs ${logits.contentToString()} are not finite scores",
+      )
+    }
+    val highest = logits.max()
+    val exponentials = logits.map { exp((it - highest).toDouble()) }
+    val sum = exponentials.sum()
+    return FloatArray(logits.size) { (exponentials[it] / sum).toFloat() }
   }
 
   /** The binary entropy the 2-class pipeline always reported. */

@@ -67,7 +67,8 @@ object PostHogAnalytics {
 
         /**
          * The site's remote combine rule (`ai-model.rule`) failed the app's checks, so the rule
-         * shipped with the model is used instead. Sent once per rule per app process.
+         * shipped with the model is used instead; or its `ai-model.members` failed them, so it is
+         * ignored. Sent once per rejected value per app process.
          */
         const val AI_RULE_REJECTED = "ai_rule_rejected"
         const val AI_RESULT_VIEWED = "ai_result_viewed"
@@ -135,6 +136,9 @@ object PostHogAnalytics {
         const val RULE_VERSION = "rule_version"
         const val RULE_SOURCE = "rule_source"
         const val RULE_REJECT_REASON = "rule_reject_reason"
+
+        /** Ids of the members that ran for a photo, comma-separated, e.g. `m1,m2`. */
+        const val AI_MEMBERS = "ai_members"
 
         /** Why AI can't run on this device: e.g. `unknown_model`, `model_not_bundled`. */
         const val AI_UNAVAILABLE_REASON = "ai_unavailable_reason"

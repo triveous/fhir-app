@@ -24,7 +24,38 @@ import org.junit.Test
 
 class CombineRuleParserTest {
 
-  private val model = ModelCatalog.THREE_CLASS
+  /** The shipped 3-class model has two members; the vote checks are exercised with three. */
+  private val model =
+    ModelCatalog.THREE_CLASS.copy(
+      members = listOf("m1", "m2", "m3").map { ModelMember(id = it, resultKeyPrefix = it) },
+      onnxAssets = emptyList(),
+    )
+
+  private val shipped = ModelCatalog.THREE_CLASS
+
+  private val tableRule =
+    """
+    {
+      "schema": 1,
+      "id": "site/table",
+      "version": 1,
+      "modelId": "oral-3class-v1",
+      "photo": {
+        "method": "table",
+        "table": [
+          ["non-suspicious", "non-suspicious", "non-suspicious"],
+          ["non-suspicious", "low-risk-suspicious", "non-suspicious"],
+          ["non-suspicious", "high-risk-suspicious", "low-risk-suspicious"],
+          ["low-risk-suspicious", "non-suspicious", "non-suspicious"],
+          ["low-risk-suspicious", "low-risk-suspicious", "low-risk-suspicious"],
+          ["low-risk-suspicious", "high-risk-suspicious", "high-risk-suspicious"],
+          ["high-risk-suspicious", "non-suspicious", "low-risk-suspicious"],
+          ["high-risk-suspicious", "low-risk-suspicious", "high-risk-suspicious"],
+          ["high-risk-suspicious", "high-risk-suspicious", "high-risk-suspicious"]
+        ]
+      }
+    }
+    """
 
   private val sample =
     """
@@ -77,17 +108,17 @@ class CombineRuleParserTest {
           ModelCatalog.LOW_RISK_SUSPICIOUS to Votes.Majority,
         ),
       ),
-      rule.photo.votesNeeded,
+      (rule.photo as VoteBlock).votesNeeded,
     )
-    assertEquals(ModelCatalog.NON_SUSPICIOUS, rule.photo.fallback)
+    assertEquals(ModelCatalog.NON_SUSPICIOUS, (rule.photo as VoteBlock).fallback)
     assertEquals(VotesNeeded.Same(Votes.AnyOne), rule.case.votesNeeded)
-    // Behaves like the shipped default rule on the worked example.
+    // High-risk needs all 3 (has 1); at-least-low-risk needs a majority (has 2).
     assertEquals(
       ModelCatalog.LOW_RISK_SUSPICIOUS,
       CombineRuleEvaluator.decide(
         model.classes,
         listOf(ModelCatalog.HIGH_RISK_SUSPICIOUS, ModelCatalog.LOW_RISK_SUSPICIOUS, ModelCatalog.NON_SUSPICIOUS),
-        rule.photo,
+        rule.photo as VoteBlock,
       ).id,
     )
   }
@@ -97,7 +128,42 @@ class CombineRuleParserTest {
     // docs/features/ai-model holds the samples the server team copies; keep them valid.
     val dir = listOf(File("../docs/features/ai-model"), File("docs/features/ai-model")).firstOrNull { it.isDirectory }
     assumeTrue("sample folder not found from ${File(".").absolutePath}", dir != null)
-    accepted(File(dir, "combine-rule.sample.json").readText())
+    val result = CombineRuleParser.parse(File(dir, "combine-rule.sample.json").readText(), shipped)
+    assertTrue("expected accepted, got $result", result is RuleParseResult.Accepted)
+    // The sample is the rule the app ships, so the docs and the app can't drift apart.
+    assertEquals(shipped.defaultRule.photo, (result as RuleParseResult.Accepted).rule.photo)
+  }
+
+  @Test
+  fun `a table rule is read as the table it lists`() {
+    val result = CombineRuleParser.parse(tableRule, shipped)
+
+    assertTrue("expected accepted, got $result", result is RuleParseResult.Accepted)
+    assertEquals(shipped.defaultRule.photo, (result as RuleParseResult.Accepted).rule.photo)
+  }
+
+  @Test
+  fun `a table that is incomplete, repeated, mis-sized or misnamed is rejected`() {
+    val firstRow = """["non-suspicious", "non-suspicious", "non-suspicious"],"""
+    val cases =
+      mapOf(
+        tableRule.replace(firstRow, "") to "8 row(s) but there are 9",
+        tableRule.replace(firstRow, firstRow + firstRow) to "repeats",
+        tableRule.replace(firstRow, """["non-suspicious", "non-suspicious"],""") to "2 member answer(s) and the result",
+        tableRule.replace(firstRow, """["non-suspicious", "non-suspicious", "benign"],""") to "benign",
+        tableRule.replace(firstRow, """["non-suspicious", 0, "non-suspicious"],""") to "class ids",
+        tableRule.replace("\"table\": [", "\"fallback\": \"non-suspicious\", \"table\": [") to "unknown field fallback",
+        tableRule.replace("\"photo\": {", "\"members\": [\"m1\"], \"photo\": {") to "1 member answer(s)",
+        """{"schema":1,"id":"r","version":1,"modelId":"oral-3class-v1","photo":{"method":"table"}}""" to
+          "photo.table is required",
+        """{"schema":1,"id":"r","version":1,"modelId":"oral-3class-v1","photo":{"votesNeeded":"any"},"case":{"method":"table"}}""" to
+          "only for photo",
+      )
+
+    cases.forEach { (json, expected) ->
+      val reason = rejectedReason(json, shipped)
+      assertTrue("for $json: '$reason' should mention '$expected'", reason.contains(expected))
+    }
   }
 
   @Test
@@ -108,9 +174,10 @@ class CombineRuleParserTest {
       )
 
     assertEquals(null, rule.members)
-    assertEquals(VotesNeeded.Same(Votes.AtLeast(2)), rule.photo.votesNeeded)
-    assertTrue(rule.photo.countMoreSevere)
-    assertEquals(null, rule.photo.fallback)
+    val photo = rule.photo as VoteBlock
+    assertEquals(VotesNeeded.Same(Votes.AtLeast(2)), photo.votesNeeded)
+    assertTrue(photo.countMoreSevere)
+    assertEquals(null, photo.fallback)
     assertEquals(CombineRule.MOST_SERIOUS_PHOTO, rule.case)
   }
 
@@ -150,7 +217,7 @@ class CombineRuleParserTest {
         sample.replace("\"schema\": 1,", "\"schema\": 1, \"lowConfidence\": {\"below\": 60},") to "lowConfidence",
         sample.replace("\"schema\": 1,", "\"schema\": 1, \"quorum\": 1,") to "unknown field quorum",
         withPhoto("\"method\": \"mean\", \"weights\": {\"m1\": 1},") to "weights is not supported yet",
-        withPhoto("\"method\": \"teleport\",") to "vote or mean",
+        withPhoto("\"method\": \"teleport\",") to "vote, table or mean",
         """{"schema":1,"id":"r","version":1,"modelId":"oral-3class-v1"}""" to "photo is required",
         """{"schema":1,"id":"r","version":1,"modelId":"oral-3class-v1","photo":{"votesNeeded":{}}}""" to
           "at least one class",

@@ -69,8 +69,11 @@ sealed interface VotesNeeded {
   }
 }
 
+/** How the answers of the members that ran become the photo's class. */
+sealed interface PhotoRule
+
 /**
- * One `photo` or `case` block of a rule (method `vote`, the only method this release supports).
+ * A `photo` or `case` block with method `vote`.
  *
  * @property fallback the class when none gets enough votes; null means the least serious class.
  */
@@ -78,7 +81,42 @@ data class VoteBlock(
   val votesNeeded: VotesNeeded = VotesNeeded.Same(Votes.AnyOne),
   val countMoreSevere: Boolean = true,
   val fallback: String? = null,
-)
+) : PhotoRule
+
+/**
+ * A `photo` block with method `table`: the photo's class is looked up from the members' answers.
+ *
+ * When only one member runs there is nothing to combine, so that member's answer is the photo's
+ * class and the table is not used.
+ *
+ * @property rows the photo's class for each combination of member answers. A key lists one class
+ *   id per running member, in model order.
+ */
+data class ClassTable(val rows: Map<List<String>, String>) : PhotoRule {
+
+  /**
+   * Why this table can't be used for [memberCount] members answering with [classes], or null when
+   * it gives exactly one result for every combination of answers.
+   */
+  fun problem(classes: List<AiClass>, memberCount: Int): String? {
+    val classIds = classes.map { it.id }.toSet()
+    if (memberCount < 2) return "a table needs at least 2 members"
+    rows.forEach { (answers, result) ->
+      if (answers.size != memberCount) {
+        return "table row $answers must list $memberCount member answer(s)"
+      }
+      (answers + result).firstOrNull { it !in classIds }?.let {
+        return "table names $it, which is not a class of the model"
+      }
+    }
+    var combinations = 1
+    repeat(memberCount) { combinations *= classIds.size }
+    if (rows.size != combinations) {
+      return "table has ${rows.size} row(s) but there are $combinations combinations of answers"
+    }
+    return null
+  }
+}
 
 /** Whether a rule came with the app or from the site's feature flags. */
 enum class RuleSource(val telemetryName: String) {
@@ -98,7 +136,7 @@ data class CombineRule(
   val version: Int,
   val modelId: String,
   val members: List<String>? = null,
-  val photo: VoteBlock,
+  val photo: PhotoRule,
   val case: VoteBlock = MOST_SERIOUS_PHOTO,
 ) {
   companion object {
@@ -117,6 +155,22 @@ data class CombineRule(
  * or no vote was cast, the result is the block's fallback.
  */
 object CombineRuleEvaluator {
+
+  /**
+   * The photo's class from [votes], one class id per member that ran, in model order.
+   *
+   * @throws IllegalStateException when a [ClassTable] has no row for [votes]; the table's checks
+   *   ([ClassTable.problem]) rule that out for the members it was written for.
+   */
+  fun decidePhoto(classes: List<AiClass>, votes: List<String>, rule: PhotoRule): AiClass =
+    when (rule) {
+      is VoteBlock -> decide(classes, votes, rule)
+      is ClassTable -> {
+        val resultId = if (votes.size == 1) votes.single() else rule.rows[votes]
+        classes.firstOrNull { it.id == resultId }
+          ?: throw IllegalStateException("The combine table has no result for $votes")
+      }
+    }
 
   fun decide(classes: List<AiClass>, votes: List<String>, block: VoteBlock): AiClass {
     val severityOf = classes.associate { it.id to it.severity }

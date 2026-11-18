@@ -20,11 +20,17 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import java.io.File
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.smartregister.fhircore.engine.util.AiModelConfig
@@ -169,10 +175,144 @@ class AiModelSelectorTest {
     assertEquals("Non-Suspicious", binary.classById(ModelCatalog.NON_SUSPICIOUS)?.savedValue)
     assertEquals("non-suspicious", binary.classById(ModelCatalog.NON_SUSPICIOUS)?.caseValue)
     assertEquals(listOf("model6", "model8", "model82"), binary.members.map { it.resultKeyPrefix })
-    // The 3-class members reuse the same three per-model FHIR fields.
+    // The two 3-class members reuse two of the same per-model FHIR fields.
+    assertEquals(listOf("model6", "model8"), ModelCatalog.THREE_CLASS.members.map { it.resultKeyPrefix })
+  }
+
+  @Test
+  fun `a site can run one model of the 3-class pair or both`() {
+    every { onnxEngine.isBundled(ModelCatalog.THREE_CLASS) } returns true
+    val model = ModelCatalog.THREE_CLASS
+    fun membersFor(setting: String?) =
+      ready(selector.select(AiModelConfig(model.id, members = setting))).let { active ->
+        active.model.activeMembers(active.rule).map { it.id }
+      }
+
+    assertEquals(listOf("m1", "m2"), membersFor(null))
+    assertEquals(listOf("m1", "m2"), membersFor("m1,m2"))
+    assertEquals(listOf("m1"), membersFor("m1"))
+    assertEquals(listOf("m2"), membersFor(" m2 "))
+    // Members run in model order whatever order the site lists them in.
+    assertEquals(listOf("m1", "m2"), membersFor("m2, m1"))
+  }
+
+  @Test
+  fun `a selection says whether the site set its rule and why a setting was ignored`() {
+    every { onnxEngine.isBundled(ModelCatalog.THREE_CLASS) } returns true
+    val threeClass = ModelCatalog.THREE_CLASS_MODEL_ID
+    val goodRule =
+      """{"schema":1,"id":"site/any","version":4,"modelId":"oral-3class-v1","photo":{"votesNeeded":"any"}}"""
+    fun active(config: AiModelConfig) = ready(selector.select(config))
+
+    active(AiModelConfig(threeClass)).let {
+      assertEquals(false, it.ruleSetBySite)
+      assertNull(it.ignoredSetting)
+    }
+    assertEquals(true, active(AiModelConfig(threeClass, goodRule)).ruleSetBySite)
+    assertEquals(true, active(AiModelConfig(threeClass, members = "m1")).ruleSetBySite)
+    active(AiModelConfig(threeClass, rule = "not json")).let {
+      assertEquals(false, it.ruleSetBySite)
+      assertEquals("rule: rule is not a JSON object", it.ignoredSetting)
+    }
+    active(AiModelConfig(threeClass, members = "m9")).let {
+      assertEquals(false, it.ruleSetBySite)
+      assertEquals("members names m9, which model oral-3class-v1 does not have", it.ignoredSetting)
+    }
+  }
+
+  @Test
+  fun `the QA feature-flag files give the results their README lists`() {
+    every { onnxEngine.isBundled(ModelCatalog.THREE_CLASS) } returns true
+    val dir =
+      listOf(File("../docs/qa/ai-3class-remote"), File("docs/qa/ai-3class-remote")).firstOrNull { it.isDirectory }
+    assumeTrue("QA folder not found from ${File(".").absolutePath}", dir != null)
+
+    fun config(file: String): AiModelConfig {
+      val extensions = Json.parseToJsonElement(File(dir, file).readText()).jsonObject["extension"]!!.jsonArray
+      val aiModel =
+        extensions.map { it.jsonObject }.firstOrNull { it["url"]!!.jsonPrimitive.content.endsWith("/ai-model") }
+          ?: return AiModelConfig.NONE
+      val values =
+        aiModel["extension"]!!.jsonArray.associate {
+          it.jsonObject["url"]!!.jsonPrimitive.content to it.jsonObject["valueString"]!!.jsonPrimitive.content
+        }
+      return AiModelConfig(values["id"], values["rule"], values["members"])
+    }
+    // model | models running | rule | rule set by the flag | ignored setting
+    fun shown(file: String): String =
+      when (val selection = selector.select(config(file))) {
+        is AiModelSelection.Ready ->
+          selection.active.run {
+            val members = model.activeMembers(rule).joinToString(",") { it.id }
+            "${model.id} | $members | ${rule.id} | $ruleSetBySite | $ignoredSetting"
+          }
+        is AiModelSelection.Unavailable -> "${selection.modelId} | ${selection.reason.telemetryName}"
+      }
+
+    assertEquals("oral-binary-v1 | v6,v8,v82 | oral-binary-v1/all-agree | false | null", shown("01-2class-default.json"))
+    assertEquals("oral-3class-v1 | m1,m2 | oral-3class-v1/m1-m2-table | false | null", shown("02-3class-both-models.json"))
+    assertEquals("oral-3class-v1 | m1 | oral-3class-v1/m1-only | true | null", shown("03-3class-m1-only.json"))
+    assertEquals("oral-3class-v1 | m2 | oral-3class-v1/m2-only | true | null", shown("04-3class-m2-only.json"))
+    assertEquals("oral-3class-v1 | m1,m2 | oral-3class-v1/m1-m2-any | true | null", shown("05-3class-rule-from-flag.json"))
     assertEquals(
-      binary.members.map { it.resultKeyPrefix },
-      ModelCatalog.THREE_CLASS.members.map { it.resultKeyPrefix },
+      "oral-3class-v1 | m1,m2 | oral-3class-v1/m1-m2-table | false | rule: schema 2 is newer than this app supports",
+      shown("06-3class-invalid-rule.json"),
     )
+    assertEquals("oral-4class-v1 | unknown_model", shown("07-unknown-model.json"))
+    assertEquals("oral-3class-v1 | m1,m2 | oral-3class-v1/m1-m2-table | false | null", shown("08-ai-off.json"))
+  }
+
+  @Test
+  fun `the rule id says whether the table or one member decided`() {
+    every { onnxEngine.isBundled(ModelCatalog.THREE_CLASS) } returns true
+    fun ruleId(config: AiModelConfig) = ready(selector.select(config)).rule.id
+    val threeClass = ModelCatalog.THREE_CLASS_MODEL_ID
+
+    assertEquals("oral-3class-v1/m1-m2-table", ruleId(AiModelConfig(threeClass)))
+    assertEquals("oral-3class-v1/m1-m2-table", ruleId(AiModelConfig(threeClass, members = "m1,m2")))
+    assertEquals("oral-3class-v1/m1-only", ruleId(AiModelConfig(threeClass, members = "m1")))
+    assertEquals("oral-3class-v1/m2-only", ruleId(AiModelConfig(threeClass, members = "m2")))
+    assertEquals("oral-binary-v1/all-agree", ruleId(AiModelConfig.NONE))
+    assertEquals("oral-binary-v1/v8-only", ruleId(AiModelConfig(null, members = "v8")))
+  }
+
+  @Test
+  fun `one member running alone gives its own answer and keeps the rule's case block and source`() {
+    every { onnxEngine.isBundled(ModelCatalog.THREE_CLASS) } returns true
+    val model = ModelCatalog.THREE_CLASS
+
+    val active = ready(selector.select(AiModelConfig(model.id, members = "m2")))
+
+    assertEquals(listOf("m2"), active.rule.members)
+    assertEquals(model.defaultRule.case, active.rule.case)
+    assertEquals(RuleSource.SHIPPED, active.ruleSource)
+    model.classes.forEach { answer ->
+      assertEquals(
+        answer,
+        CombineRuleEvaluator.decidePhoto(model.classes, listOf(answer.id), active.rule.photo),
+      )
+    }
+  }
+
+  @Test
+  fun `a members setting that fails the checks is ignored, so every member runs`() {
+    every { onnxEngine.isBundled(ModelCatalog.THREE_CLASS) } returns true
+
+    listOf("m3", "m1,m1", " , ", "m1;m2").forEach { setting ->
+      val active = ready(selector.select(AiModelConfig(ModelCatalog.THREE_CLASS_MODEL_ID, members = setting)))
+
+      assertSame("for '$setting'", ModelCatalog.THREE_CLASS.defaultRule, active.rule)
+    }
+  }
+
+  @Test
+  fun `the members setting wins over a remote rule's own members and applies to the 2-class model`() {
+    val rule =
+      """{"schema":1,"id":"site/two","version":1,"modelId":"oral-binary-v1","members":["v6","v8"],"photo":{"votesNeeded":"all"}}"""
+
+    val active = ready(selector.select(AiModelConfig(ModelCatalog.BINARY_MODEL_ID, rule, members = "v82")))
+
+    assertEquals(RuleSource.REMOTE, active.ruleSource)
+    assertEquals(listOf("v82"), active.model.activeMembers(active.rule).map { it.id })
   }
 }

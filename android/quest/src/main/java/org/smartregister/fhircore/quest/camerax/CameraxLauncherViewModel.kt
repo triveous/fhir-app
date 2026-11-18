@@ -284,6 +284,7 @@ constructor(
                 PostHogAnalytics.Props.RULE_ID,
                 PostHogAnalytics.Props.RULE_VERSION,
                 PostHogAnalytics.Props.RULE_SOURCE,
+                PostHogAnalytics.Props.AI_MEMBERS,
             )
 
         private const val STEP_PHOTO_CAPTURE_STARTED = "photo_capture_started"

@@ -32,8 +32,9 @@ import timber.log.Timber
  *
  * 1. Read the photo with OpenCV as BGR uint8.
  * 2. Resize (bicubic) to the size the model declares.
- * 3. Pack into the model's input tensor — no normalisation; see [ModelInputSpec].
- * 4. Run the members the combine rule keeps; outputs are already probabilities (in the graph).
+ * 3. Pack into the model's input tensor. Models with a uint8 input get the raw pixels; float
+ *    models get them through the descriptor's [InputPreprocessing]. See [ModelInputSpec].
+ * 4. Run the members the screening keeps, reading the output the descriptor names.
  * 5. Read them per the model's descriptor and combine them with the rule
  *    ([ScreeningOutputInterpreter]), emitting the same result keys and analytics as before.
  *

@@ -24,7 +24,7 @@
         },
         {
           "url": "rule",
-          "valueString": "{\"schema\":1,\"id\":\"oral-3class-v1/majority\",\"version\":1,\"modelId\":\"oral-3class-v1\",\"members\":[\"m1\",\"m2\",\"m3\"],\"photo\":{\"method\":\"vote\",\"countMoreSevere\":true,\"votesNeeded\":{\"high-risk-suspicious\":\"all\",\"low-risk-suspicious\":\"majority\"},\"fallback\":\"non-suspicious\"},\"case\":{\"method\":\"vote\",\"countMoreSevere\":true,\"votesNeeded\":\"any\",\"fallback\":\"non-suspicious\"}}"
+          "valueString": "{\"schema\":1,\"id\":\"oral-3class-v1/m1-m2-table\",\"version\":1,\"modelId\":\"oral-3class-v1\",\"members\":[\"m1\",\"m2\"],\"photo\":{\"method\":\"table\",\"table\":[[\"non-suspicious\",\"non-suspicious\",\"non-suspicious\"],[\"non-suspicious\",\"low-risk-suspicious\",\"non-suspicious\"],[\"non-suspicious\",\"high-risk-suspicious\",\"low-risk-suspicious\"],[\"low-risk-suspicious\",\"non-suspicious\",\"non-suspicious\"],[\"low-risk-suspicious\",\"low-risk-suspicious\",\"low-risk-suspicious\"],[\"low-risk-suspicious\",\"high-risk-suspicious\",\"high-risk-suspicious\"],[\"high-risk-suspicious\",\"non-suspicious\",\"low-risk-suspicious\"],[\"high-risk-suspicious\",\"low-risk-suspicious\",\"high-risk-suspicious\"],[\"high-risk-suspicious\",\"high-risk-suspicious\",\"high-risk-suspicious\"]]},\"case\":{\"method\":\"vote\",\"countMoreSevere\":true,\"votesNeeded\":\"any\",\"fallback\":\"non-suspicious\"}}"
         }
       ]
     },

@@ -39,7 +39,7 @@ object OnnxModelContract {
    * This is the "3 models → 3 values" layout of slide 3: the outputs are concatenated in list
    * order, so the order here must match [COMPONENTS]. Each file must be self-contained — the engine
    * loads from asset bytes and cannot resolve a `.onnx.data` sidecar, so run
-   * `scripts/embed_onnx_weights.py` on any model exported with external weights.
+   * `scripts/prepare_onnx_models.py` on any model exported with external weights.
    */
   val ASSET_NAMES =
     listOf(
