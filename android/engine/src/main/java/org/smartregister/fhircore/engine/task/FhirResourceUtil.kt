@@ -63,7 +63,7 @@ constructor(
    */
   suspend fun expireOverdueTasks(): List<Task> {
     val fhirEngine = defaultRepository.fhirEngine
-    Timber.i("Fetch and expire overdue tasks")
+    Timber.d("Fetch and expire overdue tasks")
     val tasksResult =
       fhirEngine
         .search<Task> {
@@ -86,7 +86,7 @@ constructor(
         }
         .map { it.resource }
         .filter { it.isPastExpiry() }
-        .also { Timber.i("Going to expire ${it.size} tasks") }
+        .also { logCount(it.size, "Going to expire ${it.size} tasks") }
         .onEach { task ->
           task.status = TaskStatus.CANCELLED
           task.statusReason = expiredConcept()
@@ -116,7 +116,10 @@ constructor(
           defaultRepository.update(task)
         }
 
-    Timber.i("${tasksResult.size} FHIR Tasks status updated to CANCELLED (expired)")
+    logCount(
+      tasksResult.size,
+      "${tasksResult.size} FHIR Tasks status updated to CANCELLED (expired)"
+    )
     return tasksResult
   }
 
@@ -144,7 +147,7 @@ constructor(
     subject: Reference? = null,
     taskResourcesToFilterBy: List<Task>? = null,
   ) {
-    Timber.i("Update upcoming Tasks to due...")
+    Timber.d("Update upcoming Tasks to due...")
 
     val tasks =
       defaultRepository.fhirEngine
@@ -178,7 +181,8 @@ constructor(
         }
         .map { it.resource }
 
-    Timber.i(
+    logCount(
+      tasks.size,
       "Found ${tasks.size} upcoming Tasks (with statuses REQUESTED, ACCEPTED or RECEIVED) to be updated",
     )
 
@@ -230,7 +234,7 @@ constructor(
    * are configured in the application config file.
    */
   suspend fun closeResourcesRelatedToCompletedServiceRequests() {
-    Timber.i("Fetch completed service requests and close related resources")
+    Timber.d("Fetch completed service requests and close related resources")
     defaultRepository.fhirEngine
       .search<ServiceRequest> {
         filter(
@@ -239,10 +243,19 @@ constructor(
         )
       }
       .map { it.resource }
-      .also { Timber.i("Handling ${it.size} completed service Requests") }
+      .also { logCount(it.size, "Handling ${it.size} completed service Requests") }
       .onEach { serviceRequest ->
         // close related resources
         closeRelatedResources(serviceRequest)
       }
+  }
+
+  /**
+   * Logs [message] at INFO only when [count] is non-zero. The quest `ReleaseTree` forwards INFO to
+   * PostHog, and these periodic sweeps find nothing on almost every run; zero results stay at
+   * DEBUG.
+   */
+  private fun logCount(count: Int, message: String) {
+    if (count > 0) Timber.i(message) else Timber.d(message)
   }
 }
