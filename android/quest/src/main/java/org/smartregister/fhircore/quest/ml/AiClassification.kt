@@ -150,6 +150,31 @@ data class InputPreprocessing(
   }
 }
 
+/** How a photo is shrunk to the model's input size. */
+enum class ResizeMethod {
+  /** `cv2.resize(..., INTER_CUBIC)`. Today's 2-class models. */
+  BICUBIC,
+
+  /** Pillow's `resize(..., BILINEAR)`, which averages the source pixels; see [AntialiasedResize]. */
+  BILINEAR_ANTIALIASED,
+}
+
+/**
+ * How the photo file becomes the image a model sees, before [InputPreprocessing].
+ *
+ * @property applyExifRotation turn the photo the way its EXIF orientation says. Without it the
+ *   model sees the pixels as the camera stored them, which on many phones is on their side.
+ */
+data class ImageLoading(
+  val applyExifRotation: Boolean = true,
+  val resize: ResizeMethod = ResizeMethod.BICUBIC,
+) {
+  companion object {
+    /** `cv2.imread` + bicubic `cv2.resize`, as agreed with the ML team for the 2-class models. */
+    val DEFAULT = ImageLoading()
+  }
+}
+
 /** How a photo's confidence is worked out from its members. */
 enum class ConfidenceMode {
   /** Mean of each member's confidence in its own answer: today's 2-class arithmetic. */
@@ -180,6 +205,7 @@ data class ModelDescriptor(
   val confidenceMode: ConfidenceMode,
   val lowConfidencePercent: Float = DEFAULT_LOW_CONFIDENCE_PERCENT,
   val inputPreprocessing: InputPreprocessing = InputPreprocessing.RAW_BGR,
+  val imageLoading: ImageLoading = ImageLoading.DEFAULT,
   /**
    * The one output the app reads from each member's `.onnx` file. Null reads every output, in the
    * order the file declares them.

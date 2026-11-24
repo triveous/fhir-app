@@ -30,8 +30,9 @@ import timber.log.Timber
 /**
  * The ONNX pipeline for any model in [ModelCatalog] whose `.onnx` files are bundled:
  *
- * 1. Read the photo with OpenCV as BGR uint8.
- * 2. Resize (bicubic) to the size the model declares.
+ * 1. Read the photo with OpenCV as BGR uint8, turned per its EXIF orientation or not
+ *    ([ImageLoading.applyExifRotation]).
+ * 2. Resize to the size the model declares, with the model's [ImageLoading.resize].
  * 3. Pack into the model's input tensor. Models with a uint8 input get the raw pixels; float
  *    models get them through the descriptor's [InputPreprocessing]. See [ModelInputSpec].
  * 4. Run the members the screening keeps, reading the output the descriptor names.
@@ -71,7 +72,9 @@ class OnnxScreeningPipeline @Inject constructor(private val engine: OnnxInferenc
   ): Result? {
     val cleanup = mutableListOf<Mat>()
     return try {
-      val original = OpenCVUtils.readBgr(absolutePath)
+      val model = active.model
+      val loading = model.imageLoading
+      val original = OpenCVUtils.readBgr(absolutePath, loading.applyExifRotation)
       if (original == null) {
         PostHogAnalytics.captureError(
           ERROR_SOURCE,
@@ -89,13 +92,18 @@ class OnnxScreeningPipeline @Inject constructor(private val engine: OnnxInferenc
       val qualityProps = ImageQualityAnalyzer.analyze(analyzed)
       if (!runAiInference) return Result(emptyMap(), qualityProps, 0L)
 
-      val model = active.model
       val spec = engine.inputSpec(model)
       val modelInput =
-        if (spec.width == analyzed.width() && spec.height == analyzed.height()) {
-          analyzed
-        } else {
-          OpenCVUtils.resizeBicubic(original, spec.width, spec.height).also(cleanup::add)
+        when (loading.resize) {
+          ResizeMethod.BICUBIC ->
+            if (spec.width == analyzed.width() && spec.height == analyzed.height()) {
+              analyzed
+            } else {
+              OpenCVUtils.resizeBicubic(original, spec.width, spec.height).also(cleanup::add)
+            }
+          ResizeMethod.BILINEAR_ANTIALIASED ->
+            OpenCVUtils.resizeBilinearAntialiased(original, spec.width, spec.height)
+              .also(cleanup::add)
         }
 
       ScreeningTimer.markStep(screeningId, "ai_inference_started")

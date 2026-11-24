@@ -101,7 +101,8 @@ object ModelCatalog {
    * comes from the ML team's table ([THREE_CLASS_TABLE]); with one, it is that member's answer.
    *
    * Not yet confirmed by the ML team, so check before a site is switched to this model:
-   * [THREE_CLASS_PREPROCESSING] (nothing in the files states it) and [THREE_CLASS_OUTPUT_ORDER].
+   * [THREE_CLASS_PREPROCESSING] and [THREE_CLASS_IMAGE_LOADING] (nothing in the files states them),
+   * and [THREE_CLASS_OUTPUT_ORDER].
    *
    * Until every file in [THREE_CLASS_ASSETS] is in `assets/`, sites set to this model see "Failed
    * to enable AI" instead of a wrong result.
@@ -163,6 +164,7 @@ object ModelCatalog {
         ),
       confidenceMode = ConfidenceMode.MEAN_FINAL_CLASS_PROBABILITY,
       inputPreprocessing = THREE_CLASS_PREPROCESSING,
+      imageLoading = THREE_CLASS_IMAGE_LOADING,
       onnxOutputName = "cls_logits",
     )
 
@@ -214,12 +216,17 @@ object ModelCatalog {
     get() = listOf(NON_SUSPICIOUS, LOW_RISK_SUSPICIOUS, HIGH_RISK_SUSPICIOUS)
 
   /**
-   * Assumed input of the 3-class members: RGB, scaled to 0–1, no mean/std (the MobileViTv2
-   * default). Of the candidates tried on docs/test-images it is the one where the two members
-   * agree best, on both the class and the lesion mask; that is evidence, not confirmation.
+   * Input of the 3-class members: BGR, scaled to 0–1, no mean/std. Together with
+   * [THREE_CLASS_IMAGE_LOADING] it gives the ML team's class for every photo and both members in
+   * docs/qa/images_3_class_model_testing (`ThreeClassServerParityTest`); changing any one part
+   * breaks that. Worked out from those 18 photos, not stated by the ML team.
    */
   private val THREE_CLASS_PREPROCESSING
-    get() = InputPreprocessing(channelOrder = ChannelOrder.RGB, scale = 1f / 255f)
+    get() = InputPreprocessing(channelOrder = ChannelOrder.BGR, scale = 1f / 255f)
+
+  /** See [THREE_CLASS_PREPROCESSING]. */
+  private val THREE_CLASS_IMAGE_LOADING
+    get() = ImageLoading(applyExifRotation = false, resize = ResizeMethod.BILINEAR_ANTIALIASED)
 
   /** One file per 3-class member, in member order. */
   private val THREE_CLASS_ASSETS

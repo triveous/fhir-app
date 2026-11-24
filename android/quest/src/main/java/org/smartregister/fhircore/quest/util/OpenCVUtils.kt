@@ -7,6 +7,7 @@ import org.opencv.core.Scalar
 import org.opencv.core.Size
 import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
+import org.smartregister.fhircore.quest.ml.AntialiasedResize
 import timber.log.Timber
 import java.io.IOException
 
@@ -150,13 +151,20 @@ object OpenCVUtils {
 
     /**
      * Decodes [filePath] the way `cv2.imread(path)` does: 8-bit, 3-channel BGR,
-     * alpha dropped, EXIF orientation applied.
+     * alpha dropped, EXIF orientation applied unless [applyExifRotation] is
+     * false (`cv2.IMREAD_IGNORE_ORIENTATION`).
      *
      * @return A [CvType.CV_8UC3] Mat the caller must release, or `null` if the
      *         file cannot be decoded.
      */
-    fun readBgr(filePath: String): Mat? {
-        val mat = Imgcodecs.imread(filePath, Imgcodecs.IMREAD_COLOR)
+    fun readBgr(filePath: String, applyExifRotation: Boolean = true): Mat? {
+        val flags =
+            if (applyExifRotation) {
+                Imgcodecs.IMREAD_COLOR
+            } else {
+                Imgcodecs.IMREAD_COLOR or Imgcodecs.IMREAD_IGNORE_ORIENTATION
+            }
+        val mat = Imgcodecs.imread(filePath, flags)
         if (mat.empty() || mat.type() != CvType.CV_8UC3) {
             Timber.e("Failed to decode image as 8-bit BGR: %s", filePath)
             mat.release()
@@ -181,6 +189,25 @@ object OpenCVUtils {
             Imgproc.INTER_CUBIC,
         )
         return resized
+    }
+
+    /**
+     * Resizes a CV_8UC3 [source] to [width] × [height] as Pillow's antialiased
+     * bilinear resize does (see [AntialiasedResize]). The caller owns the returned Mat.
+     */
+    fun resizeBilinearAntialiased(source: Mat, width: Int, height: Int): Mat {
+        require(source.type() == CvType.CV_8UC3) {
+            "Expected a CV_8UC3 Mat, got ${CvType.typeToString(source.type())}"
+        }
+        val bytes =
+            AntialiasedResize.bilinear(
+                sourceWidth = source.cols(),
+                sourceHeight = source.rows(),
+                width = width,
+                height = height,
+                channels = source.channels(),
+            ) { row, into -> source.get(row, 0, into) }
+        return Mat(height, width, CvType.CV_8UC3).apply { put(0, 0, bytes) }
     }
 
     /**

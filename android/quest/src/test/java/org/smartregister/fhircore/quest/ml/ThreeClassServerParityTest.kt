@@ -20,12 +20,16 @@ import ai.onnxruntime.OrtEnvironment
 import android.content.Context
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import java.io.File
 import java.util.zip.ZipFile
 import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.math.abs
 import org.junit.AfterClass
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -46,6 +50,8 @@ import timber.log.Timber
  * combine rule, with the site's setting resolved by [AiModelSelector]. Only Android's asset loading
  * and the feature-flag source are faked. OpenCV and ONNX Runtime are the desktop builds of the
  * versions the app ships.
+ *
+ * Besides the classes, every score is compared: three per model, against the sheet's second tab.
  *
  * Skipped where the photos, the models (neither is in git) or the native libraries are missing.
  * Every run writes what the app answered to `quest/build/reports/three-class-server-parity.csv`.
@@ -80,6 +86,16 @@ class ThreeClassServerParityTest(private val photo: ServerResult) {
     )
   }
 
+  @Test
+  fun `both models give the server's score for every class`() {
+    val app = AppUnderTest.screen(photo, members = null)
+    val difference = app.largestScoreDifference(photo)
+    assertTrue(
+      "Scores of ${photo.id} differ by up to $difference; server: ${photo.scores}, app: ${app.scores}",
+      difference <= SCORE_TOLERANCE,
+    )
+  }
+
   /** The member's answer, on a site that runs only it and as saved on a site that runs both. */
   private fun assertMember(member: String, resultKeyPrefix: String, expected: Int) {
     val alone = AppUnderTest.screen(photo, members = member)
@@ -94,6 +110,13 @@ class ThreeClassServerParityTest(private val photo: ServerResult) {
   }
 
   companion object {
+    /**
+     * Largest allowed difference of a score (0–1). The last digits differ between the app and the
+     * server: by up to 0.0002 on the least certain photo. Every other
+     * photo preparation that was tried moves at least one score by 0.09 or more.
+     */
+    private const val SCORE_TOLERANCE = 0.001
+
     @JvmStatic
     @Parameterized.Parameters(name = "{0}")
     fun photos(): List<ServerResult> =
@@ -120,6 +143,18 @@ class ThreeClassServerSheetTest {
       emptyList<String>(),
       ServerSheet.photos.filter { file -> ServerSheet.rows.none { file in ServerSheet.photosOf(it) } }.map { it.name },
     )
+  }
+
+  @Test
+  fun `the sheet's scores give its classes`() {
+    ServerSheet.rows.forEach { row ->
+      assertEquals("Models with scores for ${row.id}", 2, row.scores.size)
+      assertEquals(
+        "Class with the highest score of ${row.id}",
+        listOf(row.model1, row.model2),
+        row.scores.map { scores -> scores.indices.maxByOrNull { scores[it] } },
+      )
+    }
   }
 
   @Test
@@ -156,8 +191,18 @@ class ThreeClassServerSheetTest {
   }
 }
 
-/** One row of the sheet: the server's class numbers for one photo. */
-data class ServerResult(val id: String, val model1: Int, val model2: Int, val combined: Int) {
+/**
+ * One photo's row: the server's class numbers.
+ *
+ * @property scores the server's probability per class number, for model 1 and then model 2.
+ */
+data class ServerResult(
+  val id: String,
+  val model1: Int,
+  val model2: Int,
+  val combined: Int,
+  val scores: List<List<Double>> = emptyList(),
+) {
   override fun toString() = id
 }
 
@@ -173,7 +218,7 @@ private fun className(number: Int): String =
 /** The ML team's photos and expected results. */
 private object ServerSheet {
   const val FOLDER = "docs/qa/images_3_class_model_testing"
-  private const val SHEET = "ImageIDs_for_3-class_model_testing.xlsx"
+  private const val SHEET = "ImageIDs_for_3-class_model_testing2.xlsx"
 
   /** Tests run in `quest/` under Gradle, and in `android/` under some IDE setups. */
   private val folder: File? = listOf(File("../$FOLDER"), File(FOLDER)).firstOrNull { it.isDirectory }
@@ -188,7 +233,7 @@ private object ServerSheet {
   /** Photo names are `<case id>_<photo id>_<time>.jpg`; the sheet lists the photo id. */
   fun photosOf(row: ServerResult): List<File> = photos.filter { row.id in it.nameWithoutExtension.split('_') }
 
-  /** Columns A–D of the first worksheet, below the header row. An .xlsx is a zip of XML parts. */
+  /** The classes from the first tab and the scores from the second. An .xlsx is a zip of XML parts. */
   private fun read(xlsx: File): List<ServerResult> =
     ZipFile(xlsx).use { zip ->
       fun elements(part: String, tag: String): List<Element> =
@@ -196,25 +241,50 @@ private object ServerSheet {
           DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(stream).documentElement.children(tag)
         }
       val strings = elements("xl/sharedStrings.xml", "si").map { it.textContent }
-      val table =
-        elements("xl/worksheets/sheet1.xml", "row").map { row ->
-          row.children("c").associate { cell ->
-            val value = cell.children("v").firstOrNull()?.textContent
-            val isText = cell.getAttribute("t") == "s"
-            cell.getAttribute("r").takeWhile { it.isLetter() } to
-              if (isText) value?.let { strings[it.toInt()] } else value
+      /** A tab's rows below the header, each a map of column letter to value. */
+      fun table(tab: Int, header: List<String>): List<Map<String, String?>> {
+        val rows =
+          elements("xl/worksheets/sheet$tab.xml", "row").map { row ->
+            row.children("c").associate { cell ->
+              val value = cell.children("v").firstOrNull()?.textContent
+              val isText = cell.getAttribute("t") == "s"
+              cell.getAttribute("r").takeWhile { it.isLetter() } to
+                if (isText) value?.let { strings[it.toInt()] } else value
+            }
           }
-        }
-      check(table.first()["B"] == "predicted_class_model1" && table.first()["C"] == "predicted_class_model2") {
-        "Unexpected columns in $xlsx: ${table.first()}"
+        val found = header.indices.map { rows.first()[('A' + it).toString()] }
+        check(found == header) { "Unexpected columns in tab $tab of $xlsx: $found" }
+        return rows.drop(1).filter { !it["A"].isNullOrBlank() }
       }
-      check(table.first()["D"] == "combined_predicted_class") { "Unexpected columns in $xlsx: ${table.first()}" }
-      fun Map<String, String?>.classNumber(column: String): Int =
-        checkNotNull(this[column]) { "No value in column $column of $this" }.toDouble().toInt()
-      table.drop(1).filter { !it["A"].isNullOrBlank() }.map {
-        ServerResult(it["A"]!!.trim(), it.classNumber("B"), it.classNumber("C"), it.classNumber("D"))
+      fun Map<String, String?>.number(column: Char): Double =
+        checkNotNull(this[column.toString()]) { "No value in column $column of $this" }.toDouble()
+
+      val scores =
+        table(2, SCORES_HEADER).associate { row ->
+          row["A"]!!.trim() to listOf('C'..'E', 'G'..'I').map { columns -> columns.map { row.number(it) } }
+        }
+      table(1, CLASSES_HEADER).map {
+        val id = it["A"]!!.trim()
+        ServerResult(
+          id = id,
+          model1 = it.number('B').toInt(),
+          model2 = it.number('C').toInt(),
+          combined = it.number('D').toInt(),
+          scores = checkNotNull(scores[id]) { "No scores for $id in $xlsx" },
+        )
       }
     }
+
+  private val CLASSES_HEADER
+    get() = listOf("filename", "predicted_class_model1", "predicted_class_model2", "combined_predicted_class")
+
+  private val SCORES_HEADER
+    get() =
+      listOf("filename") +
+        (1..2).flatMap { model ->
+          listOf("predicted_class_model$model") + (0..2).map { "prob_class${it}_model$model" }
+        } +
+        "combined_predicted_class"
 
   private fun Element.children(tag: String): List<Element> =
     getElementsByTagName(tag).let { nodes -> List(nodes.length) { nodes.item(it) as Element } }
@@ -262,15 +332,30 @@ private object AppUnderTest {
       val selection = selector.select(AiModelConfig(ModelCatalog.THREE_CLASS_MODEL_ID, members = members))
       check(selection is AiModelSelection.Ready && selection.active.ignoredSetting == null) { "$selection" }
       lastError = null
+      // The saved result has only the winning class's confidence, so the scores are read on the way.
+      var classification: PhotoClassification? = null
+      mockkObject(ScreeningOutputInterpreter)
       val result =
-        pipeline.process(
-          active = selection.active,
-          absolutePath = ServerSheet.photosOf(photo).single().absolutePath,
-          screeningId = null,
-          runAiInference = true,
-        )
+        try {
+          every { ScreeningOutputInterpreter.interpret(any(), any(), any(), any()) } answers
+            {
+              callOriginal().also { classification = it }
+            }
+          pipeline.process(
+            active = selection.active,
+            absolutePath = ServerSheet.photosOf(photo).single().absolutePath,
+            screeningId = null,
+            runAiInference = true,
+          )
+        } finally {
+          unmockkObject(ScreeningOutputInterpreter)
+        }
       assertNotNull("The app could not process ${photo.id}: $lastError", result)
-      Answer(result!!.resultMap)
+      val scores =
+        classification!!.members.map { member ->
+          (0..2).map { member.classProbabilities.getValue(className(it)).toDouble() }
+        }
+      Answer(result!!.resultMap, scores)
     }
 
   fun writeReport() {
@@ -285,20 +370,33 @@ private object AppUnderTest {
         val cells =
           listOf(server.id) +
             (0..2).flatMap { listOf(expected[it], actual[it], if (matches[it]) "match" else "MISMATCH") } +
-            listOf(app.memberConfidence("model6"), app.memberConfidence("model8"))
+            listOf(app.memberConfidence("model6"), app.memberConfidence("model8")) +
+            server.scores.flatten().zip(app.scores.flatten()).flatMap { (a, b) -> listOf(a, b) } +
+            app.largestScoreDifference(server)
         matches to cells.joinToString(",")
       }
     val header =
-      "photo,m1_server,m1_app,m1,m2_server,m2_app,m2,combined_server,combined_app,combined,m1_confidence,m2_confidence"
+      "photo,m1_server,m1_app,m1,m2_server,m2_app,m2,combined_server,combined_app,combined,m1_confidence,m2_confidence," +
+        (1..2).joinToString("") { m -> (0..2).joinToString("") { "m${m}_class${it}_server,m${m}_class${it}_app," } } +
+        "largest_score_difference"
     val report = File(if (File("src/main/assets").isDirectory) "build/reports" else "quest/build/reports")
     report.mkdirs()
     File(report, "three-class-server-parity.csv").writeText((listOf(header) + lines.map { it.second }).joinToString("\n", postfix = "\n"))
     val score = (0..2).map { column -> lines.count { it.first[column] } }
     println("App vs server, matching photos of ${lines.size}: m1=${score[0]} m2=${score[1]} combined=${score[2]}")
+    println("App vs server, largest score difference: ${both.maxOf { (key, app) -> app.largestScoreDifference(key.first) }}")
   }
 
-  /** The result map the camera screen saves from. */
-  class Answer(private val resultMap: Map<String, Any>) {
+  /**
+   * The result map the camera screen saves from.
+   *
+   * @property scores the probability per class number, for each model that ran.
+   */
+  class Answer(private val resultMap: Map<String, Any>, val scores: List<List<Double>>) {
+    /** For an answer of both models. */
+    fun largestScoreDifference(server: ServerResult): Double =
+      server.scores.flatten().zip(scores.flatten()).maxOf { (a, b) -> abs(a - b) }
+
     val prediction: Any? = resultMap[CameraxLauncherFragment.CAMERA_PREDICTION_KEY]
 
     fun memberPrediction(prefix: String): Any? = resultMap["${prefix}_prediction"]
